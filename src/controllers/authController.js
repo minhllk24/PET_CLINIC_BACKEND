@@ -66,9 +66,59 @@ const handleRefreshToken = async (req, res) => {
   }
 };
 
+const handleForgotPassword = async (req, res) => {
+  try {
+    if (!req.body.email) {
+      return sendResponse(res, 400, 'Missing email', 1);
+    }
+
+    let data = await authAPIService.forgotPassword(req.body.email);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleVerifyOtp = async (req, res) => {
+  try {
+    const { email, otp_code } = req.body;
+    if (!email || !otp_code) {
+      return sendResponse(res, 400, 'Missing email or otp_code', 1);
+    }
+
+    let data = await authAPIService.verifyOtp(email, otp_code);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleResetPassword = async (req, res) => {
+  try {
+    const { reset_token, new_password } = req.body;
+    if (!reset_token || !new_password) {
+      return sendResponse(res, 400, 'Missing reset_token or new_password', 1);
+    }
+    if (new_password.length < 8) {
+      return sendResponse(res, 400, 'Password must be at least 8 characters long', 1);
+    }
+
+    let data = await authAPIService.resetPassword(reset_token, new_password);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleRegister,
   handleLogin,
   handleLogout,
-  handleRefreshToken
+  handleRefreshToken,
+  handleForgotPassword,
+  handleVerifyOtp,
+  handleResetPassword
 };

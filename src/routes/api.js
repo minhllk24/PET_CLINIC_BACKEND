@@ -28,6 +28,11 @@ const initAPIRoutes = (app) => {
   router.post('/logout', authController.handleLogout);
   router.post('/refresh', authController.handleRefreshToken);
 
+  // --- FORGOT PASSWORD FLOW ---
+  router.post('/forgot-password', authController.handleForgotPassword);
+  router.post('/verify-otp', authController.handleVerifyOtp);
+  router.post('/reset-password', authController.handleResetPassword);
+
   // --- USER ROUTES ---
   router.get('/users', verifyToken, checkPermission(['ADMIN']), userController.handleGetAllUsers);
   router.get('/users/:id', verifyToken, userController.handleGetDetailUser);

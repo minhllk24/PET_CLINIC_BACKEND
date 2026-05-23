@@ -79,12 +79,14 @@ const createRecord = async (data, user) => {
     const newRecord = await prisma.medicalRecord.create({
       data: {
         pet_id: petId,
-        doctor_id: doctorId,
+        doctor_id: doctorId || (data.doctor_id ? toBigIntId(data.doctor_id) : null),
         appointment_id: data.appointment_id ? toBigIntId(data.appointment_id) : null,
+        record_name: data.record_name || 'Hồ sơ bệnh án mới',
         visit_date: data.visit_date ? new Date(data.visit_date) : new Date(),
+        symptoms: data.symptoms || null,
         diagnosis: data.diagnosis || null,
-        treatment: data.treatment || null,
-        notes: data.notes || null,
+        treatment_note: data.treatment_note || null,
+        created_by_user_id: toBigIntId(user.user_id),
         source_type: sourceType
       }
     });
@@ -129,10 +131,12 @@ const updateRecord = async (id, data, user) => {
     const updatedRecord = await prisma.medicalRecord.update({
       where: { record_id: recordId },
       data: {
+        record_name: data.record_name !== undefined ? data.record_name : record.record_name,
+        symptoms: data.symptoms !== undefined ? data.symptoms : record.symptoms,
         diagnosis: data.diagnosis !== undefined ? data.diagnosis : record.diagnosis,
-        treatment: data.treatment !== undefined ? data.treatment : record.treatment,
-        notes: data.notes !== undefined ? data.notes : record.notes,
-        visit_date: data.visit_date ? new Date(data.visit_date) : record.visit_date
+        treatment_note: data.treatment_note !== undefined ? data.treatment_note : record.treatment_note,
+        visit_date: data.visit_date ? new Date(data.visit_date) : record.visit_date,
+        doctor_id: data.doctor_id !== undefined ? (data.doctor_id ? toBigIntId(data.doctor_id) : null) : record.doctor_id
       }
     });
 

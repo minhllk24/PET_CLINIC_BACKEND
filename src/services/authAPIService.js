@@ -1,6 +1,8 @@
 import prisma from '../configs/prisma';
 import { hashPassword, comparePassword } from '../utils/passwordHelpers';
 import { generateAccessToken, generateRefreshToken, refreshNewTokenService } from '../utils/jwtHelpers';
+import { sendOtpEmail } from '../utils/emailHelpers';
+import { generateOtpCode, generateResetToken, verifyResetToken } from '../utils/otpHelpers';
 
 const registerNewUser = async (rawUserData) => {
   try {
@@ -109,8 +111,138 @@ const refreshNewToken = async (refreshToken) => {
   }
 };
 
+const forgotPassword = async (email) => {
+  try {
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (!user) {
+      return { EC: 2, EM: 'Email này chưa được đăng ký. Vui lòng tạo tài khoản mới.', DT: '' };
+    }
+
+    // Check if there is an OTP recently created that hasn't expired the resend timer
+    const recentOtp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        purpose: 'forgot_password',
+        resend_available_at: { gt: new Date() }
+      }
+    });
+
+    if (recentOtp) {
+      const waitTime = Math.ceil((recentOtp.resend_available_at - new Date()) / 1000);
+      return { EC: 1, EM: `Vui lòng chờ ${waitTime}s để gửi lại mã OTP`, DT: '' };
+    }
+
+    const otpCode = generateOtpCode();
+    
+    // Save OTP to db
+    await prisma.otpCode.create({
+      data: {
+        user_id: user.user_id,
+        email: user.email,
+        otp_code: otpCode,
+        purpose: 'forgot_password',
+        expires_at: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+        resend_available_at: new Date(Date.now() + 60 * 1000), // 60 seconds
+      }
+    });
+
+    // Send email
+    const isSent = await sendOtpEmail(email, otpCode);
+    if (!isSent) {
+      return { EC: -1, EM: 'Không thể gửi email OTP, vui lòng thử lại sau', DT: '' };
+    }
+
+    return { EC: 0, EM: 'Mã OTP đã được gửi đến email của bạn', DT: '' };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const verifyOtp = async (email, otpCode) => {
+  try {
+    // Find the latest valid OTP
+    const validOtp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        purpose: 'forgot_password',
+        used_at: null,
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    if (!validOtp) {
+      return { EC: 1, EM: 'Không tìm thấy yêu cầu khôi phục mật khẩu hoặc OTP đã bị hủy', DT: '' };
+    }
+
+    if (new Date() > validOtp.expires_at) {
+      return { EC: 1, EM: 'Mã OTP đã hết hạn', DT: '' };
+    }
+
+    if (validOtp.otp_code !== otpCode) {
+      // Increase attempt count
+      const updatedOtp = await prisma.otpCode.update({
+        where: { otp_id: validOtp.otp_id },
+        data: { attempt_count: validOtp.attempt_count + 1 }
+      });
+
+      if (updatedOtp.attempt_count >= 5) {
+        // Lock OTP
+        await prisma.otpCode.update({
+          where: { otp_id: validOtp.otp_id },
+          data: { used_at: new Date() }
+        });
+        return { EC: 1, EM: 'Mã OTP đã bị khóa do nhập sai quá nhiều lần', DT: '' };
+      }
+      return { EC: 1, EM: 'Mã OTP không chính xác', DT: '' };
+    }
+
+    // Mark as used
+    await prisma.otpCode.update({
+      where: { otp_id: validOtp.otp_id },
+      data: { used_at: new Date() }
+    });
+
+    // Generate reset token
+    const reset_token = generateResetToken({
+      user_id: validOtp.user_id.toString(),
+      email: validOtp.email,
+      purpose: 'reset_password'
+    });
+
+    return { EC: 0, EM: 'Xác thực OTP thành công', DT: { reset_token } };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const resetPassword = async (resetToken, newPassword) => {
+  try {
+    const decoded = verifyResetToken(resetToken);
+    if (!decoded) {
+      return { EC: -999, EM: 'Token không hợp lệ hoặc đã hết hạn', DT: '' };
+    }
+
+    const hashed_password = hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { user_id: BigInt(decoded.user_id) },
+      data: { password_hash: hashed_password }
+    });
+
+    return { EC: 0, EM: 'Mật khẩu đã được cập nhật thành công', DT: '' };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   registerNewUser,
   loginUser,
-  refreshNewToken
+  refreshNewToken,
+  forgotPassword,
+  verifyOtp,
+  resetPassword
 };
