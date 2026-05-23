@@ -1,0 +1,1494 @@
+// ============================================================
+// Prisma schema for Pet Clinic / Dr.Pet's House
+// Converted from the revised MySQL SQL script.
+// Notes:
+// - `payments.order_id` is required (NOT NULL).
+// - `reviews` does NOT contain `service_id` or `appointment_id`.
+// - `reviews.target_id` is polymorphic: target_type='product' => products.product_id,
+//   target_type='service' => services.service_id. Prisma cannot enforce this FK.
+// - SQL views are not converted; use Prisma queries or raw SQL for reporting views.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserStatus {
+  active
+  inactive
+  disabled
+}
+enum AuthProviderName {
+  google
+  facebook
+}
+enum OtpPurpose {
+  register
+  forgot_password
+  change_email
+  change_phone
+}
+enum NotificationChannel {
+  in_app
+  email
+  sms
+}
+enum ActiveStatus {
+  active
+  inactive
+}
+enum PetGender {
+  male
+  female
+  unknown
+}
+enum PetHealthStatus {
+  healthy
+  treating
+  need_recheck
+  unknown
+}
+enum PetStatus {
+  active
+  deleted
+}
+enum TimeSlotStatus {
+  available
+  full
+  locked
+  inactive
+}
+enum AppointmentStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  rescheduled
+}
+enum AppointmentPaymentStatus {
+  unpaid
+  waiting_store_payment
+  paid
+  refunded
+  failed
+}
+enum SurchargeConditionType {
+  age
+  weight
+  other
+}
+enum MedicalRecordSourceType {
+  doctor_created
+  user_uploaded
+  system_imported
+}
+enum DiaryStatus {
+  active
+  deleted
+}
+enum DiaryAttachmentGroup {
+  medical_file
+  invoice
+  other
+}
+enum ReminderType {
+  vaccination
+  deworming
+  routine_checkup
+  other
+}
+enum ReminderStatus {
+  pending
+  completed
+  cancelled
+}
+enum ProductStatus {
+  active
+  inactive
+  out_of_stock
+}
+enum CartStatus {
+  active
+  checked_out
+  abandoned
+}
+enum VoucherDiscountType {
+  percent
+  fixed
+}
+enum VoucherTargetType {
+  all
+  order
+  appointment
+}
+enum VoucherStatus {
+  active
+  inactive
+  expired
+}
+enum OrderType {
+  product
+  appointment
+}
+enum OrderStatus {
+  pending
+  confirmed
+  shipping
+  completed
+  cancelled
+}
+enum OrderPaymentStatus {
+  unpaid
+  paid
+  failed
+  refunded
+}
+enum OrderItemType {
+  product
+  service
+}
+enum PaymentTargetType {
+  order
+  appointment
+}
+enum PaymentMethod {
+  cod
+  online
+  store
+}
+enum PaymentStatus {
+  pending
+  waiting_store_payment
+  paid
+  failed
+  refunded
+  cancelled
+}
+enum RefundStatus {
+  requested
+  processing
+  completed
+  rejected
+}
+enum PointTransactionType {
+  earn
+  redeem
+  refund
+  adjust
+}
+enum ReviewTargetType {
+  product
+  service
+}
+enum ReviewStatus {
+  posted
+  rejected
+  deleted
+}
+enum PostType {
+  official_blog
+  community
+}
+enum PostStatus {
+  draft
+  published
+  hidden
+  deleted
+}
+enum CommentStatus {
+  visible
+  hidden
+  deleted
+}
+enum PublishStatus {
+  published
+  hidden
+  deleted
+}
+enum MediaType {
+  image
+  video
+}
+enum AdoptionPetStatus {
+  available
+  adopted
+  hidden
+}
+enum AdoptionRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+enum AiSessionType {
+  general
+  symptom
+}
+enum AiSessionStatus {
+  active
+  closed
+  expired
+}
+enum AiSenderType {
+  user
+  ai
+  system
+}
+enum SearchScope {
+  all
+  product
+  service
+  appointment
+  blog
+  rescue
+  adoption
+}
+
+// ============================================================
+// IDENTITY & ACCESS
+// ============================================================
+
+model Role {
+  role_id     BigInt   @id @default(autoincrement()) @db.BigInt
+  role_code   String   @unique @db.VarChar(50)
+  role_name   String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  created_at  DateTime @default(now()) @db.DateTime(0)
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  user_id            BigInt     @id @default(autoincrement()) @db.BigInt
+  role_id            BigInt     @db.BigInt
+  full_name          String     @db.VarChar(150)
+  email              String?    @unique @db.VarChar(150)
+  phone              String?    @unique @db.VarChar(20)
+  password_hash      String?    @db.VarChar(255)
+  avatar_url         String?    @db.VarChar(500)
+  status             UserStatus @default(active)
+  failed_login_count Int        @default(0)
+  terms_accepted_at  DateTime?  @db.DateTime(0)
+  created_at         DateTime   @default(now()) @db.DateTime(0)
+  updated_at         DateTime   @updatedAt @db.DateTime(0)
+
+  role Role @relation(fields: [role_id], references: [role_id], onDelete: Restrict, onUpdate: Cascade)
+
+  auth_providers              AuthProvider[]
+  otp_codes                   OtpCode[]
+  user_sessions               UserSession[]
+  user_addresses              UserAddress[]
+  notifications               Notification[]
+  staff_profile               StaffProfile?
+  doctor_profile              Doctor?
+  pets                        Pet[]
+  appointments                Appointment[]
+  appointment_status_changes  AppointmentStatusHistory[]
+  medical_records_created     MedicalRecord[] @relation("MedicalRecordCreator")
+  medical_attachments_uploaded MedicalRecordAttachment[]
+  health_diary_entries        HealthDiaryEntry[]
+  pet_reminders               PetReminder[]
+  carts                       Cart[]
+  orders                      Order[]
+  order_status_changes        OrderStatusHistory[]
+  payments                    Payment[]
+  receipts_created            Receipt[]
+  refunds_processed           Refund[]
+  voucher_usages              VoucherUsage[]
+  loyalty_account             LoyaltyAccount?
+  loyalty_point_transactions  LoyaltyPointTransaction[]
+  reviews                     Review[] @relation("ReviewAuthor")
+  reviews_moderated           Review[] @relation("ReviewAdmin")
+  posts                       Post[]
+  post_comments               PostComment[]
+  first_aid_guides_created    FirstAidGuide[]
+  rescue_posts_created        RescuePost[]
+  adoption_pets_created       AdoptionPet[]
+  adoption_requests           AdoptionRequest[] @relation("AdoptionRequestUser")
+  adoption_requests_reviewed  AdoptionRequest[] @relation("AdoptionRequestAdmin")
+  ai_chat_sessions            AiChatSession[]
+  search_logs                 SearchLog[]
+
+  @@index([role_id], map: "idx_users_role_id")
+  @@index([email], map: "idx_users_email")
+  @@index([phone], map: "idx_users_phone")
+  @@map("users")
+}
+
+model AuthProvider {
+  auth_provider_id BigInt           @id @default(autoincrement()) @db.BigInt
+  user_id          BigInt           @db.BigInt
+  provider_name    AuthProviderName
+  provider_user_id String           @db.VarChar(255)
+  provider_email   String?          @db.VarChar(150)
+  created_at       DateTime         @default(now()) @db.DateTime(0)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([provider_name, provider_user_id], map: "uq_auth_provider")
+  @@index([user_id], map: "idx_auth_providers_user_id")
+  @@map("auth_providers")
+}
+
+model OtpCode {
+  otp_id              BigInt     @id @default(autoincrement()) @db.BigInt
+  user_id             BigInt?    @db.BigInt
+  email               String?    @db.VarChar(150)
+  phone               String?    @db.VarChar(20)
+  otp_code            String     @db.VarChar(10)
+  purpose             OtpPurpose
+  expires_at          DateTime   @db.DateTime(0)
+  resend_available_at DateTime?  @db.DateTime(0)
+  used_at             DateTime?  @db.DateTime(0)
+  attempt_count       Int        @default(0)
+  created_at          DateTime   @default(now()) @db.DateTime(0)
+
+  user User? @relation(fields: [user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([user_id], map: "idx_otp_user_id")
+  @@index([email], map: "idx_otp_email")
+  @@index([phone], map: "idx_otp_phone")
+  @@map("otp_codes")
+}
+
+model UserSession {
+  session_id    BigInt    @id @default(autoincrement()) @db.BigInt
+  user_id       BigInt    @db.BigInt
+  session_token String    @unique @db.VarChar(255)
+  remember_me   Boolean   @default(false)
+  ip_address    String?   @db.VarChar(50)
+  user_agent    String?   @db.VarChar(255)
+  expires_at    DateTime  @db.DateTime(0)
+  revoked_at    DateTime? @db.DateTime(0)
+  created_at    DateTime  @default(now()) @db.DateTime(0)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id], map: "idx_sessions_user_id")
+  @@map("user_sessions")
+}
+
+model UserAddress {
+  address_id      BigInt   @id @default(autoincrement()) @db.BigInt
+  user_id         BigInt   @db.BigInt
+  recipient_name  String   @db.VarChar(150)
+  recipient_phone String   @db.VarChar(20)
+  address_line    String   @db.VarChar(255)
+  ward            String?  @db.VarChar(100)
+  district        String?  @db.VarChar(100)
+  province        String?  @db.VarChar(100)
+  is_default      Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.DateTime(0)
+
+  user   User    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  orders Order[]
+
+  @@index([user_id], map: "idx_user_addresses_user_id")
+  @@map("user_addresses")
+}
+
+model Notification {
+  notification_id   BigInt              @id @default(autoincrement()) @db.BigInt
+  user_id           BigInt              @db.BigInt
+  notification_type String              @db.VarChar(100)
+  title             String              @db.VarChar(255)
+  content           String?             @db.Text
+  channel           NotificationChannel @default(in_app)
+  is_read           Boolean             @default(false)
+  sent_at           DateTime?           @db.DateTime(0)
+  created_at        DateTime            @default(now()) @db.DateTime(0)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([user_id], map: "idx_notifications_user_id")
+  @@map("notifications")
+}
+
+// ============================================================
+// PET PROFILE
+// ============================================================
+
+model PetSpecies {
+  species_id   BigInt       @id @default(autoincrement()) @db.BigInt
+  species_name String       @unique @db.VarChar(100)
+  status       ActiveStatus @default(active)
+
+  breeds PetBreed[]
+  pets   Pet[]
+
+  @@map("pet_species")
+}
+
+model PetBreed {
+  breed_id     BigInt @id @default(autoincrement()) @db.BigInt
+  species_id   BigInt @db.BigInt
+  breed_name   String @db.VarChar(100)
+
+  species PetSpecies @relation(fields: [species_id], references: [species_id], onDelete: Restrict, onUpdate: Cascade)
+  pets    Pet[]
+
+  @@unique([species_id, breed_name], map: "uq_pet_breed")
+  @@map("pet_breeds")
+}
+
+model Pet {
+  pet_id                BigInt          @id @default(autoincrement()) @db.BigInt
+  owner_user_id          BigInt          @db.BigInt
+  species_id             BigInt          @db.BigInt
+  breed_id               BigInt?         @db.BigInt
+  pet_name               String          @db.VarChar(100)
+  gender                 PetGender       @default(unknown)
+  birth_date             DateTime?       @db.Date
+  weight_kg              Decimal?        @db.Decimal(5, 2)
+  profile_image_url      String?         @db.VarChar(500)
+  health_status          PetHealthStatus @default(unknown)
+  medical_note           String?         @db.Text
+  next_vaccination_date  DateTime?       @db.Date
+  status                 PetStatus       @default(active)
+  created_at             DateTime        @default(now()) @db.DateTime(0)
+  updated_at             DateTime        @updatedAt @db.DateTime(0)
+
+  owner        User       @relation(fields: [owner_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  species      PetSpecies @relation(fields: [species_id], references: [species_id], onDelete: Restrict, onUpdate: Cascade)
+  breed        PetBreed?  @relation(fields: [breed_id], references: [breed_id], onDelete: SetNull, onUpdate: Cascade)
+
+  pet_images              PetImage[]
+  appointments            Appointment[]
+  medical_records         MedicalRecord[]
+  pet_vaccination_history PetVaccinationHistory[]
+  health_diary_entries    HealthDiaryEntry[]
+  pet_reminders           PetReminder[]
+  ai_chat_sessions        AiChatSession[]
+
+  @@index([owner_user_id], map: "idx_pets_owner")
+  @@index([pet_name], map: "idx_pets_name")
+  @@index([species_id], map: "idx_pets_species_id")
+  @@index([breed_id], map: "idx_pets_breed_id")
+  @@map("pets")
+}
+
+model PetImage {
+  pet_image_id BigInt   @id @default(autoincrement()) @db.BigInt
+  pet_id       BigInt   @db.BigInt
+  image_url    String   @db.VarChar(500)
+  is_primary   Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.DateTime(0)
+
+  pet Pet @relation(fields: [pet_id], references: [pet_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([pet_id], map: "idx_pet_images_pet_id")
+  @@map("pet_images")
+}
+
+// ============================================================
+// CLINIC, DOCTOR, STAFF, SCHEDULE
+// ============================================================
+
+model Branch {
+  branch_id   BigInt       @id @default(autoincrement()) @db.BigInt
+  branch_name String       @db.VarChar(150)
+  address     String       @db.VarChar(255)
+  phone       String?      @db.VarChar(20)
+  email       String?      @db.VarChar(150)
+  status      ActiveStatus @default(active)
+
+  staff_profiles StaffProfile[]
+  doctors        Doctor[]
+  time_slots     TimeSlot[]
+  appointments   Appointment[]
+
+  @@map("branches")
+}
+
+model StaffProfile {
+  staff_id  BigInt       @id @default(autoincrement()) @db.BigInt
+  user_id   BigInt       @unique @db.BigInt
+  branch_id BigInt       @db.BigInt
+  position  String?      @db.VarChar(100)
+  status    ActiveStatus @default(active)
+
+  user     User      @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  branch   Branch    @relation(fields: [branch_id], references: [branch_id], onDelete: Restrict, onUpdate: Cascade)
+  payments Payment[]
+
+  @@index([branch_id], map: "idx_staff_branch_id")
+  @@map("staff_profiles")
+}
+
+model Doctor {
+  doctor_id      BigInt       @id @default(autoincrement()) @db.BigInt
+  user_id        BigInt       @unique @db.BigInt
+  branch_id      BigInt       @db.BigInt
+  doctor_name    String?      @db.VarChar(150)
+  bio            String?      @db.Text
+  avatar_url     String?      @db.VarChar(500)
+  average_rating Decimal      @default(0.00) @db.Decimal(3, 2)
+  status         ActiveStatus @default(active)
+
+  user                    User                    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  branch                  Branch                  @relation(fields: [branch_id], references: [branch_id], onDelete: Restrict, onUpdate: Cascade)
+  doctor_specialties      DoctorSpecialty[]
+  time_slots              TimeSlot[]
+  appointments            Appointment[]
+  medical_records         MedicalRecord[]
+  prescriptions           Prescription[]
+  pet_vaccination_history PetVaccinationHistory[]
+
+  @@index([branch_id], map: "idx_doctors_branch_id")
+  @@map("doctors")
+}
+
+model Specialty {
+  specialty_id   BigInt  @id @default(autoincrement()) @db.BigInt
+  specialty_name String  @unique @db.VarChar(150)
+  description    String? @db.Text
+
+  doctor_specialties DoctorSpecialty[]
+
+  @@map("specialties")
+}
+
+model DoctorSpecialty {
+  doctor_id    BigInt @db.BigInt
+  specialty_id BigInt @db.BigInt
+
+  doctor    Doctor    @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: Cascade)
+  specialty Specialty @relation(fields: [specialty_id], references: [specialty_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([doctor_id, specialty_id])
+  @@map("doctor_specialties")
+}
+
+model TimeSlot {
+  slot_id      BigInt         @id @default(autoincrement()) @db.BigInt
+  doctor_id    BigInt?        @db.BigInt
+  branch_id    BigInt         @db.BigInt
+  slot_date    DateTime       @db.Date
+  start_time   DateTime       @db.Time(0)
+  end_time     DateTime       @db.Time(0)
+  max_booking  Int            @default(1)
+  booked_count Int            @default(0)
+  status       TimeSlotStatus @default(available)
+
+  doctor       Doctor?       @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
+  branch       Branch        @relation(fields: [branch_id], references: [branch_id], onDelete: Restrict, onUpdate: Cascade)
+  appointments Appointment[]
+
+  @@index([doctor_id], map: "idx_time_slots_doctor_id")
+  @@index([branch_id], map: "idx_time_slots_branch_id")
+  @@map("time_slots")
+}
+
+// ============================================================
+// SERVICES & APPOINTMENTS
+// ============================================================
+
+model ServiceCategory {
+  service_category_id BigInt       @id @default(autoincrement()) @db.BigInt
+  category_name       String       @unique @db.VarChar(150)
+  description         String?      @db.Text
+  status              ActiveStatus @default(active)
+
+  services Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  service_id          BigInt       @id @default(autoincrement()) @db.BigInt
+  service_category_id BigInt       @db.BigInt
+  service_name        String       @db.VarChar(150)
+  description         String?      @db.Text
+  base_price          Decimal      @default(0.00) @db.Decimal(12, 2)
+  duration_minutes    Int          @default(30)
+  image_url           String?      @db.VarChar(500)
+  average_rating      Decimal      @default(0.00) @db.Decimal(3, 2)
+  status              ActiveStatus @default(active)
+
+  category             ServiceCategory     @relation(fields: [service_category_id], references: [service_category_id], onDelete: Restrict, onUpdate: Cascade)
+  service_surcharges   ServiceSurcharge[]
+  appointment_services AppointmentService[]
+  order_items          OrderItem[]
+
+  @@index([service_category_id], map: "idx_services_category_id")
+  @@map("services")
+}
+
+model ServiceSurcharge {
+  surcharge_id     BigInt                 @id @default(autoincrement()) @db.BigInt
+  service_id       BigInt                 @db.BigInt
+  condition_type   SurchargeConditionType
+  min_value        Decimal?               @db.Decimal(10, 2)
+  max_value        Decimal?               @db.Decimal(10, 2)
+  surcharge_amount Decimal                @default(0.00) @db.Decimal(12, 2)
+  description      String?                @db.VarChar(255)
+
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([service_id], map: "idx_surcharges_service_id")
+  @@map("service_surcharges")
+}
+
+model Appointment {
+  appointment_id          BigInt                   @id @default(autoincrement()) @db.BigInt
+  appointment_code        String                   @unique @db.VarChar(50)
+  user_id                 BigInt                   @db.BigInt
+  pet_id                  BigInt?                  @db.BigInt
+  branch_id               BigInt                   @db.BigInt
+  doctor_id               BigInt?                  @db.BigInt
+  slot_id                 BigInt                   @db.BigInt
+  customer_name_snapshot  String                   @db.VarChar(150)
+  customer_phone_snapshot String?                  @db.VarChar(20)
+  pet_name_snapshot       String?                  @db.VarChar(100)
+  pet_species_snapshot    String?                  @db.VarChar(100)
+  pet_breed_snapshot      String?                  @db.VarChar(100)
+  appointment_date        DateTime                 @db.Date
+  start_time              DateTime                 @db.Time(0)
+  note                    String?                  @db.Text
+  condition_description   String?                  @db.Text
+  status                  AppointmentStatus        @default(pending)
+  payment_status          AppointmentPaymentStatus @default(unpaid)
+  created_at              DateTime                 @default(now()) @db.DateTime(0)
+  updated_at              DateTime                 @updatedAt @db.DateTime(0)
+
+  user              User                       @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  pet               Pet?                       @relation(fields: [pet_id], references: [pet_id], onDelete: SetNull, onUpdate: Cascade)
+  branch            Branch                     @relation(fields: [branch_id], references: [branch_id], onDelete: Restrict, onUpdate: Cascade)
+  doctor            Doctor?                    @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
+  slot              TimeSlot                   @relation(fields: [slot_id], references: [slot_id], onDelete: Restrict, onUpdate: Cascade)
+  services          AppointmentService[]
+  status_history    AppointmentStatusHistory[]
+  medical_records   MedicalRecord[]
+  orders            Order[]
+  payments          Payment[]
+
+  @@index([user_id], map: "idx_appointments_user")
+  @@index([pet_id], map: "idx_appointments_pet")
+  @@index([appointment_date], map: "idx_appointments_date")
+  @@index([status], map: "idx_appointments_status")
+  @@index([payment_status], map: "idx_appointments_payment_status")
+  @@index([branch_id], map: "idx_appointments_branch_id")
+  @@index([doctor_id], map: "idx_appointments_doctor_id")
+  @@index([slot_id], map: "idx_appointments_slot_id")
+  @@map("appointments")
+}
+
+model AppointmentService {
+  appointment_service_id BigInt  @id @default(autoincrement()) @db.BigInt
+  appointment_id         BigInt  @db.BigInt
+  service_id             BigInt  @db.BigInt
+  quantity               Int     @default(1)
+  unit_price             Decimal @default(0.00) @db.Decimal(12, 2)
+  surcharge_amount       Decimal @default(0.00) @db.Decimal(12, 2)
+  total_price            Decimal @default(0.00) @db.Decimal(12, 2)
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: Cascade)
+  service     Service     @relation(fields: [service_id], references: [service_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([appointment_id], map: "idx_appointment_services_appointment_id")
+  @@index([service_id], map: "idx_appointment_services_service_id")
+  @@map("appointment_services")
+}
+
+model AppointmentStatusHistory {
+  history_id         BigInt   @id @default(autoincrement()) @db.BigInt
+  appointment_id     BigInt   @db.BigInt
+  old_status         String?  @db.VarChar(50)
+  new_status         String   @db.VarChar(50)
+  changed_by_user_id BigInt?  @db.BigInt
+  reason             String?  @db.Text
+  changed_at         DateTime @default(now()) @db.DateTime(0)
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade, onUpdate: Cascade)
+  changed_by  User?       @relation(fields: [changed_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([appointment_id], map: "idx_appointment_history_appointment_id")
+  @@index([changed_by_user_id], map: "idx_appointment_history_user_id")
+  @@map("appointment_status_history")
+}
+
+// ============================================================
+// MEDICAL RECORDS
+// ============================================================
+
+model MedicalRecord {
+  medical_record_id    BigInt                  @id @default(autoincrement()) @db.BigInt
+  pet_id               BigInt                  @db.BigInt
+  appointment_id       BigInt?                 @db.BigInt
+  doctor_id            BigInt?                 @db.BigInt
+  record_name          String                  @db.VarChar(255)
+  visit_date           DateTime                @db.Date
+  symptoms             String?                 @db.Text
+  diagnosis            String?                 @db.Text
+  treatment_note       String?                 @db.Text
+  created_by_user_id   BigInt                  @db.BigInt
+  source_type          MedicalRecordSourceType @default(doctor_created)
+  is_locked_for_customer Boolean               @default(true)
+  created_at           DateTime                @default(now()) @db.DateTime(0)
+  updated_at           DateTime                @updatedAt @db.DateTime(0)
+
+  pet          Pet          @relation(fields: [pet_id], references: [pet_id], onDelete: Cascade, onUpdate: Cascade)
+  appointment  Appointment? @relation(fields: [appointment_id], references: [appointment_id], onDelete: SetNull, onUpdate: Cascade)
+  doctor       Doctor?      @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
+  created_by   User         @relation("MedicalRecordCreator", fields: [created_by_user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  attachments  MedicalRecordAttachment[]
+  prescriptions Prescription[]
+
+  @@index([pet_id, visit_date], map: "idx_medical_records_pet_date")
+  @@index([appointment_id], map: "idx_medical_records_appointment_id")
+  @@index([doctor_id], map: "idx_medical_records_doctor_id")
+  @@index([created_by_user_id], map: "idx_medical_records_created_by_user_id")
+  @@map("medical_records")
+}
+
+model MedicalRecordAttachment {
+  attachment_id       BigInt   @id @default(autoincrement()) @db.BigInt
+  medical_record_id   BigInt   @db.BigInt
+  file_name           String   @db.VarChar(255)
+  file_url            String   @db.VarChar(500)
+  file_type           String   @db.VarChar(50)
+  file_size_kb        Int?
+  uploaded_by_user_id BigInt?  @db.BigInt
+  created_at          DateTime @default(now()) @db.DateTime(0)
+
+  medical_record MedicalRecord @relation(fields: [medical_record_id], references: [medical_record_id], onDelete: Cascade, onUpdate: Cascade)
+  uploaded_by    User?         @relation(fields: [uploaded_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([medical_record_id], map: "idx_medical_attachments_record_id")
+  @@index([uploaded_by_user_id], map: "idx_medical_attachments_user_id")
+  @@map("medical_record_attachments")
+}
+
+model Prescription {
+  prescription_id   BigInt   @id @default(autoincrement()) @db.BigInt
+  medical_record_id BigInt   @db.BigInt
+  doctor_id         BigInt?  @db.BigInt
+  note              String?  @db.Text
+  created_at        DateTime @default(now()) @db.DateTime(0)
+
+  medical_record MedicalRecord      @relation(fields: [medical_record_id], references: [medical_record_id], onDelete: Cascade, onUpdate: Cascade)
+  doctor         Doctor?            @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
+  items          PrescriptionItem[]
+
+  @@index([medical_record_id], map: "idx_prescriptions_record_id")
+  @@index([doctor_id], map: "idx_prescriptions_doctor_id")
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  prescription_item_id BigInt  @id @default(autoincrement()) @db.BigInt
+  prescription_id      BigInt  @db.BigInt
+  medicine_name        String  @db.VarChar(150)
+  dosage               String? @db.VarChar(100)
+  frequency            String? @db.VarChar(100)
+  duration             String? @db.VarChar(100)
+  instruction          String? @db.Text
+
+  prescription Prescription @relation(fields: [prescription_id], references: [prescription_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([prescription_id], map: "idx_prescription_items_prescription_id")
+  @@map("prescription_items")
+}
+
+model PetVaccinationHistory {
+  vaccination_id  BigInt   @id @default(autoincrement()) @db.BigInt
+  pet_id          BigInt   @db.BigInt
+  vaccine_name    String   @db.VarChar(150)
+  vaccinated_date DateTime? @db.Date
+  next_due_date   DateTime? @db.Date
+  doctor_id       BigInt?  @db.BigInt
+  note            String?  @db.Text
+  created_at      DateTime @default(now()) @db.DateTime(0)
+
+  pet    Pet     @relation(fields: [pet_id], references: [pet_id], onDelete: Cascade, onUpdate: Cascade)
+  doctor Doctor? @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([pet_id], map: "idx_vaccination_pet_id")
+  @@index([doctor_id], map: "idx_vaccination_doctor_id")
+  @@map("pet_vaccination_history")
+}
+
+// ============================================================
+// HEALTH DIARY & REMINDERS
+// ============================================================
+
+model HealthDiaryEntry {
+  diary_entry_id BigInt      @id @default(autoincrement()) @db.BigInt
+  pet_id         BigInt      @db.BigInt
+  user_id        BigInt      @db.BigInt
+  entry_date     DateTime    @db.Date
+  entry_time     DateTime?   @db.Time(0)
+  icon_code      String?     @db.VarChar(50)
+  color_code     String?     @db.VarChar(20)
+  title          String      @db.VarChar(150)
+  content        String?     @db.Text
+  status         DiaryStatus @default(active)
+  created_at     DateTime    @default(now()) @db.DateTime(0)
+  updated_at     DateTime    @updatedAt @db.DateTime(0)
+
+  pet         Pet                     @relation(fields: [pet_id], references: [pet_id], onDelete: Cascade, onUpdate: Cascade)
+  user        User                    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  attachments HealthDiaryAttachment[]
+
+  @@index([pet_id, entry_date], map: "idx_diary_pet_date")
+  @@index([user_id], map: "idx_diary_user_id")
+  @@map("health_diary_entries")
+}
+
+model HealthDiaryAttachment {
+  attachment_id    BigInt               @id @default(autoincrement()) @db.BigInt
+  diary_entry_id   BigInt               @db.BigInt
+  file_name        String               @db.VarChar(255)
+  file_url         String               @db.VarChar(500)
+  file_type        String               @db.VarChar(50)
+  file_size_kb     Int?
+  attachment_group DiaryAttachmentGroup @default(other)
+  created_at       DateTime             @default(now()) @db.DateTime(0)
+
+  diary_entry HealthDiaryEntry @relation(fields: [diary_entry_id], references: [diary_entry_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([diary_entry_id], map: "idx_diary_attachments_entry_id")
+  @@map("health_diary_attachments")
+}
+
+model PetReminder {
+  reminder_id        BigInt         @id @default(autoincrement()) @db.BigInt
+  pet_id             BigInt         @db.BigInt
+  user_id            BigInt         @db.BigInt
+  reminder_type      ReminderType
+  title              String         @db.VarChar(150)
+  remind_date        DateTime       @db.Date
+  remind_before_days Int            @default(3)
+  note               String?        @db.Text
+  status             ReminderStatus @default(pending)
+  completed_at       DateTime?      @db.DateTime(0)
+  created_at         DateTime       @default(now()) @db.DateTime(0)
+
+  pet  Pet  @relation(fields: [pet_id], references: [pet_id], onDelete: Cascade, onUpdate: Cascade)
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([pet_id], map: "idx_reminders_pet_id")
+  @@index([user_id], map: "idx_reminders_user_id")
+  @@map("pet_reminders")
+}
+
+// ============================================================
+// PRODUCTS, CARTS, ORDERS
+// ============================================================
+
+model ProductCategory {
+  product_category_id BigInt       @id @default(autoincrement()) @db.BigInt
+  parent_id           BigInt?      @db.BigInt
+  category_name       String       @db.VarChar(150)
+  image_url           String?      @db.VarChar(500)
+  status              ActiveStatus @default(active)
+
+  parent   ProductCategory?  @relation("ProductCategoryTree", fields: [parent_id], references: [product_category_id], onDelete: SetNull, onUpdate: Cascade)
+  children ProductCategory[] @relation("ProductCategoryTree")
+  products Product[]
+
+  @@index([parent_id], map: "idx_product_categories_parent_id")
+  @@map("product_categories")
+}
+
+model Product {
+  product_id          BigInt        @id @default(autoincrement()) @db.BigInt
+  product_category_id BigInt        @db.BigInt
+  product_name        String        @db.VarChar(200)
+  description         String?       @db.Text
+  price               Decimal       @default(0.00) @db.Decimal(12, 2)
+  stock_quantity      Int           @default(0)
+  average_rating      Decimal       @default(0.00) @db.Decimal(3, 2)
+  status              ProductStatus @default(active)
+  created_at          DateTime      @default(now()) @db.DateTime(0)
+  updated_at          DateTime      @updatedAt @db.DateTime(0)
+
+  category       ProductCategory @relation(fields: [product_category_id], references: [product_category_id], onDelete: Restrict, onUpdate: Cascade)
+  product_images ProductImage[]
+  cart_items     CartItem[]
+  order_items    OrderItem[]
+
+  @@index([product_name], map: "idx_products_name")
+  @@index([product_category_id], map: "idx_products_category")
+  @@index([status], map: "idx_products_status")
+  @@map("products")
+}
+
+model ProductImage {
+  product_image_id BigInt   @id @default(autoincrement()) @db.BigInt
+  product_id       BigInt   @db.BigInt
+  image_url        String   @db.VarChar(500)
+  is_primary       Boolean  @default(false)
+  created_at       DateTime @default(now()) @db.DateTime(0)
+
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([product_id], map: "idx_product_images_product_id")
+  @@map("product_images")
+}
+
+model Cart {
+  cart_id    BigInt     @id @default(autoincrement()) @db.BigInt
+  user_id    BigInt     @db.BigInt
+  status     CartStatus @default(active)
+  created_at DateTime   @default(now()) @db.DateTime(0)
+  updated_at DateTime   @updatedAt @db.DateTime(0)
+
+  user       User       @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  cart_items CartItem[]
+
+  @@index([user_id], map: "idx_carts_user_id")
+  @@map("carts")
+}
+
+model CartItem {
+  cart_item_id BigInt   @id @default(autoincrement()) @db.BigInt
+  cart_id      BigInt   @db.BigInt
+  product_id   BigInt   @db.BigInt
+  quantity     Int      @default(1)
+  unit_price   Decimal  @default(0.00) @db.Decimal(12, 2)
+  is_selected  Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.DateTime(0)
+
+  cart    Cart    @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade, onUpdate: Cascade)
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([cart_id], map: "idx_cart_items_cart_id")
+  @@index([product_id], map: "idx_cart_items_product_id")
+  @@map("cart_items")
+}
+
+model Voucher {
+  voucher_id          BigInt              @id @default(autoincrement()) @db.BigInt
+  voucher_code        String              @unique @db.VarChar(50)
+  voucher_name        String              @db.VarChar(150)
+  discount_type       VoucherDiscountType
+  discount_value      Decimal             @db.Decimal(12, 2)
+  max_discount_amount Decimal?            @db.Decimal(12, 2)
+  min_order_amount    Decimal             @default(0.00) @db.Decimal(12, 2)
+  target_type         VoucherTargetType   @default(all)
+  start_at            DateTime            @db.DateTime(0)
+  end_at              DateTime            @db.DateTime(0)
+  total_usage_limit   Int?
+  remaining_usage     Int?
+  status              VoucherStatus       @default(active)
+  created_at          DateTime            @default(now()) @db.DateTime(0)
+
+  orders         Order[]
+  voucher_usages VoucherUsage[]
+
+  @@map("vouchers")
+}
+
+model Order {
+  order_id               BigInt             @id @default(autoincrement()) @db.BigInt
+  order_code             String             @unique @db.VarChar(50)
+  order_type             OrderType          @default(product)
+  user_id                BigInt             @db.BigInt
+  appointment_id         BigInt?            @db.BigInt
+  address_id             BigInt?            @db.BigInt
+  voucher_id             BigInt?            @db.BigInt
+  recipient_name         String?            @db.VarChar(150)
+  recipient_phone        String?            @db.VarChar(20)
+  shipping_address       String?            @db.VarChar(255)
+  subtotal_amount        Decimal            @default(0.00) @db.Decimal(12, 2)
+  discount_amount        Decimal            @default(0.00) @db.Decimal(12, 2)
+  points_discount_amount Decimal            @default(0.00) @db.Decimal(12, 2)
+  shipping_fee           Decimal            @default(0.00) @db.Decimal(12, 2)
+  total_amount           Decimal            @default(0.00) @db.Decimal(12, 2)
+  order_status           OrderStatus        @default(pending)
+  payment_status         OrderPaymentStatus @default(unpaid)
+  created_at             DateTime           @default(now()) @db.DateTime(0)
+  updated_at             DateTime           @updatedAt @db.DateTime(0)
+
+  user             User                 @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  appointment      Appointment?         @relation(fields: [appointment_id], references: [appointment_id], onDelete: SetNull, onUpdate: Cascade)
+  address          UserAddress?         @relation(fields: [address_id], references: [address_id], onDelete: SetNull, onUpdate: Cascade)
+  voucher          Voucher?             @relation(fields: [voucher_id], references: [voucher_id], onDelete: SetNull, onUpdate: Cascade)
+  order_items      OrderItem[]
+  status_history   OrderStatusHistory[]
+  payments         Payment[]
+  reviews          Review[]
+
+  @@index([user_id], map: "idx_orders_user")
+  @@index([order_status], map: "idx_orders_status")
+  @@index([appointment_id], map: "idx_orders_appointment_id")
+  @@index([address_id], map: "idx_orders_address_id")
+  @@index([voucher_id], map: "idx_orders_voucher_id")
+  @@map("orders")
+}
+
+model OrderItem {
+  order_item_id      BigInt        @id @default(autoincrement()) @db.BigInt
+  order_id           BigInt        @db.BigInt
+  product_id         BigInt?       @db.BigInt
+  service_id         BigInt?       @db.BigInt
+  item_type          OrderItemType @default(product)
+  item_name_snapshot String        @db.VarChar(200)
+  quantity           Int           @default(1)
+  unit_price         Decimal       @default(0.00) @db.Decimal(12, 2)
+  total_price        Decimal       @default(0.00) @db.Decimal(12, 2)
+
+  order   Order    @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: Cascade)
+  product Product? @relation(fields: [product_id], references: [product_id], onDelete: SetNull, onUpdate: Cascade)
+  service Service? @relation(fields: [service_id], references: [service_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([order_id], map: "idx_order_items_order_id")
+  @@index([product_id], map: "idx_order_items_product_id")
+  @@index([service_id], map: "idx_order_items_service_id")
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  history_id         BigInt   @id @default(autoincrement()) @db.BigInt
+  order_id           BigInt   @db.BigInt
+  old_status         String?  @db.VarChar(50)
+  new_status         String   @db.VarChar(50)
+  changed_by_user_id BigInt?  @db.BigInt
+  note               String?  @db.Text
+  changed_at         DateTime @default(now()) @db.DateTime(0)
+
+  order      Order @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: Cascade)
+  changed_by User? @relation(fields: [changed_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([order_id], map: "idx_order_history_order_id")
+  @@index([changed_by_user_id], map: "idx_order_history_user_id")
+  @@map("order_status_history")
+}
+
+// ============================================================
+// PAYMENTS, RECEIPTS, REFUNDS, VOUCHERS, LOYALTY
+// ============================================================
+
+model Payment {
+  payment_id              BigInt            @id @default(autoincrement()) @db.BigInt
+  payment_code            String            @unique @db.VarChar(50)
+  user_id                 BigInt            @db.BigInt
+  order_id                BigInt            @db.BigInt
+  appointment_id          BigInt?           @db.BigInt
+  payment_target_type     PaymentTargetType @default(order)
+  payment_method          PaymentMethod
+  payment_gateway         String?           @db.VarChar(100)
+  gateway_transaction_id  String?           @db.VarChar(255)
+  subtotal_amount         Decimal           @default(0.00) @db.Decimal(12, 2)
+  voucher_discount_amount Decimal           @default(0.00) @db.Decimal(12, 2)
+  points_used             Int               @default(0)
+  points_discount_amount  Decimal           @default(0.00) @db.Decimal(12, 2)
+  final_amount            Decimal           @default(0.00) @db.Decimal(12, 2)
+  status                  PaymentStatus     @default(pending)
+  confirmed_by_staff_id   BigInt?           @db.BigInt
+  paid_at                 DateTime?         @db.DateTime(0)
+  created_at              DateTime          @default(now()) @db.DateTime(0)
+
+  user               User                      @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  order              Order                     @relation(fields: [order_id], references: [order_id], onDelete: Restrict, onUpdate: Cascade)
+  appointment        Appointment?              @relation(fields: [appointment_id], references: [appointment_id], onDelete: SetNull, onUpdate: Cascade)
+  confirmed_by_staff StaffProfile?             @relation(fields: [confirmed_by_staff_id], references: [staff_id], onDelete: SetNull, onUpdate: Cascade)
+  receipt            Receipt?
+  refunds            Refund[]
+  voucher_usages     VoucherUsage[]
+  point_transactions LoyaltyPointTransaction[]
+
+  @@index([user_id], map: "idx_payments_user")
+  @@index([order_id], map: "idx_payments_order")
+  @@index([status], map: "idx_payments_status")
+  @@index([appointment_id], map: "idx_payments_appointment_id")
+  @@index([confirmed_by_staff_id], map: "idx_payments_staff_id")
+  @@map("payments")
+}
+
+model Receipt {
+  receipt_id         BigInt   @id @default(autoincrement()) @db.BigInt
+  payment_id         BigInt   @unique @db.BigInt
+  receipt_code       String   @unique @db.VarChar(50)
+  receipt_url        String?  @db.VarChar(500)
+  issued_at          DateTime @default(now()) @db.DateTime(0)
+  created_by_user_id BigInt?  @db.BigInt
+
+  payment    Payment @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: Cascade)
+  created_by User?   @relation(fields: [created_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([created_by_user_id], map: "idx_receipts_creator_id")
+  @@map("receipts")
+}
+
+model Refund {
+  refund_id            BigInt       @id @default(autoincrement()) @db.BigInt
+  payment_id           BigInt       @db.BigInt
+  refund_code          String       @unique @db.VarChar(50)
+  amount               Decimal      @db.Decimal(12, 2)
+  reason               String?      @db.Text
+  status               RefundStatus @default(requested)
+  processed_by_user_id BigInt?      @db.BigInt
+  processed_at         DateTime?    @db.DateTime(0)
+  created_at           DateTime     @default(now()) @db.DateTime(0)
+
+  payment      Payment @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: Cascade)
+  processed_by User?   @relation(fields: [processed_by_user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([payment_id], map: "idx_refunds_payment_id")
+  @@index([processed_by_user_id], map: "idx_refunds_processor_id")
+  @@map("refunds")
+}
+
+model VoucherUsage {
+  voucher_usage_id BigInt   @id @default(autoincrement()) @db.BigInt
+  voucher_id       BigInt   @db.BigInt
+  user_id          BigInt   @db.BigInt
+  payment_id       BigInt   @db.BigInt
+  discount_amount  Decimal  @default(0.00) @db.Decimal(12, 2)
+  used_at          DateTime @default(now()) @db.DateTime(0)
+
+  voucher Voucher @relation(fields: [voucher_id], references: [voucher_id], onDelete: Restrict, onUpdate: Cascade)
+  user    User    @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  payment Payment @relation(fields: [payment_id], references: [payment_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([voucher_id], map: "idx_voucher_usages_voucher_id")
+  @@index([user_id], map: "idx_voucher_usages_user_id")
+  @@index([payment_id], map: "idx_voucher_usages_payment_id")
+  @@map("voucher_usages")
+}
+
+model LoyaltyAccount {
+  loyalty_account_id BigInt   @id @default(autoincrement()) @db.BigInt
+  user_id            BigInt   @unique @db.BigInt
+  current_points     Int      @default(0)
+  lifetime_points    Int      @default(0)
+  updated_at         DateTime @updatedAt @db.DateTime(0)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyPointTransaction {
+  point_transaction_id BigInt               @id @default(autoincrement()) @db.BigInt
+  user_id              BigInt               @db.BigInt
+  payment_id           BigInt?              @db.BigInt
+  transaction_type     PointTransactionType
+  points               Int
+  money_value          Decimal              @default(0.00) @db.Decimal(12, 2)
+  description          String?              @db.VarChar(255)
+  created_at           DateTime             @default(now()) @db.DateTime(0)
+
+  user    User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  payment Payment? @relation(fields: [payment_id], references: [payment_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([user_id], map: "idx_loyalty_transactions_user_id")
+  @@index([payment_id], map: "idx_loyalty_transactions_payment_id")
+  @@map("loyalty_point_transactions")
+}
+
+// ============================================================
+// REVIEWS
+// ============================================================
+
+model Review {
+  review_id            BigInt           @id @default(autoincrement()) @db.BigInt
+  user_id              BigInt           @db.BigInt
+  target_type          ReviewTargetType
+  target_id            BigInt           @db.BigInt
+  order_id             BigInt?          @db.BigInt
+  rating               Int              @db.TinyInt
+  comment              String?          @db.Text
+  status               ReviewStatus     @default(posted)
+  admin_note           String?          @db.Text
+  reviewed_by_admin_id BigInt?          @db.BigInt
+  reviewed_at          DateTime?        @db.DateTime(0)
+  created_at           DateTime         @default(now()) @db.DateTime(0)
+
+  user        User          @relation("ReviewAuthor", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  order       Order?        @relation(fields: [order_id], references: [order_id], onDelete: SetNull, onUpdate: Cascade)
+  reviewed_by User?         @relation("ReviewAdmin", fields: [reviewed_by_admin_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+  images      ReviewImage[]
+
+  @@index([target_type, target_id], map: "idx_reviews_target")
+  @@index([user_id], map: "idx_reviews_user_id")
+  @@index([order_id], map: "idx_reviews_order_id")
+  @@index([reviewed_by_admin_id], map: "idx_reviews_admin_id")
+  @@map("reviews")
+}
+
+model ReviewImage {
+  review_image_id BigInt   @id @default(autoincrement()) @db.BigInt
+  review_id       BigInt   @db.BigInt
+  image_url       String   @db.VarChar(500)
+  created_at      DateTime @default(now()) @db.DateTime(0)
+
+  review Review @relation(fields: [review_id], references: [review_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([review_id], map: "idx_review_images_review_id")
+  @@map("review_images")
+}
+
+// ============================================================
+// BLOG & COMMUNITY POSTS
+// ============================================================
+
+model PostCategory {
+  post_category_id BigInt       @id @default(autoincrement()) @db.BigInt
+  category_name    String       @unique @db.VarChar(150)
+  status           ActiveStatus @default(active)
+
+  posts Post[]
+
+  @@map("post_categories")
+}
+
+model Post {
+  post_id          BigInt     @id @default(autoincrement()) @db.BigInt
+  post_category_id BigInt     @db.BigInt
+  author_user_id   BigInt     @db.BigInt
+  post_type        PostType
+  title            String     @db.VarChar(255)
+  slug             String     @unique @db.VarChar(255)
+  thumbnail_url    String?    @db.VarChar(500)
+  content          String?    @db.LongText
+  status           PostStatus @default(draft)
+  view_count       Int        @default(0)
+  created_at       DateTime   @default(now()) @db.DateTime(0)
+  updated_at       DateTime   @updatedAt @db.DateTime(0)
+
+  category PostCategory @relation(fields: [post_category_id], references: [post_category_id], onDelete: Restrict, onUpdate: Cascade)
+  author   User         @relation(fields: [author_user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  comments PostComment[]
+
+  @@index([post_category_id], map: "idx_posts_category_id")
+  @@index([author_user_id], map: "idx_posts_author_id")
+  @@map("posts")
+}
+
+model PostComment {
+  comment_id        BigInt        @id @default(autoincrement()) @db.BigInt
+  post_id           BigInt        @db.BigInt
+  user_id           BigInt        @db.BigInt
+  parent_comment_id BigInt?       @db.BigInt
+  content           String        @db.Text
+  status            CommentStatus @default(visible)
+  created_at        DateTime      @default(now()) @db.DateTime(0)
+
+  post     Post          @relation(fields: [post_id], references: [post_id], onDelete: Cascade, onUpdate: Cascade)
+  user     User          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  parent   PostComment?  @relation("CommentReplies", fields: [parent_comment_id], references: [comment_id], onDelete: SetNull, onUpdate: Cascade)
+  children PostComment[] @relation("CommentReplies")
+
+  @@index([post_id], map: "idx_post_comments_post_id")
+  @@index([user_id], map: "idx_post_comments_user_id")
+  @@index([parent_comment_id], map: "idx_post_comments_parent_id")
+  @@map("post_comments")
+}
+
+// ============================================================
+// FIRST AID GUIDES
+// ============================================================
+
+model FirstAidCategory {
+  first_aid_category_id BigInt       @id @default(autoincrement()) @db.BigInt
+  category_name         String       @unique @db.VarChar(150)
+  status                ActiveStatus @default(active)
+
+  guides FirstAidGuide[]
+
+  @@map("first_aid_categories")
+}
+
+model FirstAidGuide {
+  guide_id              BigInt        @id @default(autoincrement()) @db.BigInt
+  first_aid_category_id BigInt        @db.BigInt
+  title                 String        @db.VarChar(255)
+  situation_description String        @db.Text
+  emergency_phone       String?       @db.VarChar(20)
+  video_url             String?       @db.VarChar(500)
+  status                PublishStatus @default(published)
+  created_by_admin_id   BigInt        @db.BigInt
+  created_at            DateTime      @default(now()) @db.DateTime(0)
+
+  category   FirstAidCategory @relation(fields: [first_aid_category_id], references: [first_aid_category_id], onDelete: Restrict, onUpdate: Cascade)
+  created_by User             @relation(fields: [created_by_admin_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  steps      FirstAidStep[]
+  media      FirstAidMedia[]
+
+  @@index([first_aid_category_id], map: "idx_first_aid_guides_category_id")
+  @@index([created_by_admin_id], map: "idx_first_aid_guides_admin_id")
+  @@map("first_aid_guides")
+}
+
+model FirstAidStep {
+  step_id      BigInt  @id @default(autoincrement()) @db.BigInt
+  guide_id     BigInt  @db.BigInt
+  step_number  Int
+  step_content String  @db.Text
+  image_url    String? @db.VarChar(500)
+
+  guide FirstAidGuide @relation(fields: [guide_id], references: [guide_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([guide_id], map: "idx_first_aid_steps_guide_id")
+  @@map("first_aid_steps")
+}
+
+model FirstAidMedia {
+  media_id     BigInt    @id @default(autoincrement()) @db.BigInt
+  guide_id     BigInt    @db.BigInt
+  media_type   MediaType
+  file_url     String    @db.VarChar(500)
+  file_size_kb Int?
+
+  guide FirstAidGuide @relation(fields: [guide_id], references: [guide_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([guide_id], map: "idx_first_aid_media_guide_id")
+  @@map("first_aid_media")
+}
+
+// ============================================================
+// RESCUE & ADOPTION
+// ============================================================
+
+model RescuePost {
+  rescue_post_id     BigInt        @id @default(autoincrement()) @db.BigInt
+  title              String        @db.VarChar(255)
+  content            String?       @db.LongText
+  thumbnail_url      String?       @db.VarChar(500)
+  contact_phone      String?       @db.VarChar(20)
+  external_link      String?       @db.VarChar(500)
+  status             PublishStatus @default(published)
+  created_by_admin_id BigInt       @db.BigInt
+  created_at         DateTime      @default(now()) @db.DateTime(0)
+
+  created_by User @relation(fields: [created_by_admin_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([created_by_admin_id], map: "idx_rescue_posts_admin_id")
+  @@map("rescue_posts")
+}
+
+model RescueStation {
+  station_id   BigInt       @id @default(autoincrement()) @db.BigInt
+  station_name String       @db.VarChar(150)
+  address      String?      @db.VarChar(255)
+  phone        String?      @db.VarChar(20)
+  fanpage_url  String?      @db.VarChar(500)
+  donation_url String?      @db.VarChar(500)
+  status       ActiveStatus @default(active)
+
+  @@map("rescue_stations")
+}
+
+model AdoptionPet {
+  adoption_pet_id      BigInt            @id @default(autoincrement()) @db.BigInt
+  name                 String            @db.VarChar(100)
+  species              String?           @db.VarChar(100)
+  age_text             String?           @db.VarChar(100)
+  region               String?           @db.VarChar(150)
+  personality          String?           @db.Text
+  description          String?           @db.Text
+  adoption_conditions  String?           @db.Text
+  status               AdoptionPetStatus @default(available)
+  created_by_admin_id  BigInt            @db.BigInt
+  created_at           DateTime          @default(now()) @db.DateTime(0)
+
+  created_by User                 @relation(fields: [created_by_admin_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
+  images     AdoptionPetImage[]
+  requests   AdoptionRequest[]
+
+  @@index([created_by_admin_id], map: "idx_adoption_pets_admin_id")
+  @@map("adoption_pets")
+}
+
+model AdoptionPetImage {
+  image_id        BigInt  @id @default(autoincrement()) @db.BigInt
+  adoption_pet_id BigInt  @db.BigInt
+  image_url       String  @db.VarChar(500)
+  is_primary      Boolean @default(false)
+
+  adoption_pet AdoptionPet @relation(fields: [adoption_pet_id], references: [adoption_pet_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([adoption_pet_id], map: "idx_adoption_pet_images_pet_id")
+  @@map("adoption_pet_images")
+}
+
+model AdoptionRequest {
+  adoption_request_id BigInt                @id @default(autoincrement()) @db.BigInt
+  adoption_pet_id     BigInt                @db.BigInt
+  user_id             BigInt                @db.BigInt
+  full_name           String                @db.VarChar(150)
+  address             String                @db.VarChar(255)
+  reason              String                @db.Text
+  housing_info        String?               @db.Text
+  experience          String?               @db.Text
+  status              AdoptionRequestStatus @default(pending)
+  rejection_reason    String?               @db.Text
+  reviewed_by_admin_id BigInt?              @db.BigInt
+  reviewed_at         DateTime?             @db.DateTime(0)
+  created_at          DateTime              @default(now()) @db.DateTime(0)
+
+  adoption_pet AdoptionPet @relation(fields: [adoption_pet_id], references: [adoption_pet_id], onDelete: Restrict, onUpdate: Cascade)
+  user         User        @relation("AdoptionRequestUser", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  reviewed_by  User?       @relation("AdoptionRequestAdmin", fields: [reviewed_by_admin_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([adoption_pet_id], map: "idx_adoption_requests_pet_id")
+  @@index([user_id], map: "idx_adoption_requests_user_id")
+  @@index([reviewed_by_admin_id], map: "idx_adoption_requests_admin_id")
+  @@map("adoption_requests")
+}
+
+// ============================================================
+// AI CHAT & SEARCH
+// ============================================================
+
+model AiChatSession {
+  ai_session_id  BigInt          @id @default(autoincrement()) @db.BigInt
+  user_id        BigInt          @db.BigInt
+  pet_id         BigInt?         @db.BigInt
+  ad_hoc_pet_info String?        @db.Text
+  session_type   AiSessionType   @default(symptom)
+  disclaimer_shown Boolean       @default(true)
+  started_at     DateTime        @default(now()) @db.DateTime(0)
+  expires_at     DateTime?       @db.DateTime(0)
+  status         AiSessionStatus @default(active)
+
+  user     User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  pet      Pet?            @relation(fields: [pet_id], references: [pet_id], onDelete: SetNull, onUpdate: Cascade)
+  messages AiChatMessage[]
+
+  @@index([user_id], map: "idx_ai_sessions_user_id")
+  @@index([pet_id], map: "idx_ai_sessions_pet_id")
+  @@map("ai_chat_sessions")
+}
+
+model AiChatMessage {
+  ai_message_id        BigInt       @id @default(autoincrement()) @db.BigInt
+  ai_session_id        BigInt       @db.BigInt
+  sender_type          AiSenderType
+  message_text         String       @db.Text
+  is_emergency_warning Boolean      @default(false)
+  created_at           DateTime     @default(now()) @db.DateTime(0)
+
+  session AiChatSession @relation(fields: [ai_session_id], references: [ai_session_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([ai_session_id], map: "idx_ai_messages_session_id")
+  @@map("ai_chat_messages")
+}
+
+model SearchLog {
+  search_log_id BigInt      @id @default(autoincrement()) @db.BigInt
+  user_id       BigInt?     @db.BigInt
+  keyword       String      @db.VarChar(255)
+  search_scope  SearchScope @default(all)
+  filters_json  Json?
+  created_at    DateTime    @default(now()) @db.DateTime(0)
+
+  user User? @relation(fields: [user_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([user_id], map: "idx_search_logs_user")
+  @@map("search_logs")
+}

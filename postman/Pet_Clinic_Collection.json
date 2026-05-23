@@ -1,0 +1,1329 @@
+{
+	"info": {
+		"_postman_id": "c13d8036-6c8f-4f67-8e10-1c6f3d9b895a",
+		"name": "Pet Clinic & E-Commerce API",
+		"description": "Full API Collection for Dr.Pet's House / Pet Clinic Backend.\n\nHướng dẫn:\n1. Import file này vào Postman.\n2. Gọi API Login trước tiên, token sẽ tự động lưu vào biến {{access_token}}.\n3. Tất cả API yêu cầu đăng nhập đã được set sẵn Header Authorization.\n\nTài khoản test (password: 12345678):\n- Admin: admin@petclinic.com\n- Doctor: doctor1@petclinic.com\n- Customer: customer1@petclinic.com",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if(jsonData.EC === 0 && jsonData.DT && jsonData.DT.access_token) {",
+									"    pm.collectionVariables.set('access_token', jsonData.DT.access_token);",
+									"    console.log('Access token saved!');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"login_id\": \"admin@petclinic.com\",\n    \"password\": \"12345678\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						}
+					}
+				},
+				{
+					"name": "Register",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"newuser@petclinic.com\",\n    \"password\": \"12345678\",\n    \"full_name\": \"New Customer\",\n    \"phone\": \"0987654321\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": ["{{base_url}}"],
+							"path": ["register"]
+						}
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/logout",
+							"host": ["{{base_url}}"],
+							"path": ["logout"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["refresh"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Users & Addresses",
+			"item": [
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"]
+						}
+					}
+				},
+				{
+					"name": "Get User Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"full_name\": \"Updated Name\",\n    \"phone\": \"0111222333\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete User (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get User Addresses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/1/addresses",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1", "addresses"]
+						}
+					}
+				},
+				{
+					"name": "Create Address",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"address_line\": \"123 ABC Street\",\n    \"ward\": \"Phuong 1\",\n    \"district\": \"Quan 1\",\n    \"province\": \"Ho Chi Minh\",\n    \"is_default\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/users/1/addresses",
+							"host": ["{{base_url}}"],
+							"path": ["users", "1", "addresses"]
+						}
+					}
+				},
+				{
+					"name": "Update Address",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"recipient_name\": \"Updated Name\",\n    \"recipient_phone\": \"0999888777\",\n    \"address_line\": \"456 XYZ Street\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/addresses/1",
+							"host": ["{{base_url}}"],
+							"path": ["addresses", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Address",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/addresses/1",
+							"host": ["{{base_url}}"],
+							"path": ["addresses", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Pets",
+			"item": [
+				{
+					"name": "Get All Species",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pets/species",
+							"host": ["{{base_url}}"],
+							"path": ["pets", "species"]
+						}
+					}
+				},
+				{
+					"name": "Get All Breeds",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pets/breeds",
+							"host": ["{{base_url}}"],
+							"path": ["pets", "breeds"]
+						}
+					}
+				},
+				{
+					"name": "Get My Pets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/my-pets",
+							"host": ["{{base_url}}"],
+							"path": ["my-pets"]
+						}
+					}
+				},
+				{
+					"name": "Get Pet Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pets/1",
+							"host": ["{{base_url}}"],
+							"path": ["pets", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Pet",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"species_id\": \"1\",\n    \"breed_id\": \"1\",\n    \"pet_name\": \"Milo\",\n    \"gender\": \"male\",\n    \"birth_date\": \"2024-01-15\",\n    \"weight_kg\": 3.5,\n    \"profile_image_url\": \"https://example.com/milo.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/pets",
+							"host": ["{{base_url}}"],
+							"path": ["pets"]
+						}
+					}
+				},
+				{
+					"name": "Update Pet",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_name\": \"Milo Updated\",\n    \"weight_kg\": 4.0\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/pets/1",
+							"host": ["{{base_url}}"],
+							"path": ["pets", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Pet",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/pets/1",
+							"host": ["{{base_url}}"],
+							"path": ["pets", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Product Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["categories"]
+						}
+					}
+				},
+				{
+					"name": "Create Category (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category_name\": \"Phụ kiện thú cưng\",\n    \"image_url\": \"https://example.com/category.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["categories"]
+						}
+					}
+				},
+				{
+					"name": "Update Category (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category_name\": \"Category Updated\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/categories/1",
+							"host": ["{{base_url}}"],
+							"path": ["categories", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Category (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/categories/1",
+							"host": ["{{base_url}}"],
+							"path": ["categories", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Products",
+			"item": [
+				{
+					"name": "Get All Products",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products",
+							"host": ["{{base_url}}"],
+							"path": ["products"]
+						}
+					}
+				},
+				{
+					"name": "Get Product Detail",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Product (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"stock_quantity\": 200\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/products",
+							"host": ["{{base_url}}"],
+							"path": ["products"]
+						}
+					}
+				},
+				{
+					"name": "Update Product (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"stock_quantity\": 150\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Product (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Cart",
+			"item": [
+				{
+					"name": "Get My Cart",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cart",
+							"host": ["{{base_url}}"],
+							"path": ["cart"]
+						}
+					}
+				},
+				{
+					"name": "Add to Cart",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_id\": \"1\",\n    \"quantity\": 2\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/cart",
+							"host": ["{{base_url}}"],
+							"path": ["cart"]
+						}
+					}
+				},
+				{
+					"name": "Update Cart Item",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"quantity\": 5,\n    \"is_selected\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/1",
+							"host": ["{{base_url}}"],
+							"path": ["cart", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Cart Item",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cart/1",
+							"host": ["{{base_url}}"],
+							"path": ["cart", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Orders",
+			"item": [
+				{
+					"name": "Get My Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/orders",
+							"host": ["{{base_url}}"],
+							"path": ["orders"]
+						}
+					}
+				},
+				{
+					"name": "Get Order Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/orders/1",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "1"]
+						}
+					}
+				},
+				{
+					"name": "Checkout Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/checkout",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "checkout"]
+						}
+					}
+				},
+				{
+					"name": "Update Order Status (Admin/Staff)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_status\": \"confirmed\",\n    \"note\": \"Da xac nhan don hang\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "1", "status"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "8. Payments",
+			"item": [
+				{
+					"name": "Get All Payments (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments",
+							"host": ["{{base_url}}"],
+							"path": ["payments"]
+						}
+					}
+				},
+				{
+					"name": "Update Payment Status (Admin/Staff)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"paid\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/payments/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["payments", "1", "status"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "9. Clinic Services",
+			"item": [
+				{
+					"name": "Get All Services",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/services",
+							"host": ["{{base_url}}"],
+							"path": ["services"]
+						}
+					}
+				},
+				{
+					"name": "Get Service Categories",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/services/categories",
+							"host": ["{{base_url}}"],
+							"path": ["services", "categories"]
+						}
+					}
+				},
+				{
+					"name": "Get Service Detail",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/services/1",
+							"host": ["{{base_url}}"],
+							"path": ["services", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Service (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"service_category_id\": \"1\",\n    \"service_name\": \"Tiem phong dai\",\n    \"description\": \"Tiem phong dai cho thu cung\",\n    \"base_price\": 200000,\n    \"duration_minutes\": 15\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/services",
+							"host": ["{{base_url}}"],
+							"path": ["services"]
+						}
+					}
+				},
+				{
+					"name": "Update Service (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"service_name\": \"Service Updated\",\n    \"base_price\": 300000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/services/1",
+							"host": ["{{base_url}}"],
+							"path": ["services", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Service (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/services/1",
+							"host": ["{{base_url}}"],
+							"path": ["services", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "10. Appointments",
+			"item": [
+				{
+					"name": "Get Available Slots",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/appointments/slots?date=2026-05-24&branch_id=1",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "slots"],
+							"query": [
+								{ "key": "date", "value": "2026-05-24" },
+								{ "key": "branch_id", "value": "1" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Appointment History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/appointments/my-history",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "my-history"]
+						}
+					}
+				},
+				{
+					"name": "Get Appointment Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/appointments/1",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "1"]
+						}
+					}
+				},
+				{
+					"name": "Book Appointment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"branch_id\": \"1\",\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"appointment_date\": \"2026-05-24\",\n    \"start_time\": \"2026-05-24T08:00:00Z\",\n    \"note\": \"Meo bi ho\",\n    \"services\": [\n        {\n            \"service_id\": \"1\",\n            \"quantity\": 1\n        }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments",
+							"host": ["{{base_url}}"],
+							"path": ["appointments"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Appointment",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Khach hang huy do ban\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/1/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "1", "cancel"]
+						}
+					}
+				},
+				{
+					"name": "Update Appointment Status (Admin/Staff/Doctor)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"confirmed\",\n    \"reason\": \"Da xac nhan lich hen\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "1", "status"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "11. Medical Records",
+			"item": [
+				{
+					"name": "Get Records By Pet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/medical-records/pet/1",
+							"host": ["{{base_url}}"],
+							"path": ["medical-records", "pet", "1"]
+						}
+					}
+				},
+				{
+					"name": "Get Record Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/medical-records/1",
+							"host": ["{{base_url}}"],
+							"path": ["medical-records", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Medical Record",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_id\": \"1\",\n    \"appointment_id\": \"1\",\n    \"record_name\": \"Kham tong quat 24/05\",\n    \"visit_date\": \"2026-05-24\",\n    \"symptoms\": \"Ho, so mui\",\n    \"diagnosis\": \"Cam lanh nhe\",\n    \"treatment_note\": \"Cho uong thuoc 3 ngay\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/medical-records",
+							"host": ["{{base_url}}"],
+							"path": ["medical-records"]
+						}
+					}
+				},
+				{
+					"name": "Update Medical Record",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"diagnosis\": \"Updated diagnosis\",\n    \"treatment_note\": \"Updated treatment\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/medical-records/1",
+							"host": ["{{base_url}}"],
+							"path": ["medical-records", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Medical Record",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/medical-records/1",
+							"host": ["{{base_url}}"],
+							"path": ["medical-records", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "12. Health Diary",
+			"item": [
+				{
+					"name": "Get Diaries By Pet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health-diaries/pet/1",
+							"host": ["{{base_url}}"],
+							"path": ["health-diaries", "pet", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Diary Entry",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_id\": \"1\",\n    \"entry_date\": \"2026-05-24\",\n    \"title\": \"Milo an uong tot\",\n    \"content\": \"Hom nay Milo an het bat com, vui ve\",\n    \"icon_code\": \"happy\",\n    \"color_code\": \"#4CAF50\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/health-diaries",
+							"host": ["{{base_url}}"],
+							"path": ["health-diaries"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "13. Reminders",
+			"item": [
+				{
+					"name": "Get Reminders By Pet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reminders/pet/1",
+							"host": ["{{base_url}}"],
+							"path": ["reminders", "pet", "1"]
+						}
+					}
+				},
+				{
+					"name": "Create Reminder",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_id\": \"1\",\n    \"reminder_type\": \"vaccination\",\n    \"title\": \"Tiem phong dai dot 2\",\n    \"remind_date\": \"2026-06-15\",\n    \"remind_before_days\": 3,\n    \"note\": \"Nho mang so tiem chung\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/reminders",
+							"host": ["{{base_url}}"],
+							"path": ["reminders"]
+						}
+					}
+				},
+				{
+					"name": "Complete Reminder",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reminders/1/complete",
+							"host": ["{{base_url}}"],
+							"path": ["reminders", "1", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Delete Reminder",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reminders/1",
+							"host": ["{{base_url}}"],
+							"path": ["reminders", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "14. Reviews",
+			"item": [
+				{
+					"name": "Get Reviews By Target",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reviews/target/product/1",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "target", "product", "1"],
+							"description": "targetType: product | service\ntargetId: ID cua san pham hoac dich vu"
+						}
+					}
+				},
+				{
+					"name": "Create Review",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"target_type\": \"product\",\n    \"target_id\": \"1\",\n    \"order_id\": \"1\",\n    \"rating\": 5,\n    \"comment\": \"San pham rat tot, be meo nha minh rat thich!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews",
+							"host": ["{{base_url}}"],
+							"path": ["reviews"]
+						}
+					}
+				},
+				{
+					"name": "Reject Review (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"admin_note\": \"Noi dung khong phu hop\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/1/reject",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "1", "reject"]
+						}
+					}
+				},
+				{
+					"name": "Delete Review (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reviews/1/delete",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "1", "delete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "15. Vouchers & Loyalty",
+			"item": [
+				{
+					"name": "Get All Vouchers (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/vouchers",
+							"host": ["{{base_url}}"],
+							"path": ["vouchers"]
+						}
+					}
+				},
+				{
+					"name": "Create Voucher (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"voucher_code\": \"SUMMER20\",\n    \"voucher_name\": \"Khuyen mai he 20%\",\n    \"discount_type\": \"percent\",\n    \"discount_value\": 20,\n    \"max_discount_amount\": 100000,\n    \"min_order_amount\": 200000,\n    \"target_type\": \"order\",\n    \"start_at\": \"2026-06-01T00:00:00Z\",\n    \"end_at\": \"2026-08-31T23:59:59Z\",\n    \"total_usage_limit\": 100,\n    \"remaining_usage\": 100\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/vouchers",
+							"host": ["{{base_url}}"],
+							"path": ["vouchers"]
+						}
+					}
+				},
+				{
+					"name": "Apply Voucher",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"voucher_code\": \"WELCOME10\",\n    \"order_amount\": 500000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/vouchers/apply",
+							"host": ["{{base_url}}"],
+							"path": ["vouchers", "apply"]
+						}
+					}
+				},
+				{
+					"name": "Get My Loyalty Points",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/loyalty/my-points",
+							"host": ["{{base_url}}"],
+							"path": ["loyalty", "my-points"]
+						}
+					}
+				},
+				{
+					"name": "Get My Loyalty Transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/loyalty/transactions",
+							"host": ["{{base_url}}"],
+							"path": ["loyalty", "transactions"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "16. Blog & Posts",
+			"item": [
+				{
+					"name": "Get All Posts",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts",
+							"host": ["{{base_url}}"],
+							"path": ["posts"]
+						}
+					}
+				},
+				{
+					"name": "Get Post By Slug",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/sample-post-slug",
+							"host": ["{{base_url}}"],
+							"path": ["posts", "sample-post-slug"]
+						}
+					}
+				},
+				{
+					"name": "Create Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"slug\": \"chia-se-kinh-nghiem-nuoi-meo\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/posts",
+							"host": ["{{base_url}}"],
+							"path": ["posts"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "17. First Aid Guides",
+			"item": [
+				{
+					"name": "Get All First Aid Guides",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/first-aid/guides",
+							"host": ["{{base_url}}"],
+							"path": ["first-aid", "guides"]
+						}
+					}
+				},
+				{
+					"name": "Create First Aid Guide (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xu ly khi thu cung bi say nong\",\n    \"situation_description\": \"Thu cung bi say nong khi troi nang nong, bieu hien: tho nhanh, lim dim...\",\n    \"emergency_phone\": \"0901234567\",\n    \"steps\": [\n        { \"step_number\": 1, \"step_content\": \"Dua thu cung vao cho mat\" },\n        { \"step_number\": 2, \"step_content\": \"Cho uong nuoc tu tu\" },\n        { \"step_number\": 3, \"step_content\": \"Dap khan uot len co\" }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/first-aid/guides",
+							"host": ["{{base_url}}"],
+							"path": ["first-aid", "guides"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "18. AI Chat",
+			"item": [
+				{
+					"name": "Get My AI Chat Sessions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/ai-chat/sessions",
+							"host": ["{{base_url}}"],
+							"path": ["ai-chat", "sessions"]
+						}
+					}
+				},
+				{
+					"name": "Create AI Chat Session",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_id\": \"1\",\n    \"session_type\": \"symptom\",\n    \"message\": \"Meo nha toi bi ho va so mui 2 ngay roi, can lam gi?\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/ai-chat/sessions",
+							"host": ["{{base_url}}"],
+							"path": ["ai-chat", "sessions"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "19. Rescue & Adoption",
+			"item": [
+				{
+					"name": "Get Rescue Stations",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/rescue/stations",
+							"host": ["{{base_url}}"],
+							"path": ["rescue", "stations"]
+						}
+					}
+				},
+				{
+					"name": "Get Rescue Posts",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/rescue/posts",
+							"host": ["{{base_url}}"],
+							"path": ["rescue", "posts"]
+						}
+					}
+				},
+				{
+					"name": "Get Adoption Pets",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/adoptions/pets",
+							"host": ["{{base_url}}"],
+							"path": ["adoptions", "pets"]
+						}
+					}
+				},
+				{
+					"name": "Create Adoption Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"adoption_pet_id\": \"1\",\n    \"full_name\": \"Nguyen Van A\",\n    \"address\": \"123 ABC Street, HCMC\",\n    \"reason\": \"Toi rat yeu dong vat va muon nhan nuoi em nay\",\n    \"housing_info\": \"Nha rieng, co san vuon rong\",\n    \"experience\": \"Da nuoi 2 con meo truoc do\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/adoptions/requests",
+							"host": ["{{base_url}}"],
+							"path": ["adoptions", "requests"]
+						}
+					}
+				},
+				{
+					"name": "Get My Adoption Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/adoptions/my-requests",
+							"host": ["{{base_url}}"],
+							"path": ["adoptions", "my-requests"]
+						}
+					}
+				},
+				{
+					"name": "Update Adoption Request Status (Admin)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"approved\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/adoptions/requests/1/status",
+							"host": ["{{base_url}}"],
+							"path": ["adoptions", "requests", "1", "status"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080/api/v1"
+		},
+		{
+			"key": "access_token",
+			"value": ""
+		}
+	]
+}
