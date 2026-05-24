@@ -42,7 +42,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"login_id\": \"admin@petclinic.com\",\n    \"password\": \"12345678\"\n}",
+							"raw": "{\n    \"login_id\": \"admin@petclinic.com\",\n    \"password\": \"12345678\",\n    \"remember_me\": true\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -60,13 +60,31 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"newuser@petclinic.com\",\n    \"password\": \"12345678\",\n    \"full_name\": \"New Customer\",\n    \"phone\": \"0987654321\"\n}",
+							"raw": "{\n    \"email\": \"newuser@petclinic.com\",\n    \"password\": \"Password123\",\n    \"full_name\": \"New Customer\",\n    \"phone\": \"0987654321\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
 							"raw": "{{base_url}}/register",
 							"host": ["{{base_url}}"],
 							"path": ["register"]
+						}
+					}
+				},
+				{
+					"name": "Verify Register OTP",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"login_id\": \"newuser@petclinic.com\",\n    \"otp_code\": \"123456\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/verify-register-otp",
+							"host": ["{{base_url}}"],
+							"path": ["verify-register-otp"]
 						}
 					}
 				},
@@ -154,6 +172,23 @@
 							"raw": "{{base_url}}/reset-password",
 							"host": ["{{base_url}}"],
 							"path": ["reset-password"]
+						}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"old_password\": \"Password123\",\n  \"new_password\": \"NewPassword123\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["change-password"]
 						}
 					}
 				}
@@ -678,8 +713,21 @@
 			]
 		},
 		{
-			"name": "9. Clinic Services",
+			"name": "9. Clinic Services & Branches",
 			"item": [
+				{
+					"name": "Get All Branches",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/branches",
+							"host": ["{{base_url}}"],
+							"path": ["branches"]
+						}
+					}
+				},
 				{
 					"name": "Get All Services",
 					"request": {
@@ -897,9 +945,18 @@
 						"method": "POST",
 						"header": [],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"pet_id\": \"1\",\n    \"doctor_id\": \"1\",\n    \"appointment_id\": \"1\",\n    \"record_name\": \"Kham tong quat 24/05\",\n    \"visit_date\": \"2026-05-24\",\n    \"symptoms\": \"Ho, so mui\",\n    \"diagnosis\": \"Cam lanh nhe\",\n    \"treatment_note\": \"Cho uong thuoc 3 ngay\",\n    \"attachments\": [\n        {\n            \"file_url\": \"https://example.com/x-quang.jpg\",\n            \"file_type\": \"image\",\n            \"file_name\": \"X-Quang Phổi\"\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "pet_id", "value": "1", "type": "text" },
+								{ "key": "doctor_id", "value": "1", "type": "text" },
+								{ "key": "appointment_id", "value": "1", "type": "text" },
+								{ "key": "record_name", "value": "Kham tong quat 24/05", "type": "text" },
+								{ "key": "visit_date", "value": "2026-05-24", "type": "text" },
+								{ "key": "symptoms", "value": "Ho, so mui", "type": "text" },
+								{ "key": "diagnosis", "value": "Cam lanh nhe", "type": "text" },
+								{ "key": "treatment_note", "value": "Cho uong thuoc 3 ngay", "type": "text" },
+								{ "key": "attachments", "type": "file", "src": [] }
+							]
 						},
 						"url": {
 							"raw": "{{base_url}}/medical-records",

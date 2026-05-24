@@ -92,13 +92,28 @@ const createRecord = async (data, user) => {
     });
 
     // Add attachments if provided
+    let attData = [];
     if (data.attachments && Array.isArray(data.attachments)) {
-      const attData = data.attachments.map(att => ({
+      attData = data.attachments.map(att => ({
         record_id: newRecord.record_id,
         file_url: att.file_url,
         file_type: att.file_type || 'image',
         file_name: att.file_name || 'Attachment'
       }));
+    }
+    
+    // Add uploaded files from multer
+    if (data.files && Array.isArray(data.files)) {
+      const fileAttData = data.files.map(file => ({
+        record_id: newRecord.record_id,
+        file_url: `/uploads/${file.filename}`,
+        file_type: file.mimetype.startsWith('image/') ? 'image' : 'document',
+        file_name: file.originalname
+      }));
+      attData = [...attData, ...fileAttData];
+    }
+
+    if (attData.length > 0) {
       await prisma.medicalRecordAttachment.createMany({ data: attData });
     }
 
@@ -139,6 +154,17 @@ const updateRecord = async (id, data, user) => {
         doctor_id: data.doctor_id !== undefined ? (data.doctor_id ? toBigIntId(data.doctor_id) : null) : record.doctor_id
       }
     });
+
+    // Add new uploaded files from multer
+    if (data.files && Array.isArray(data.files)) {
+      const fileAttData = data.files.map(file => ({
+        record_id: recordId,
+        file_url: `/uploads/${file.filename}`,
+        file_type: file.mimetype.startsWith('image/') ? 'image' : 'document',
+        file_name: file.originalname
+      }));
+      await prisma.medicalRecordAttachment.createMany({ data: fileAttData });
+    }
 
     return { EM: 'Update record successful', EC: 0, DT: updatedRecord };
   } catch (error) {

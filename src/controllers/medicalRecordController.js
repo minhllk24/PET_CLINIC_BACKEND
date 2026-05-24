@@ -25,7 +25,11 @@ const handleGetDetailRecord = async (req, res) => {
 
 const handleCreateRecord = async (req, res) => {
   try {
-    let data = await medicalRecordAPIService.createRecord(req.body, req.user);
+    let payload = { ...req.body };
+    if (req.files && req.files.length > 0) {
+      payload.files = req.files;
+    }
+    let data = await medicalRecordAPIService.createRecord(payload, req.user);
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
@@ -36,7 +40,11 @@ const handleCreateRecord = async (req, res) => {
 const handleUpdateRecord = async (req, res) => {
   try {
     const id = req.params.id;
-    let data = await medicalRecordAPIService.updateRecord(id, req.body, req.user);
+    let payload = { ...req.body };
+    if (req.files && req.files.length > 0) {
+      payload.files = req.files;
+    }
+    let data = await medicalRecordAPIService.updateRecord(id, payload, req.user);
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);

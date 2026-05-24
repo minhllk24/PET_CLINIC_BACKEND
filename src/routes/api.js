@@ -10,6 +10,7 @@ import clinicServiceController from '../controllers/clinicServiceController';
 import appointmentController from '../controllers/appointmentController';
 import medicalRecordController from '../controllers/medicalRecordController';
 import healthDiaryController from '../controllers/healthDiaryController';
+import branchController from '../controllers/branchController';
 
 // Phase 4 controllers
 import reviewController from '../controllers/reviewController';
@@ -18,12 +19,14 @@ import contentController from '../controllers/contentController';
 import rescueController from '../controllers/rescueController';
 
 import { authMiddleware as verifyToken, requireRole as checkPermission } from '../middleware/authMiddleware';
+import upload from '../middleware/uploadMiddleware';
 
 const router = express.Router();
 
 const initAPIRoutes = (app) => {
   // --- AUTH ROUTES ---
   router.post('/register', authController.handleRegister);
+  router.post('/verify-register-otp', authController.handleVerifyRegisterOtp);
   router.post('/login', authController.handleLogin);
   router.post('/logout', authController.handleLogout);
   router.post('/refresh', authController.handleRefreshToken);
@@ -32,6 +35,7 @@ const initAPIRoutes = (app) => {
   router.post('/forgot-password', authController.handleForgotPassword);
   router.post('/verify-otp', authController.handleVerifyOtp);
   router.post('/reset-password', authController.handleResetPassword);
+  router.post('/change-password', verifyToken, authController.handleChangePassword);
 
   // --- USER ROUTES ---
   router.get('/users', verifyToken, checkPermission(['ADMIN']), userController.handleGetAllUsers);
@@ -81,7 +85,9 @@ const initAPIRoutes = (app) => {
   router.get('/payments', verifyToken, checkPermission(['ADMIN']), paymentController.handleGetPayments);
   router.put('/payments/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF']), paymentController.handleUpdatePaymentStatus);
 
-  // --- CLINIC SERVICE ROUTES ---
+  // --- CLINIC SERVICE & BRANCH ROUTES ---
+  router.get('/branches', branchController.handleGetAllBranches);
+  
   router.get('/services', clinicServiceController.handleGetAllServices);
   router.get('/services/categories', clinicServiceController.handleGetAllCategories);
   router.get('/services/:id', clinicServiceController.handleGetServiceById);
@@ -100,8 +106,8 @@ const initAPIRoutes = (app) => {
   // --- MEDICAL RECORD ROUTES ---
   router.get('/medical-records/pet/:petId', verifyToken, medicalRecordController.handleGetRecordsByPet);
   router.get('/medical-records/:id', verifyToken, medicalRecordController.handleGetDetailRecord);
-  router.post('/medical-records', verifyToken, medicalRecordController.handleCreateRecord);
-  router.put('/medical-records/:id', verifyToken, medicalRecordController.handleUpdateRecord);
+  router.post('/medical-records', verifyToken, upload.array('attachments', 5), medicalRecordController.handleCreateRecord);
+  router.put('/medical-records/:id', verifyToken, upload.array('attachments', 5), medicalRecordController.handleUpdateRecord);
   router.delete('/medical-records/:id', verifyToken, medicalRecordController.handleDeleteRecord);
 
   // --- HEALTH DIARY ROUTES ---
