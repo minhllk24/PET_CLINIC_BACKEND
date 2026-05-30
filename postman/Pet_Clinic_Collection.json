@@ -866,7 +866,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"branch_id\": \"1\",\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"appointment_date\": \"2026-05-24\",\n    \"start_time\": \"2026-05-24T08:00:00Z\",\n    \"note\": \"Meo bi ho\",\n    \"services\": [\n        {\n            \"service_id\": \"1\",\n            \"quantity\": 1\n        }\n    ]\n}",
+							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

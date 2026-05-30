@@ -69,7 +69,7 @@ const getAvailableSlots = async (query) => {
     if (doctor_id) whereCondition.doctor_id = toBigIntId(doctor_id);
     if (branch_id) whereCondition.branch_id = toBigIntId(branch_id);
 
-    const slots = await prisma.clinicSlot.findMany({
+    const slots = await prisma.timeSlot.findMany({
       where: whereCondition,
       include: {
         doctor: { select: { full_name: true } }
@@ -84,38 +84,70 @@ const getAvailableSlots = async (query) => {
   }
 };
 
+const generateAppointmentCode = () => {
+  const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const year = new Date().getFullYear();
+  return `BK-${randomPart}-${year}`;
+};
+
 const createAppointment = async (userIdStr, data) => {
   try {
     const userId = toBigIntId(userIdStr);
-    const { slot_id, pet_id, service_ids, reason } = data;
+    const { 
+      slot_id, 
+      pet_id, 
+      service_ids, 
+      customer_name_snapshot,
+      customer_phone_snapshot,
+      note,
+      condition_description 
+    } = data;
 
     if (!slot_id || !service_ids || !Array.isArray(service_ids) || service_ids.length === 0) {
       return { EM: 'Missing slot_id or service_ids', EC: 1, DT: '' };
     }
 
+    if (!customer_name_snapshot) {
+      return { EM: 'Missing customer_name_snapshot', EC: 1, DT: '' };
+    }
+
     const slotIdBig = toBigIntId(slot_id);
     const petIdBig = pet_id ? toBigIntId(pet_id) : null;
+
+    let servicesInput = service_ids.map(item => {
+      if (typeof item === 'object' && item !== null && item.service_id) {
+        return {
+          service_id: toBigIntId(item.service_id),
+          quantity: item.quantity ? parseInt(item.quantity, 10) : 1
+        };
+      } else {
+        return {
+          service_id: toBigIntId(item),
+          quantity: 1
+        };
+      }
+    });
 
     // We must use transaction to ensure slot availability
     const result = await prisma.$transaction(async (tx) => {
       // 1. Lock and check the slot
-      const slot = await tx.clinicSlot.findUnique({
+      const slot = await tx.timeSlot.findUnique({
         where: { slot_id: slotIdBig }
       });
 
       if (!slot) throw new Error('Slot not found');
-      if (slot.status !== 'available' || slot.booked_count >= slot.max_capacity) {
+      if (slot.status !== 'available' || slot.booked_count >= slot.max_booking) {
         throw new Error('Slot is fully booked or unavailable');
       }
 
       // 2. Increase booked count
       const newBookedCount = slot.booked_count + 1;
       let newStatus = slot.status;
-      if (newBookedCount >= slot.max_capacity) {
+      if (newBookedCount >= slot.max_booking) {
         newStatus = 'full';
       }
 
-      await tx.clinicSlot.update({
+      await tx.timeSlot.update({
         where: { slot_id: slotIdBig },
         data: {
           booked_count: newBookedCount,
@@ -124,50 +156,67 @@ const createAppointment = async (userIdStr, data) => {
       });
 
       // 3. Get pet info if any
-      let snapshot_pet_name = null;
-      let snapshot_species = null;
+      let pet_name_snapshot = null;
+      let pet_species_snapshot = null;
+      let pet_breed_snapshot = null;
       if (petIdBig) {
-        const pet = await tx.pet.findUnique({ where: { pet_id: petIdBig }, include: { species: true } });
+        const pet = await tx.pet.findUnique({ 
+          where: { pet_id: petIdBig }, 
+          include: { species: true, breed: true } 
+        });
         if (pet) {
-          snapshot_pet_name = pet.pet_name;
-          snapshot_species = pet.species?.species_name || null;
+          pet_name_snapshot = pet.pet_name;
+          pet_species_snapshot = pet.species?.species_name || null;
+          pet_breed_snapshot = pet.breed?.breed_name || null;
         }
       }
 
-      // 4. Calculate total estimated price from services
-      let totalEstimatedPrice = 0;
-      const services = await tx.clinicService.findMany({
-        where: { service_id: { in: service_ids.map(id => toBigIntId(id)) } }
+      // 4. Get service details
+      const serviceIdsToQuery = servicesInput.map(item => item.service_id);
+      const dbServices = await tx.service.findMany({
+        where: { service_id: { in: serviceIdsToQuery } }
       });
-      for (const s of services) {
-        totalEstimatedPrice += parseFloat(s.base_price);
+
+      const servicesMap = new Map();
+      for (const item of servicesInput) {
+        servicesMap.set(item.service_id.toString(), item.quantity);
       }
 
       // 5. Create appointment
       const newAppointment = await tx.appointment.create({
         data: {
+          appointment_code: generateAppointmentCode(),
           user_id: userId,
           pet_id: petIdBig,
           doctor_id: slot.doctor_id,
           branch_id: slot.branch_id,
+          slot_id: slotIdBig,
           appointment_date: slot.slot_date,
           start_time: slot.start_time,
-          end_time: slot.end_time,
           status: 'pending',
-          reason: reason || null,
-          snapshot_pet_name,
-          snapshot_species,
-          total_estimated_price: totalEstimatedPrice
+          note: note || null,
+          condition_description: condition_description || null,
+          customer_name_snapshot,
+          customer_phone_snapshot: customer_phone_snapshot || null,
+          pet_name_snapshot,
+          pet_species_snapshot,
+          pet_breed_snapshot
         }
       });
 
       // 6. Create appointment_services
-      for (const s of services) {
+      for (const s of dbServices) {
+        const qty = servicesMap.get(s.service_id.toString()) || 1;
+        const basePrice = parseFloat(s.base_price);
+        const totalPrice = basePrice * qty;
+
         await tx.appointmentService.create({
           data: {
             appointment_id: newAppointment.appointment_id,
             service_id: s.service_id,
-            price_at_booking: s.base_price
+            quantity: qty,
+            unit_price: basePrice,
+            total_price: totalPrice
           }
         });
       }
@@ -176,10 +225,10 @@ const createAppointment = async (userIdStr, data) => {
       await tx.appointmentStatusHistory.create({
         data: {
           appointment_id: newAppointment.appointment_id,
-          status_from: null,
-          status_to: 'pending',
-          changed_by: userId,
-          note: 'Created by user'
+          old_status: null,
+          new_status: 'pending',
+          changed_by_user_id: userId,
+          reason: 'Khách hàng tạo lịch hẹn mới'
         }
       });
 
@@ -222,21 +271,17 @@ const updateAppointmentStatus = async (id, status, user, note = '') => {
     const result = await prisma.$transaction(async (tx) => {
       // If cancelling, free up the slot
       if (status === 'cancelled' && appointment.status !== 'cancelled') {
-        const slot = await tx.clinicSlot.findFirst({
-          where: {
-            doctor_id: appointment.doctor_id,
-            slot_date: appointment.appointment_date,
-            start_time: appointment.start_time
-          }
+        const slot = await tx.timeSlot.findUnique({
+          where: { slot_id: appointment.slot_id }
         });
 
         if (slot) {
           const newBookedCount = Math.max(0, slot.booked_count - 1);
-          await tx.clinicSlot.update({
+          await tx.timeSlot.update({
             where: { slot_id: slot.slot_id },
             data: {
               booked_count: newBookedCount,
-              status: newBookedCount < slot.max_capacity ? 'available' : slot.status
+              status: newBookedCount < slot.max_booking ? 'available' : slot.status
             }
           });
         }
@@ -250,10 +295,10 @@ const updateAppointmentStatus = async (id, status, user, note = '') => {
       await tx.appointmentStatusHistory.create({
         data: {
           appointment_id: appointmentId,
-          status_from: appointment.status,
-          status_to: status,
-          changed_by: toBigIntId(user.user_id),
-          note: note
+          old_status: appointment.status,
+          new_status: status,
+          changed_by_user_id: toBigIntId(user.user_id),
+          reason: note || null
         }
       });
 
