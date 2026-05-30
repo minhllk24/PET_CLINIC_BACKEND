@@ -123,6 +123,7 @@ const initAPIRoutes = (app) => {
   // ==================== PHASE 4 ROUTES ==================== //
 
   // --- REVIEWS ---
+  router.get('/reviews', reviewController.handleGetAllReviews);
   router.get('/reviews/target/:targetType/:targetId', reviewController.handleGetReviews);
   router.post('/reviews', verifyToken, reviewController.handleCreateReview);
   router.patch('/reviews/:id/reject', verifyToken, checkPermission(['ADMIN']), reviewController.handleRejectReview);

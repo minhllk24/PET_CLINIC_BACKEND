@@ -29,8 +29,8 @@ const getAllServices = async (query) => {
     };
 
     const [total, services] = await prisma.$transaction([
-      prisma.clinicService.count({ where: whereCondition }),
-      prisma.clinicService.findMany({
+      prisma.service.count({ where: whereCondition }),
+      prisma.service.findMany({
         where: whereCondition,
         include: { category: true },
         skip,
@@ -59,7 +59,7 @@ const getServiceById = async (id) => {
     const serviceId = toBigIntId(id);
     if (!serviceId) return { EM: 'Invalid service ID', EC: 1, DT: '' };
 
-    const service = await prisma.clinicService.findUnique({
+    const service = await prisma.service.findUnique({
       where: { service_id: serviceId },
       include: { category: true }
     });
@@ -79,7 +79,7 @@ const createService = async (data) => {
       return { EM: 'Missing required fields', EC: 1, DT: '' };
     }
 
-    const newService = await prisma.clinicService.create({
+    const newService = await prisma.service.create({
       data: {
         service_name: data.service_name,
         category_id: toBigIntId(data.category_id),
@@ -110,7 +110,7 @@ const updateService = async (id, data) => {
     if (data.duration_minutes) updateData.duration_minutes = parseInt(data.duration_minutes);
     if (data.status) updateData.status = data.status;
 
-    const updatedService = await prisma.clinicService.update({
+    const updatedService = await prisma.service.update({
       where: { service_id: serviceId },
       data: updateData
     });
@@ -127,7 +127,7 @@ const deleteService = async (id) => {
     const serviceId = toBigIntId(id);
     if (!serviceId) return { EM: 'Invalid service ID', EC: 1, DT: '' };
 
-    await prisma.clinicService.update({
+    await prisma.service.update({
       where: { service_id: serviceId },
       data: { status: 'inactive' }
     });

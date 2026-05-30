@@ -45,8 +45,19 @@ const handleDeleteReview = async (req, res) => {
   }
 };
 
+const handleGetAllReviews = async (req, res) => {
+  try {
+    let data = await reviewAPIService.getAllReviews(req.query);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetReviews,
+  handleGetAllReviews,
   handleCreateReview,
   handleRejectReview,
   handleDeleteReview

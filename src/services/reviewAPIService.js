@@ -22,7 +22,7 @@ const getReviewsByTarget = async (targetType, targetIdStr, query) => {
         where: whereCondition,
         include: {
           user: { select: { full_name: true, avatar_url: true } },
-          review_images: true
+          images: true
         },
         skip,
         take: limit,
@@ -152,8 +152,48 @@ const updateReviewStatus = async (id, status) => {
   }
 };
 
+const getAllReviews = async (query) => {
+  try {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.pageSize) || parseInt(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const whereCondition = {
+      status: 'posted'
+    };
+
+    const [total, reviews] = await prisma.$transaction([
+      prisma.review.count({ where: whereCondition }),
+      prisma.review.findMany({
+        where: whereCondition,
+        include: {
+          user: { select: { full_name: true, avatar_url: true } },
+          images: true
+        },
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' }
+      })
+    ]);
+
+    return {
+      EM: 'Get all reviews successful',
+      EC: 0,
+      DT: {
+        totalRows: total,
+        totalPages: Math.ceil(total / limit),
+        reviews
+      }
+    };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getReviewsByTarget,
+  getAllReviews,
   createReview,
   updateReviewStatus
 };
