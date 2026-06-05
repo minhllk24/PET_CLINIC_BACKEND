@@ -485,7 +485,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/products?sort=best_selling&limit=12&page=1",
+							"raw": "{{base_url}}/products?sort=best_selling&limit=12&page=1&minPrice=20&maxPrice=50",
 							"host": ["{{base_url}}"],
 							"path": ["products"],
 							"query": [
@@ -500,6 +500,16 @@
 								{
 									"key": "page",
 									"value": "1"
+								},
+								{
+									"key": "minPrice",
+									"value": "20",
+									"description": "Giá tối thiểu (VD: 20)"
+								},
+								{
+									"key": "maxPrice",
+									"value": "50",
+									"description": "Giá tối đa (VD: 50)"
 								}
 							]
 						}

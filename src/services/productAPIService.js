@@ -8,7 +8,16 @@ const getAllCategories = async () => {
     const categories = await prisma.productCategory.findMany({
       where: { status: 'active' },
       include: {
-        children: true
+        children: {
+          include: {
+            _count: {
+              select: { products: { where: { status: 'active' } } }
+            }
+          }
+        },
+        _count: {
+          select: { products: { where: { status: 'active' } } }
+        }
       }
     });
     return { EM: 'Get categories successful', EC: 0, DT: categories };
@@ -93,11 +102,19 @@ const getAllProducts = async (query) => {
     const filter = query.filter || '';
     const categoryId = query.category_id ? toBigIntId(query.category_id) : undefined;
     const sort = query.sort || 'newest';
+    const minPrice = query.minPrice ? parseFloat(query.minPrice) : undefined;
+    const maxPrice = query.maxPrice ? parseFloat(query.maxPrice) : undefined;
 
     const whereCondition = {
       status: 'active',
       product_name: filter ? { contains: filter } : undefined,
-      product_category_id: categoryId ? categoryId : undefined
+      product_category_id: categoryId ? categoryId : undefined,
+      ...(minPrice !== undefined || maxPrice !== undefined ? {
+        price: {
+          ...(minPrice !== undefined ? { gte: minPrice } : {}),
+          ...(maxPrice !== undefined ? { lte: maxPrice } : {})
+        }
+      } : {})
     };
 
     let orderBy;
