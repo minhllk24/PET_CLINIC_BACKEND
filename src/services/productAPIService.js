@@ -92,12 +92,31 @@ const getAllProducts = async (query) => {
 
     const filter = query.filter || '';
     const categoryId = query.category_id ? toBigIntId(query.category_id) : undefined;
+    const sort = query.sort || 'newest';
 
     const whereCondition = {
       status: 'active',
       product_name: filter ? { contains: filter } : undefined,
       product_category_id: categoryId ? categoryId : undefined
     };
+
+    let orderBy;
+    switch (sort) {
+      case 'best_selling':
+        orderBy = { sold_quantity: 'desc' };
+        break;
+      case 'price_asc':
+        orderBy = { price: 'asc' };
+        break;
+      case 'price_desc':
+        orderBy = { price: 'desc' };
+        break;
+      case 'rating':
+        orderBy = { average_rating: 'desc' };
+        break;
+      default:
+        orderBy = { created_at: 'desc' };
+    }
 
     const [total, products] = await prisma.$transaction([
       prisma.product.count({ where: whereCondition }),
@@ -109,7 +128,7 @@ const getAllProducts = async (query) => {
         },
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' }
+        orderBy
       })
     ]);
 
@@ -164,6 +183,7 @@ const createProduct = async (data) => {
         product_category_id: catId,
         description: data.description || null,
         price: data.price ? parseFloat(data.price) : 0,
+        original_price: data.original_price !== undefined && data.original_price !== null ? parseFloat(data.original_price) : null,
         stock_quantity: data.stock_quantity ? parseInt(data.stock_quantity) : 0,
         status: data.status || 'active'
       }
@@ -198,6 +218,7 @@ const updateProduct = async (id, data) => {
     if (data.product_category_id) updateData.product_category_id = toBigIntId(data.product_category_id);
     if (data.description !== undefined) updateData.description = data.description;
     if (data.price !== undefined) updateData.price = parseFloat(data.price);
+    if (data.original_price !== undefined) updateData.original_price = data.original_price !== null ? parseFloat(data.original_price) : null;
     if (data.stock_quantity !== undefined) updateData.stock_quantity = parseInt(data.stock_quantity);
     if (data.status) updateData.status = data.status;
 

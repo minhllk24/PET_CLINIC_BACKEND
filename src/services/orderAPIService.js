@@ -143,7 +143,10 @@ const checkoutCart = async (userIdStr, data) => {
 
         await tx.product.update({
           where: { product_id: item.product_id },
-          data: { stock_quantity: { decrement: item.quantity } }
+          data: {
+            stock_quantity: { decrement: item.quantity },
+            sold_quantity: { increment: item.quantity }
+          }
         });
       }
 
@@ -195,7 +198,10 @@ const updateOrderStatus = async (id, status) => {
         for (const item of order.order_items) {
           await tx.product.update({
             where: { product_id: item.product_id },
-            data: { stock_quantity: { increment: item.quantity } }
+            data: {
+              stock_quantity: { increment: item.quantity },
+              sold_quantity: { decrement: item.quantity }
+            }
           });
         }
         await tx.order.update({

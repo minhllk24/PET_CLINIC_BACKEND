@@ -485,9 +485,23 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/products",
+							"raw": "{{base_url}}/products?sort=best_selling&limit=12&page=1",
 							"host": ["{{base_url}}"],
-							"path": ["products"]
+							"path": ["products"],
+							"query": [
+								{
+									"key": "sort",
+									"value": "best_selling"
+								},
+								{
+									"key": "limit",
+									"value": "12"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
 						}
 					}
 				},
@@ -511,7 +525,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"stock_quantity\": 200\n}",
+							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"original_price\": 45000,\n    \"stock_quantity\": 200\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -528,7 +542,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"stock_quantity\": 150\n}",
+							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"original_price\": 65000,\n    \"stock_quantity\": 150\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
