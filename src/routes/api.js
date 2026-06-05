@@ -17,6 +17,7 @@ import reviewController from '../controllers/reviewController';
 import loyaltyController from '../controllers/loyaltyController';
 import contentController from '../controllers/contentController';
 import rescueController from '../controllers/rescueController';
+import flashSaleController from '../controllers/flashSaleController';
 
 import { authMiddleware as verifyToken, requireRole as checkPermission } from '../middleware/authMiddleware';
 import upload from '../middleware/uploadMiddleware';
@@ -68,6 +69,12 @@ const initAPIRoutes = (app) => {
   router.post('/products', verifyToken, checkPermission(['ADMIN']), productController.handleCreateProduct);
   router.put('/products/:id', verifyToken, checkPermission(['ADMIN']), productController.handleUpdateProduct);
   router.delete('/products/:id', verifyToken, checkPermission(['ADMIN']), productController.handleDeleteProduct);
+
+  // --- FLASH SALE ROUTES ---
+  router.get('/flash-sales/active', flashSaleController.handleGetActiveFlashSale);
+  router.post('/flash-sales', verifyToken, checkPermission(['ADMIN']), flashSaleController.handleCreateFlashSale);
+  router.put('/flash-sales/:id', verifyToken, checkPermission(['ADMIN']), flashSaleController.handleUpdateFlashSale);
+  router.delete('/flash-sales/:id', verifyToken, checkPermission(['ADMIN']), flashSaleController.handleDeleteFlashSale);
 
   // --- CART ROUTES ---
   router.get('/cart', verifyToken, cartController.handleGetCart);

@@ -1463,6 +1463,70 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "10. Flash Sales",
+			"item": [
+				{
+					"name": "Get Active Flash Sale",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/flash-sales/active",
+							"host": ["{{base_url}}"],
+							"path": ["flash-sales", "active"]
+						}
+					}
+				},
+				{
+					"name": "Create Flash Sale (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Mega Sale\",\n    \"start_time\": \"2026-06-05T00:00:00.000Z\",\n    \"end_time\": \"2026-06-05T23:59:59.000Z\",\n    \"status\": \"active\",\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"discount_percentage\": 15,\n            \"stock_quantity\": 50\n        }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/flash-sales",
+							"host": ["{{base_url}}"],
+							"path": ["flash-sales"]
+						}
+					}
+				},
+				{
+					"name": "Update Flash Sale (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Mega Sale Updated\",\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"discount_percentage\": 20,\n            \"stock_quantity\": 100\n        }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/flash-sales/1",
+							"host": ["{{base_url}}"],
+							"path": ["flash-sales", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Flash Sale (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/flash-sales/1",
+							"host": ["{{base_url}}"],
+							"path": ["flash-sales", "1"]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [
