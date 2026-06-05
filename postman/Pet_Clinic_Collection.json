@@ -555,13 +555,37 @@
 					}
 				},
 				{
+					"name": "Get Related Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1/related",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1", "related"]
+						}
+					}
+				},
+				{
+					"name": "Get Product Review Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1/review-stats",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1", "review-stats"]
+						}
+					}
+				},
+				{
 					"name": "Create Product (Admin)",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"original_price\": 45000,\n    \"stock_quantity\": 200\n}",
+							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"original_price\": 45000,\n    \"stock_quantity\": 200,\n    \"variants\": [\n        {\n            \"variant_name\": \"Size M\",\n            \"price\": 100000,\n            \"original_price\": 120000,\n            \"stock_quantity\": 50\n        },\n        {\n            \"variant_name\": \"Size L\",\n            \"price\": 120000,\n            \"original_price\": 150000,\n            \"stock_quantity\": 30\n        }\n    ]\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -578,7 +602,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"original_price\": 65000,\n    \"stock_quantity\": 150\n}",
+							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"original_price\": 65000,\n    \"stock_quantity\": 150,\n    \"variants\": [\n        {\n            \"variant_name\": \"Size M\",\n            \"price\": 105000,\n            \"original_price\": 120000,\n            \"stock_quantity\": 40\n        }\n    ]\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -624,7 +648,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_id\": \"1\",\n    \"quantity\": 2\n}",
+							"raw": "{\n    \"product_id\": \"1\",\n    \"quantity\": 2,\n    \"variant_id\": 1\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -699,7 +723,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\"\n}",
+							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -1185,13 +1209,25 @@
 					}
 				},
 				{
+					"name": "Check Can Review",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reviews/can-review/product/1",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "can-review", "product", "1"]
+						}
+					}
+				},
+				{
 					"name": "Create Review",
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"target_type\": \"product\",\n    \"target_id\": \"1\",\n    \"order_id\": \"1\",\n    \"rating\": 5,\n    \"comment\": \"San pham rat tot, be meo nha minh rat thich!\"\n}",
+							"raw": "{\n    \"target_type\": \"product\",\n    \"target_id\": \"1\",\n    \"rating\": 5,\n    \"comment\": \"San pham rat tot, be meo nha minh rat thich!\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

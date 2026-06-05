@@ -92,20 +92,47 @@ const checkoutCart = async (userIdStr, data) => {
       return { EM: 'Invalid address', EC: 1, DT: '' };
     }
 
-    // Get cart items that are selected
-    const cart = await prisma.cart.findUnique({
-      where: { user_id: userId },
-      include: { cart_items: { where: { is_selected: true }, include: { product: true } } }
-    });
+    // Check if items are passed directly from frontend (localStorage)
+    let cartItemsToCheckout = [];
+    let isDirectCheckout = false;
 
-    if (!cart || cart.cart_items.length === 0) {
-      return { EM: 'Cart is empty or no item selected', EC: -1, DT: '' };
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      isDirectCheckout = true;
+      for (const item of data.items) {
+        const product = await prisma.product.findUnique({ where: { product_id: toBigIntId(item.product_id) } });
+        if (!product) {
+          return { EM: `Product not found: ${item.product_id}`, EC: -1, DT: '' };
+        }
+        cartItemsToCheckout.push({
+          cart_item_id: null,
+          product_id: product.product_id,
+          variant_id: item.variant_id ? toBigIntId(item.variant_id) : null,
+          quantity: parseInt(item.quantity) || 1,
+          product: product
+        });
+      }
+    } else {
+      // Fallback: Get cart items from DB that are selected
+      const cart = await prisma.cart.findUnique({
+        where: { user_id: userId },
+        include: { cart_items: { where: { is_selected: true }, include: { product: true } } }
+      });
+
+      if (!cart || cart.cart_items.length === 0) {
+        return { EM: 'Cart is empty or no item selected', EC: -1, DT: '' };
+      }
+      cartItemsToCheckout = cart.cart_items;
+    }
+
+    if (cartItemsToCheckout.length === 0) {
+      return { EM: 'No items to checkout', EC: -1, DT: '' };
     }
 
     // Check stock and calculate total
     let totalAmount = 0;
     const variantsData = {}; // Cache variants
-    for (const item of cart.cart_items) {
+    for (let i = 0; i < cartItemsToCheckout.length; i++) {
+      const item = cartItemsToCheckout[i];
       let availableStock = item.product.stock_quantity;
       let price = parseFloat(item.product.price);
       
@@ -116,7 +143,7 @@ const checkoutCart = async (userIdStr, data) => {
         }
         availableStock = variant.stock_quantity;
         price = parseFloat(variant.price);
-        variantsData[item.cart_item_id] = variant;
+        variantsData[i] = variant;
       }
 
       if (availableStock < item.quantity) {
@@ -145,10 +172,11 @@ const checkoutCart = async (userIdStr, data) => {
       });
 
       // 2. Create OrderItems & Update Product Stock
-      for (const item of cart.cart_items) {
+      for (let i = 0; i < cartItemsToCheckout.length; i++) {
+        const item = cartItemsToCheckout[i];
         let price = parseFloat(item.product.price);
-        if (item.variant_id && variantsData[item.cart_item_id]) {
-          price = parseFloat(variantsData[item.cart_item_id].price);
+        if (item.variant_id && variantsData[i]) {
+          price = parseFloat(variantsData[i].price);
         }
 
         await tx.orderItem.create({
@@ -193,11 +221,13 @@ const checkoutCart = async (userIdStr, data) => {
         }
       });
 
-      // 4. Delete processed CartItems
-      const cartItemIds = cart.cart_items.map(i => i.cart_item_id);
-      await tx.cartItem.deleteMany({
-        where: { cart_item_id: { in: cartItemIds } }
-      });
+      // 4. Delete processed CartItems if using DB cart
+      if (!isDirectCheckout) {
+        const cartItemIds = cartItemsToCheckout.map(i => i.cart_item_id);
+        await tx.cartItem.deleteMany({
+          where: { cart_item_id: { in: cartItemIds } }
+        });
+      }
 
       return newOrder;
     });

@@ -72,11 +72,17 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Hoàn thiện 4 API nâng cao cho màn hình Product Details Page:**
   - **Quản lý biến thể sản phẩm (Product Variants)**: Thiết kế model `ProductVariant` và liên kết với `CartItem`/`OrderItem` (nullable để tương thích ngược). Tích hợp mảng `variants` vào luồng CRUD chi tiết, tạo và cập nhật sản phẩm.
   - **Thống kê đánh giá (Review Stats)**: Tạo API `GET /api/v1/products/:id/review-stats` để trả về tổng số review, điểm trung bình và tỷ lệ phần trăm phân bố theo số sao (1-5 sao).
-  - **Tương tác bình luận (Review Interactions)**:
+  - **Tương tác bình luận (Review Interactions) & Quyền Đánh Giá**:
+    - Bổ sung API `GET /api/v1/reviews/can-review/:targetType/:targetId` để kiểm tra quyền được phép đánh giá (chỉ cho phép user đã mua hàng/sử dụng dịch vụ và có đơn hàng `completed`).
+    - Cập nhật hàm `createReview` ở Backend để block nghiêm ngặt những user chưa mua hàng hoặc đã đánh giá sản phẩm trước đó.
     - Bổ sung tính năng "Thích" bình luận (`POST /api/v1/reviews/:id/like` - toggle và tự động cập nhật `likes_count`).
     - Bổ sung tính năng "Trả lời" bình luận (`POST /api/v1/reviews/:id/reply` - self-relation `parent_id`).
     - Cập nhật API lấy bình luận theo target để chỉ lấy bình luận gốc và tự động trả về mảng `replies` lồng nhau.
   - **Sản phẩm tương tự (Related Products)**: Tạo API `GET /api/v1/products/:id/related` trả về tối đa 10 sản phẩm cùng danh mục bán chạy nhất.
-  - **Đồng bộ Postman**: Bổ sung đầy đủ 4 request mới vào `Pet_Clinic_Collection.json`.
+  - **Giỏ hàng & Thanh toán (Hỗ trợ Biến thể & localStorage)**:
+    - Bổ sung luồng lưu và truyền `variant_id` từ Giỏ hàng (`POST /api/v1/cart`) sang Đơn hàng (`POST /api/v1/orders/checkout`).
+    - Nâng cấp API Checkout (`POST /api/v1/orders/checkout`) để hỗ trợ thanh toán trực tiếp từ `localStorage`: Nhận mảng `items` trực tiếp từ Frontend để kiểm tra giá và tồn kho an toàn trên Server, giúp loại bỏ hoàn toàn sự phụ thuộc vào giỏ hàng trên DB nếu cần.
+    - Tự động lấy giá bán (`price`) và trừ tồn kho (`stock_quantity`) trực tiếp trên biến thể (Product Variant) thay vì trên sản phẩm gốc. Trả lại đúng tồn kho biến thể khi hủy đơn hàng.
+  - **Đồng bộ Postman**: Bổ sung đầy đủ các request mới (`Can Review`, `Related Products`, `Review Stats`, `Like`, `Reply`) vào `Pet_Clinic_Collection.json` và cập nhật payload `items` cho Checkout.
 
 *(Bạn có thể tiếp tục copy format trên để ghi chú cho các ngày tiếp theo nhé)*
