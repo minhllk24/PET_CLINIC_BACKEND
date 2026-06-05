@@ -46,4 +46,37 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Cập nhật Postman Collection:** Đã đồng bộ request "Book Appointment" về đúng định dạng payload mới (loại bỏ các trường thừa tự động tính, hỗ trợ định dạng dịch vụ chi tiết).
 - **Kiểm thử tự động:** Viết script kiểm thử đầu cuối (E2E) trực tiếp với cơ sở dữ liệu để xác nhận thành công 100% việc lưu trữ dữ liệu, snapshots, quan hệ nhiều-nhiều, lịch sử trạng thái, và giải phóng slot khi hủy.
 
+---
+## [Ngày 05/06/2026]
+### Đã hoàn thành:
+- **Triển khai tính năng Flash Sale:**
+  - Cập nhật Database Schema thêm các model `FlashSale` và `FlashSaleItem`.
+  - Phát triển API `GET /api/v1/flash-sales/active` tự động tìm kiếm và trả về đợt Flash Sale đang diễn ra hoặc sắp bắt đầu.
+  - Tự động tính toán giá sau giảm (`discount_price`) ngay khi Admin tạo/cập nhật Flash Sale để tối ưu tốc độ truy vấn ở phía Frontend.
+  - Xây dựng trọn bộ API quản trị CRUD (Create, Update, Delete) kèm cơ chế Cascade Delete xóa sạch dữ liệu liên đới.
+- **Phát triển tính năng Sản phẩm bán chạy (Best Sellers) & Hiển thị Giá gốc:**
+  - Bổ sung trường `original_price` (để hiển thị giá bị gạch ngang) và `sold_quantity` (số lượng đã bán) vào bảng `Product`.
+  - Cập nhật API `GET /api/v1/products` hỗ trợ tham số `sort` linh hoạt (`best_selling`, `price_asc`, `price_desc`, `rating`).
+  - Lập trình cơ chế tự động đếm sản phẩm bán ra: tăng `sold_quantity` khi User thanh toán giỏ hàng (Checkout) và hoàn trả lại khi Admin hủy đơn (Cancel).
+  - Viết script seed data để quét toàn bộ dữ liệu cũ, tự động tính ngược số lượng đã bán từ lịch sử đơn hàng và sinh giá gốc giả lập để phục vụ demo UI.
+- **Quản lý Postman Collection:**
+  - Chèn an toàn thư mục "10. Flash Sales" (chứa 4 API) vào `Pet_Clinic_Collection.json` mà không làm xáo trộn format gốc của file 1400+ dòng.
+  - Cập nhật payload các request của Product (Get All Products, Create, Update) để đồng bộ với tính năng mới.
+
+- **Hoàn thiện API cho màn hình Product Page (Sidebar Filter):**
+  - Cập nhật API `GET /api/v1/products` hỗ trợ tham số `minPrice` và `maxPrice` để lọc sản phẩm trong khoảng giá (Price Range).
+  - Cập nhật API `GET /api/v1/categories` bổ sung trường `_count.products` (đếm số lượng sản phẩm active trong mỗi danh mục) để hiển thị số lượng kế bên tên danh mục.
+  - Kiểm tra và xác nhận 100% độ phủ API (Rating, Giảm giá, Tìm kiếm, Phân trang) so với bản thiết kế UI.
+  - Cập nhật các biến query params mới (`minPrice`, `maxPrice`) vào request "Get All Products" trong Postman Collection.
+
+- **Hoàn thiện 4 API nâng cao cho màn hình Product Details Page:**
+  - **Quản lý biến thể sản phẩm (Product Variants)**: Thiết kế model `ProductVariant` và liên kết với `CartItem`/`OrderItem` (nullable để tương thích ngược). Tích hợp mảng `variants` vào luồng CRUD chi tiết, tạo và cập nhật sản phẩm.
+  - **Thống kê đánh giá (Review Stats)**: Tạo API `GET /api/v1/products/:id/review-stats` để trả về tổng số review, điểm trung bình và tỷ lệ phần trăm phân bố theo số sao (1-5 sao).
+  - **Tương tác bình luận (Review Interactions)**:
+    - Bổ sung tính năng "Thích" bình luận (`POST /api/v1/reviews/:id/like` - toggle và tự động cập nhật `likes_count`).
+    - Bổ sung tính năng "Trả lời" bình luận (`POST /api/v1/reviews/:id/reply` - self-relation `parent_id`).
+    - Cập nhật API lấy bình luận theo target để chỉ lấy bình luận gốc và tự động trả về mảng `replies` lồng nhau.
+  - **Sản phẩm tương tự (Related Products)**: Tạo API `GET /api/v1/products/:id/related` trả về tối đa 10 sản phẩm cùng danh mục bán chạy nhất.
+  - **Đồng bộ Postman**: Bổ sung đầy đủ 4 request mới vào `Pet_Clinic_Collection.json`.
+
 *(Bạn có thể tiếp tục copy format trên để ghi chú cho các ngày tiếp theo nhé)*

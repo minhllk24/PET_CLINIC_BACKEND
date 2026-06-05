@@ -16,11 +16,14 @@ var _clinicServiceController = _interopRequireDefault(require("../controllers/cl
 var _appointmentController = _interopRequireDefault(require("../controllers/appointmentController"));
 var _medicalRecordController = _interopRequireDefault(require("../controllers/medicalRecordController"));
 var _healthDiaryController = _interopRequireDefault(require("../controllers/healthDiaryController"));
+var _branchController = _interopRequireDefault(require("../controllers/branchController"));
 var _reviewController = _interopRequireDefault(require("../controllers/reviewController"));
 var _loyaltyController = _interopRequireDefault(require("../controllers/loyaltyController"));
 var _contentController = _interopRequireDefault(require("../controllers/contentController"));
 var _rescueController = _interopRequireDefault(require("../controllers/rescueController"));
+var _flashSaleController = _interopRequireDefault(require("../controllers/flashSaleController"));
 var _authMiddleware = require("../middleware/authMiddleware");
+var _uploadMiddleware = _interopRequireDefault(require("../middleware/uploadMiddleware"));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { "default": e }; }
 // Phase 4 controllers
 
@@ -28,9 +31,16 @@ var router = _express["default"].Router();
 var initAPIRoutes = function initAPIRoutes(app) {
   // --- AUTH ROUTES ---
   router.post('/register', _authController["default"].handleRegister);
+  router.post('/verify-register-otp', _authController["default"].handleVerifyRegisterOtp);
   router.post('/login', _authController["default"].handleLogin);
   router.post('/logout', _authController["default"].handleLogout);
   router.post('/refresh', _authController["default"].handleRefreshToken);
+
+  // --- FORGOT PASSWORD FLOW ---
+  router.post('/forgot-password', _authController["default"].handleForgotPassword);
+  router.post('/verify-otp', _authController["default"].handleVerifyOtp);
+  router.post('/reset-password', _authController["default"].handleResetPassword);
+  router.post('/change-password', _authMiddleware.authMiddleware, _authController["default"].handleChangePassword);
 
   // --- USER ROUTES ---
   router.get('/users', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _userController["default"].handleGetAllUsers);
@@ -58,9 +68,17 @@ var initAPIRoutes = function initAPIRoutes(app) {
   router["delete"]('/categories/:id', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _productController["default"].handleDeleteCategory);
   router.get('/products', _productController["default"].handleGetAllProducts);
   router.get('/products/:id', _productController["default"].handleGetDetailProduct);
+  router.get('/products/:id/related', _productController["default"].handleGetRelatedProducts);
+  router.get('/products/:id/review-stats', _productController["default"].handleGetReviewStats);
   router.post('/products', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _productController["default"].handleCreateProduct);
   router.put('/products/:id', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _productController["default"].handleUpdateProduct);
   router["delete"]('/products/:id', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _productController["default"].handleDeleteProduct);
+
+  // --- FLASH SALE ROUTES ---
+  router.get('/flash-sales/active', _flashSaleController["default"].handleGetActiveFlashSale);
+  router.post('/flash-sales', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _flashSaleController["default"].handleCreateFlashSale);
+  router.put('/flash-sales/:id', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _flashSaleController["default"].handleUpdateFlashSale);
+  router["delete"]('/flash-sales/:id', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _flashSaleController["default"].handleDeleteFlashSale);
 
   // --- CART ROUTES ---
   router.get('/cart', _authMiddleware.authMiddleware, _cartController["default"].handleGetCart);
@@ -78,7 +96,8 @@ var initAPIRoutes = function initAPIRoutes(app) {
   router.get('/payments', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _paymentController["default"].handleGetPayments);
   router.put('/payments/:id/status', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN', 'STAFF']), _paymentController["default"].handleUpdatePaymentStatus);
 
-  // --- CLINIC SERVICE ROUTES ---
+  // --- CLINIC SERVICE & BRANCH ROUTES ---
+  router.get('/branches', _branchController["default"].handleGetAllBranches);
   router.get('/services', _clinicServiceController["default"].handleGetAllServices);
   router.get('/services/categories', _clinicServiceController["default"].handleGetAllCategories);
   router.get('/services/:id', _clinicServiceController["default"].handleGetServiceById);
@@ -97,8 +116,8 @@ var initAPIRoutes = function initAPIRoutes(app) {
   // --- MEDICAL RECORD ROUTES ---
   router.get('/medical-records/pet/:petId', _authMiddleware.authMiddleware, _medicalRecordController["default"].handleGetRecordsByPet);
   router.get('/medical-records/:id', _authMiddleware.authMiddleware, _medicalRecordController["default"].handleGetDetailRecord);
-  router.post('/medical-records', _authMiddleware.authMiddleware, _medicalRecordController["default"].handleCreateRecord);
-  router.put('/medical-records/:id', _authMiddleware.authMiddleware, _medicalRecordController["default"].handleUpdateRecord);
+  router.post('/medical-records', _authMiddleware.authMiddleware, _uploadMiddleware["default"].array('attachments', 5), _medicalRecordController["default"].handleCreateRecord);
+  router.put('/medical-records/:id', _authMiddleware.authMiddleware, _uploadMiddleware["default"].array('attachments', 5), _medicalRecordController["default"].handleUpdateRecord);
   router["delete"]('/medical-records/:id', _authMiddleware.authMiddleware, _medicalRecordController["default"].handleDeleteRecord);
 
   // --- HEALTH DIARY ROUTES ---
@@ -114,10 +133,13 @@ var initAPIRoutes = function initAPIRoutes(app) {
   // ==================== PHASE 4 ROUTES ==================== //
 
   // --- REVIEWS ---
+  router.get('/reviews', _reviewController["default"].handleGetAllReviews);
   router.get('/reviews/target/:targetType/:targetId', _reviewController["default"].handleGetReviews);
   router.post('/reviews', _authMiddleware.authMiddleware, _reviewController["default"].handleCreateReview);
   router.patch('/reviews/:id/reject', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _reviewController["default"].handleRejectReview);
   router.patch('/reviews/:id/delete', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _reviewController["default"].handleDeleteReview);
+  router.post('/reviews/:id/like', _authMiddleware.authMiddleware, _reviewController["default"].handleLikeReview);
+  router.post('/reviews/:id/reply', _authMiddleware.authMiddleware, _reviewController["default"].handleReplyReview);
 
   // --- VOUCHERS & LOYALTY ---
   router.get('/vouchers', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _loyaltyController["default"].handleGetVouchers);

@@ -37,7 +37,8 @@ var getReviewsByTarget = /*#__PURE__*/function () {
           whereCondition = {
             target_type: targetType,
             target_id: targetId,
-            status: 'posted'
+            status: 'posted',
+            parent_id: null
           };
           _context.n = 2;
           return _prisma["default"].$transaction([_prisma["default"].review.count({
@@ -47,11 +48,31 @@ var getReviewsByTarget = /*#__PURE__*/function () {
             include: {
               user: {
                 select: {
+                  user_id: true,
                   full_name: true,
                   avatar_url: true
                 }
               },
-              review_images: true
+              images: true,
+              replies: {
+                where: {
+                  status: 'posted'
+                },
+                include: {
+                  user: {
+                    select: {
+                      user_id: true,
+                      full_name: true,
+                      avatar_url: true
+                    }
+                  },
+                  images: true
+                },
+                orderBy: {
+                  created_at: 'asc'
+                }
+              },
+              likes: true
             },
             skip: skip,
             take: limit,
@@ -354,8 +375,335 @@ var updateReviewStatus = /*#__PURE__*/function () {
     return _ref4.apply(this, arguments);
   };
 }();
+var getAllReviews = /*#__PURE__*/function () {
+  var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(query) {
+    var page, limit, skip, whereCondition, _yield$prisma$$transa3, _yield$prisma$$transa4, total, reviews, _t4;
+    return _regenerator().w(function (_context6) {
+      while (1) switch (_context6.p = _context6.n) {
+        case 0:
+          _context6.p = 0;
+          page = parseInt(query.page) || 1;
+          limit = parseInt(query.pageSize) || parseInt(query.limit) || 10;
+          skip = (page - 1) * limit;
+          whereCondition = {
+            status: 'posted'
+          };
+          _context6.n = 1;
+          return _prisma["default"].$transaction([_prisma["default"].review.count({
+            where: whereCondition
+          }), _prisma["default"].review.findMany({
+            where: whereCondition,
+            include: {
+              user: {
+                select: {
+                  full_name: true,
+                  avatar_url: true
+                }
+              },
+              images: true
+            },
+            skip: skip,
+            take: limit,
+            orderBy: {
+              created_at: 'desc'
+            }
+          })]);
+        case 1:
+          _yield$prisma$$transa3 = _context6.v;
+          _yield$prisma$$transa4 = _slicedToArray(_yield$prisma$$transa3, 2);
+          total = _yield$prisma$$transa4[0];
+          reviews = _yield$prisma$$transa4[1];
+          return _context6.a(2, {
+            EM: 'Get all reviews successful',
+            EC: 0,
+            DT: {
+              totalRows: total,
+              totalPages: Math.ceil(total / limit),
+              reviews: reviews
+            }
+          });
+        case 2:
+          _context6.p = 2;
+          _t4 = _context6.v;
+          console.error(_t4);
+          return _context6.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: ''
+          });
+      }
+    }, _callee6, null, [[0, 2]]);
+  }));
+  return function getAllReviews(_x0) {
+    return _ref6.apply(this, arguments);
+  };
+}();
+var likeReview = /*#__PURE__*/function () {
+  var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(userIdStr, reviewIdStr) {
+    var userId, reviewId, review, existingLike, liked, _t5;
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
+        case 0:
+          _context8.p = 0;
+          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
+          reviewId = (0, _prismaHelpers.toBigIntId)(reviewIdStr);
+          if (!(!userId || !reviewId)) {
+            _context8.n = 1;
+            break;
+          }
+          return _context8.a(2, {
+            EM: 'Invalid User ID or Review ID',
+            EC: 1,
+            DT: ''
+          });
+        case 1:
+          _context8.n = 2;
+          return _prisma["default"].review.findUnique({
+            where: {
+              review_id: reviewId
+            }
+          });
+        case 2:
+          review = _context8.v;
+          if (review) {
+            _context8.n = 3;
+            break;
+          }
+          return _context8.a(2, {
+            EM: 'Review not found',
+            EC: -1,
+            DT: ''
+          });
+        case 3:
+          _context8.n = 4;
+          return _prisma["default"].reviewLike.findUnique({
+            where: {
+              user_id_review_id: {
+                user_id: userId,
+                review_id: reviewId
+              }
+            }
+          });
+        case 4:
+          existingLike = _context8.v;
+          liked = false;
+          _context8.n = 5;
+          return _prisma["default"].$transaction(/*#__PURE__*/function () {
+            var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(tx) {
+              return _regenerator().w(function (_context7) {
+                while (1) switch (_context7.n) {
+                  case 0:
+                    if (!existingLike) {
+                      _context7.n = 3;
+                      break;
+                    }
+                    _context7.n = 1;
+                    return tx.reviewLike["delete"]({
+                      where: {
+                        user_id_review_id: {
+                          user_id: userId,
+                          review_id: reviewId
+                        }
+                      }
+                    });
+                  case 1:
+                    _context7.n = 2;
+                    return tx.review.update({
+                      where: {
+                        review_id: reviewId
+                      },
+                      data: {
+                        likes_count: {
+                          decrement: 1
+                        }
+                      }
+                    });
+                  case 2:
+                    _context7.n = 6;
+                    break;
+                  case 3:
+                    _context7.n = 4;
+                    return tx.reviewLike.create({
+                      data: {
+                        user_id: userId,
+                        review_id: reviewId
+                      }
+                    });
+                  case 4:
+                    _context7.n = 5;
+                    return tx.review.update({
+                      where: {
+                        review_id: reviewId
+                      },
+                      data: {
+                        likes_count: {
+                          increment: 1
+                        }
+                      }
+                    });
+                  case 5:
+                    liked = true;
+                  case 6:
+                    return _context7.a(2);
+                }
+              }, _callee7);
+            }));
+            return function (_x11) {
+              return _ref8.apply(this, arguments);
+            };
+          }());
+        case 5:
+          return _context8.a(2, {
+            EM: liked ? 'Like review successful' : 'Unlike review successful',
+            EC: 0,
+            DT: {
+              liked: liked
+            }
+          });
+        case 6:
+          _context8.p = 6;
+          _t5 = _context8.v;
+          console.error(_t5);
+          return _context8.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: ''
+          });
+      }
+    }, _callee8, null, [[0, 6]]);
+  }));
+  return function likeReview(_x1, _x10) {
+    return _ref7.apply(this, arguments);
+  };
+}();
+var replyReview = /*#__PURE__*/function () {
+  var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(userIdStr, parentIdStr, data) {
+    var userId, parentId, comment, images, parentReview, newReply, replyDetails, _t6;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.p = _context0.n) {
+        case 0:
+          _context0.p = 0;
+          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
+          parentId = (0, _prismaHelpers.toBigIntId)(parentIdStr);
+          comment = data.comment, images = data.images;
+          if (comment) {
+            _context0.n = 1;
+            break;
+          }
+          return _context0.a(2, {
+            EM: 'Comment content is required',
+            EC: 1,
+            DT: ''
+          });
+        case 1:
+          _context0.n = 2;
+          return _prisma["default"].review.findUnique({
+            where: {
+              review_id: parentId
+            }
+          });
+        case 2:
+          parentReview = _context0.v;
+          if (parentReview) {
+            _context0.n = 3;
+            break;
+          }
+          return _context0.a(2, {
+            EM: 'Parent review not found',
+            EC: -1,
+            DT: ''
+          });
+        case 3:
+          _context0.n = 4;
+          return _prisma["default"].$transaction(/*#__PURE__*/function () {
+            var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(tx) {
+              var reply, imgData;
+              return _regenerator().w(function (_context9) {
+                while (1) switch (_context9.n) {
+                  case 0:
+                    _context9.n = 1;
+                    return tx.review.create({
+                      data: {
+                        user_id: userId,
+                        target_type: parentReview.target_type,
+                        target_id: parentReview.target_id,
+                        rating: 5,
+                        comment: comment,
+                        parent_id: parentId,
+                        status: 'posted'
+                      }
+                    });
+                  case 1:
+                    reply = _context9.v;
+                    if (!(images && Array.isArray(images))) {
+                      _context9.n = 2;
+                      break;
+                    }
+                    imgData = images.map(function (url) {
+                      return {
+                        review_id: reply.review_id,
+                        image_url: url
+                      };
+                    });
+                    _context9.n = 2;
+                    return tx.reviewImage.createMany({
+                      data: imgData
+                    });
+                  case 2:
+                    return _context9.a(2, reply);
+                }
+              }, _callee9);
+            }));
+            return function (_x15) {
+              return _ref0.apply(this, arguments);
+            };
+          }());
+        case 4:
+          newReply = _context0.v;
+          _context0.n = 5;
+          return _prisma["default"].review.findUnique({
+            where: {
+              review_id: newReply.review_id
+            },
+            include: {
+              user: {
+                select: {
+                  user_id: true,
+                  full_name: true,
+                  avatar_url: true
+                }
+              },
+              images: true
+            }
+          });
+        case 5:
+          replyDetails = _context0.v;
+          return _context0.a(2, {
+            EM: 'Reply created successful',
+            EC: 0,
+            DT: replyDetails
+          });
+        case 6:
+          _context0.p = 6;
+          _t6 = _context0.v;
+          console.error(_t6);
+          return _context0.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: ''
+          });
+      }
+    }, _callee0, null, [[0, 6]]);
+  }));
+  return function replyReview(_x12, _x13, _x14) {
+    return _ref9.apply(this, arguments);
+  };
+}();
 module.exports = {
   getReviewsByTarget: getReviewsByTarget,
+  getAllReviews: getAllReviews,
   createReview: createReview,
-  updateReviewStatus: updateReviewStatus
+  updateReviewStatus: updateReviewStatus,
+  likeReview: likeReview,
+  replyReview: replyReview
 };

@@ -66,6 +66,8 @@ const initAPIRoutes = (app) => {
 
   router.get('/products', productController.handleGetAllProducts);
   router.get('/products/:id', productController.handleGetDetailProduct);
+  router.get('/products/:id/related', productController.handleGetRelatedProducts);
+  router.get('/products/:id/review-stats', productController.handleGetReviewStats);
   router.post('/products', verifyToken, checkPermission(['ADMIN']), productController.handleCreateProduct);
   router.put('/products/:id', verifyToken, checkPermission(['ADMIN']), productController.handleUpdateProduct);
   router.delete('/products/:id', verifyToken, checkPermission(['ADMIN']), productController.handleDeleteProduct);
@@ -132,9 +134,12 @@ const initAPIRoutes = (app) => {
   // --- REVIEWS ---
   router.get('/reviews', reviewController.handleGetAllReviews);
   router.get('/reviews/target/:targetType/:targetId', reviewController.handleGetReviews);
+  router.get('/reviews/can-review/:targetType/:targetId', verifyToken, reviewController.handleCheckCanReview);
   router.post('/reviews', verifyToken, reviewController.handleCreateReview);
   router.patch('/reviews/:id/reject', verifyToken, checkPermission(['ADMIN']), reviewController.handleRejectReview);
   router.patch('/reviews/:id/delete', verifyToken, checkPermission(['ADMIN']), reviewController.handleDeleteReview);
+  router.post('/reviews/:id/like', verifyToken, reviewController.handleLikeReview);
+  router.post('/reviews/:id/reply', verifyToken, reviewController.handleReplyReview);
 
   // --- VOUCHERS & LOYALTY ---
   router.get('/vouchers', verifyToken, checkPermission(['ADMIN']), loyaltyController.handleGetVouchers);

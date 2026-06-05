@@ -310,6 +310,7 @@ model User {
   loyalty_point_transactions  LoyaltyPointTransaction[]
   reviews                     Review[] @relation("ReviewAuthor")
   reviews_moderated           Review[] @relation("ReviewAdmin")
+  review_likes                ReviewLike[]
   posts                       Post[]
   post_comments               PostComment[]
   first_aid_guides_created    FirstAidGuide[]
@@ -921,6 +922,7 @@ model Product {
   cart_items       CartItem[]
   order_items      OrderItem[]
   flash_sale_items FlashSaleItem[]
+  variants         ProductVariant[]
 
   @@index([product_name], map: "idx_products_name")
   @@index([product_category_id], map: "idx_products_category")
@@ -959,16 +961,19 @@ model CartItem {
   cart_item_id BigInt   @id @default(autoincrement()) @db.BigInt
   cart_id      BigInt   @db.BigInt
   product_id   BigInt   @db.BigInt
+  variant_id   BigInt?  @db.BigInt
   quantity     Int      @default(1)
   unit_price   Decimal  @default(0.00) @db.Decimal(12, 2)
   is_selected  Boolean  @default(true)
   created_at   DateTime @default(now()) @db.DateTime(0)
 
-  cart    Cart    @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade, onUpdate: Cascade)
-  product Product @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
+  cart    Cart            @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade, onUpdate: Cascade)
+  product Product         @relation(fields: [product_id], references: [product_id], onDelete: Restrict, onUpdate: Cascade)
+  variant ProductVariant? @relation(fields: [variant_id], references: [variant_id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([cart_id], map: "idx_cart_items_cart_id")
   @@index([product_id], map: "idx_cart_items_product_id")
+  @@index([variant_id], map: "idx_cart_items_variant_id")
   @@map("cart_items")
 }
 
@@ -1033,23 +1038,26 @@ model Order {
 }
 
 model OrderItem {
-  order_item_id      BigInt        @id @default(autoincrement()) @db.BigInt
-  order_id           BigInt        @db.BigInt
-  product_id         BigInt?       @db.BigInt
-  service_id         BigInt?       @db.BigInt
-  item_type          OrderItemType @default(product)
-  item_name_snapshot String        @db.VarChar(200)
-  quantity           Int           @default(1)
-  unit_price         Decimal       @default(0.00) @db.Decimal(12, 2)
-  total_price        Decimal       @default(0.00) @db.Decimal(12, 2)
+  order_item_id      BigInt          @id @default(autoincrement()) @db.BigInt
+  order_id           BigInt          @db.BigInt
+  product_id         BigInt?         @db.BigInt
+  variant_id         BigInt?         @db.BigInt
+  service_id         BigInt?         @db.BigInt
+  item_type          OrderItemType   @default(product)
+  item_name_snapshot String          @db.VarChar(200)
+  quantity           Int             @default(1)
+  unit_price         Decimal         @default(0.00) @db.Decimal(12, 2)
+  total_price        Decimal         @default(0.00) @db.Decimal(12, 2)
 
-  order   Order    @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: Cascade)
-  product Product? @relation(fields: [product_id], references: [product_id], onDelete: SetNull, onUpdate: Cascade)
-  service Service? @relation(fields: [service_id], references: [service_id], onDelete: SetNull, onUpdate: Cascade)
+  order   Order           @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: Cascade)
+  product Product?        @relation(fields: [product_id], references: [product_id], onDelete: SetNull, onUpdate: Cascade)
+  service Service?        @relation(fields: [service_id], references: [service_id], onDelete: SetNull, onUpdate: Cascade)
+  variant ProductVariant? @relation(fields: [variant_id], references: [variant_id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([order_id], map: "idx_order_items_order_id")
   @@index([product_id], map: "idx_order_items_product_id")
   @@index([service_id], map: "idx_order_items_service_id")
+  @@index([variant_id], map: "idx_order_items_variant_id")
   @@map("order_items")
 }
 
@@ -1210,16 +1218,23 @@ model Review {
   reviewed_by_admin_id BigInt?          @db.BigInt
   reviewed_at          DateTime?        @db.DateTime(0)
   created_at           DateTime         @default(now()) @db.DateTime(0)
+  likes_count          Int              @default(0)
+  parent_id            BigInt?          @db.BigInt
 
   user        User          @relation("ReviewAuthor", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
   order       Order?        @relation(fields: [order_id], references: [order_id], onDelete: SetNull, onUpdate: Cascade)
   reviewed_by User?         @relation("ReviewAdmin", fields: [reviewed_by_admin_id], references: [user_id], onDelete: SetNull, onUpdate: Cascade)
   images      ReviewImage[]
+  
+  parent  Review?  @relation("ReviewReplies", fields: [parent_id], references: [review_id], onDelete: Cascade, onUpdate: Cascade)
+  replies Review[] @relation("ReviewReplies")
+  likes   ReviewLike[]
 
   @@index([target_type, target_id], map: "idx_reviews_target")
   @@index([user_id], map: "idx_reviews_user_id")
   @@index([order_id], map: "idx_reviews_order_id")
   @@index([reviewed_by_admin_id], map: "idx_reviews_admin_id")
+  @@index([parent_id], map: "idx_reviews_parent_id")
   @@map("reviews")
 }
 
@@ -1535,4 +1550,32 @@ model FlashSaleItem {
 
   @@unique([flash_sale_id, product_id], map: "uq_flash_sale_product")
   @@map("flash_sale_items")
+}
+
+model ProductVariant {
+  variant_id     BigInt   @id @default(autoincrement()) @db.BigInt
+  product_id     BigInt   @db.BigInt
+  variant_name   String   @db.VarChar(100)
+  price          Decimal  @db.Decimal(12, 2)
+  original_price Decimal? @db.Decimal(12, 2)
+  stock_quantity Int      @default(0)
+
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: Cascade)
+
+  cart_items  CartItem[]
+  order_items OrderItem[]
+
+  @@map("product_variants")
+  @@index([product_id], map: "idx_product_variants_product_id")
+}
+
+model ReviewLike {
+  user_id   BigInt @db.BigInt
+  review_id BigInt @db.BigInt
+
+  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  review Review @relation(fields: [review_id], references: [review_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([user_id, review_id])
+  @@map("review_likes")
 }

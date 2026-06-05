@@ -98,6 +98,28 @@ const handleDeleteProduct = async (req, res) => {
   }
 };
 
+const handleGetRelatedProducts = async (req, res) => {
+  try {
+    const id = req.params.id;
+    let data = await productAPIService.getRelatedProducts(id);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetReviewStats = async (req, res) => {
+  try {
+    const id = req.params.id;
+    let data = await productAPIService.getReviewStats(id);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetAllCategories,
   handleCreateCategory,
@@ -107,5 +129,7 @@ module.exports = {
   handleGetDetailProduct,
   handleCreateProduct,
   handleUpdateProduct,
-  handleDeleteProduct
+  handleDeleteProduct,
+  handleGetRelatedProducts,
+  handleGetReviewStats
 };

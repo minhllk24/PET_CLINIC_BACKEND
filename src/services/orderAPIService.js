@@ -104,11 +104,25 @@ const checkoutCart = async (userIdStr, data) => {
 
     // Check stock and calculate total
     let totalAmount = 0;
+    const variantsData = {}; // Cache variants
     for (const item of cart.cart_items) {
-      if (item.product.stock_quantity < item.quantity) {
+      let availableStock = item.product.stock_quantity;
+      let price = parseFloat(item.product.price);
+      
+      if (item.variant_id) {
+        const variant = await prisma.productVariant.findUnique({ where: { variant_id: item.variant_id } });
+        if (!variant) {
+          return { EM: `Invalid variant for product: ${item.product.product_name}`, EC: -1, DT: '' };
+        }
+        availableStock = variant.stock_quantity;
+        price = parseFloat(variant.price);
+        variantsData[item.cart_item_id] = variant;
+      }
+
+      if (availableStock < item.quantity) {
         return { EM: `Not enough stock for product: ${item.product.product_name}`, EC: 2, DT: '' };
       }
-      totalAmount += parseFloat(item.product.price) * item.quantity;
+      totalAmount += price * item.quantity;
     }
 
     const shippingFee = 30000; // Fixed shipping fee for simplicity
@@ -132,22 +146,39 @@ const checkoutCart = async (userIdStr, data) => {
 
       // 2. Create OrderItems & Update Product Stock
       for (const item of cart.cart_items) {
+        let price = parseFloat(item.product.price);
+        if (item.variant_id && variantsData[item.cart_item_id]) {
+          price = parseFloat(variantsData[item.cart_item_id].price);
+        }
+
         await tx.orderItem.create({
           data: {
             order_id: newOrder.order_id,
             product_id: item.product_id,
+            variant_id: item.variant_id,
             quantity: item.quantity,
-            price: item.product.price
+            price: price
           }
         });
 
-        await tx.product.update({
-          where: { product_id: item.product_id },
-          data: {
-            stock_quantity: { decrement: item.quantity },
-            sold_quantity: { increment: item.quantity }
-          }
-        });
+        if (item.variant_id) {
+          await tx.productVariant.update({
+            where: { variant_id: item.variant_id },
+            data: { stock_quantity: { decrement: item.quantity } }
+          });
+          await tx.product.update({
+            where: { product_id: item.product_id },
+            data: { sold_quantity: { increment: item.quantity } }
+          });
+        } else {
+          await tx.product.update({
+            where: { product_id: item.product_id },
+            data: {
+              stock_quantity: { decrement: item.quantity },
+              sold_quantity: { increment: item.quantity }
+            }
+          });
+        }
       }
 
       // 3. Create Payment record
@@ -196,13 +227,24 @@ const updateOrderStatus = async (id, status) => {
       await prisma.$transaction(async (tx) => {
         // Return stock
         for (const item of order.order_items) {
-          await tx.product.update({
-            where: { product_id: item.product_id },
-            data: {
-              stock_quantity: { increment: item.quantity },
-              sold_quantity: { decrement: item.quantity }
-            }
-          });
+          if (item.variant_id) {
+            await tx.productVariant.update({
+              where: { variant_id: item.variant_id },
+              data: { stock_quantity: { increment: item.quantity } }
+            });
+            await tx.product.update({
+              where: { product_id: item.product_id },
+              data: { sold_quantity: { decrement: item.quantity } }
+            });
+          } else {
+            await tx.product.update({
+              where: { product_id: item.product_id },
+              data: {
+                stock_quantity: { increment: item.quantity },
+                sold_quantity: { decrement: item.quantity }
+              }
+            });
+          }
         }
         await tx.order.update({
           where: { order_id: orderId },

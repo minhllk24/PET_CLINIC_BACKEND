@@ -231,6 +231,56 @@ var handleDeleteProduct = /*#__PURE__*/function () {
     return _ref9.apply(this, arguments);
   };
 }();
+var handleGetRelatedProducts = /*#__PURE__*/function () {
+  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(req, res) {
+    var id, data, _t0;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.p = _context0.n) {
+        case 0:
+          _context0.p = 0;
+          id = req.params.id;
+          _context0.n = 1;
+          return _productAPIService["default"].getRelatedProducts(id);
+        case 1:
+          data = _context0.v;
+          return _context0.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context0.p = 2;
+          _t0 = _context0.v;
+          console.error(_t0);
+          return _context0.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee0, null, [[0, 2]]);
+  }));
+  return function handleGetRelatedProducts(_x17, _x18) {
+    return _ref0.apply(this, arguments);
+  };
+}();
+var handleGetReviewStats = /*#__PURE__*/function () {
+  var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(req, res) {
+    var id, data, _t1;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
+        case 0:
+          _context1.p = 0;
+          id = req.params.id;
+          _context1.n = 1;
+          return _productAPIService["default"].getReviewStats(id);
+        case 1:
+          data = _context1.v;
+          return _context1.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context1.p = 2;
+          _t1 = _context1.v;
+          console.error(_t1);
+          return _context1.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee1, null, [[0, 2]]);
+  }));
+  return function handleGetReviewStats(_x19, _x20) {
+    return _ref1.apply(this, arguments);
+  };
+}();
 module.exports = {
   handleGetAllCategories: handleGetAllCategories,
   handleCreateCategory: handleCreateCategory,
@@ -240,5 +290,7 @@ module.exports = {
   handleGetDetailProduct: handleGetDetailProduct,
   handleCreateProduct: handleCreateProduct,
   handleUpdateProduct: handleUpdateProduct,
-  handleDeleteProduct: handleDeleteProduct
+  handleDeleteProduct: handleDeleteProduct,
+  handleGetRelatedProducts: handleGetRelatedProducts,
+  handleGetReviewStats: handleGetReviewStats
 };

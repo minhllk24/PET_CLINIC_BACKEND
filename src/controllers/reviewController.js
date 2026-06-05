@@ -55,10 +55,49 @@ const handleGetAllReviews = async (req, res) => {
   }
 };
 
+const handleLikeReview = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const reviewId = req.params.id;
+    let data = await reviewAPIService.likeReview(userId, reviewId);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleReplyReview = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const parentId = req.params.id;
+    let data = await reviewAPIService.replyReview(userId, parentId, req.body);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleCheckCanReview = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const { targetType, targetId } = req.params;
+    let data = await reviewAPIService.checkCanReview(userId, targetType, targetId);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetReviews,
   handleGetAllReviews,
   handleCreateReview,
   handleRejectReview,
-  handleDeleteReview
+  handleDeleteReview,
+  handleLikeReview,
+  handleReplyReview,
+  handleCheckCanReview
 };

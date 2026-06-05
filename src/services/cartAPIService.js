@@ -44,6 +44,7 @@ const addToCart = async (userIdStr, data) => {
 
     const productId = toBigIntId(data.product_id);
     const quantity = parseInt(data.quantity);
+    const variantId = data.variant_id ? toBigIntId(data.variant_id) : null;
 
     // Get or create cart
     let cart = await prisma.cart.findUnique({ where: { user_id: userId } });
@@ -56,19 +57,33 @@ const addToCart = async (userIdStr, data) => {
     if (!product || product.status !== 'active') {
       return { EM: 'Product not available', EC: -1, DT: '' };
     }
-    if (product.stock_quantity < quantity) {
+
+    let availableStock = product.stock_quantity;
+    if (variantId) {
+      const variant = await prisma.productVariant.findUnique({ where: { variant_id: variantId } });
+      if (!variant || variant.product_id !== productId) {
+        return { EM: 'Invalid product variant', EC: -1, DT: '' };
+      }
+      availableStock = variant.stock_quantity;
+    }
+
+    if (availableStock < quantity) {
       return { EM: 'Not enough stock', EC: 2, DT: '' };
     }
 
     // Check if item already in cart
     const existingItem = await prisma.cartItem.findFirst({
-      where: { cart_id: cart.cart_id, product_id: productId }
+      where: { 
+        cart_id: cart.cart_id, 
+        product_id: productId,
+        variant_id: variantId 
+      }
     });
 
     let resultItem;
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity;
-      if (product.stock_quantity < newQuantity) {
+      if (availableStock < newQuantity) {
         return { EM: 'Not enough stock to add more', EC: 2, DT: '' };
       }
       resultItem = await prisma.cartItem.update({
@@ -80,6 +95,7 @@ const addToCart = async (userIdStr, data) => {
         data: {
           cart_id: cart.cart_id,
           product_id: productId,
+          variant_id: variantId,
           quantity: quantity,
           is_selected: true
         }
@@ -117,7 +133,16 @@ const updateCartItem = async (userIdStr, itemId, data) => {
         await prisma.cartItem.delete({ where: { cart_item_id: cartItemId } });
         return { EM: 'Item removed from cart', EC: 0, DT: '' };
       }
-      if (item.product.stock_quantity < q) {
+
+      let availableStock = item.product.stock_quantity;
+      if (item.variant_id) {
+        const variant = await prisma.productVariant.findUnique({ where: { variant_id: item.variant_id } });
+        if (variant) {
+          availableStock = variant.stock_quantity;
+        }
+      }
+
+      if (availableStock < q) {
         return { EM: 'Not enough stock', EC: 2, DT: '' };
       }
       updateData.quantity = q;

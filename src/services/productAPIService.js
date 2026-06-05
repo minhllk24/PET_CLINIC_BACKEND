@@ -173,7 +173,8 @@ const getDetailProduct = async (id) => {
       where: { product_id: productId },
       include: {
         category: true,
-        product_images: true
+        product_images: true,
+        variants: true
       }
     });
 
@@ -215,7 +216,27 @@ const createProduct = async (data) => {
       await prisma.productImage.createMany({ data: imageRecords });
     }
 
-    return { EM: 'Create product successful', EC: 0, DT: newProduct };
+    if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+      const variantRecords = data.variants.map(v => ({
+        product_id: newProduct.product_id,
+        variant_name: v.variant_name,
+        price: parseFloat(v.price),
+        original_price: v.original_price !== undefined && v.original_price !== null ? parseFloat(v.original_price) : null,
+        stock_quantity: v.stock_quantity ? parseInt(v.stock_quantity) : 0
+      }));
+      await prisma.productVariant.createMany({ data: variantRecords });
+    }
+
+    const createdProduct = await prisma.product.findUnique({
+      where: { product_id: newProduct.product_id },
+      include: {
+        category: true,
+        product_images: true,
+        variants: true
+      }
+    });
+
+    return { EM: 'Create product successful', EC: 0, DT: createdProduct };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -257,7 +278,31 @@ const updateProduct = async (id, data) => {
       }
     }
 
-    return { EM: 'Update product successful', EC: 0, DT: updatedProduct };
+    // Handle variants update if provided
+    if (data.variants && Array.isArray(data.variants)) {
+      await prisma.productVariant.deleteMany({ where: { product_id: productId } });
+      if (data.variants.length > 0) {
+        const variantRecords = data.variants.map(v => ({
+          product_id: productId,
+          variant_name: v.variant_name,
+          price: parseFloat(v.price),
+          original_price: v.original_price !== undefined && v.original_price !== null ? parseFloat(v.original_price) : null,
+          stock_quantity: v.stock_quantity ? parseInt(v.stock_quantity) : 0
+        }));
+        await prisma.productVariant.createMany({ data: variantRecords });
+      }
+    }
+
+    const completeUpdatedProduct = await prisma.product.findUnique({
+      where: { product_id: productId },
+      include: {
+        category: true,
+        product_images: true,
+        variants: true
+      }
+    });
+
+    return { EM: 'Update product successful', EC: 0, DT: completeUpdatedProduct };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -282,6 +327,104 @@ const deleteProduct = async (id) => {
   }
 };
 
+const getRelatedProducts = async (id) => {
+  try {
+    const productId = toBigIntId(id);
+    if (!productId) return { EM: 'Invalid product ID', EC: 1, DT: '' };
+
+    const product = await prisma.product.findUnique({
+      where: { product_id: productId }
+    });
+
+    if (!product) return { EM: 'Product not found', EC: -1, DT: '' };
+
+    const related = await prisma.product.findMany({
+      where: {
+        product_category_id: product.product_category_id,
+        product_id: { not: productId },
+        status: 'active'
+      },
+      include: {
+        product_images: { where: { is_primary: true } }
+      },
+      orderBy: {
+        sold_quantity: 'desc'
+      },
+      take: 10
+    });
+
+    return { EM: 'Get related products successful', EC: 0, DT: related };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const getReviewStats = async (id) => {
+  try {
+    const productId = toBigIntId(id);
+    if (!productId) return { EM: 'Invalid product ID', EC: 1, DT: '' };
+
+    const product = await prisma.product.findUnique({
+      where: { product_id: productId }
+    });
+
+    if (!product) return { EM: 'Product not found', EC: -1, DT: '' };
+
+    const stats = await prisma.review.groupBy({
+      by: ['rating'],
+      where: {
+        target_type: 'product',
+        target_id: productId,
+        status: 'posted'
+      },
+      _count: {
+        rating: true
+      }
+    });
+
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalReviews = 0;
+    let sumRating = 0;
+
+    stats.forEach(s => {
+      const rating = s.rating;
+      const count = s._count.rating;
+      if (counts[rating] !== undefined) {
+        counts[rating] = count;
+        totalReviews += count;
+        sumRating += rating * count;
+      }
+    });
+
+    const averageRating = totalReviews > 0 ? parseFloat((sumRating / totalReviews).toFixed(2)) : 0.00;
+
+    const breakdown = [];
+    for (let star = 5; star >= 1; star--) {
+      const count = counts[star];
+      const percentage = totalReviews > 0 ? parseFloat(((count / totalReviews) * 100).toFixed(2)) : 0.00;
+      breakdown.push({
+        star,
+        count,
+        percentage
+      });
+    }
+
+    return {
+      EM: 'Get review stats successful',
+      EC: 0,
+      DT: {
+        totalReviews,
+        averageRating,
+        breakdown
+      }
+    };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getAllCategories,
   createCategory,
@@ -291,5 +434,7 @@ module.exports = {
   getDetailProduct,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getRelatedProducts,
+  getReviewStats
 };

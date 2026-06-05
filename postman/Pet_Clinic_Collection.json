@@ -529,6 +529,32 @@
 					}
 				},
 				{
+					"name": "Get Related Products",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1/related",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1", "related"]
+						}
+					}
+				},
+				{
+					"name": "Get Product Review Stats",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/products/1/review-stats",
+							"host": ["{{base_url}}"],
+							"path": ["products", "1", "review-stats"]
+						}
+					}
+				},
+				{
 					"name": "Create Product (Admin)",
 					"request": {
 						"method": "POST",
@@ -1172,6 +1198,35 @@
 							"raw": "{{base_url}}/reviews",
 							"host": ["{{base_url}}"],
 							"path": ["reviews"]
+						}
+					}
+				},
+				{
+					"name": "Like / Unlike Review",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reviews/1/like",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "1", "like"]
+						}
+					}
+				},
+				{
+					"name": "Reply to Review",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"comment\": \"Cam on ban da phan hoi, shop se co gang hon nua!\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/reviews/1/reply",
+							"host": ["{{base_url}}"],
+							"path": ["reviews", "1", "reply"]
 						}
 					}
 				},

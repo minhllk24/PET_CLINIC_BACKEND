@@ -322,6 +322,9 @@ var checkoutCart = /*#__PURE__*/function () {
                       data: {
                         stock_quantity: {
                           decrement: item.quantity
+                        },
+                        sold_quantity: {
+                          increment: item.quantity
                         }
                       }
                     });
@@ -475,6 +478,9 @@ var updateOrderStatus = /*#__PURE__*/function () {
                       data: {
                         stock_quantity: {
                           increment: item.quantity
+                        },
+                        sold_quantity: {
+                          decrement: item.quantity
                         }
                       }
                     });

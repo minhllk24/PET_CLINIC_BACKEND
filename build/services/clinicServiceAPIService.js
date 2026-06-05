@@ -69,9 +69,9 @@ var getAllServices = /*#__PURE__*/function () {
             category_id: categoryId ? categoryId : undefined
           };
           _context2.n = 1;
-          return _prisma["default"].$transaction([_prisma["default"].clinicService.count({
+          return _prisma["default"].$transaction([_prisma["default"].service.count({
             where: whereCondition
-          }), _prisma["default"].clinicService.findMany({
+          }), _prisma["default"].service.findMany({
             where: whereCondition,
             include: {
               category: true
@@ -131,7 +131,7 @@ var getServiceById = /*#__PURE__*/function () {
           });
         case 1:
           _context3.n = 2;
-          return _prisma["default"].clinicService.findUnique({
+          return _prisma["default"].service.findUnique({
             where: {
               service_id: serviceId
             },
@@ -190,7 +190,7 @@ var createService = /*#__PURE__*/function () {
           });
         case 1:
           _context4.n = 2;
-          return _prisma["default"].clinicService.create({
+          return _prisma["default"].service.create({
             data: {
               service_name: data.service_name,
               category_id: (0, _prismaHelpers.toBigIntId)(data.category_id),
@@ -249,7 +249,7 @@ var updateService = /*#__PURE__*/function () {
           if (data.duration_minutes) updateData.duration_minutes = parseInt(data.duration_minutes);
           if (data.status) updateData.status = data.status;
           _context5.n = 2;
-          return _prisma["default"].clinicService.update({
+          return _prisma["default"].service.update({
             where: {
               service_id: serviceId
             },
@@ -297,7 +297,7 @@ var deleteService = /*#__PURE__*/function () {
           });
         case 1:
           _context6.n = 2;
-          return _prisma["default"].clinicService.update({
+          return _prisma["default"].service.update({
             where: {
               service_id: serviceId
             },
