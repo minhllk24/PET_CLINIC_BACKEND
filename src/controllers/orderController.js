@@ -45,9 +45,21 @@ const handleUpdateOrderStatus = async (req, res) => {
   }
 };
 
+const handleGuestCheckout = async (req, res) => {
+  try {
+    let data = await orderAPIService.guestCheckout(req.body);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetOrders,
   handleGetDetailOrder,
   handleCheckout,
+  handleGuestCheckout,
   handleUpdateOrderStatus
 };
+

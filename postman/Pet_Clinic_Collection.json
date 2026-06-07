@@ -734,6 +734,23 @@
 					}
 				},
 				{
+					"name": "Guest Checkout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"full_name\": \"Nguyen Van B\",\n    \"phone\": \"0987654321\",\n    \"email\": \"guest@example.com\",\n    \"address_line\": \"456 Đường Lê Lợi\",\n    \"ward\": \"Phường Bến Nghé\",\n    \"district\": \"Quận 1\",\n    \"province\": \"TP. Hồ Chí Minh\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao ngoài giờ hành chính\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/guest-checkout",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "guest-checkout"]
+						}
+					}
+				},
+				{
 					"name": "Update Order Status (Admin/Staff)",
 					"request": {
 						"method": "PUT",

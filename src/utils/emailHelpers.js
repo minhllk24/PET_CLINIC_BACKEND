@@ -43,3 +43,39 @@ export const sendOtpEmail = async (toEmail, otpCode) => {
     return false;
   }
 };
+
+export const sendGuestAccountEmail = async (toEmail, password, orderCode) => {
+  const transporter = createTransporter();
+
+  const mailOptions = {
+    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    to: toEmail,
+    subject: 'Thông tin tài khoản và đơn hàng của bạn - Pet Clinic',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #333; text-align: center;">Đặt Hàng Thành Công</h2>
+        <p>Chào bạn,</p>
+        <p>Cảm ơn bạn đã mua sắm tại Pet Clinic. Đơn hàng của bạn với mã <strong>\${orderCode}</strong> đã được tạo thành công.</p>
+        <p>Để giúp bạn dễ dàng theo dõi trạng thái đơn hàng và mua sắm trong tương lai, chúng tôi đã tự động tạo một tài khoản thành viên cho bạn với thông tin đăng nhập như sau:</p>
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #eee;">
+          <p style="margin: 5px 0;"><strong>Email đăng nhập:</strong> \${toEmail}</p>
+          <p style="margin: 5px 0;"><strong>Mật khẩu:</strong> \${password}</p>
+        </div>
+        <p style="color: #ff9800;"><strong>* Lưu ý:</strong> Vui lòng đổi mật khẩu sau khi đăng nhập lần đầu tiên để đảm bảo bảo mật thông tin tài khoản.</p>
+        <p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với bộ phận hỗ trợ của chúng tôi.</p>
+        <br>
+        <p>Trân trọng,</p>
+        <p><strong>Đội ngũ Pet Clinic</strong></p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending guest account email:', error);
+    return false;
+  }
+};
+

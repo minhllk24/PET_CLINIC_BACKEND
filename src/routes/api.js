@@ -88,6 +88,7 @@ const initAPIRoutes = (app) => {
   router.get('/orders', verifyToken, orderController.handleGetOrders);
   router.get('/orders/:id', verifyToken, orderController.handleGetDetailOrder);
   router.post('/orders/checkout', verifyToken, orderController.handleCheckout);
+  router.post('/orders/guest-checkout', orderController.handleGuestCheckout);
   router.put('/orders/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF']), orderController.handleUpdateOrderStatus);
 
   // --- PAYMENT ROUTES ---
