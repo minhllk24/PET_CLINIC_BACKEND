@@ -366,7 +366,7 @@ model OtpCode {
 model UserSession {
   session_id    BigInt    @id @default(autoincrement()) @db.BigInt
   user_id       BigInt    @db.BigInt
-  session_token String    @unique @db.VarChar(255)
+  session_token String    @unique @db.VarChar(500)
   remember_me   Boolean   @default(false)
   ip_address    String?   @db.VarChar(50)
   user_agent    String?   @db.VarChar(255)
@@ -1017,6 +1017,7 @@ model Order {
   total_amount           Decimal            @default(0.00) @db.Decimal(12, 2)
   order_status           OrderStatus        @default(pending)
   payment_status         OrderPaymentStatus @default(unpaid)
+  note                   String?            @db.Text
   created_at             DateTime           @default(now()) @db.DateTime(0)
   updated_at             DateTime           @updatedAt @db.DateTime(0)
 

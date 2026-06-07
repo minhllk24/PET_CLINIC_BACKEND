@@ -79,7 +79,7 @@ const checkoutCart = async (userIdStr, data) => {
     const userId = toBigIntId(userIdStr);
     if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
 
-    const { address_id, payment_method } = data;
+    const { address_id, payment_method, voucher_code, note } = data;
     if (!address_id || !payment_method) {
       return { EM: 'Missing address_id or payment_method', EC: 1, DT: '' };
     }
@@ -129,7 +129,7 @@ const checkoutCart = async (userIdStr, data) => {
     }
 
     // Check stock and calculate total
-    let totalAmount = 0;
+    let subtotalAmount = 0;
     const variantsData = {}; // Cache variants
     for (let i = 0; i < cartItemsToCheckout.length; i++) {
       const item = cartItemsToCheckout[i];
@@ -149,25 +149,88 @@ const checkoutCart = async (userIdStr, data) => {
       if (availableStock < item.quantity) {
         return { EM: `Not enough stock for product: ${item.product.product_name}`, EC: 2, DT: '' };
       }
-      totalAmount += price * item.quantity;
+      subtotalAmount += price * item.quantity;
     }
 
-    const shippingFee = 30000; // Fixed shipping fee for simplicity
-    const finalAmount = totalAmount + shippingFee;
+    // Process Voucher (if any)
+    let voucherId = null;
+    let discountAmount = 0;
+    let voucher = null;
+    if (voucher_code) {
+      const vCode = voucher_code.toUpperCase();
+      voucher = await prisma.voucher.findUnique({ where: { voucher_code: vCode } });
+      if (!voucher || voucher.status !== 'active') {
+        return { EM: 'Voucher not valid or inactive', EC: -1, DT: '' };
+      }
+
+      const now = new Date();
+      if (voucher.start_at && now < voucher.start_at) return { EM: 'Voucher not yet active', EC: -1, DT: '' };
+      if (voucher.end_at && now > voucher.end_at) return { EM: 'Voucher expired', EC: -1, DT: '' };
+
+      if (voucher.min_order_amount && subtotalAmount < parseFloat(voucher.min_order_amount)) {
+        return { EM: `Minimum order value is ${parseFloat(voucher.min_order_amount)}`, EC: -1, DT: '' };
+      }
+
+      if (voucher.remaining_usage !== null && voucher.remaining_usage <= 0) {
+        return { EM: 'Voucher usage limit reached', EC: -1, DT: '' };
+      }
+
+      // Check if user already used this voucher
+      const userUsed = await prisma.voucherUsage.findFirst({
+        where: { user_id: userId, voucher_id: voucher.voucher_id }
+      });
+      if (userUsed) {
+        return { EM: 'You have already used this voucher', EC: -1, DT: '' };
+      }
+
+      voucherId = voucher.voucher_id;
+      if (voucher.discount_type === 'percent') {
+        discountAmount = subtotalAmount * (parseFloat(voucher.discount_value) / 100);
+        if (voucher.max_discount_amount && discountAmount > parseFloat(voucher.max_discount_amount)) {
+          discountAmount = parseFloat(voucher.max_discount_amount);
+        }
+      } else if (voucher.discount_type === 'fixed') {
+        discountAmount = parseFloat(voucher.discount_value);
+      }
+      
+      // Ensure discount doesn't exceed subtotal
+      if (discountAmount > subtotalAmount) {
+        discountAmount = subtotalAmount;
+      }
+    }
+
+    const shippingFee = 0; // Hardcoded to 0 as per user response
+    const finalAmount = subtotalAmount + shippingFee - discountAmount;
+
+    // Snapshot address fields
+    const recipientName = address.recipient_name;
+    const recipientPhone = address.recipient_phone;
+    const shippingAddress = `${address.address_line}${address.ward ? ', ' + address.ward : ''}${address.district ? ', ' + address.district : ''}${address.province ? ', ' + address.province : ''}`;
+
+    const orderCode = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const paymentCode = `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
     // Execute transaction
     const resultOrder = await prisma.$transaction(async (tx) => {
       // 1. Create Order
       const newOrder = await tx.order.create({
         data: {
+          order_code: orderCode,
+          order_type: 'product',
           user_id: userId,
           address_id: addrId,
-          total_amount: totalAmount,
+          voucher_id: voucherId,
+          recipient_name: recipientName,
+          recipient_phone: recipientPhone,
+          shipping_address: shippingAddress,
+          subtotal_amount: subtotalAmount,
+          discount_amount: discountAmount,
+          points_discount_amount: 0,
           shipping_fee: shippingFee,
-          discount_amount: 0,
-          final_amount: finalAmount,
+          total_amount: finalAmount,
           order_status: 'pending',
-          payment_status: 'unpaid'
+          payment_status: 'unpaid',
+          note: note || null
         }
       });
 
@@ -175,8 +238,10 @@ const checkoutCart = async (userIdStr, data) => {
       for (let i = 0; i < cartItemsToCheckout.length; i++) {
         const item = cartItemsToCheckout[i];
         let price = parseFloat(item.product.price);
+        let itemNameSnapshot = item.product.product_name;
         if (item.variant_id && variantsData[i]) {
           price = parseFloat(variantsData[i].price);
+          itemNameSnapshot = `${item.product.product_name} - ${variantsData[i].variant_name}`;
         }
 
         await tx.orderItem.create({
@@ -184,8 +249,11 @@ const checkoutCart = async (userIdStr, data) => {
             order_id: newOrder.order_id,
             product_id: item.product_id,
             variant_id: item.variant_id,
+            item_type: 'product',
+            item_name_snapshot: itemNameSnapshot,
             quantity: item.quantity,
-            price: price
+            unit_price: price,
+            total_price: price * item.quantity
           }
         });
 
@@ -210,18 +278,41 @@ const checkoutCart = async (userIdStr, data) => {
       }
 
       // 3. Create Payment record
-      await tx.payment.create({
+      const newPayment = await tx.payment.create({
         data: {
-          target_type: 'order',
-          target_id: newOrder.order_id,
+          payment_code: paymentCode,
           user_id: userId,
-          amount: finalAmount,
-          payment_method: payment_method,
-          payment_status: 'pending'
+          order_id: newOrder.order_id,
+          payment_target_type: 'order',
+          payment_method: payment_method, // 'cod' or 'online'
+          subtotal_amount: subtotalAmount,
+          voucher_discount_amount: discountAmount,
+          points_used: 0,
+          points_discount_amount: 0,
+          final_amount: finalAmount,
+          status: 'pending'
         }
       });
 
-      // 4. Delete processed CartItems if using DB cart
+      // 4. Create VoucherUsage record + decrement remaining_usage
+      if (voucherId) {
+        await tx.voucherUsage.create({
+          data: {
+            voucher_id: voucherId,
+            user_id: userId,
+            payment_id: newPayment.payment_id,
+            discount_amount: discountAmount
+          }
+        });
+        if (voucher.remaining_usage !== null) {
+          await tx.voucher.update({
+            where: { voucher_id: voucherId },
+            data: { remaining_usage: { decrement: 1 } }
+          });
+        }
+      }
+
+      // 5. Delete processed CartItems if using DB cart
       if (!isDirectCheckout) {
         const cartItemIds = cartItemsToCheckout.map(i => i.cart_item_id);
         await tx.cartItem.deleteMany({
