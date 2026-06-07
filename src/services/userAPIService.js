@@ -157,7 +157,7 @@ const createAddress = async (id, data) => {
     const userId = toBigIntId(id);
     if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
 
-    const { recipient_name, recipient_phone, address_line, ward, district, province, is_default } = data;
+    const { recipient_name, recipient_phone, recipient_email, address_line, ward, district, province, country, is_default } = data;
 
     if (!recipient_name || !recipient_phone || !address_line) {
       return { EM: 'Missing required fields', EC: 1, DT: '' };
@@ -175,10 +175,12 @@ const createAddress = async (id, data) => {
         user_id: userId,
         recipient_name,
         recipient_phone,
+        recipient_email: recipient_email || null,
         address_line,
         ward,
         district,
         province,
+        country: country || null,
         is_default: is_default || false
       }
     });
@@ -210,10 +212,12 @@ const updateAddress = async (addressId, data) => {
       data: {
         recipient_name: data.recipient_name || existingAddr.recipient_name,
         recipient_phone: data.recipient_phone || existingAddr.recipient_phone,
+        recipient_email: data.recipient_email !== undefined ? data.recipient_email : existingAddr.recipient_email,
         address_line: data.address_line || existingAddr.address_line,
         ward: data.ward || existingAddr.ward,
         district: data.district || existingAddr.district,
         province: data.province || existingAddr.province,
+        country: data.country !== undefined ? data.country : existingAddr.country,
         is_default: data.is_default !== undefined ? data.is_default : existingAddr.is_default
       }
     });

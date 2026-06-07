@@ -269,7 +269,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"address_line\": \"123 ABC Street\",\n    \"ward\": \"Phuong 1\",\n    \"district\": \"Quan 1\",\n    \"province\": \"Ho Chi Minh\",\n    \"is_default\": true\n}",
+							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"recipient_email\": \"recipient@example.com\",\n    \"address_line\": \"123 ABC Street\",\n    \"ward\": \"Phuong 1\",\n    \"district\": \"Quan 1\",\n    \"province\": \"Ho Chi Minh\",\n    \"country\": \"Viet Nam\",\n    \"is_default\": true\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
@@ -286,7 +286,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"recipient_name\": \"Updated Name\",\n    \"recipient_phone\": \"0999888777\",\n    \"address_line\": \"456 XYZ Street\"\n}",
+							"raw": "{\n    \"recipient_name\": \"Updated Name\",\n    \"recipient_phone\": \"0999888777\",\n    \"recipient_email\": \"updated_recipient@example.com\",\n    \"address_line\": \"456 XYZ Street\",\n    \"country\": \"Viet Nam\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {
