@@ -700,6 +700,11 @@ const guestCheckout = async (data) => {
         console.warn('Error sending guest checkout account email:', emailErr);
       });
 
+    resultOrder.guest_account = {
+      username: email || phone,
+      password: generatedPassword
+    };
+
     return {
       EM: 'Đơn hàng đã được tạo thành công. Thông tin tài khoản đã được gửi đến email của bạn.',
       EC: 0,
