@@ -31,7 +31,13 @@ npx prisma db seed
 ```
 - Lệnh `migrate dev` sẽ tạo bảng trong MySQL.
 - Lệnh `generate` sẽ tạo Prisma Client.
-- Lệnh `db seed` sẽ nạp tự động tài khoản Admin, Bác sĩ, Khách hàng và các sản phẩm, dịch vụ mẫu.
+- Lệnh `db seed` sẽ nạp tự động tài khoản Admin, Bác sĩ, Khách hàng, 5 danh mục và 40 sản phẩm mẫu (dữ liệu thật từ PetMart) cùng hình ảnh và biến thể.
+
+> 💡 **Lưu ý để tránh trùng lặp dữ liệu (Duplicate Data):**
+> Lệnh `npx prisma db seed` sẽ liên tục chèn thêm dữ liệu nếu chạy nhiều lần. Để dọn sạch Database hoàn toàn và tự động nạp lại 1 bộ dữ liệu chuẩn duy nhất (không bị duplicate), hãy chạy lệnh:
+> ```bash
+> npx prisma migrate reset
+> ```
 
 **Bước 4: Khởi động Server**
 ```bash
