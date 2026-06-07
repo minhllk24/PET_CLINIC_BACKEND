@@ -85,4 +85,31 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
     - Tự động lấy giá bán (`price`) và trừ tồn kho (`stock_quantity`) trực tiếp trên biến thể (Product Variant) thay vì trên sản phẩm gốc. Trả lại đúng tồn kho biến thể khi hủy đơn hàng.
   - **Đồng bộ Postman**: Bổ sung đầy đủ các request mới (`Can Review`, `Related Products`, `Review Stats`, `Like`, `Reply`) vào `Pet_Clinic_Collection.json` và cập nhật payload `items` cho Checkout.
 
-*(Bạn có thể tiếp tục copy format trên để ghi chú cho các ngày tiếp theo nhé)*
+---
+## [Ngày 07/06/2026]
+### Đã hoàn thành:
+- **Cập nhật luồng Thanh toán (Checkout API):**
+  - Thêm trường `note` vào model `Order` để hỗ trợ ghi chú cho đơn hàng.
+  - Sửa lỗi `P2000` (độ dài `session_token`) khi đăng nhập bằng cách tăng giới hạn ký tự trong DB schema.
+  - Viết lại toàn bộ hàm `checkoutCart` trong `orderAPIService.js` để hỗ trợ áp dụng mã giảm giá (`voucher_code`), tự động tính `discount_amount`, và hardcode `shipping_fee = 0` theo giao diện UI.
+  - Lưu đầy đủ snapshot địa chỉ người nhận (`recipient_name`, `recipient_phone`, `shipping_address`) và tên sản phẩm (`item_name_snapshot`).
+  - Ghi nhận lịch sử sử dụng mã giảm giá (`VoucherUsage`) và đồng bộ log thanh toán (`Payment`).
+  - Cập nhật payload request `Checkout Order` trong file `Pet_Clinic_Collection.json` (thêm trường `note`).
+- **Triển khai API Đặt đơn cho khách vãng lai (Guest Checkout API):**
+  - Tạo API `POST /api/v1/orders/guest-checkout` không yêu cầu đăng nhập.
+  - Tự động kiểm tra trùng lặp email và số điện thoại. Đặc biệt, nếu tài khoản trùng tồn tại nhưng ở trạng thái chưa kích hoạt (`inactive`), hệ thống sẽ tự động xóa tài khoản cũ đó để cho phép khách hàng đặt đơn và tạo tài khoản mới.
+  - Tự động tạo tài khoản khách (`User`), địa chỉ mặc định (`UserAddress`), tạo đơn hàng (`Order`), lưu các mặt hàng (`OrderItem`), bản ghi thanh toán (`Payment`) và sử dụng mã giảm giá (`VoucherUsage`) trong cùng một Prisma transaction đảm bảo tính nhất quán (nếu có lỗi sẽ rollback toàn bộ).
+  - Tự động gửi email bất đồng bộ chứa mật khẩu đăng nhập ngẫu nhiên (sinh tự động 10 ký tự có độ phức tạp cao) kèm mã đơn hàng sau khi tạo đơn thành công mà không gây ảnh hưởng đến hiệu năng hay chặn luồng tạo đơn của khách.
+  - Cập nhật Payload Response API `Guest Checkout`: Trả về trực tiếp thông tin tài khoản vừa tạo (`guest_account` gồm `username` và `password` chưa mã hóa) trong `DT` để UI màn hình "Đặt hàng thành công" có thể hiển thị theo đúng thiết kế của Figma.
+  - Cập nhật file Postman collection `Pet_Clinic_Collection.json` thêm request `Guest Checkout` đầy đủ payload mẫu và không cần auth token.
+- **Đồng bộ hóa địa chỉ nhận hàng với UI Thiết kế (UserAddress Schema Update):**
+  - Thêm trường `recipient_email` (Email người nhận) và `country` (Quốc gia) vào model `UserAddress` trong file `schema.prisma`.
+  - Chạy migration đồng bộ cơ sở dữ liệu (`add_email_country_to_user_addresses`).
+  - Cập nhật service `createAddress` và `updateAddress` trong `src/services/userAPIService.js` để nhận diện, lưu trữ và cập nhật 2 trường này.
+  - Cập nhật các mẫu dữ liệu test (payload) trong Postman collection `Pet_Clinic_Collection.json` cho các request `Create Address` và `Update Address` để bao gồm 2 field mới này.
+- **Khởi tạo dữ liệu mẫu (Seeding Database):**
+  - Xây dựng script crawl dữ liệu thực tế từ hệ thống PetMart (100 sản phẩm, bao gồm hình ảnh, giá bán, mô tả, biến thể).
+  - Phân bổ tự động 100 sản phẩm với trọng số tập trung vào "Thức ăn" (40 sp) và "Đồ dùng thiết yếu" (30 sp) theo yêu cầu.
+  - Tích hợp logic sinh sản phẩm vào file `prisma/seed.js` gốc mà không làm mất dữ liệu seed của Roles và Users cũ.
+  - Chạy `npx prisma migrate reset --force` để dọn sạch hoàn toàn rác Database, reset migration và tự động seed 1 bộ data hoàn chỉnh (tránh duplicate data).
+  - Cập nhật file `README.md` lưu ý rõ cách chạy `seed` vs `migrate reset`.
