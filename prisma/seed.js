@@ -3,6 +3,31 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+const VN_FIRST = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi'];
+const VN_MIDDLE = ['Văn', 'Thị', 'Anh', 'Minh', 'Đức', 'Hoàng', 'Hải', 'Xuân', 'Quốc', 'Thành'];
+const VN_LAST = ['An', 'Bình', 'Chi', 'Dũng', 'Giang', 'Hương', 'Khánh', 'Lan', 'Nam', 'Phúc', 'Quỳnh', 'Sơn', 'Thảo', 'Tú', 'Vinh'];
+
+function generateRandomName() {
+  const f = VN_FIRST[Math.floor(Math.random() * VN_FIRST.length)];
+  const m = VN_MIDDLE[Math.floor(Math.random() * VN_MIDDLE.length)];
+  const l = VN_LAST[Math.floor(Math.random() * VN_LAST.length)];
+  return `${f} ${m} ${l}`;
+}
+
+function removeAccents(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
+function generateRandomEmail(name, roleCode, index) {
+  const cleanName = removeAccents(name).toLowerCase().replace(/\s+/g, '.');
+  const randomStr = Math.random().toString(36).substring(2, 6);
+  return `${roleCode.toLowerCase()}.${cleanName}.${index + 1}.${randomStr}@petclinic.com`;
+}
+
 async function main() {
   console.log('Seeding data...');
 
@@ -21,6 +46,29 @@ async function main() {
       create: r,
     });
   }
+
+  // 1.5. Branches
+  const branch1 = await prisma.branch.findFirst({ where: { branch_name: "Chi nhánh Quận 10 (Chính)" } }) 
+    || await prisma.branch.create({
+      data: {
+        branch_name: "Chi nhánh Quận 10 (Chính)",
+        address: "123 Đường Ba Tháng Hai, Phường 11, Quận 10, TP. Hồ Chí Minh",
+        phone: "0281234567",
+        email: "branch1@petclinic.com",
+        status: "active"
+      }
+    });
+
+  const branch2 = await prisma.branch.findFirst({ where: { branch_name: "Chi nhánh Bình Thạnh" } })
+    || await prisma.branch.create({
+      data: {
+        branch_name: "Chi nhánh Bình Thạnh",
+        address: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
+        phone: "0287654321",
+        email: "branch2@petclinic.com",
+        status: "active"
+      }
+    });
 
   // 2. Users
   const passwordHash = await bcrypt.hash('12345678', 10);
@@ -49,6 +97,20 @@ async function main() {
     }
   });
 
+  await prisma.doctor.upsert({
+    where: { user_id: doctor1.user_id },
+    update: {},
+    create: {
+      user_id: doctor1.user_id,
+      branch_id: branch1.branch_id,
+      doctor_name: doctor1.full_name,
+      bio: "Bác sĩ thú y đa khoa khám tổng quát.",
+      avatar_url: "https://i.pravatar.cc/150?img=11",
+      average_rating: 4.8,
+      status: "active"
+    }
+  });
+
   const customer1 = await prisma.user.upsert({
     where: { email: 'customer1@petclinic.com' },
     update: {},
@@ -62,6 +124,185 @@ async function main() {
     }
   });
 
+  // Create 20 STAFF
+  const currentStaffCount = await prisma.user.count({
+    where: { role: { role_code: 'STAFF' } }
+  });
+  const staffNeeded = 20 - currentStaffCount;
+  if (staffNeeded > 0) {
+    console.log(`Seeding ${staffNeeded} additional STAFF users...`);
+    for (let i = 0; i < staffNeeded; i++) {
+      const name = generateRandomName();
+      const email = generateRandomEmail(name, 'STAFF', i);
+      await prisma.user.create({
+        data: {
+          email,
+          password_hash: passwordHash,
+          full_name: name,
+          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          avatar_url: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+          role: { connect: { role_code: 'STAFF' } },
+          status: 'active'
+        }
+      });
+    }
+  }
+
+  // Create 15 DOCTOR (4 specific ones + random ones)
+  const specificDoctors = [
+    {
+      email: 'nhan.tran@petclinic.com',
+      full_name: 'Bs. Trần Văn Nhân',
+      phone: '0912345671',
+      avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400',
+      bio: 'Bác sĩ có hơn 20 năm kinh nghiệm trong lĩnh vực phẫu thuật thú y ngoại khoa và điều trị nội khoa chuyên sâu. Tốt nghiệp Thạc sĩ thú y từ Đại học Nông Lâm TP.HCM.',
+      branch_id: branch1.branch_id,
+      rating: 4.9
+    },
+    {
+      email: 'nam.vo@petclinic.com',
+      full_name: 'Bs. Võ Công Nam',
+      phone: '0912345672',
+      avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400',
+      bio: '14 năm kinh nghiệm chuyên môn về chẩn đoán hình ảnh (siêu âm, X-quang) và xét nghiệm lâm sàng. Từng tu nghiệp tại Thái Lan về chẩn đoán bệnh lý thú y.',
+      branch_id: branch2.branch_id,
+      rating: 4.8
+    },
+    {
+      email: 'hong.nguyen@petclinic.com',
+      full_name: 'Bs. Nguyễn Thu Hồng',
+      phone: '0912345673',
+      avatar_url: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?w=400',
+      bio: '5 năm kinh nghiệm điều trị các bệnh truyền nhiễm, chăm sóc sức khỏe ban đầu, tiêm phòng và tư vấn dinh dưỡng cho thú cưng nhỏ.',
+      branch_id: branch1.branch_id,
+      rating: 4.7
+    },
+    {
+      email: 'tram.tran@petclinic.com',
+      full_name: 'Bs. Trần Phương Trâm',
+      phone: '0912345674',
+      avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400',
+      bio: '7 năm kinh nghiệm chuyên về da liễu, chăm sóc nha khoa và phục hồi chức năng sau chấn thương cho chó mèo.',
+      branch_id: branch2.branch_id,
+      rating: 4.8
+    }
+  ];
+
+  for (const doc of specificDoctors) {
+    const docUser = await prisma.user.upsert({
+      where: { email: doc.email },
+      update: {},
+      create: {
+        email: doc.email,
+        password_hash: passwordHash,
+        full_name: doc.full_name,
+        phone: doc.phone,
+        avatar_url: doc.avatar_url,
+        role: { connect: { role_code: 'DOCTOR' } },
+        status: 'active'
+      }
+    });
+
+    await prisma.doctor.upsert({
+      where: { user_id: docUser.user_id },
+      update: {},
+      create: {
+        user_id: docUser.user_id,
+        branch_id: doc.branch_id,
+        doctor_name: doc.full_name,
+        bio: doc.bio,
+        avatar_url: doc.avatar_url,
+        average_rating: doc.rating,
+        status: 'active'
+      }
+    });
+  }
+
+  // Count how many users with role DOCTOR exist in the database
+  const currentDoctorCount = await prisma.user.count({
+    where: { role: { role_code: 'DOCTOR' } }
+  });
+  const doctorNeeded = 15 - currentDoctorCount;
+  if (doctorNeeded > 0) {
+    console.log(`Seeding ${doctorNeeded} additional DOCTOR users...`);
+    for (let i = 0; i < doctorNeeded; i++) {
+      const name = "Dr. " + generateRandomName();
+      const email = generateRandomEmail(name, 'DOCTOR', i);
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password_hash: passwordHash,
+          full_name: name,
+          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          avatar_url: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+          role: { connect: { role_code: 'DOCTOR' } },
+          status: 'active'
+        }
+      });
+
+      const branchId = Math.random() > 0.5 ? branch1.branch_id : branch2.branch_id;
+      await prisma.doctor.create({
+        data: {
+          user_id: user.user_id,
+          branch_id: branchId,
+          doctor_name: name,
+          bio: "Bác sĩ thú y chuyên nghiệp tại Dr.Pet's House.",
+          avatar_url: user.avatar_url,
+          average_rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
+          status: 'active'
+        }
+      });
+    }
+  }
+
+  // Double check that ALL doctor users have doctor profiles (for robust seed rerun)
+  const allDoctorUsers = await prisma.user.findMany({
+    where: { role: { role_code: 'DOCTOR' } }
+  });
+  for (const u of allDoctorUsers) {
+    const existingDocProfile = await prisma.doctor.findUnique({
+      where: { user_id: u.user_id }
+    });
+    if (!existingDocProfile) {
+      const branchId = Math.random() > 0.5 ? branch1.branch_id : branch2.branch_id;
+      await prisma.doctor.create({
+        data: {
+          user_id: u.user_id,
+          branch_id: branchId,
+          doctor_name: u.full_name,
+          bio: "Bác sĩ thú y chuyên nghiệp tại Dr.Pet's House.",
+          avatar_url: u.avatar_url,
+          average_rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
+          status: 'active'
+        }
+      });
+    }
+  }
+
+  // Create 35 CUSTOMER
+  const currentCustomerCount = await prisma.user.count({
+    where: { role: { role_code: 'CUSTOMER' } }
+  });
+  const customerNeeded = 35 - currentCustomerCount;
+  if (customerNeeded > 0) {
+    console.log(`Seeding ${customerNeeded} additional CUSTOMER users...`);
+    for (let i = 0; i < customerNeeded; i++) {
+      const name = generateRandomName();
+      const email = generateRandomEmail(name, 'CUSTOMER', i);
+      await prisma.user.create({
+        data: {
+          email,
+          password_hash: passwordHash,
+          full_name: name,
+          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          avatar_url: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+          role: { connect: { role_code: 'CUSTOMER' } },
+          status: 'active'
+        }
+      });
+    }
+  }
+
   // 3. Species & Breeds
   const catSpecies = await prisma.petSpecies.upsert({
     where: { species_name: 'Mèo' },
@@ -69,36 +310,421 @@ async function main() {
     create: { species_name: 'Mèo' }
   });
 
+  const dogSpecies = await prisma.petSpecies.upsert({
+    where: { species_name: 'Chó' },
+    update: {},
+    create: { species_name: 'Chó' }
+  });
+
+  const hamsterSpecies = await prisma.petSpecies.upsert({
+    where: { species_name: 'Hamster' },
+    update: {},
+    create: { species_name: 'Hamster' }
+  });
+
+  const rabbitSpecies = await prisma.petSpecies.upsert({
+    where: { species_name: 'Thỏ' },
+    update: {},
+    create: { species_name: 'Thỏ' }
+  });
+
   await prisma.petBreed.createMany({
     data: [
       { species_id: catSpecies.species_id, breed_name: 'Mèo Anh Lông Ngắn' },
-      { species_id: catSpecies.species_id, breed_name: 'Mèo Ba Tư' }
+      { species_id: catSpecies.species_id, breed_name: 'Mèo Ba Tư' },
+      { species_id: catSpecies.species_id, breed_name: 'Mèo Munchkin' },
+      { species_id: catSpecies.species_id, breed_name: 'Mèo Xiêm' },
+      { species_id: catSpecies.species_id, breed_name: 'Mèo Ragdoll' },
+      { species_id: dogSpecies.species_id, breed_name: 'Poodle' },
+      { species_id: dogSpecies.species_id, breed_name: 'Corgi' },
+      { species_id: dogSpecies.species_id, breed_name: 'Husky' },
+      { species_id: dogSpecies.species_id, breed_name: 'Golden Retriever' },
+      { species_id: dogSpecies.species_id, breed_name: 'Chihuahua' },
+      { species_id: dogSpecies.species_id, breed_name: 'Phú Quốc' },
+      { species_id: hamsterSpecies.species_id, breed_name: 'Hamster Winter White' },
+      { species_id: hamsterSpecies.species_id, breed_name: 'Hamster Roborovski' },
+      { species_id: rabbitSpecies.species_id, breed_name: 'Thỏ Hà Lan' },
+      { species_id: rabbitSpecies.species_id, breed_name: 'Thỏ Mini Lop' },
     ],
     skipDuplicates: true
   });
 
-  // 4. Service Categories
-  let serviceCat1 = await prisma.serviceCategory.findFirst({ where: { category_name: 'Khám bệnh' } });
-  if (!serviceCat1) {
-    serviceCat1 = await prisma.serviceCategory.create({
-      data: { category_name: 'Khám bệnh', description: 'Các dịch vụ khám chữa bệnh' }
+  // Fetch all breeds grouped by species for pet seeding
+  const allBreeds = await prisma.petBreed.findMany();
+  const breedsBySpecies = {};
+  for (const b of allBreeds) {
+    const key = b.species_id.toString();
+    if (!breedsBySpecies[key]) breedsBySpecies[key] = [];
+    breedsBySpecies[key].push(b);
+  }
+
+  const speciesList = [catSpecies, dogSpecies, hamsterSpecies, rabbitSpecies];
+
+  const PET_NAMES_DOG = ['Lucky', 'Bông', 'Mập', 'Cún', 'Rex', 'Buddy', 'Gấu', 'Vàng', 'Đen', 'Milo', 'Lulu', 'Bin'];
+  const PET_NAMES_CAT = ['Miu', 'Kitty', 'Mèo Mập', 'Luna', 'Simba', 'Tom', 'Mochi', 'Sữa', 'Bông', 'Neko', 'Miu Miu', 'Gạo'];
+  const PET_NAMES_HAMSTER = ['Ham', 'Chuột', 'Bé Nhỏ', 'Peanut', 'Cookie', 'Chip'];
+  const PET_NAMES_RABBIT = ['Thỏ Trắng', 'Bun Bun', 'Carrot', 'Tuyết', 'Bé Bông', 'Cotton'];
+
+  const PET_IMAGES_DOG = [
+    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400',
+    'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400',
+    'https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=400',
+    'https://images.unsplash.com/photo-1588943211346-0908a1fb0b01?w=400',
+    'https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=400',
+    'https://images.unsplash.com/photo-1544568100-847a948585b9?w=400',
+  ];
+  const PET_IMAGES_CAT = [
+    'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400',
+    'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=400',
+    'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=400',
+    'https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=400',
+    'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400',
+    'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400',
+  ];
+  const PET_IMAGES_HAMSTER = [
+    'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?w=400',
+    'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=400',
+  ];
+  const PET_IMAGES_RABBIT = [
+    'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=400',
+    'https://images.unsplash.com/photo-1535241749838-299277c6555b?w=400',
+  ];
+
+  function getPetNamesForSpecies(speciesId) {
+    if (speciesId.toString() === dogSpecies.species_id.toString()) return PET_NAMES_DOG;
+    if (speciesId.toString() === catSpecies.species_id.toString()) return PET_NAMES_CAT;
+    if (speciesId.toString() === hamsterSpecies.species_id.toString()) return PET_NAMES_HAMSTER;
+    return PET_NAMES_RABBIT;
+  }
+
+  function getPetImagesForSpecies(speciesId) {
+    if (speciesId.toString() === dogSpecies.species_id.toString()) return PET_IMAGES_DOG;
+    if (speciesId.toString() === catSpecies.species_id.toString()) return PET_IMAGES_CAT;
+    if (speciesId.toString() === hamsterSpecies.species_id.toString()) return PET_IMAGES_HAMSTER;
+    return PET_IMAGES_RABBIT;
+  }
+
+  function randomDate(startYear, endYear) {
+    const start = new Date(startYear, 0, 1);
+    const end = new Date(endYear, 11, 31);
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  }
+
+  function randomElement(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // 3.5. Seed Pets for CUSTOMER users
+  const existingPetCount = await prisma.pet.count();
+  if (existingPetCount === 0) {
+    console.log('Seeding pets for CUSTOMER users...');
+
+    const allCustomers = await prisma.user.findMany({
+      where: { role: { role_code: 'CUSTOMER' } },
+      orderBy: { user_id: 'asc' }
+    });
+
+    const genders = ['male', 'female'];
+    const healthStatuses = ['healthy', 'treating', 'need_recheck'];
+
+    for (let idx = 0; idx < allCustomers.length; idx++) {
+      const customer = allCustomers[idx];
+      // First 15 customers: 1 pet each; remaining 20: 2-4 pets each
+      const petCount = idx < 15 ? 1 : Math.floor(Math.random() * 3) + 2; // 2, 3, or 4
+
+      for (let p = 0; p < petCount; p++) {
+        const species = randomElement(speciesList);
+        const speciesBreeds = breedsBySpecies[species.species_id.toString()] || [];
+        const breed = speciesBreeds.length > 0 ? randomElement(speciesBreeds) : null;
+        const petNames = getPetNamesForSpecies(species.species_id);
+        const petImages = getPetImagesForSpecies(species.species_id);
+        const petName = randomElement(petNames);
+        const gender = randomElement(genders);
+        const birthDate = randomDate(2018, 2025);
+        const weightKg = parseFloat((Math.random() * 15 + 0.5).toFixed(2));
+        const healthStatus = randomElement(healthStatuses);
+        const profileImage = randomElement(petImages);
+
+        const pet = await prisma.pet.create({
+          data: {
+            owner_user_id: customer.user_id,
+            species_id: species.species_id,
+            breed_id: breed ? breed.breed_id : null,
+            pet_name: petName,
+            gender,
+            birth_date: birthDate,
+            weight_kg: weightKg,
+            profile_image_url: profileImage,
+            health_status: healthStatus,
+            status: 'active'
+          }
+        });
+
+        // Create 1-2 pet images
+        const img1 = randomElement(petImages);
+        const imageData = [
+          { pet_id: pet.pet_id, image_url: img1, is_primary: true }
+        ];
+        if (Math.random() > 0.4) {
+          const img2 = randomElement(petImages.filter(i => i !== img1)) || img1;
+          imageData.push({ pet_id: pet.pet_id, image_url: img2, is_primary: false });
+        }
+        await prisma.petImage.createMany({ data: imageData });
+      }
+    }
+
+    const totalPets = await prisma.pet.count();
+    console.log(`Seeded ${totalPets} pets total.`);
+  } else {
+    console.log(`Pets already exist (${existingPetCount}), skipping pet seeding.`);
+  }
+
+  // 4. Service Categories & 5. Clinic Services
+  // Rename old 'Khám bệnh' to 'Khám & Điều trị' for consistency with UI.
+  let serviceCatMedical = await prisma.serviceCategory.findFirst({
+    where: { category_name: 'Khám bệnh' }
+  });
+  if (serviceCatMedical) {
+    serviceCatMedical = await prisma.serviceCategory.update({
+      where: { service_category_id: serviceCatMedical.service_category_id },
+      data: { category_name: 'Khám & Điều trị', description: 'Khám bệnh, chẩn đoán, siêu âm, xét nghiệm và điều trị bệnh' }
+    });
+  } else {
+    serviceCatMedical = await prisma.serviceCategory.findFirst({
+      where: { category_name: 'Khám & Điều trị' }
+    });
+    if (!serviceCatMedical) {
+      serviceCatMedical = await prisma.serviceCategory.create({
+        data: {
+          category_name: 'Khám & Điều trị',
+          description: 'Khám bệnh, chẩn đoán, siêu âm, xét nghiệm và điều trị bệnh'
+        }
+      });
+    }
+  }
+
+  let serviceCatSpa = await prisma.serviceCategory.findFirst({
+    where: { category_name: 'Grooming & Spa' }
+  });
+  if (!serviceCatSpa) {
+    serviceCatSpa = await prisma.serviceCategory.create({
+      data: {
+        category_name: 'Grooming & Spa',
+        description: 'Dịch vụ tắm, spa và làm đẹp chuyên nghiệp cho thú cưng'
+      }
     });
   }
 
-  // 5. Clinic Services
-  // We can just ignore clinicService duplicate or upsert if there's a unique field
-  // Actually clinicService has no unique field besides ID, so we skip it to prevent duplication
-  const existingService = await prisma.service.findFirst({ where: { service_name: 'Khám tổng quát' } });
-  if (!existingService) {
-    await prisma.service.create({
+  let serviceCatCombo = await prisma.serviceCategory.findFirst({
+    where: { category_name: 'Combo Grooming & Spa' }
+  });
+  if (!serviceCatCombo) {
+    serviceCatCombo = await prisma.serviceCategory.create({
       data: {
-        service_category_id: serviceCat1.service_category_id,
-        service_name: 'Khám tổng quát',
-        base_price: 150000,
-        duration_minutes: 30,
-        status: 'active'
+        category_name: 'Combo Grooming & Spa',
+        description: 'Các gói combo chăm sóc toàn diện tiết kiệm'
       }
     });
+  }
+
+  // 18 clinic services data
+  const clinicServicesData = [
+    // Grooming & Spa
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Tắm & Sấy khô',
+      base_price: 50000,
+      duration_minutes: 45,
+      description: 'Dịch vụ tắm sạch bằng sữa tắm dưỡng lông cao cấp và sấy khô, giúp loại bỏ bụi bẩn và mùi hôi.',
+      image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Massage chuyên sâu',
+      base_price: 50000,
+      duration_minutes: 30,
+      description: 'Massage thư giãn giảm căng thẳng, kích thích tuần hoàn máu và hỗ trợ sức khỏe xương khớp cho thú cưng.',
+      image_url: 'https://images.unsplash.com/photo-1544568100-847a948585b9?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Vệ sinh răng miệng',
+      base_price: 30000,
+      duration_minutes: 20,
+      description: 'Chải răng, loại bỏ mảng bám thức ăn và sử dụng xịt thơm miệng chuyên dụng cho thú cưng.',
+      image_url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Cắt & mài móng',
+      base_price: 30000,
+      duration_minutes: 15,
+      description: 'Cắt móng an toàn và mài mịn các góc nhọn, tránh cào xước da chủ nuôi và đồ đạc.',
+      image_url: 'https://images.unsplash.com/photo-1597633425046-08f5110420b5?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Chăm sóc bàn chân',
+      base_price: 30000,
+      duration_minutes: 20,
+      description: 'Cạo lông kẽ chân, vệ sinh sạch sẽ và thoa kem dưỡng ẩm bảo vệ đệm chân thú cưng.',
+      image_url: 'https://images.unsplash.com/photo-1537151608828-ea2b117b62e4?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Điều trị ký sinh trùng',
+      base_price: 80000,
+      duration_minutes: 30,
+      description: 'Tắm thuốc chuyên dụng loại bỏ ve, rận, bọ chét và hướng dẫn phòng ngừa tái nhiễm.',
+      image_url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Cắt tỉa tạo kiểu',
+      base_price: 50000,
+      duration_minutes: 60,
+      description: 'Cắt tỉa và tạo kiểu lông chuyên nghiệp bởi các groomer giàu kinh nghiệm theo yêu cầu.',
+      image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Nhuộm lông thời trang',
+      base_price: 80000,
+      duration_minutes: 90,
+      description: 'Nhuộm màu thời trang cho tai, đuôi hoặc chân bằng màu nhuộm organic an toàn tuyệt đối cho thú cưng.',
+      image_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatSpa.service_category_id,
+      service_name: 'Vắt tuyến hôi',
+      base_price: 50000,
+      duration_minutes: 15,
+      description: 'Vắt tuyến hôi hậu môn giúp làm giảm mùi hôi đặc trưng và ngăn ngừa viêm nhiễm tuyến hôi.',
+      image_url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400',
+      status: 'active'
+    },
+    // Combo Grooming & Spa
+    {
+      category_id: serviceCatCombo.service_category_id,
+      service_name: 'Combo Tắm 11 bước',
+      base_price: 150000,
+      duration_minutes: 90,
+      description: 'Quy trình chăm sóc toàn diện 11 bước: 1. Khám da & lông sơ bộ; 2. Chải lông gỡ rối; 3. Cắt & mài móng; 4. Vệ sinh tai; 5. Cạo lông kẽ bàn chân; 6. Vắt tuyến hôi; 7. Tắm lần 1 (sạch sâu); 8. Tắm lần 2 (dưỡng mượt); 9. Massage nhẹ nhàng; 10. Sấy khô & chải phồng; 11. Xịt dưỡng bóng lông & nước hoa.',
+      image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatCombo.service_category_id,
+      service_name: 'Combo Tắm cơ bản & cắt tỉa lông',
+      base_price: 100000,
+      duration_minutes: 75,
+      description: 'Gói combo tiết kiệm bao gồm dịch vụ tắm sấy thơm tho kết hợp cắt tỉa tạo kiểu gọn gàng cho thú cưng.',
+      image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatCombo.service_category_id,
+      service_name: 'Combo Chăm sóc & bảo vệ móng',
+      base_price: 80000,
+      duration_minutes: 30,
+      description: 'Gói chăm sóc móng chuyên biệt: cắt móng, mài mịn, vệ sinh sạch đệm chân và thoa dầu dưỡng đệm chân cao cấp.',
+      image_url: 'https://images.unsplash.com/photo-1597633425046-08f5110420b5?w=400',
+      status: 'active'
+    },
+    // Khám & Điều trị
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Khám & Điều trị',
+      base_price: 30000,
+      duration_minutes: 30,
+      description: 'Khám lâm sàng tổng quát bởi bác sĩ thú y để chẩn đoán tình trạng sức khỏe và đưa ra phác đồ điều trị.',
+      image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Xét nghiệm',
+      base_price: 50000,
+      duration_minutes: 40,
+      description: 'Xét nghiệm máu, xét nghiệm phân, hoặc soi kính hiển vi để phát hiện ký sinh trùng, virus và các bệnh lý.',
+      image_url: 'https://images.unsplash.com/photo-1579154204601-01588f35116f?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Siêu âm',
+      base_price: 100000,
+      duration_minutes: 25,
+      description: 'Siêu âm ổ bụng, siêu âm thai để kiểm tra tình trạng nội tạng, phát hiện khối u hoặc theo dõi thai kỳ.',
+      image_url: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Tiêm phòng',
+      base_price: 100000,
+      duration_minutes: 15,
+      description: 'Tiêm vaccine phòng các bệnh truyền nhiễm nguy hiểm (dại, 5 bệnh, 7 bệnh) kèm sổ theo dõi sức khỏe.',
+      image_url: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Phẫu thuật',
+      base_price: 200000,
+      duration_minutes: 120,
+      description: 'Phẫu thuật ngoại khoa vô trùng: triệt sản, mổ đẻ, khâu vết thương sâu, phẫu thuật xương khớp.',
+      image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      status: 'active'
+    },
+    {
+      category_id: serviceCatMedical.service_category_id,
+      service_name: 'Cấp cứu 24/7',
+      base_price: 150000,
+      duration_minutes: 60,
+      description: 'Dịch vụ xử lý cấp cứu khẩn cấp 24/7 đối với các trường hợp tai nạn, ngộ độc, khó đẻ hoặc suy hô hấp.',
+      image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      status: 'active'
+    }
+  ];
+
+  for (const s of clinicServicesData) {
+    const existing = await prisma.service.findFirst({
+      where: { service_name: s.service_name }
+    });
+    if (existing) {
+      await prisma.service.update({
+        where: { service_id: existing.service_id },
+        data: {
+          service_category_id: s.category_id,
+          base_price: s.base_price,
+          duration_minutes: s.duration_minutes,
+          description: s.description,
+          image_url: s.image_url,
+          status: s.status
+        }
+      });
+    } else {
+      await prisma.service.create({
+        data: {
+          service_category_id: s.category_id,
+          service_name: s.service_name,
+          base_price: s.base_price,
+          duration_minutes: s.duration_minutes,
+          description: s.description,
+          image_url: s.image_url,
+          status: s.status
+        }
+      });
+    }
   }
 
   
