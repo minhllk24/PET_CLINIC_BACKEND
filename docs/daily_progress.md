@@ -113,3 +113,39 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - Tích hợp logic sinh sản phẩm vào file `prisma/seed.js` gốc mà không làm mất dữ liệu seed của Roles và Users cũ.
   - Chạy `npx prisma migrate reset --force` để dọn sạch hoàn toàn rác Database, reset migration và tự động seed 1 bộ data hoàn chỉnh (tránh duplicate data).
   - Cập nhật file `README.md` lưu ý rõ cách chạy `seed` vs `migrate reset`.
+
+---
+## [Ngày 13/06/2026]
+### Đã hoàn thành:
+- **Cập nhật và tối ưu hóa file Seed dữ liệu mẫu (`prisma/seed.js`):**
+  - **Logic sinh dữ liệu ngẫu nhiên phong phú:** Tích hợp các hàm helper tạo tên tiếng Việt (`generateRandomName`), loại bỏ dấu tiếng Việt để tạo email chuẩn hóa (`removeAccents`), và tự động sinh email ngẫu nhiên theo định dạng chuẩn (`generateRandomEmail`).
+  - **Idempotency (Tránh trùng lặp dữ liệu):** Thêm logic kiểm tra số lượng bản ghi hiện có của từng role trước khi chèn mới, đảm bảo chỉ chèn phần chênh lệch để đạt mục tiêu:
+    - 20 tài khoản **STAFF** hoạt động (`active`), mật khẩu mặc định `12345678`, ảnh đại diện từ Pravatar.
+    - 15 tài khoản **DOCTOR** hoạt động (`active`), tiền tố "Dr.", mật khẩu mặc định `12345678`, ảnh đại diện từ Pravatar.
+    - 35 tài khoản **CUSTOMER** hoạt động (`active`), mật khẩu mặc định `12345678`, ảnh đại diện từ Pravatar.
+- **Seeding hồ sơ thú cưng (Pet Profiles & Pet Images):**
+  - Phân tích và seed thành công dữ liệu liên kết giữa 4 bảng: `pet_species`, `pet_breeds`, `pets` và `pet_images`.
+  - Mở rộng giống loài: Thêm 3 loài mới gồm `Chó`, `Hamster`, `Thỏ` bên cạnh loài `Mèo` có sẵn. Bổ sung **15 giống loài** mẫu tương ứng (Husky, Corgi, Golden Retriever, Thỏ Mini Lop, Hamster Roborovski, v.v.).
+  - Phân bổ sở hữu thú cưng logic cho 35 CUSTOMER:
+    - 15 khách hàng đầu tiên: Mỗi khách hàng sở hữu chính xác **1 hồ sơ thú cưng**.
+    - 20 khách hàng tiếp theo: Mỗi khách hàng sở hữu ngẫu nhiên từ **2 đến 4 hồ sơ thú cưng**.
+    - Tổng cộng đã tạo thành công **74 thú cưng** hoạt động (`active`), kèm đầy đủ thông tin chi tiết (tên, giới tính, ngày sinh, cân nặng, trạng thái sức khỏe ngẫu nhiên).
+  - Tự động gán **1 đến 2 hình ảnh** thực tế chất lượng cao từ Unsplash cho mỗi thú cưng thông qua bảng `pet_images`, thiết lập chính xác ảnh chính (`is_primary: true`).
+  - Toàn bộ cơ chế seed pet được bảo vệ bởi điều kiện `pet.count() === 0` để tránh bị chèn trùng khi chạy lại lệnh seed nhiều lần.
+- **Thực thi và kiểm thử:**
+  - Chạy thành công lệnh `npm run seed` (`babel-node prisma/seed.js`), đồng bộ hóa dữ liệu hoàn hảo vào MySQL Database.
+- **Bổ sung và nâng cấp Seed dữ liệu cho Dịch vụ & Hồ sơ Bác sĩ (Grooming & Spa, Khám bệnh):**
+  - **Khởi tạo Chi nhánh (Branches):** Khởi tạo thành công **2 chi nhánh** mẫu ("Chi nhánh Quận 10 (Chính)" và "Chi nhánh Bình Thạnh") nhằm phục vụ việc phân bổ bác sĩ khám và liên kết lịch hẹn.
+  - **Seeding hồ sơ Bác sĩ chi tiết:** 
+    - Đã seed chính xác **4 tài khoản Bác sĩ cụ thể** với thông tin kinh nghiệm (`bio`) và đánh giá thật được lấy từ thiết kế Figma: Bs. Trần Văn Nhân (20 năm kinh nghiệm), Bs. Võ Công Nam (14 năm kinh nghiệm), Bs. Nguyễn Thu Hồng (5 năm kinh nghiệm), Bs. Trần Phương Trâm (7 năm kinh nghiệm).
+    - Tự động gán chi nhánh công tác ngẫu nhiên hoặc chỉ định, gán avatar từ Unsplash, đồng thời đồng bộ hóa hồ sơ bác sĩ cho tất cả 15 tài khoản DOCTOR trong hệ thống để tránh tình trạng tài khoản DOCTOR không có thông tin chi tiết ở bảng `doctors`.
+  - **Phát triển Seed dữ liệu danh mục & dịch vụ khám/spa:**
+    - Đổi tên và chuẩn hóa danh mục cũ `Khám bệnh` thành `Khám & Điều trị`.
+    - Tạo mới 2 danh mục dịch vụ: `Grooming & Spa` và `Combo Grooming & Spa`.
+    - Thêm đầy đủ **18 dịch vụ mẫu chi tiết** khớp 100% với giao diện UI Figma (bao gồm giá cả cơ bản, mô tả hoạt động chi tiết, thời gian thực hiện trung bình, hình ảnh Unsplash chất lượng cao). Trong đó có 3 combo hấp dẫn (Combo Tắm 11 bước, Combo Tắm cơ bản & cắt tỉa lông, Combo Chăm sóc & bảo vệ móng) và các dịch vụ khám chữa bệnh khác.
+    - Logic chèn dữ liệu đảm bảo **tính Idempotency (không trùng lặp)** bằng cách kiểm tra trước sự tồn tại của dịch vụ và danh mục, tự động update nếu đã có sẵn và chỉ chèn mới khi chưa tồn tại.
+
+### Vấn đề cần lưu ý (Next Steps):
+- Dữ liệu mẫu phong phú của 74 thú cưng, 15 bác sĩ (kèm profile chi tiết ở bảng `doctors`), 3 danh mục dịch vụ lớn và 19 dịch vụ chi tiết đã sẵn sàng hoạt động ở Backend.
+- Frontend có thể kết nối ngay để hiển thị giao diện danh sách thú cưng, danh sách bác sĩ, và danh mục dịch vụ một cách trực quan nhờ hình ảnh thực tế đã được seed.
+
