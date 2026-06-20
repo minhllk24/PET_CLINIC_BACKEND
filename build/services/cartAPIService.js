@@ -87,7 +87,7 @@ var getCartByUserId = /*#__PURE__*/function () {
 }();
 var addToCart = /*#__PURE__*/function () {
   var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(userIdStr, data) {
-    var userId, productId, quantity, cart, product, existingItem, resultItem, newQuantity, _t2;
+    var userId, productId, quantity, variantId, cart, product, availableStock, variant, existingItem, resultItem, newQuantity, _t2;
     return _regenerator().w(function (_context2) {
       while (1) switch (_context2.p = _context2.n) {
         case 0:
@@ -114,7 +114,8 @@ var addToCart = /*#__PURE__*/function () {
           });
         case 2:
           productId = (0, _prismaHelpers.toBigIntId)(data.product_id);
-          quantity = parseInt(data.quantity); // Get or create cart
+          quantity = parseInt(data.quantity);
+          variantId = data.variant_id ? (0, _prismaHelpers.toBigIntId)(data.variant_id) : null; // Get or create cart
           _context2.n = 3;
           return _prisma["default"].cart.findUnique({
             where: {
@@ -154,8 +155,33 @@ var addToCart = /*#__PURE__*/function () {
             DT: ''
           });
         case 7:
-          if (!(product.stock_quantity < quantity)) {
-            _context2.n = 8;
+          availableStock = product.stock_quantity;
+          if (!variantId) {
+            _context2.n = 10;
+            break;
+          }
+          _context2.n = 8;
+          return _prisma["default"].productVariant.findUnique({
+            where: {
+              variant_id: variantId
+            }
+          });
+        case 8:
+          variant = _context2.v;
+          if (!(!variant || variant.product_id !== productId)) {
+            _context2.n = 9;
+            break;
+          }
+          return _context2.a(2, {
+            EM: 'Invalid product variant',
+            EC: -1,
+            DT: ''
+          });
+        case 9:
+          availableStock = variant.stock_quantity;
+        case 10:
+          if (!(availableStock < quantity)) {
+            _context2.n = 11;
             break;
           }
           return _context2.a(2, {
@@ -163,23 +189,24 @@ var addToCart = /*#__PURE__*/function () {
             EC: 2,
             DT: ''
           });
-        case 8:
-          _context2.n = 9;
+        case 11:
+          _context2.n = 12;
           return _prisma["default"].cartItem.findFirst({
             where: {
               cart_id: cart.cart_id,
-              product_id: productId
+              product_id: productId,
+              variant_id: variantId
             }
           });
-        case 9:
+        case 12:
           existingItem = _context2.v;
           if (!existingItem) {
-            _context2.n = 12;
+            _context2.n = 15;
             break;
           }
           newQuantity = existingItem.quantity + quantity;
-          if (!(product.stock_quantity < newQuantity)) {
-            _context2.n = 10;
+          if (!(availableStock < newQuantity)) {
+            _context2.n = 13;
             break;
           }
           return _context2.a(2, {
@@ -187,8 +214,8 @@ var addToCart = /*#__PURE__*/function () {
             EC: 2,
             DT: ''
           });
-        case 10:
-          _context2.n = 11;
+        case 13:
+          _context2.n = 14;
           return _prisma["default"].cartItem.update({
             where: {
               cart_item_id: existingItem.cart_item_id
@@ -197,30 +224,31 @@ var addToCart = /*#__PURE__*/function () {
               quantity: newQuantity
             }
           });
-        case 11:
+        case 14:
           resultItem = _context2.v;
-          _context2.n = 14;
+          _context2.n = 17;
           break;
-        case 12:
-          _context2.n = 13;
+        case 15:
+          _context2.n = 16;
           return _prisma["default"].cartItem.create({
             data: {
               cart_id: cart.cart_id,
               product_id: productId,
+              variant_id: variantId,
               quantity: quantity,
               is_selected: true
             }
           });
-        case 13:
+        case 16:
           resultItem = _context2.v;
-        case 14:
+        case 17:
           return _context2.a(2, {
             EM: 'Add to cart successful',
             EC: 0,
             DT: resultItem
           });
-        case 15:
-          _context2.p = 15;
+        case 18:
+          _context2.p = 18;
           _t2 = _context2.v;
           console.error(_t2);
           return _context2.a(2, {
@@ -229,7 +257,7 @@ var addToCart = /*#__PURE__*/function () {
             DT: ''
           });
       }
-    }, _callee2, null, [[0, 15]]);
+    }, _callee2, null, [[0, 18]]);
   }));
   return function addToCart(_x2, _x3) {
     return _ref2.apply(this, arguments);
@@ -237,7 +265,7 @@ var addToCart = /*#__PURE__*/function () {
 }();
 var updateCartItem = /*#__PURE__*/function () {
   var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(userIdStr, itemId, data) {
-    var userId, cartItemId, cart, item, updateData, q, updatedItem, _t3;
+    var userId, cartItemId, cart, item, updateData, q, availableStock, variant, updatedItem, _t3;
     return _regenerator().w(function (_context3) {
       while (1) switch (_context3.p = _context3.n) {
         case 0:
@@ -296,7 +324,7 @@ var updateCartItem = /*#__PURE__*/function () {
         case 5:
           updateData = {};
           if (!(data.quantity !== undefined)) {
-            _context3.n = 9;
+            _context3.n = 11;
             break;
           }
           q = parseInt(data.quantity);
@@ -317,8 +345,25 @@ var updateCartItem = /*#__PURE__*/function () {
             DT: ''
           });
         case 7:
-          if (!(item.product.stock_quantity < q)) {
-            _context3.n = 8;
+          availableStock = item.product.stock_quantity;
+          if (!item.variant_id) {
+            _context3.n = 9;
+            break;
+          }
+          _context3.n = 8;
+          return _prisma["default"].productVariant.findUnique({
+            where: {
+              variant_id: item.variant_id
+            }
+          });
+        case 8:
+          variant = _context3.v;
+          if (variant) {
+            availableStock = variant.stock_quantity;
+          }
+        case 9:
+          if (!(availableStock < q)) {
+            _context3.n = 10;
             break;
           }
           return _context3.a(2, {
@@ -326,28 +371,28 @@ var updateCartItem = /*#__PURE__*/function () {
             EC: 2,
             DT: ''
           });
-        case 8:
+        case 10:
           updateData.quantity = q;
-        case 9:
+        case 11:
           if (data.is_selected !== undefined) {
             updateData.is_selected = data.is_selected;
           }
-          _context3.n = 10;
+          _context3.n = 12;
           return _prisma["default"].cartItem.update({
             where: {
               cart_item_id: cartItemId
             },
             data: updateData
           });
-        case 10:
+        case 12:
           updatedItem = _context3.v;
           return _context3.a(2, {
             EM: 'Update cart item successful',
             EC: 0,
             DT: updatedItem
           });
-        case 11:
-          _context3.p = 11;
+        case 13:
+          _context3.p = 13;
           _t3 = _context3.v;
           console.error(_t3);
           return _context3.a(2, {
@@ -356,7 +401,7 @@ var updateCartItem = /*#__PURE__*/function () {
             DT: ''
           });
       }
-    }, _callee3, null, [[0, 11]]);
+    }, _callee3, null, [[0, 13]]);
   }));
   return function updateCartItem(_x4, _x5, _x6) {
     return _ref3.apply(this, arguments);

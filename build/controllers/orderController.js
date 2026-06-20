@@ -107,9 +107,34 @@ var handleUpdateOrderStatus = /*#__PURE__*/function () {
     return _ref4.apply(this, arguments);
   };
 }();
+var handleGuestCheckout = /*#__PURE__*/function () {
+  var _ref5 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(req, res) {
+    var data, _t5;
+    return _regenerator().w(function (_context5) {
+      while (1) switch (_context5.p = _context5.n) {
+        case 0:
+          _context5.p = 0;
+          _context5.n = 1;
+          return _orderAPIService["default"].guestCheckout(req.body);
+        case 1:
+          data = _context5.v;
+          return _context5.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context5.p = 2;
+          _t5 = _context5.v;
+          console.error(_t5);
+          return _context5.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee5, null, [[0, 2]]);
+  }));
+  return function handleGuestCheckout(_x9, _x0) {
+    return _ref5.apply(this, arguments);
+  };
+}();
 module.exports = {
   handleGetOrders: handleGetOrders,
   handleGetDetailOrder: handleGetDetailOrder,
   handleCheckout: handleCheckout,
+  handleGuestCheckout: handleGuestCheckout,
   handleUpdateOrderStatus: handleUpdateOrderStatus
 };

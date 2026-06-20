@@ -90,6 +90,7 @@ var initAPIRoutes = function initAPIRoutes(app) {
   router.get('/orders', _authMiddleware.authMiddleware, _orderController["default"].handleGetOrders);
   router.get('/orders/:id', _authMiddleware.authMiddleware, _orderController["default"].handleGetDetailOrder);
   router.post('/orders/checkout', _authMiddleware.authMiddleware, _orderController["default"].handleCheckout);
+  router.post('/orders/guest-checkout', _orderController["default"].handleGuestCheckout);
   router.put('/orders/:id/status', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN', 'STAFF']), _orderController["default"].handleUpdateOrderStatus);
 
   // --- PAYMENT ROUTES ---
@@ -135,6 +136,7 @@ var initAPIRoutes = function initAPIRoutes(app) {
   // --- REVIEWS ---
   router.get('/reviews', _reviewController["default"].handleGetAllReviews);
   router.get('/reviews/target/:targetType/:targetId', _reviewController["default"].handleGetReviews);
+  router.get('/reviews/can-review/:targetType/:targetId', _authMiddleware.authMiddleware, _reviewController["default"].handleCheckCanReview);
   router.post('/reviews', _authMiddleware.authMiddleware, _reviewController["default"].handleCreateReview);
   router.patch('/reviews/:id/reject', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _reviewController["default"].handleRejectReview);
   router.patch('/reviews/:id/delete', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _reviewController["default"].handleDeleteReview);
@@ -149,6 +151,9 @@ var initAPIRoutes = function initAPIRoutes(app) {
   router.get('/loyalty/transactions', _authMiddleware.authMiddleware, _loyaltyController["default"].handleGetMyTransactions);
 
   // --- POSTS & FIRST AID ---
+  router.get('/post-categories', _contentController["default"].handleGetPostCategories);
+  router.get('/posts/featured', _contentController["default"].handleGetFeaturedPost);
+  router.get('/posts/trending', _contentController["default"].handleGetTrendingPosts);
   router.get('/posts', _contentController["default"].handleGetPosts);
   router.get('/posts/:slug', _contentController["default"].handleGetPostBySlug);
   router.post('/posts', _authMiddleware.authMiddleware, _contentController["default"].handleCreatePost);

@@ -1480,6 +1480,36 @@
 					}
 				},
 				{
+					"name": "Get Community Posts",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts?type=community&page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["posts"],
+							"query": [
+								{
+									"key": "type",
+									"value": "community",
+									"description": "Lọc theo loại bài viết cộng đồng"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Số trang"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Số bài viết trên mỗi trang"
+								}
+							]
+						}
+					}
+				},
+				{
 					"name": "Get Post By Slug",
 					"request": {
 						"auth": { "type": "noauth" },

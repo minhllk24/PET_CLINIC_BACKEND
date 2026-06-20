@@ -35,6 +35,8 @@ const getPosts = async (query) => {
           slug: true,
           thumbnail_url: true,
           excerpt: true,
+          likes_count: true,
+          hashtags: true,
           view_count: true,
           created_at: true,
           updated_at: true,
@@ -49,6 +51,9 @@ const getPosts = async (query) => {
               post_category_id: true,
               category_name: true
             }
+          },
+          _count: {
+            select: { comments: true }
           }
         },
         skip,
@@ -136,6 +141,8 @@ const getFeaturedPost = async () => {
         slug: true,
         thumbnail_url: true,
         excerpt: true,
+        likes_count: true,
+        hashtags: true,
         view_count: true,
         created_at: true,
         updated_at: true,
@@ -150,6 +157,9 @@ const getFeaturedPost = async () => {
             post_category_id: true,
             category_name: true
           }
+        },
+        _count: {
+          select: { comments: true }
         }
       },
       orderBy: { created_at: 'desc' }
@@ -177,6 +187,8 @@ const getTrendingPosts = async (query) => {
         slug: true,
         thumbnail_url: true,
         excerpt: true,
+        likes_count: true,
+        hashtags: true,
         view_count: true,
         created_at: true,
         updated_at: true,
@@ -191,6 +203,9 @@ const getTrendingPosts = async (query) => {
             post_category_id: true,
             category_name: true
           }
+        },
+        _count: {
+          select: { comments: true }
         }
       },
       orderBy: {

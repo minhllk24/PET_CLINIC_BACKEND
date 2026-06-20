@@ -183,6 +183,32 @@ var handleReplyReview = /*#__PURE__*/function () {
     return _ref7.apply(this, arguments);
   };
 }();
+var handleCheckCanReview = /*#__PURE__*/function () {
+  var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(req, res) {
+    var userId, _req$params2, targetType, targetId, data, _t8;
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
+        case 0:
+          _context8.p = 0;
+          userId = req.user.user_id;
+          _req$params2 = req.params, targetType = _req$params2.targetType, targetId = _req$params2.targetId;
+          _context8.n = 1;
+          return _reviewAPIService["default"].checkCanReview(userId, targetType, targetId);
+        case 1:
+          data = _context8.v;
+          return _context8.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context8.p = 2;
+          _t8 = _context8.v;
+          console.error(_t8);
+          return _context8.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee8, null, [[0, 2]]);
+  }));
+  return function handleCheckCanReview(_x13, _x14) {
+    return _ref8.apply(this, arguments);
+  };
+}();
 module.exports = {
   handleGetReviews: handleGetReviews,
   handleGetAllReviews: handleGetAllReviews,
@@ -190,5 +216,6 @@ module.exports = {
   handleRejectReview: handleRejectReview,
   handleDeleteReview: handleDeleteReview,
   handleLikeReview: handleLikeReview,
-  handleReplyReview: handleReplyReview
+  handleReplyReview: handleReplyReview,
+  handleCheckCanReview: handleCheckCanReview
 };

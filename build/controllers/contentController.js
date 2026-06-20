@@ -175,10 +175,85 @@ var handleCreateAiChatSession = /*#__PURE__*/function () {
     return _ref7.apply(this, arguments);
   };
 }();
+var handleGetPostCategories = /*#__PURE__*/function () {
+  var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(req, res) {
+    var data, _t8;
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
+        case 0:
+          _context8.p = 0;
+          _context8.n = 1;
+          return _contentAPIService["default"].getPostCategories();
+        case 1:
+          data = _context8.v;
+          return _context8.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context8.p = 2;
+          _t8 = _context8.v;
+          console.error(_t8);
+          return _context8.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee8, null, [[0, 2]]);
+  }));
+  return function handleGetPostCategories(_x13, _x14) {
+    return _ref8.apply(this, arguments);
+  };
+}();
+var handleGetFeaturedPost = /*#__PURE__*/function () {
+  var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(req, res) {
+    var data, _t9;
+    return _regenerator().w(function (_context9) {
+      while (1) switch (_context9.p = _context9.n) {
+        case 0:
+          _context9.p = 0;
+          _context9.n = 1;
+          return _contentAPIService["default"].getFeaturedPost();
+        case 1:
+          data = _context9.v;
+          return _context9.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context9.p = 2;
+          _t9 = _context9.v;
+          console.error(_t9);
+          return _context9.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee9, null, [[0, 2]]);
+  }));
+  return function handleGetFeaturedPost(_x15, _x16) {
+    return _ref9.apply(this, arguments);
+  };
+}();
+var handleGetTrendingPosts = /*#__PURE__*/function () {
+  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(req, res) {
+    var data, _t0;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.p = _context0.n) {
+        case 0:
+          _context0.p = 0;
+          _context0.n = 1;
+          return _contentAPIService["default"].getTrendingPosts(req.query);
+        case 1:
+          data = _context0.v;
+          return _context0.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context0.p = 2;
+          _t0 = _context0.v;
+          console.error(_t0);
+          return _context0.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee0, null, [[0, 2]]);
+  }));
+  return function handleGetTrendingPosts(_x17, _x18) {
+    return _ref0.apply(this, arguments);
+  };
+}();
 module.exports = {
   handleGetPosts: handleGetPosts,
   handleGetPostBySlug: handleGetPostBySlug,
   handleCreatePost: handleCreatePost,
+  handleGetFeaturedPost: handleGetFeaturedPost,
+  handleGetTrendingPosts: handleGetTrendingPosts,
+  handleGetPostCategories: handleGetPostCategories,
   handleGetFirstAidGuides: handleGetFirstAidGuides,
   handleCreateFirstAidGuide: handleCreateFirstAidGuide,
   handleGetAiChatSessions: handleGetAiChatSessions,

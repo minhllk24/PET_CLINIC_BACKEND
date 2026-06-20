@@ -112,7 +112,7 @@ var getReviewsByTarget = /*#__PURE__*/function () {
 }();
 var createReview = /*#__PURE__*/function () {
   var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(userIdStr, data) {
-    var userId, target_type, target_id, rating, comment, images, targetIdBig, newReview, _t2;
+    var userId, target_type, target_id, rating, comment, images, canReviewCheck, targetIdBig, newReview, _t2;
     return _regenerator().w(function (_context3) {
       while (1) switch (_context3.p = _context3.n) {
         case 0:
@@ -129,8 +129,22 @@ var createReview = /*#__PURE__*/function () {
             DT: ''
           });
         case 1:
-          targetIdBig = (0, _prismaHelpers.toBigIntId)(target_id);
           _context3.n = 2;
+          return checkCanReview(userIdStr, target_type, target_id);
+        case 2:
+          canReviewCheck = _context3.v;
+          if (!(canReviewCheck.EC !== 0 || !canReviewCheck.DT)) {
+            _context3.n = 3;
+            break;
+          }
+          return _context3.a(2, {
+            EM: canReviewCheck.EM,
+            EC: 1,
+            DT: ''
+          });
+        case 3:
+          targetIdBig = (0, _prismaHelpers.toBigIntId)(target_id);
+          _context3.n = 4;
           return _prisma["default"].$transaction(/*#__PURE__*/function () {
             var _ref3 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(tx) {
               var review, imgData, allReviews, avgRating;
@@ -220,15 +234,15 @@ var createReview = /*#__PURE__*/function () {
               return _ref3.apply(this, arguments);
             };
           }());
-        case 2:
+        case 4:
           newReview = _context3.v;
           return _context3.a(2, {
             EM: 'Create review successful',
             EC: 0,
             DT: newReview
           });
-        case 3:
-          _context3.p = 3;
+        case 5:
+          _context3.p = 5;
           _t2 = _context3.v;
           console.error(_t2);
           return _context3.a(2, {
@@ -237,7 +251,7 @@ var createReview = /*#__PURE__*/function () {
             DT: ''
           });
       }
-    }, _callee3, null, [[0, 3]]);
+    }, _callee3, null, [[0, 5]]);
   }));
   return function createReview(_x4, _x5) {
     return _ref2.apply(this, arguments);
@@ -699,11 +713,128 @@ var replyReview = /*#__PURE__*/function () {
     return _ref9.apply(this, arguments);
   };
 }();
+var checkCanReview = /*#__PURE__*/function () {
+  var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(userIdStr, targetType, targetIdStr) {
+    var userId, targetIdBig, existingReview, hasPurchased, hasAppt, _t7;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
+        case 0:
+          _context1.p = 0;
+          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
+          targetIdBig = (0, _prismaHelpers.toBigIntId)(targetIdStr);
+          if (!(!userId || !targetIdBig)) {
+            _context1.n = 1;
+            break;
+          }
+          return _context1.a(2, {
+            EM: 'Invalid ID',
+            EC: 1,
+            DT: false
+          });
+        case 1:
+          _context1.n = 2;
+          return _prisma["default"].review.findFirst({
+            where: {
+              user_id: userId,
+              target_type: targetType,
+              target_id: targetIdBig,
+              parent_id: null
+            }
+          });
+        case 2:
+          existingReview = _context1.v;
+          if (!existingReview) {
+            _context1.n = 3;
+            break;
+          }
+          return _context1.a(2, {
+            EM: 'You have already reviewed this item',
+            EC: 0,
+            DT: false
+          });
+        case 3:
+          if (!(targetType === 'product')) {
+            _context1.n = 6;
+            break;
+          }
+          _context1.n = 4;
+          return _prisma["default"].order.findFirst({
+            where: {
+              user_id: userId,
+              order_status: 'completed',
+              order_items: {
+                some: {
+                  product_id: targetIdBig
+                }
+              }
+            }
+          });
+        case 4:
+          hasPurchased = _context1.v;
+          if (hasPurchased) {
+            _context1.n = 5;
+            break;
+          }
+          return _context1.a(2, {
+            EM: 'You can only review products you have purchased and received',
+            EC: 0,
+            DT: false
+          });
+        case 5:
+          _context1.n = 8;
+          break;
+        case 6:
+          if (!(targetType === 'service')) {
+            _context1.n = 8;
+            break;
+          }
+          _context1.n = 7;
+          return _prisma["default"].appointment.findFirst({
+            where: {
+              user_id: userId,
+              status: 'completed',
+              service_id: targetIdBig
+            }
+          });
+        case 7:
+          hasAppt = _context1.v;
+          if (hasAppt) {
+            _context1.n = 8;
+            break;
+          }
+          return _context1.a(2, {
+            EM: 'You can only review services you have used',
+            EC: 0,
+            DT: false
+          });
+        case 8:
+          return _context1.a(2, {
+            EM: 'Can review',
+            EC: 0,
+            DT: true
+          });
+        case 9:
+          _context1.p = 9;
+          _t7 = _context1.v;
+          console.error(_t7);
+          return _context1.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: false
+          });
+      }
+    }, _callee1, null, [[0, 9]]);
+  }));
+  return function checkCanReview(_x16, _x17, _x18) {
+    return _ref1.apply(this, arguments);
+  };
+}();
 module.exports = {
   getReviewsByTarget: getReviewsByTarget,
   getAllReviews: getAllReviews,
   createReview: createReview,
   updateReviewStatus: updateReviewStatus,
   likeReview: likeReview,
-  replyReview: replyReview
+  replyReview: replyReview,
+  checkCanReview: checkCanReview
 };

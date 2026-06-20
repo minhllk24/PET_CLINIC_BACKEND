@@ -1562,15 +1562,33 @@ async function main() {
     where: { role: { role_code: 'ADMIN' } }
   });
   
-  // Get some Customer users for community posts and comments
-  const customers = await prisma.user.findMany({
-    where: { role: { role_code: 'CUSTOMER' } },
-    take: 5
+  const userHoangNam = await prisma.user.upsert({
+    where: { email: 'hoangnam@petclinic.com' },
+    update: {},
+    create: {
+      email: 'hoangnam@petclinic.com',
+      password_hash: passwordHash,
+      full_name: 'Hoàng Nam',
+      role: { connect: { role_code: 'CUSTOMER' } },
+      status: 'active'
+    }
+  });
+
+  const userMaiAnh = await prisma.user.upsert({
+    where: { email: 'maianh@petclinic.com' },
+    update: {},
+    create: {
+      email: 'maianh@petclinic.com',
+      password_hash: passwordHash,
+      full_name: 'Mai Anh',
+      role: { connect: { role_code: 'CUSTOMER' } },
+      status: 'active'
+    }
   });
 
   const authorId = adminUser ? adminUser.user_id : admin.user_id;
-  const guestAuthorId1 = customers[0] ? customers[0].user_id : authorId;
-  const guestAuthorId2 = customers[1] ? customers[1].user_id : authorId;
+  const guestAuthorId1 = userHoangNam.user_id;
+  const guestAuthorId2 = userMaiAnh.user_id;
 
   const postsData = [
     {
@@ -1599,6 +1617,8 @@ async function main() {
 <p>Đừng quên lịch tiêm phòng và tẩy giun. Đây là rào chắn bảo vệ thú cưng khỏi các bệnh truyền nhiễm nguy hiểm như Parvo, Care ở chó hay giảm bạch cầu ở mèo.</p>
 <p>Hãy mang bé đến phòng khám thú y uy tín như Dr.Pet's House để được tư vấn phác đồ tiêm chủng chuẩn xác nhất nhé!</p>`,
       is_featured: true,
+      likes_count: 1250,
+      hashtags: "CHAMSOCPET,KIENTHUCTHUCUNG",
       post_type: "official_blog",
       status: "published",
       view_count: 2450,
@@ -1612,6 +1632,8 @@ async function main() {
       excerpt: "Mèo Anh Lông Ngắn con cần chế độ dinh dưỡng thế nào để phát triển khung xương vững chắc và bộ lông dày mượt? Hãy cùng tìm hiểu công thức thức ăn tối ưu từ chuyên gia.",
       content: `<p>Mèo Anh Lông Ngắn (Aln) là giống mèo rất được ưa chuộng nhờ ngoại hình mập mạp và tính cách hiền lành. Giai đoạn dưới 1 tuổi là thời điểm mèo Aln tăng trưởng nhanh nhất, đặc biệt là hệ cơ và xương...</p>`,
       is_featured: false,
+      likes_count: 520,
+      hashtags: "DINHDUONGMEO,MEOALN",
       post_type: "official_blog",
       status: "published",
       view_count: 1550,
@@ -1625,6 +1647,8 @@ async function main() {
       excerpt: "Ve rận không chỉ gây ngứa ngáy mà còn truyền nhiễm các bệnh nguy hiểm về máu cho chó. Xem ngay các bước trị ve rận tận gốc và phòng ngừa hiệu quả tại nhà.",
       content: `<p>Ve rận luôn là nỗi ám ảnh của những người nuôi chó. Chúng sinh sôi rất nhanh và có thể sống ẩn nấp trong kẽ tường, thảm nhà...</p>`,
       is_featured: false,
+      likes_count: 340,
+      hashtags: "SUCKHOEDOG,TRIVERAN",
       post_type: "official_blog",
       status: "published",
       view_count: 1220,
@@ -1638,6 +1662,8 @@ async function main() {
       excerpt: "Mèo giao tiếp chủ yếu qua đuôi, tai và cử chỉ cơ thể. Học cách đọc vị các hành động này sẽ giúp bạn hiểu rõ tâm trạng và gắn kết hơn với chú mèo của mình.",
       content: `<p>Mèo là loài động vật tinh tế và có phần bí ẩn. Đôi khi bạn không hiểu tại sao chúng lại vẫy đuôi liên tục hay cụp tai xuống...</p>`,
       is_featured: false,
+      likes_count: 890,
+      hashtags: "TAMLYMEO,NGONNGUMEOT",
       post_type: "official_blog",
       status: "published",
       view_count: 980,
@@ -1651,6 +1677,8 @@ async function main() {
       excerpt: "Chó Poodle có bộ lông xoăn đặc thù rất dễ bị rối và bám bẩn. Hướng dẫn chi tiết quy trình tắm, sấy và vệ sinh tai tại nhà chuẩn spa giúp cún cưng luôn thơm tho.",
       content: `<p>Với bộ lông xoăn và cấu trúc tai cụp kín, Poodle cần một chế độ vệ sinh kỹ lưỡng hơn nhiều giống chó khác...</p>`,
       is_featured: false,
+      likes_count: 450,
+      hashtags: "GROOMING,POODLE",
       post_type: "official_blog",
       status: "published",
       view_count: 750,
@@ -1664,6 +1692,8 @@ async function main() {
       excerpt: "Sống tại chung cư không gian kín dễ bị tích tụ mùi hôi từ khay cát. Dưới đây là review chi tiết các loại cát vệ sinh đất sét, cát đậu nành tốt nhất.",
       content: `<p>Khi nuôi mèo ở các căn hộ chung cư có diện tích giới hạn, việc giữ gìn vệ sinh và khử mùi khay cát là yếu tố ưu tiên hàng đầu...</p>`,
       is_featured: false,
+      likes_count: 217,
+      hashtags: "MEOVAT,MEOCHUNGCU",
       post_type: "community",
       status: "published",
       view_count: 420,
@@ -1677,6 +1707,8 @@ async function main() {
       excerpt: "Triệt sản chó đực giúp hạn chế tính trạng đi tiểu đánh dấu lãnh thổ, giảm kích động và ngăn ngừa một số bệnh ung thư. Hãy cùng xem lời khuyên từ bác sĩ.",
       content: `<p>Nhiều chủ nuôi ngần ngại triệt sản cho cún đực vì sợ ảnh hưởng tính cách của bé. Tuy nhiên dưới góc độ y khoa...</p>`,
       is_featured: false,
+      likes_count: 180,
+      hashtags: "TRIETSAN,SUCKHOEDOG",
       post_type: "official_blog",
       status: "published",
       view_count: 310,
@@ -1690,6 +1722,8 @@ async function main() {
       excerpt: "Giảm bạch cầu là căn bệnh nguy hiểm với tỷ lệ tử vong cao ở mèo con. Mình xin chia sẻ hành trình điều trị tích cực giúp bé Mun vượt qua tử thần.",
       content: `<p>Chào mọi người, tuần trước bé Mun nhà mình bỗng dưng bỏ ăn, nôn trớ liên tục rồi tiêu chảy cấp. Đi test nhanh thì dương tính với FPV...</p>`,
       is_featured: false,
+      likes_count: 1050,
+      hashtags: "FPV,SUCKHOEMEO",
       post_type: "community",
       status: "published",
       view_count: 530,
@@ -1703,6 +1737,8 @@ async function main() {
       excerpt: "Mèo lười uống nước và chán hạt khô? Đừng bỏ qua danh sách 5 loại pate thơm ngon, giàu độ ẩm và protein kích thích vị giác của những bé mèo khó tính nhất.",
       content: `<p>Mèo kén ăn là vấn đề khiến nhiều Sen đau đầu. Giải pháp tốt nhất là bổ sung pate dinh dưỡng vừa kích thích ăn ngon vừa cấp nước...</p>`,
       is_featured: false,
+      likes_count: 280,
+      hashtags: "PATEMEO,DINHDUONG",
       post_type: "official_blog",
       status: "published",
       view_count: 220,
@@ -1716,11 +1752,194 @@ async function main() {
       excerpt: "Nhiều chú chó hoảng loạn, cào cấu hoặc bỏ trốn khi trời mưa giông sấm sét. Tìm hiểu phương pháp xoa dịu nỗi sợ hãi tiếng động lớn cho cún cưng.",
       content: `<p>Hội chứng sợ tiếng động lớn (sấm sét, pháo hoa) rất phổ biến ở chó cưng. Điều này xuất phát từ thính giác nhạy cảm gấp nhiều lần con người...</p>`,
       is_featured: false,
+      likes_count: 390,
+      hashtags: "TAMLYDOG,SAMSET",
       post_type: "official_blog",
       status: "published",
       view_count: 140,
       post_category_id: categoriesMap["Tâm lý"].post_category_id,
       author_user_id: authorId
+    },
+    // Figma Seeding data
+    {
+      title: "Cuối tuần dạo chơi cùng bé Cún",
+      slug: "cuoi-tuan-dao-choi-cung-be-cun",
+      thumbnail_url: "https://images.unsplash.com/photo-1544568100-847a948585b9?w=800",
+      excerpt: "Thời tiết đẹp quá mọi người ạ! Nhớ mang theo nước uống đầy đủ cho các bé khi ra ngoài nhé. 🐶☀️",
+      content: "Thời tiết đẹp quá mọi người ạ! Nhớ mang theo nước uống đầy đủ cho các bé khi ra ngoài nhé. 🐶☀️ Dr.Pet’s House gợi ý nên đi dạo sau 5h chiều để tránh nắng nóng ảnh hưởng đến bàn chân của bé.",
+      is_featured: false,
+      likes_count: 1200,
+      hashtags: "DAOPHO,CUNCUNG,CUOITUAN",
+      post_type: "community",
+      status: "published",
+      view_count: 3200,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Mèo biếng ăn phải làm sao?",
+      slug: "meo-bieng-an-phai-lam-sao",
+      thumbnail_url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800",
+      excerpt: "Bé mèo nhà mình (giống Anh lông ngắn, 2 tuổi) 3 ngày nay tự nhiên ăn rất ít, bỏ bữa sáng. Bé vẫn chơi đùa bình thường nhưng lười vận động hơn...",
+      content: "Bé mèo nhà mình (giống Anh lông ngắn, 2 tuổi) 3 ngày nay tự nhiên ăn rất ít, bỏ bữa sáng. Bé vẫn chơi đùa bình thường nhưng lười vận động hơn... Có Sen nào từng gặp tình trạng này chưa, cho mình xin ít kinh nghiệm với ạ!",
+      is_featured: false,
+      likes_count: 217,
+      hashtags: "MEOBIENGAN,SUCKHOETHUCUNG",
+      post_type: "community",
+      status: "published",
+      view_count: 512,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Cách giữ nhà luôn thơm tho khi nuôi thú cưng",
+      slug: "cach-giu-nha-luon-thom-tho-khi-nuoi-thu-cung",
+      thumbnail_url: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800",
+      excerpt: "Nhà mình nuôi 2 bé cún nên mùi khá là nồng. Sau một thời gian tìm hiểu mình phát hiện ra dùng máy lọc không khí kết hợp với tinh dầu tự nhiên cực kỳ hiệu quả luôn!",
+      content: "Nhà mình nuôi 2 bé cún nên mùi khá là nồng. Sau một thời gian tìm hiểu mình phát hiện ra dùng máy lọc không khí kết hợp với tinh dầu tự nhiên (loại an toàn cho pet) cực kỳ hiệu quả luôn!",
+      is_featured: false,
+      likes_count: 1000,
+      hashtags: "MEOVAT,THOMNHASACHCUA",
+      post_type: "community",
+      status: "published",
+      view_count: 1800,
+      post_category_id: categoriesMap["Vệ sinh & Làm đẹp"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Cún con bị nấc cụt sau khi ăn có sao không?",
+      slug: "cun-con-bi-nac-cut-sau-khi-an-co-sao-khong",
+      thumbnail_url: "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=800",
+      excerpt: "Bé Poodle nhà mình 3 tháng tuổi, cứ ăn xong là bị nấc cụt tầm 5-10 phút. Có bác nào gặp tình trạng này chưa ạ? Có cần phải đưa đi bác sĩ không?",
+      content: "Bé Poodle nhà mình 3 tháng tuổi, cứ ăn xong là bị nấc cụt tầm 5-10 phút. Có bác nào gặp tình trạng này chưa ạ? Có cần phải đưa đi bác sĩ không hay là do bé ăn quá nhanh?",
+      is_featured: false,
+      likes_count: 62,
+      hashtags: "HOIDAP,SUCKHOECUN",
+      post_type: "community",
+      status: "published",
+      view_count: 190,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Góc ngủ bá đạo của bé Miu nhà em",
+      slug: "goc-ngu-ba-dao-cua-be-miu-nha-em",
+      thumbnail_url: "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=800",
+      excerpt: "Góc ngủ bá đạo của bé Miu nhà em. Mọi người có ảnh dìm hàng boss không ạ?",
+      content: "Góc ngủ bá đạo của bé Miu nhà em. Mọi người có ảnh dìm hàng boss không ạ? Khoe dưới bình luận đi nào cả nhà ơi!",
+      is_featured: false,
+      likes_count: 89,
+      hashtags: "MEOCUNG,ANHDIM",
+      post_type: "community",
+      status: "published",
+      view_count: 240,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Có nên cho mèo ăn thức ăn hạt giá rẻ không?",
+      slug: "co-nen-cho-meo-an-thuc-an-hat-gia-re-khong",
+      thumbnail_url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800",
+      excerpt: "Nhiều loại hạt giá rẻ chứa quá nhiều chất độn bột ngô, bột sắn dễ gây sỏi thận cho mèo. Hãy cùng chia sẻ kinh nghiệm lựa chọn hạt chất lượng và tiết kiệm.",
+      content: "Mình thấy nhiều bạn nuôi mèo sinh viên hay mua mấy loại hạt giá rẻ không rõ nguồn gốc. Mèo ăn lâu ngày rất dễ bị sỏi tiết niệu và suy thận. Mọi người nên đầu tư hạt chất lượng một chút, hoặc tự làm thức ăn ướt trộn thêm sẽ tốt hơn nhiều đó ạ!",
+      is_featured: false,
+      likes_count: 750,
+      hashtags: "DINHDUONGMEO,HATCHOMEO",
+      post_type: "community",
+      status: "published",
+      view_count: 1420,
+      post_category_id: categoriesMap["Dinh dưỡng"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Hành trình huấn luyện cún đi vệ sinh đúng chỗ trong 2 tuần",
+      slug: "hanh-trinh-huan-luyen-cun-di-ve-sinh-dung-cho-trong-2-tuan",
+      thumbnail_url: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800",
+      excerpt: "Kiên trì áp dụng phương pháp dùng xịt hướng dẫn vệ sinh kết hợp khen thưởng bằng bánh thưởng. Chia sẻ chi tiết lịch trình hằng ngày cho các Sen.",
+      content: "Tuần đầu tiên mình dùng xịt xi tiểu của Dr.Pet's House xịt vào khay vệ sinh, cứ thấy bé đi vòng quanh ngửi ngửi là bế ngay vào khay. Khi bé đi đúng thì thưởng ngay Snack Bowwow và xoa đầu khen ngợi. Đến tuần thứ 2 bé đã tự động chạy vào khay khi buồn đi vệ sinh rồi!",
+      is_featured: false,
+      likes_count: 950,
+      hashtags: "HUANLUYENCUN,MEOVAT",
+      post_type: "community",
+      status: "published",
+      view_count: 2100,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Review máy sấy lông thú cưng 3 trong 1 tại nhà",
+      slug: "review-may-say-long-thu-cung-3-trong-1-tai-nha",
+      thumbnail_url: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800",
+      excerpt: "Tự tắm cho bé tại nhà rất vui nhưng khâu sấy lông luôn là ác mộng. Mình mới tậu em máy sấy chuyên dụng Chunzhou 2800W và đây là đánh giá chi tiết.",
+      content: "Em máy sấy này sức gió siêu mạnh luôn mọi người ơi, sấy bé Samoyed lông dày cộp mà chỉ mất tầm 25 phút là khô ráo hoàn toàn. Máy có chế độ sấy ấm và sấy mát điều chỉnh rất linh hoạt, tiếng ồn ở mức chấp nhận được chứ không làm cún hoảng sợ.",
+      is_featured: false,
+      likes_count: 410,
+      hashtags: "GROOMING,VESINH",
+      post_type: "community",
+      status: "published",
+      view_count: 820,
+      post_category_id: categoriesMap["Vệ sinh & Làm đẹp"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Dấu hiệu nhận biết sớm bệnh viêm tai ở chó tai cụp",
+      slug: "dau-hieu-nhan-biet-som-benh-viem-tai-o-cho-tai-cup",
+      thumbnail_url: "https://images.unsplash.com/photo-1588943211346-0908a1fb0b01?w=800",
+      excerpt: "Các giống chó tai cụp như Poodle, Cocker rất dễ bị viêm tai giữa nếu không vệ sinh tai đúng cách. Hãy chú ý các biểu hiện gãi tai liên tục, tai có mùi hôi.",
+      content: "Mọi người nuôi Poodle nhớ nhổ lông tai định kỳ và dùng nước rửa tai chuyên dụng 1-2 lần/tuần nhé. Nếu thấy bé gãi tai liên tục, lắc đầu thường xuyên hoặc khi ngửi tai thấy có mùi hôi hắc thì 90% là bé bị viêm tai rồi, cần đưa đi bác sĩ thú y ngay.",
+      is_featured: false,
+      likes_count: 680,
+      hashtags: "SUCKHOEDOG,TAICUP",
+      post_type: "community",
+      status: "published",
+      view_count: 1150,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Mèo con kêu liên tục vào ban đêm: Nguyên nhân và cách khắc phục",
+      slug: "meo-con-keu-lien-tuc-vao-ban-dem-nguyen-nhan-va-cach-khac-phuc",
+      thumbnail_url: "https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=800",
+      excerpt: "Mèo con mới về nhà thường khóc đêm vì nhớ mẹ và môi trường lạ. Làm thế nào để xoa dịu giúp bé và gia đình có giấc ngủ ngon?",
+      content: "Các Sen có thể để một chiếc áo cũ của mình vào ổ nằm của bé để bé quen mùi chủ, hoặc đặt một chiếc đồng hồ tích tắc nhỏ gần đó giả lập tiếng nhịp tim của mèo mẹ. Ban ngày nhớ chơi với bé nhiều hơn để ban đêm bé mệt và ngủ say nhé!",
+      is_featured: false,
+      likes_count: 530,
+      hashtags: "TAMLYMEO,MEOCON",
+      post_type: "community",
+      status: "published",
+      view_count: 980,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Lựa chọn sữa tắm cho cún cưng có làn da nhạy cảm",
+      slug: "lua-chon-sua-tam-cho-cun-cung-co-lan-da-nhay-cam",
+      thumbnail_url: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800",
+      excerpt: "Cún nhà mình thuộc dòng Bulldog da nhạy cảm và rất dễ bị dị ứng, nổi mẩn đỏ. Mình đã test qua 5 loại sữa tắm khác nhau và tìm ra chân ái.",
+      content: "Khuyên thật lòng các bạn nuôi Bulldog hay Pug da nhạy cảm nên dùng sữa tắm có chiết xuất yến mạch hoặc trà xanh thiên nhiên (như Tropiclean Berry & Coconut). Hạn chế dùng các loại có mùi quá nồng vì rất dễ gây kích ứng da pet.",
+      is_featured: false,
+      likes_count: 320,
+      hashtags: "GROOMING,BULLDOG,SKINCARE",
+      post_type: "community",
+      status: "published",
+      view_count: 670,
+      post_category_id: categoriesMap["Vệ sinh & Làm đẹp"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Bổ sung Gel dinh dưỡng cho thú cưng sau khi ốm dậy",
+      slug: "bo-sung-gel-dinh-duong-cho-thu-cung-sau-khi-om-day",
+      thumbnail_url: "https://images.unsplash.com/photo-1544568100-847a948585b9?w=800",
+      excerpt: "Bé cún nhà mình vừa trải qua đợt điều trị viêm ruột, người gầy rộc đi. Bác sĩ khuyên bổ sung Gel dinh dưỡng Nutri-plus để phục hồi thể trạng nhanh chóng.",
+      content: "Gel dinh dưỡng rất tốt cho các bé suy nhược, bỏ ăn hoặc sau phẫu thuật. Mình cho bé ăn trực tiếp hoặc trộn vào cháo/hạt ngâm ấm. Chỉ sau 1 tuần bé đã lấy lại được năng lượng và ham chạy nhảy trở lại rồi, trộm vía rất thích mùi vị của loại gel này.",
+      is_featured: false,
+      likes_count: 480,
+      hashtags: "SUCKHOEPET,GELDINHINGUONG",
+      post_type: "community",
+      status: "published",
+      view_count: 890,
+      post_category_id: categoriesMap["Dinh dưỡng"].post_category_id,
+      author_user_id: guestAuthorId1
     }
   ];
 
@@ -1730,6 +1949,8 @@ async function main() {
       update: {
         is_featured: post.is_featured,
         view_count: post.view_count,
+        likes_count: post.likes_count,
+        hashtags: post.hashtags,
         post_category_id: post.post_category_id,
         author_user_id: post.author_user_id
       },
@@ -1737,46 +1958,145 @@ async function main() {
     });
   }
 
-  // Create comments for the featured post
-  const featuredPost = await prisma.post.findUnique({
-    where: { slug: "cam-nang-cham-soc-cho-meo-toan-tap-cho-nguoi-moi-bat-dau" }
+  // Create comments for the featured post and community posts
+  console.log('Seeding comments for posts...');
+  const customers = await prisma.user.findMany({
+    where: { role: { role_code: 'CUSTOMER' } }
   });
 
-  if (featuredPost) {
-    const commentCount = await prisma.postComment.count({
-      where: { post_id: featuredPost.post_id }
+  if (customers.length > 0) {
+    // 1. Comments for featured post
+    const featuredPost = await prisma.post.findUnique({
+      where: { slug: "cam-nang-cham-soc-cho-meo-toan-tap-cho-nguoi-moi-bat-dau" }
     });
-
-    if (commentCount === 0 && customers.length > 0) {
-      console.log('Seeding comments for featured post...');
-      
-      const comment1 = await prisma.postComment.create({
-        data: {
-          post_id: featuredPost.post_id,
-          user_id: customers[0].user_id,
-          content: "Bài viết chi tiết quá ạ! Bé mèo nhà em 3 tháng tuổi thì nên tiêm phòng mũi thứ mấy rồi bác sĩ ơi?",
-          status: "visible"
-        }
+    if (featuredPost) {
+      const commentCount = await prisma.postComment.count({
+        where: { post_id: featuredPost.post_id }
       });
+      if (commentCount === 0) {
+        console.log('Seeding comments for featured post...');
+        const comment1 = await prisma.postComment.create({
+          data: {
+            post_id: featuredPost.post_id,
+            user_id: customers[0].user_id,
+            content: "Bài viết chi tiết quá ạ! Bé mèo nhà em 3 tháng tuổi thì nên tiêm phòng mũi thứ mấy rồi bác sĩ ơi?",
+            status: "visible"
+          }
+        });
 
-      await prisma.postComment.create({
-        data: {
-          post_id: featuredPost.post_id,
-          user_id: authorId,
-          parent_comment_id: comment1.comment_id,
-          content: "Chào bạn, với bé mèo 3 tháng tuổi bạn nên cho bé hoàn thành mũi tiêm vắc-xin 4 trong 1 thứ 2 hoặc thứ 3 nhé. Bạn có thể mang bé qua Dr.Pet's House để được khám lâm sàng trước khi tiêm nha!",
-          status: "visible"
-        }
-      });
+        await prisma.postComment.create({
+          data: {
+            post_id: featuredPost.post_id,
+            user_id: authorId,
+            parent_comment_id: comment1.comment_id,
+            content: "Chào bạn, với bé mèo 3 tháng tuổi bạn nên cho bé hoàn thành mũi tiêm vắc-xin 4 trong 1 thứ 2 hoặc thứ 3 nhé. Bạn có thể mang bé qua Dr.Pet's House để được khám lâm sàng trước khi tiêm nha!",
+            status: "visible"
+          }
+        });
 
-      await prisma.postComment.create({
-        data: {
-          post_id: featuredPost.post_id,
-          user_id: customers[1] ? customers[1].user_id : customers[0].user_id,
-          content: "Cảm ơn bác sĩ, thông tin cực kỳ hữu ích cho người mới tập nuôi chó như mình.",
-          status: "visible"
-        }
+        await prisma.postComment.create({
+          data: {
+            post_id: featuredPost.post_id,
+            user_id: customers[1] ? customers[1].user_id : customers[0].user_id,
+            content: "Cảm ơn bác sĩ, thông tin cực kỳ hữu ích cho người mới tập nuôi chó như mình.",
+            status: "visible"
+          }
+        });
+      }
+    }
+
+    // 2. Comments for specific community posts to create dynamic comment counts
+    const communityCommentsData = [
+      {
+        slug: "cuoi-tuan-dao-choi-cung-be-cun",
+        comments: [
+          { userIndex: 0, content: "Cún cưng cưng quá bạn ơi! Địa điểm này ở đâu vậy ạ?" },
+          { userIndex: 1, content: "Thời tiết dạo này nóng thật, đi chiều mát sau 5h là hợp lý nhất rồi." }
+        ]
+      },
+      {
+        slug: "meo-bieng-an-phai-lam-sao",
+        comments: [
+          { userIndex: 2, content: "Bé nhà mình đợt trước cũng vậy, đi khám bác sĩ bảo bị nhiệt miệng đó bạn." },
+          { userIndex: 3, content: "Bạn thử đổi sang pate lon xem bé có kích thích ăn hơn không." },
+          { userIndex: 4, content: "Nên mang bé đi khám thú y sớm nha bạn, bỏ bữa 3 ngày là khá nguy hiểm đấy." }
+        ]
+      },
+      {
+        slug: "cach-giu-nha-luon-thom-tho-khi-nuoi-thu-cung",
+        comments: [
+          { userIndex: 0, content: "Máy lọc không khí hãng nào tốt cho lông pet hả bạn?" },
+          { userIndex: 1, content: "Dùng tinh dầu sả chanh được không bạn ơi? Có sợ ảnh hưởng đường hô hấp của bé không?" }
+        ]
+      },
+      {
+        slug: "cun-con-bi-nac-cut-sau-khi-an-co-sao-khong",
+        comments: [
+          { userIndex: 5, content: "Do cún ăn nhanh nuốt nhiều khí đó bạn, mua bát ăn chậm hoặc chia nhỏ bữa ăn ra thử xem." },
+          { userIndex: 6, content: "Trộm vía cún con hay bị nấc vậy á, lớn tí là hết hà, đừng lo quá bạn." }
+        ]
+      },
+      {
+        slug: "goc-ngu-ba-dao-cua-be-miu-nha-em",
+        comments: [
+          { userIndex: 2, content: "Trời đất, ngủ kiểu gì vẹo cả cổ thế kia 😂 boss nhà bạn hài hước quá." },
+          { userIndex: 3, content: "Dễ thương xỉu luôn á! Xin vía ngủ ngon nha Miu." }
+        ]
+      },
+      {
+        slug: "co-nen-cho-meo-an-thuc-an-hat-gia-re-khong",
+        comments: [
+          { userIndex: 0, content: "Đúng rồi bạn ơi, tiền chữa sỏi thận bằng mấy lần tiền mua hạt xịn luôn." },
+          { userIndex: 1, content: "Chuẩn luôn, nên chọn các thương hiệu uy tín như Royal Canin hoặc Catsrang." },
+          { userIndex: 4, content: "Bài viết rất hữu ích cho các bạn mới nuôi mèo!" }
+        ]
+      },
+      {
+        slug: "hanh-trinh-huan-luyen-cun-di-ve-sinh-dung-cho-trong-2-tuan",
+        comments: [
+          { userIndex: 2, content: "Mình cũng đang tập cho bé nhà mình, áp dụng thử cách của bạn xem sao." },
+          { userIndex: 3, content: "Mẹo nhỏ là có thể dùng tã thấm nước tiểu của bé đặt sẵn vào khay nha." },
+          { userIndex: 5, content: "Cho mình hỏi mua snack Bowwow ở đâu chính hãng rẻ vậy bạn?" }
+        ]
+      },
+      {
+        slug: "review-may-say-long-thu-cung-3-trong-1-tai-nha",
+        comments: [
+          { userIndex: 1, content: "Máy sấy này mua khoảng bao nhiêu tiền vậy bạn?" },
+          { userIndex: 6, content: "Lông mèo sấy bằng máy này có bị khô xơ không bạn nhỉ?" }
+        ]
+      },
+      {
+        slug: "dau-hieu-nhan-biet-som-benh-viem-tai-o-cho-tai-cup",
+        comments: [
+          { userIndex: 0, content: "Cún nhà mình bị viêm tai suốt, chữa mãi không dứt điểm, buồn ghê." },
+          { userIndex: 2, content: "Bạn phải sấy thật khô tai sau khi tắm nữa nha, ẩm ướt là nấm mốc lên ngay." }
+        ]
+      }
+    ];
+
+    for (const postCommentData of communityCommentsData) {
+      const post = await prisma.post.findUnique({
+        where: { slug: postCommentData.slug }
       });
+      if (post) {
+        const existingCount = await prisma.postComment.count({
+          where: { post_id: post.post_id }
+        });
+        if (existingCount === 0) {
+          for (const comm of postCommentData.comments) {
+            const user = customers[comm.userIndex % customers.length];
+            await prisma.postComment.create({
+              data: {
+                post_id: post.post_id,
+                user_id: user.user_id,
+                content: comm.content,
+                status: "visible"
+              }
+            });
+          }
+        }
+      }
     }
   }
 

@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.sendOtpEmail = void 0;
+exports.sendOtpEmail = exports.sendGuestAccountEmail = void 0;
 var _nodemailer = _interopRequireDefault(require("nodemailer"));
 function _interopRequireDefault(e) { return e && e.__esModule ? e : { "default": e }; }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? c < 3 ? (c > 1 && (G.n = -1), d(c, u)) : G.n = u : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i["return"]) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
@@ -48,5 +48,35 @@ var sendOtpEmail = exports.sendOtpEmail = /*#__PURE__*/function () {
   }));
   return function sendOtpEmail(_x, _x2) {
     return _ref.apply(this, arguments);
+  };
+}();
+var sendGuestAccountEmail = exports.sendGuestAccountEmail = /*#__PURE__*/function () {
+  var _ref2 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(toEmail, password, orderCode) {
+    var transporter, mailOptions, _t2;
+    return _regenerator().w(function (_context2) {
+      while (1) switch (_context2.p = _context2.n) {
+        case 0:
+          transporter = createTransporter();
+          mailOptions = {
+            from: "\"Pet Clinic\" <".concat(process.env.EMAIL_APP, ">"),
+            to: toEmail,
+            subject: 'Thông tin tài khoản và đơn hàng của bạn - Pet Clinic',
+            html: "\n      <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;\">\n        <h2 style=\"color: #333; text-align: center;\">\u0110\u1EB7t H\xE0ng Th\xE0nh C\xF4ng</h2>\n        <p>Ch\xE0o b\u1EA1n,</p>\n        <p>C\u1EA3m \u01A1n b\u1EA1n \u0111\xE3 mua s\u1EAFm t\u1EA1i Pet Clinic. \u0110\u01A1n h\xE0ng c\u1EE7a b\u1EA1n v\u1EDBi m\xE3 <strong>${orderCode}</strong> \u0111\xE3 \u0111\u01B0\u1EE3c t\u1EA1o th\xE0nh c\xF4ng.</p>\n        <p>\u0110\u1EC3 gi\xFAp b\u1EA1n d\u1EC5 d\xE0ng theo d\xF5i tr\u1EA1ng th\xE1i \u0111\u01A1n h\xE0ng v\xE0 mua s\u1EAFm trong t\u01B0\u01A1ng lai, ch\xFAng t\xF4i \u0111\xE3 t\u1EF1 \u0111\u1ED9ng t\u1EA1o m\u1ED9t t\xE0i kho\u1EA3n th\xE0nh vi\xEAn cho b\u1EA1n v\u1EDBi th\xF4ng tin \u0111\u0103ng nh\u1EADp nh\u01B0 sau:</p>\n        <div style=\"background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #eee;\">\n          <p style=\"margin: 5px 0;\"><strong>Email \u0111\u0103ng nh\u1EADp:</strong> ${toEmail}</p>\n          <p style=\"margin: 5px 0;\"><strong>M\u1EADt kh\u1EA9u:</strong> ${password}</p>\n        </div>\n        <p style=\"color: #ff9800;\"><strong>* L\u01B0u \xFD:</strong> Vui l\xF2ng \u0111\u1ED5i m\u1EADt kh\u1EA9u sau khi \u0111\u0103ng nh\u1EADp l\u1EA7n \u0111\u1EA7u ti\xEAn \u0111\u1EC3 \u0111\u1EA3m b\u1EA3o b\u1EA3o m\u1EADt th\xF4ng tin t\xE0i kho\u1EA3n.</p>\n        <p>N\u1EBFu b\u1EA1n c\xF3 b\u1EA5t k\u1EF3 th\u1EAFc m\u1EAFc n\xE0o, vui l\xF2ng li\xEAn h\u1EC7 v\u1EDBi b\u1ED9 ph\u1EADn h\u1ED7 tr\u1EE3 c\u1EE7a ch\xFAng t\xF4i.</p>\n        <br>\n        <p>Tr\xE2n tr\u1ECDng,</p>\n        <p><strong>\u0110\u1ED9i ng\u0169 Pet Clinic</strong></p>\n      </div>\n    "
+          };
+          _context2.p = 1;
+          _context2.n = 2;
+          return transporter.sendMail(mailOptions);
+        case 2:
+          return _context2.a(2, true);
+        case 3:
+          _context2.p = 3;
+          _t2 = _context2.v;
+          console.error('Error sending guest account email:', _t2);
+          return _context2.a(2, false);
+      }
+    }, _callee2, null, [[1, 3]]);
+  }));
+  return function sendGuestAccountEmail(_x3, _x4, _x5) {
+    return _ref2.apply(this, arguments);
   };
 }();

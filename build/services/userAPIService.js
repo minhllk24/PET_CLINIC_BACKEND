@@ -379,7 +379,7 @@ var getUserAddresses = /*#__PURE__*/function () {
 }();
 var createAddress = /*#__PURE__*/function () {
   var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(id, data) {
-    var userId, recipient_name, recipient_phone, address_line, ward, district, province, is_default, newAddress, _t6;
+    var userId, recipient_name, recipient_phone, recipient_email, address_line, ward, district, province, country, is_default, newAddress, _t6;
     return _regenerator().w(function (_context6) {
       while (1) switch (_context6.p = _context6.n) {
         case 0:
@@ -395,7 +395,7 @@ var createAddress = /*#__PURE__*/function () {
             DT: ''
           });
         case 1:
-          recipient_name = data.recipient_name, recipient_phone = data.recipient_phone, address_line = data.address_line, ward = data.ward, district = data.district, province = data.province, is_default = data.is_default;
+          recipient_name = data.recipient_name, recipient_phone = data.recipient_phone, recipient_email = data.recipient_email, address_line = data.address_line, ward = data.ward, district = data.district, province = data.province, country = data.country, is_default = data.is_default;
           if (!(!recipient_name || !recipient_phone || !address_line)) {
             _context6.n = 2;
             break;
@@ -426,10 +426,12 @@ var createAddress = /*#__PURE__*/function () {
               user_id: userId,
               recipient_name: recipient_name,
               recipient_phone: recipient_phone,
+              recipient_email: recipient_email || null,
               address_line: address_line,
               ward: ward,
               district: district,
               province: province,
+              country: country || null,
               is_default: is_default || false
             }
           });
@@ -514,10 +516,12 @@ var updateAddress = /*#__PURE__*/function () {
             data: {
               recipient_name: data.recipient_name || existingAddr.recipient_name,
               recipient_phone: data.recipient_phone || existingAddr.recipient_phone,
+              recipient_email: data.recipient_email !== undefined ? data.recipient_email : existingAddr.recipient_email,
               address_line: data.address_line || existingAddr.address_line,
               ward: data.ward || existingAddr.ward,
               district: data.district || existingAddr.district,
               province: data.province || existingAddr.province,
+              country: data.country !== undefined ? data.country : existingAddr.country,
               is_default: data.is_default !== undefined ? data.is_default : existingAddr.is_default
             }
           });
