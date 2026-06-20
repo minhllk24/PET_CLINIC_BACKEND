@@ -1539,6 +1539,247 @@ async function main() {
     }
   });
 
+  // 8. Post Categories, Posts & Comments
+  console.log('Seeding blog categories, posts and comments...');
+  
+  const categoryNames = ["Sức khỏe", "Dinh dưỡng", "Tâm lý", "Vệ sinh & Làm đẹp"];
+  const categoriesMap = {};
+
+  for (const catName of categoryNames) {
+    const cat = await prisma.postCategory.upsert({
+      where: { category_name: catName },
+      update: {},
+      create: {
+        category_name: catName,
+        status: 'active'
+      }
+    });
+    categoriesMap[catName] = cat;
+  }
+
+  // Get Admin user for official blog posts
+  const adminUser = await prisma.user.findFirst({
+    where: { role: { role_code: 'ADMIN' } }
+  });
+  
+  // Get some Customer users for community posts and comments
+  const customers = await prisma.user.findMany({
+    where: { role: { role_code: 'CUSTOMER' } },
+    take: 5
+  });
+
+  const authorId = adminUser ? adminUser.user_id : admin.user_id;
+  const guestAuthorId1 = customers[0] ? customers[0].user_id : authorId;
+  const guestAuthorId2 = customers[1] ? customers[1].user_id : authorId;
+
+  const postsData = [
+    {
+      title: "Cẩm nang chăm sóc chó mèo toàn tập cho người mới bắt đầu",
+      slug: "cam-nang-cham-soc-cho-meo-toan-tap-cho-nguoi-moi-bat-dau",
+      thumbnail_url: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800",
+      excerpt: "Bạn mới nuôi thú cưng và chưa biết bắt đầu từ đâu? Xem ngay cẩm nang chi tiết từ các chuyên gia dinh dưỡng và sức khỏe tại Dr.Pet's House để chuẩn bị tốt nhất cho người bạn bốn chân.",
+      content: `<h2>1. Chuẩn bị không gian sống và vật dụng cần thiết</h2>
+<p>Khi đón một chú chó hoặc mèo về nhà, việc chuẩn bị không gian an toàn và sạch sẽ là vô cùng quan trọng. Bạn cần chuẩn bị sẵn:</p>
+<ul>
+  <li>Khay ăn, chén nước (nên chọn chất liệu inox hoặc sứ).</li>
+  <li>Nệm nằm, chuồng hoặc rào quây.</li>
+  <li>Dụng cụ vệ sinh: khay cát (cho mèo), tã lót đi vệ sinh (cho chó).</li>
+  <li>Đồ chơi gặm nhấm, cào móng giúp giảm stress.</li>
+</ul>
+
+<h2>2. Chế độ dinh dưỡng hợp lý</h2>
+<p>Dinh dưỡng đóng vai trò quyết định đến sự phát triển của thú cưng. Mèo là động vật ăn thịt bắt buộc, cần nhiều đạm động vật và taurine. Ngược lại, chó là động vật ăn tạp thiên thịt, cần chế độ ăn cân đối giữa protein, tinh bột, chất xơ và chất béo.</p>
+<ul>
+  <li><strong>Dưới 2 tháng tuổi:</strong> Chủ yếu uống sữa mẹ hoặc sữa công thức chuyên dụng.</li>
+  <li><strong>Từ 2 - 6 tháng tuổi:</strong> Ăn cháo loãng, hạt ngâm mềm hoặc pate ăn dặm, chia làm 3-4 bữa nhỏ/ngày.</li>
+  <li><strong>Trên 6 tháng tuổi:</strong> Có thể ăn hạt khô hoàn toàn hoặc tự nấu thức ăn (không nêm gia vị), chia làm 2 bữa/ngày.</li>
+</ul>
+
+<h2>3. Vắc-xin và chăm sóc y tế định kỳ</h2>
+<p>Đừng quên lịch tiêm phòng và tẩy giun. Đây là rào chắn bảo vệ thú cưng khỏi các bệnh truyền nhiễm nguy hiểm như Parvo, Care ở chó hay giảm bạch cầu ở mèo.</p>
+<p>Hãy mang bé đến phòng khám thú y uy tín như Dr.Pet's House để được tư vấn phác đồ tiêm chủng chuẩn xác nhất nhé!</p>`,
+      is_featured: true,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 2450,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Chế độ dinh dưỡng hoàn hảo cho mèo Anh Lông Ngắn dưới 1 tuổi",
+      slug: "che-do-dinh-duong-hoan-hao-cho-meo-anh-long-ngan-duoi-1-tuoi",
+      thumbnail_url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800",
+      excerpt: "Mèo Anh Lông Ngắn con cần chế độ dinh dưỡng thế nào để phát triển khung xương vững chắc và bộ lông dày mượt? Hãy cùng tìm hiểu công thức thức ăn tối ưu từ chuyên gia.",
+      content: `<p>Mèo Anh Lông Ngắn (Aln) là giống mèo rất được ưa chuộng nhờ ngoại hình mập mạp và tính cách hiền lành. Giai đoạn dưới 1 tuổi là thời điểm mèo Aln tăng trưởng nhanh nhất, đặc biệt là hệ cơ và xương...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 1550,
+      post_category_id: categoriesMap["Dinh dưỡng"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Làm thế nào để trị dứt điểm ve rận cho cún yêu tại nhà?",
+      slug: "lam-the-nao-de-tri-dut-diem-ve-ran-cho-cun-yeu-tai-nha",
+      thumbnail_url: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800",
+      excerpt: "Ve rận không chỉ gây ngứa ngáy mà còn truyền nhiễm các bệnh nguy hiểm về máu cho chó. Xem ngay các bước trị ve rận tận gốc và phòng ngừa hiệu quả tại nhà.",
+      content: `<p>Ve rận luôn là nỗi ám ảnh của những người nuôi chó. Chúng sinh sôi rất nhanh và có thể sống ẩn nấp trong kẽ tường, thảm nhà...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 1220,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Giải mã ngôn ngữ cơ thể của mèo: Mèo đang muốn nói gì?",
+      slug: "giai-ma-ngon-ngu-co-the-cua-meo-meo-dang-muon-noi-gi",
+      thumbnail_url: "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=800",
+      excerpt: "Mèo giao tiếp chủ yếu qua đuôi, tai và cử chỉ cơ thể. Học cách đọc vị các hành động này sẽ giúp bạn hiểu rõ tâm trạng và gắn kết hơn với chú mèo của mình.",
+      content: `<p>Mèo là loài động vật tinh tế và có phần bí ẩn. Đôi khi bạn không hiểu tại sao chúng lại vẫy đuôi liên tục hay cụp tai xuống...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 980,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Quy trình tắm và vệ sinh tai cho chó Poodle sạch thơm như spa",
+      slug: "quy-trinh-tam-va-ve-sinh-tai-cho-cho-poodle-sach-thom-nhu-spa",
+      thumbnail_url: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800",
+      excerpt: "Chó Poodle có bộ lông xoăn đặc thù rất dễ bị rối và bám bẩn. Hướng dẫn chi tiết quy trình tắm, sấy và vệ sinh tai tại nhà chuẩn spa giúp cún cưng luôn thơm tho.",
+      content: `<p>Với bộ lông xoăn và cấu trúc tai cụp kín, Poodle cần một chế độ vệ sinh kỹ lưỡng hơn nhiều giống chó khác...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 750,
+      post_category_id: categoriesMap["Vệ sinh & Làm đẹp"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Kinh nghiệm chọn cát vệ sinh khử mùi tốt cho mèo chung cư",
+      slug: "kinh-nghiem-chon-cat-ve-sinh-khu-mui-tot-cho-meo-chung-cu",
+      thumbnail_url: "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800",
+      excerpt: "Sống tại chung cư không gian kín dễ bị tích tụ mùi hôi từ khay cát. Dưới đây là review chi tiết các loại cát vệ sinh đất sét, cát đậu nành tốt nhất.",
+      content: `<p>Khi nuôi mèo ở các căn hộ chung cư có diện tích giới hạn, việc giữ gìn vệ sinh và khử mùi khay cát là yếu tố ưu tiên hàng đầu...</p>`,
+      is_featured: false,
+      post_type: "community",
+      status: "published",
+      view_count: 420,
+      post_category_id: categoriesMap["Vệ sinh & Làm đẹp"].post_category_id,
+      author_user_id: guestAuthorId1
+    },
+    {
+      title: "Có nên triệt sản cho chó đực? Lợi ích và những lưu ý quan trọng",
+      slug: "co-nen-triet-san-cho-cho-duc-loi-ich-va-nhung-luu-y-quan-trong",
+      thumbnail_url: "https://images.unsplash.com/photo-1544568100-847a948585b9?w=800",
+      excerpt: "Triệt sản chó đực giúp hạn chế tính trạng đi tiểu đánh dấu lãnh thổ, giảm kích động và ngăn ngừa một số bệnh ung thư. Hãy cùng xem lời khuyên từ bác sĩ.",
+      content: `<p>Nhiều chủ nuôi ngần ngại triệt sản cho cún đực vì sợ ảnh hưởng tính cách của bé. Tuy nhiên dưới góc độ y khoa...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 310,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Chia sẻ nhật ký chữa trị bệnh giảm bạch cầu (FPV) thành công cho bé mèo Mun",
+      slug: "chia-se-nhat-ky-chua-tri-benh-giam-bach-cau-fpv-thanh-cong-cho-be-meo-mun",
+      thumbnail_url: "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=800",
+      excerpt: "Giảm bạch cầu là căn bệnh nguy hiểm với tỷ lệ tử vong cao ở mèo con. Mình xin chia sẻ hành trình điều trị tích cực giúp bé Mun vượt qua tử thần.",
+      content: `<p>Chào mọi người, tuần trước bé Mun nhà mình bỗng dưng bỏ ăn, nôn trớ liên tục rồi tiêu chảy cấp. Đi test nhanh thì dương tính với FPV...</p>`,
+      is_featured: false,
+      post_type: "community",
+      status: "published",
+      view_count: 530,
+      post_category_id: categoriesMap["Sức khỏe"].post_category_id,
+      author_user_id: guestAuthorId2
+    },
+    {
+      title: "Top 5 loại pate dinh dưỡng giàu protein cho mèo kén ăn",
+      slug: "top-5-loai-pate-dinh-duong-giau-protein-cho-meo-ken-an",
+      thumbnail_url: "https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=800",
+      excerpt: "Mèo lười uống nước và chán hạt khô? Đừng bỏ qua danh sách 5 loại pate thơm ngon, giàu độ ẩm và protein kích thích vị giác của những bé mèo khó tính nhất.",
+      content: `<p>Mèo kén ăn là vấn đề khiến nhiều Sen đau đầu. Giải pháp tốt nhất là bổ sung pate dinh dưỡng vừa kích thích ăn ngon vừa cấp nước...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 220,
+      post_category_id: categoriesMap["Dinh dưỡng"].post_category_id,
+      author_user_id: authorId
+    },
+    {
+      title: "Cách xử lý tâm lý khi chó cưng tỏ ra lo lắng, sợ hãi tiếng sấm sét",
+      slug: "cach-xu-ly-tam-ly-khi-cho-cung-to-ra-lo-an-so-hai-tieng-sam-set",
+      thumbnail_url: "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=800",
+      excerpt: "Nhiều chú chó hoảng loạn, cào cấu hoặc bỏ trốn khi trời mưa giông sấm sét. Tìm hiểu phương pháp xoa dịu nỗi sợ hãi tiếng động lớn cho cún cưng.",
+      content: `<p>Hội chứng sợ tiếng động lớn (sấm sét, pháo hoa) rất phổ biến ở chó cưng. Điều này xuất phát từ thính giác nhạy cảm gấp nhiều lần con người...</p>`,
+      is_featured: false,
+      post_type: "official_blog",
+      status: "published",
+      view_count: 140,
+      post_category_id: categoriesMap["Tâm lý"].post_category_id,
+      author_user_id: authorId
+    }
+  ];
+
+  for (const post of postsData) {
+    await prisma.post.upsert({
+      where: { slug: post.slug },
+      update: {
+        is_featured: post.is_featured,
+        view_count: post.view_count,
+        post_category_id: post.post_category_id,
+        author_user_id: post.author_user_id
+      },
+      create: post
+    });
+  }
+
+  // Create comments for the featured post
+  const featuredPost = await prisma.post.findUnique({
+    where: { slug: "cam-nang-cham-soc-cho-meo-toan-tap-cho-nguoi-moi-bat-dau" }
+  });
+
+  if (featuredPost) {
+    const commentCount = await prisma.postComment.count({
+      where: { post_id: featuredPost.post_id }
+    });
+
+    if (commentCount === 0 && customers.length > 0) {
+      console.log('Seeding comments for featured post...');
+      
+      const comment1 = await prisma.postComment.create({
+        data: {
+          post_id: featuredPost.post_id,
+          user_id: customers[0].user_id,
+          content: "Bài viết chi tiết quá ạ! Bé mèo nhà em 3 tháng tuổi thì nên tiêm phòng mũi thứ mấy rồi bác sĩ ơi?",
+          status: "visible"
+        }
+      });
+
+      await prisma.postComment.create({
+        data: {
+          post_id: featuredPost.post_id,
+          user_id: authorId,
+          parent_comment_id: comment1.comment_id,
+          content: "Chào bạn, với bé mèo 3 tháng tuổi bạn nên cho bé hoàn thành mũi tiêm vắc-xin 4 trong 1 thứ 2 hoặc thứ 3 nhé. Bạn có thể mang bé qua Dr.Pet's House để được khám lâm sàng trước khi tiêm nha!",
+          status: "visible"
+        }
+      });
+
+      await prisma.postComment.create({
+        data: {
+          post_id: featuredPost.post_id,
+          user_id: customers[1] ? customers[1].user_id : customers[0].user_id,
+          content: "Cảm ơn bác sĩ, thông tin cực kỳ hữu ích cho người mới tập nuôi chó như mình.",
+          status: "visible"
+        }
+      });
+    }
+  }
+
   console.log('Seed data successfully!');
 }
 
