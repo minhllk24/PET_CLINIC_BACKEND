@@ -1546,15 +1546,71 @@
 			"name": "17. First Aid Guides",
 			"item": [
 				{
+					"name": "Get First Aid Categories",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/first-aid/categories",
+							"host": ["{{base_url}}"],
+							"path": ["first-aid", "categories"]
+						}
+					}
+				},
+				{
 					"name": "Get All First Aid Guides",
 					"request": {
 						"auth": { "type": "noauth" },
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/first-aid/guides",
+							"raw": "{{base_url}}/first-aid/guides?categoryId=1&search=hoc&page=1&limit=10&excludeId=2",
 							"host": ["{{base_url}}"],
-							"path": ["first-aid", "guides"]
+							"path": ["first-aid", "guides"],
+							"query": [
+								{
+									"key": "categoryId",
+									"value": "1",
+									"description": "Lọc theo ID danh mục sơ cứu",
+									"disabled": true
+								},
+								{
+									"key": "search",
+									"value": "hoc",
+									"description": "Tìm kiếm theo từ khóa trong tiêu đề/mô tả",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Trang hiện tại"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Số lượng bản ghi mỗi trang"
+								},
+								{
+									"key": "excludeId",
+									"value": "2",
+									"description": "Loại trừ ID cẩm nang này (dùng cho bài viết liên quan)",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get First Aid Guide By Slug",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/first-aid/guides/so-cuu-khi-cho-bi-hoc-di-vat",
+							"host": ["{{base_url}}"],
+							"path": ["first-aid", "guides", "so-cuu-khi-cho-bi-hoc-di-vat"]
 						}
 					}
 				},
@@ -1565,7 +1621,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xu ly khi thu cung bi say nong\",\n    \"situation_description\": \"Thu cung bi say nong khi troi nang nong, bieu hien: tho nhanh, lim dim...\",\n    \"emergency_phone\": \"0901234567\",\n    \"steps\": [\n        { \"step_number\": 1, \"step_content\": \"Dua thu cung vao cho mat\" },\n        { \"step_number\": 2, \"step_content\": \"Cho uong nuoc tu tu\" },\n        { \"step_number\": 3, \"step_content\": \"Dap khan uot len co\" }\n    ]\n}",
+							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xử lý khi thú cưng bị say nóng\",\n    \"situation_description\": \"Thú cưng bị say nóng khi nhiệt độ cơ thể tăng cao đột ngột do thời tiết nắng nóng hoặc ở trong không gian kín như ô tô.\",\n    \"emergency_phone\": \"0868686868\",\n    \"video_url\": \"https://www.youtube.com/watch?v=sample_heatstroke\",\n    \"status\": \"published\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

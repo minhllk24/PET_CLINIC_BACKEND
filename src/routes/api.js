@@ -156,7 +156,10 @@ const initAPIRoutes = (app) => {
   router.get('/posts', contentController.handleGetPosts);
   router.get('/posts/:slug', contentController.handleGetPostBySlug);
   router.post('/posts', verifyToken, contentController.handleCreatePost);
+  
+  router.get('/first-aid/categories', contentController.handleGetFirstAidCategories);
   router.get('/first-aid/guides', contentController.handleGetFirstAidGuides);
+  router.get('/first-aid/guides/:slug', contentController.handleGetFirstAidGuideBySlug);
   router.post('/first-aid/guides', verifyToken, checkPermission(['ADMIN']), contentController.handleCreateFirstAidGuide);
   router.get('/ai-chat/sessions', verifyToken, contentController.handleGetAiChatSessions);
   router.post('/ai-chat/sessions', verifyToken, contentController.handleCreateAiChatSession);

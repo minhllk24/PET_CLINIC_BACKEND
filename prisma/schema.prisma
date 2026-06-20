@@ -1332,6 +1332,7 @@ model FirstAidGuide {
   guide_id              BigInt        @id @default(autoincrement()) @db.BigInt
   first_aid_category_id BigInt        @db.BigInt
   title                 String        @db.VarChar(255)
+  slug                  String        @unique @db.VarChar(255)
   situation_description String        @db.Text
   emergency_phone       String?       @db.VarChar(20)
   video_url             String?       @db.VarChar(500)

@@ -87,7 +87,7 @@ var handleGetFirstAidGuides = /*#__PURE__*/function () {
         case 0:
           _context4.p = 0;
           _context4.n = 1;
-          return _contentAPIService["default"].getFirstAidGuides();
+          return _contentAPIService["default"].getFirstAidGuides(req.query);
         case 1:
           data = _context4.v;
           return _context4.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -103,7 +103,7 @@ var handleGetFirstAidGuides = /*#__PURE__*/function () {
     return _ref4.apply(this, arguments);
   };
 }();
-var handleCreateFirstAidGuide = /*#__PURE__*/function () {
+var handleGetFirstAidGuideBySlug = /*#__PURE__*/function () {
   var _ref5 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(req, res) {
     var data, _t5;
     return _regenerator().w(function (_context5) {
@@ -111,7 +111,7 @@ var handleCreateFirstAidGuide = /*#__PURE__*/function () {
         case 0:
           _context5.p = 0;
           _context5.n = 1;
-          return _contentAPIService["default"].createFirstAidGuide(req.user, req.body);
+          return _contentAPIService["default"].getFirstAidGuideBySlug(req.params.slug);
         case 1:
           data = _context5.v;
           return _context5.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -123,11 +123,11 @@ var handleCreateFirstAidGuide = /*#__PURE__*/function () {
       }
     }, _callee5, null, [[0, 2]]);
   }));
-  return function handleCreateFirstAidGuide(_x9, _x0) {
+  return function handleGetFirstAidGuideBySlug(_x9, _x0) {
     return _ref5.apply(this, arguments);
   };
 }();
-var handleGetAiChatSessions = /*#__PURE__*/function () {
+var handleGetFirstAidCategories = /*#__PURE__*/function () {
   var _ref6 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(req, res) {
     var data, _t6;
     return _regenerator().w(function (_context6) {
@@ -135,7 +135,7 @@ var handleGetAiChatSessions = /*#__PURE__*/function () {
         case 0:
           _context6.p = 0;
           _context6.n = 1;
-          return _contentAPIService["default"].getAiChatSessions(req.user.user_id);
+          return _contentAPIService["default"].getFirstAidCategories();
         case 1:
           data = _context6.v;
           return _context6.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -147,11 +147,11 @@ var handleGetAiChatSessions = /*#__PURE__*/function () {
       }
     }, _callee6, null, [[0, 2]]);
   }));
-  return function handleGetAiChatSessions(_x1, _x10) {
+  return function handleGetFirstAidCategories(_x1, _x10) {
     return _ref6.apply(this, arguments);
   };
 }();
-var handleCreateAiChatSession = /*#__PURE__*/function () {
+var handleCreateFirstAidGuide = /*#__PURE__*/function () {
   var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(req, res) {
     var data, _t7;
     return _regenerator().w(function (_context7) {
@@ -159,7 +159,7 @@ var handleCreateAiChatSession = /*#__PURE__*/function () {
         case 0:
           _context7.p = 0;
           _context7.n = 1;
-          return _contentAPIService["default"].createAiChatSession(req.user.user_id);
+          return _contentAPIService["default"].createFirstAidGuide(req.user, req.body);
         case 1:
           data = _context7.v;
           return _context7.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -171,11 +171,11 @@ var handleCreateAiChatSession = /*#__PURE__*/function () {
       }
     }, _callee7, null, [[0, 2]]);
   }));
-  return function handleCreateAiChatSession(_x11, _x12) {
+  return function handleCreateFirstAidGuide(_x11, _x12) {
     return _ref7.apply(this, arguments);
   };
 }();
-var handleGetPostCategories = /*#__PURE__*/function () {
+var handleGetAiChatSessions = /*#__PURE__*/function () {
   var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(req, res) {
     var data, _t8;
     return _regenerator().w(function (_context8) {
@@ -183,7 +183,7 @@ var handleGetPostCategories = /*#__PURE__*/function () {
         case 0:
           _context8.p = 0;
           _context8.n = 1;
-          return _contentAPIService["default"].getPostCategories();
+          return _contentAPIService["default"].getAiChatSessions(req.user.user_id);
         case 1:
           data = _context8.v;
           return _context8.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -195,11 +195,11 @@ var handleGetPostCategories = /*#__PURE__*/function () {
       }
     }, _callee8, null, [[0, 2]]);
   }));
-  return function handleGetPostCategories(_x13, _x14) {
+  return function handleGetAiChatSessions(_x13, _x14) {
     return _ref8.apply(this, arguments);
   };
 }();
-var handleGetFeaturedPost = /*#__PURE__*/function () {
+var handleCreateAiChatSession = /*#__PURE__*/function () {
   var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(req, res) {
     var data, _t9;
     return _regenerator().w(function (_context9) {
@@ -207,7 +207,7 @@ var handleGetFeaturedPost = /*#__PURE__*/function () {
         case 0:
           _context9.p = 0;
           _context9.n = 1;
-          return _contentAPIService["default"].getFeaturedPost();
+          return _contentAPIService["default"].createAiChatSession(req.user.user_id);
         case 1:
           data = _context9.v;
           return _context9.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -219,11 +219,11 @@ var handleGetFeaturedPost = /*#__PURE__*/function () {
       }
     }, _callee9, null, [[0, 2]]);
   }));
-  return function handleGetFeaturedPost(_x15, _x16) {
+  return function handleCreateAiChatSession(_x15, _x16) {
     return _ref9.apply(this, arguments);
   };
 }();
-var handleGetTrendingPosts = /*#__PURE__*/function () {
+var handleGetPostCategories = /*#__PURE__*/function () {
   var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(req, res) {
     var data, _t0;
     return _regenerator().w(function (_context0) {
@@ -231,7 +231,7 @@ var handleGetTrendingPosts = /*#__PURE__*/function () {
         case 0:
           _context0.p = 0;
           _context0.n = 1;
-          return _contentAPIService["default"].getTrendingPosts(req.query);
+          return _contentAPIService["default"].getPostCategories();
         case 1:
           data = _context0.v;
           return _context0.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
@@ -243,8 +243,56 @@ var handleGetTrendingPosts = /*#__PURE__*/function () {
       }
     }, _callee0, null, [[0, 2]]);
   }));
-  return function handleGetTrendingPosts(_x17, _x18) {
+  return function handleGetPostCategories(_x17, _x18) {
     return _ref0.apply(this, arguments);
+  };
+}();
+var handleGetFeaturedPost = /*#__PURE__*/function () {
+  var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(req, res) {
+    var data, _t1;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
+        case 0:
+          _context1.p = 0;
+          _context1.n = 1;
+          return _contentAPIService["default"].getFeaturedPost();
+        case 1:
+          data = _context1.v;
+          return _context1.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context1.p = 2;
+          _t1 = _context1.v;
+          console.error(_t1);
+          return _context1.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee1, null, [[0, 2]]);
+  }));
+  return function handleGetFeaturedPost(_x19, _x20) {
+    return _ref1.apply(this, arguments);
+  };
+}();
+var handleGetTrendingPosts = /*#__PURE__*/function () {
+  var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(req, res) {
+    var data, _t10;
+    return _regenerator().w(function (_context10) {
+      while (1) switch (_context10.p = _context10.n) {
+        case 0:
+          _context10.p = 0;
+          _context10.n = 1;
+          return _contentAPIService["default"].getTrendingPosts(req.query);
+        case 1:
+          data = _context10.v;
+          return _context10.a(2, (0, _responseHelpers.sendResponse)(res, 200, data.EM, data.EC, data.DT));
+        case 2:
+          _context10.p = 2;
+          _t10 = _context10.v;
+          console.error(_t10);
+          return _context10.a(2, (0, _responseHelpers.sendResponse)(res, 500, 'Internal server error', -2));
+      }
+    }, _callee10, null, [[0, 2]]);
+  }));
+  return function handleGetTrendingPosts(_x21, _x22) {
+    return _ref10.apply(this, arguments);
   };
 }();
 module.exports = {
@@ -255,6 +303,8 @@ module.exports = {
   handleGetTrendingPosts: handleGetTrendingPosts,
   handleGetPostCategories: handleGetPostCategories,
   handleGetFirstAidGuides: handleGetFirstAidGuides,
+  handleGetFirstAidGuideBySlug: handleGetFirstAidGuideBySlug,
+  handleGetFirstAidCategories: handleGetFirstAidCategories,
   handleCreateFirstAidGuide: handleCreateFirstAidGuide,
   handleGetAiChatSessions: handleGetAiChatSessions,
   handleCreateAiChatSession: handleCreateAiChatSession

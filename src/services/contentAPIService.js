@@ -243,14 +243,81 @@ const getPostCategories = async () => {
 };
 
 // --- FIRST AID GUIDES ---
-const getFirstAidGuides = async () => {
+const getFirstAidGuides = async (query = {}) => {
   try {
-    const guides = await prisma.firstAidGuide.findMany({
-      where: { status: 'published' },
-      include: { category: true },
-      orderBy: { created_at: 'desc' }
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const categoryId = query.categoryId;
+    const search = query.search;
+    const excludeId = query.excludeId;
+
+    const whereCondition = { status: 'published' };
+    if (categoryId) {
+      whereCondition.first_aid_category_id = toBigIntId(categoryId);
+    }
+    if (search) {
+      whereCondition.OR = [
+        { title: { contains: search } },
+        { situation_description: { contains: search } }
+      ];
+    }
+    if (excludeId) {
+      whereCondition.guide_id = { not: toBigIntId(excludeId) };
+    }
+
+    const [total, guides] = await prisma.$transaction([
+      prisma.firstAidGuide.count({ where: whereCondition }),
+      prisma.firstAidGuide.findMany({
+        where: whereCondition,
+        include: { category: true },
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' }
+      })
+    ]);
+
+    return {
+      EM: 'Get guides successful',
+      EC: 0,
+      DT: {
+        totalRows: total,
+        totalPages: Math.ceil(total / limit),
+        guides
+      }
+    };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const getFirstAidGuideBySlug = async (slug) => {
+  try {
+    const guide = await prisma.firstAidGuide.findUnique({
+      where: { slug, status: 'published' },
+      include: {
+        category: true,
+        steps: { orderBy: { step_number: 'asc' } },
+        media: true
+      }
     });
-    return { EM: 'Get guides successful', EC: 0, DT: guides };
+
+    if (!guide) return { EM: 'Guide not found', EC: -1, DT: '' };
+    return { EM: 'Get guide detail successful', EC: 0, DT: guide };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const getFirstAidCategories = async () => {
+  try {
+    const categories = await prisma.firstAidCategory.findMany({
+      where: { status: 'active' },
+      orderBy: { category_name: 'asc' }
+    });
+    return { EM: 'Get categories successful', EC: 0, DT: categories };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -261,12 +328,17 @@ const createFirstAidGuide = async (user, data) => {
   try {
     if (user.role_code !== 'ADMIN') return { EM: 'Permission denied', EC: -1, DT: '' };
 
+    const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+
     const newGuide = await prisma.firstAidGuide.create({
       data: {
-        category_id: data.category_id ? toBigIntId(data.category_id) : null,
+        first_aid_category_id: toBigIntId(data.first_aid_category_id),
         title: data.title,
-        content: data.content,
+        slug,
+        situation_description: data.situation_description,
+        emergency_phone: data.emergency_phone || '0868686868',
         video_url: data.video_url || null,
+        created_by_admin_id: toBigIntId(user.user_id),
         status: data.status || 'published'
       }
     });
@@ -318,6 +390,8 @@ module.exports = {
   getTrendingPosts,
   getPostCategories,
   getFirstAidGuides,
+  getFirstAidGuideBySlug,
+  getFirstAidCategories,
   createFirstAidGuide,
   getAiChatSessions,
   createAiChatSession

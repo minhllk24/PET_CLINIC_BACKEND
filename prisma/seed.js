@@ -2100,6 +2100,195 @@ async function main() {
     }
   }
 
+  // 9. First Aid Categories, Guides, Steps & Media
+  console.log('Seeding first aid categories, guides, steps and media...');
+  const firstAidCategoriesData = [
+    { name: "Tai nạn", description: "Sơ cứu khi thú cưng gặp tai nạn giao thông, hóc dị vật, bỏng, điện giật..." },
+    { name: "Ngộ độc", description: "Xử lý khi thú cưng nuốt phải cây độc, chocolate, hóa chất tẩy rửa..." },
+    { name: "Khó thở", description: "Các triệu chứng nghẹt thở, suy hô hấp, hen suyễn..." },
+    { name: "Chấn thương", description: "Xử lý vết rách da, chảy máu, gãy xương do cắn nhau hoặc ngã cao..." }
+  ];
+
+  const firstAidCategoriesMap = {};
+  for (const cat of firstAidCategoriesData) {
+    const createdCat = await prisma.firstAidCategory.upsert({
+      where: { category_name: cat.name },
+      update: {},
+      create: {
+        category_name: cat.name,
+        status: 'active'
+      }
+    });
+    firstAidCategoriesMap[cat.name] = createdCat;
+  }
+
+  const firstAidGuidesData = [
+    {
+      title: "Sơ cứu khi chó bị hóc dị vật",
+      slug: "so-cuu-khi-cho-bi-hoc-di-vat",
+      situation_description: "Khi chó có dấu hiệu nghẹt thở, khó thở hoặc liên tục dùng chân cào vào miệng, rất có thể chúng đang bị hóc dị vật. Đây là tình huống đe dọa tính mạng cần được xử lý bình tĩnh và chính xác ngay lập tức.",
+      emergency_phone: "0868686868",
+      video_url: "https://www.youtube.com/watch?v=sample_choking_dog",
+      first_aid_category_id: firstAidCategoriesMap["Tai nạn"].first_aid_category_id,
+      created_by_admin_id: authorId,
+      status: "published",
+      steps: [
+        {
+          step_number: 1,
+          step_content: "Mở rộng miệng chó bằng hai tay. Sử dụng đèn pin để quan sát kỹ phần cuống họng. Nếu thấy dị vật ở gần, hãy cố gắng lấy ra bằng tay hoặc nhíp.",
+          image_url: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800"
+        },
+        {
+          step_number: 2,
+          step_content: "Với chó nhỏ, hãy giữ chân sau và dốc ngược chúng. Với chó lớn, hãy giữ chúng ở tư thế 'xe cút kít' (nâng hai chân sau lên cao) để trọng lực giúp dị vật rơi ra.",
+          image_url: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800"
+        },
+        {
+          step_number: 3,
+          step_content: "Đặt nắm tay ở vùng bụng ngay dưới xương sườn. Thực hiện 5 lần đẩy mạnh và nhanh về phía trước và hướng lên trên để tạo áp lực tống dị vật ra ngoài.",
+          image_url: "https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=800"
+        }
+      ],
+      media: [
+        { media_type: "video", file_url: "https://www.youtube.com/watch?v=sample_choking_dog", file_size_kb: 10240 }
+      ]
+    },
+    {
+      title: "Xử lý mèo bị ngộ độc thực phẩm",
+      slug: "xu-ly-meo-bi-ngo-doc-thuc-pham",
+      situation_description: "Mèo rất tò mò và có thể nuốt phải chocolate, hành tỏi, cây độc hoặc hóa chất tẩy rửa trong nhà. Ngộ độc thực phẩm ở mèo có thể tiến triển rất nhanh, cần được sơ cứu đúng cách trước khi đưa tới thú y.",
+      emergency_phone: "0868686868",
+      video_url: "https://www.youtube.com/watch?v=sample_poisoned_cat",
+      first_aid_category_id: firstAidCategoriesMap["Ngộ độc"].first_aid_category_id,
+      created_by_admin_id: authorId,
+      status: "published",
+      steps: [
+        {
+          step_number: 1,
+          step_content: "Kiểm tra xung quanh xem có vỏ kẹo chocolate, lá cây bị cắn dở hay chai lọ hóa chất bị đổ không để báo chính xác cho bác sĩ.",
+          image_url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800"
+        },
+        {
+          step_number: 2,
+          step_content: "Nếu mèo nuốt phải axit, chất kiềm mạnh hoặc hóa chất ăn mòn, việc tự ý gây nôn sẽ làm bỏng thực quản nghiêm trọng hơn. Tuyệt đối không gây nôn trừ khi được bác sĩ hướng dẫn.",
+          image_url: "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=800"
+        },
+        {
+          step_number: 3,
+          step_content: "Giữ ấm cho mèo bằng chăn, mang theo mẫu chất độc (hoặc vỏ chai hóa chất) và đưa ngay tới cơ sở thú y gần nhất.",
+          image_url: "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800"
+        }
+      ]
+    },
+    {
+      title: "Sơ cứu vết bỏng chó mèo",
+      slug: "so-cuu-vet-bong-cho-meo",
+      situation_description: "Thú cưng có thể bị bỏng do nước sôi, dầu mỡ nóng, bỏng hóa chất hoặc bỏng điện. Sơ cứu vết bỏng nhanh chóng giúp làm giảm tổn thương mô và giảm đau cho bé.",
+      emergency_phone: "0868686868",
+      video_url: null,
+      first_aid_category_id: firstAidCategoriesMap["Tai nạn"].first_aid_category_id,
+      created_by_admin_id: authorId,
+      status: "published",
+      steps: [
+        {
+          step_number: 1,
+          step_content: "Dùng nước sạch xả nhẹ nhàng lên vùng da bị bỏng của thú cưng trong 10-15 phút để hạ nhiệt độ vết bỏng ngay lập tức. Tuyệt đối không dùng đá lạnh áp trực tiếp lên vết thương.",
+          image_url: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800"
+        },
+        {
+          step_number: 2,
+          step_content: "Sử dụng gạc sạch hoặc khăn mềm ẩm che phủ lên vết bỏng một cách nhẹ nhàng. Tránh băng quá chặt làm bít khí và gây đau đớn.",
+          image_url: "https://images.unsplash.com/photo-1544568100-847a948585b9?w=800"
+        },
+        {
+          step_number: 3,
+          step_content: "Tuyệt đối không bôi kem đánh răng, mỡ trăn hay dầu ăn lên vết bỏng vì dễ gây bí nhiệt và nhiễm trùng da nghiêm trọng.",
+          image_url: "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=800"
+        }
+      ]
+    },
+    {
+      title: "Cấp cứu vết thương hở do cắn nhau",
+      slug: "cap-cuu-vet-thuong-ho-do-can-nhau",
+      situation_description: "Xung đột giữa các bé cún hoặc mèo có thể gây ra những vết rách da, chảy máu nhiều. Sơ cứu tại chỗ giúp cầm máu và làm sạch vết thương tạm thời tránh nhiễm trùng nguy hiểm.",
+      emergency_phone: "0868686868",
+      video_url: null,
+      first_aid_category_id: firstAidCategoriesMap["Chấn thương"].first_aid_category_id,
+      created_by_admin_id: authorId,
+      status: "published",
+      steps: [
+        {
+          step_number: 1,
+          step_content: "Dùng một miếng gạc hoặc khăn sạch đè chặt lên vết thương hở trong 3-5 phút để máu ngừng chảy. Giữ lực đè ổn định.",
+          image_url: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800"
+        },
+        {
+          step_number: 2,
+          step_content: "Rửa sạch vết thương bằng nước muối sinh lý ấm, loại bỏ cát bụi bẩn. Dùng kéo y tế cắt bớt phần lông xung quanh nếu cần thiết để tránh bám dính.",
+          image_url: "https://images.unsplash.com/photo-1588943211346-0908a1fb0b01?w=800"
+        },
+        {
+          step_number: 3,
+          step_content: "Sử dụng băng thun hoặc băng dính y tế cố định gạc sạch để che chắn vết thương khỏi bụi bẩn khi di chuyển đến phòng khám.",
+          image_url: "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=800"
+        }
+      ]
+    }
+  ];
+
+  for (const guideData of firstAidGuidesData) {
+    const { steps, media, ...guideFields } = guideData;
+    const guide = await prisma.firstAidGuide.upsert({
+      where: { slug: guideFields.slug },
+      update: {
+        first_aid_category_id: guideFields.first_aid_category_id,
+        situation_description: guideFields.situation_description,
+        emergency_phone: guideFields.emergency_phone,
+        video_url: guideFields.video_url,
+        status: guideFields.status
+      },
+      create: guideFields
+    });
+
+    // Seed Steps
+    if (steps && steps.length > 0) {
+      const stepCount = await prisma.firstAidStep.count({
+        where: { guide_id: guide.guide_id }
+      });
+      if (stepCount === 0) {
+        for (const step of steps) {
+          await prisma.firstAidStep.create({
+            data: {
+              guide_id: guide.guide_id,
+              step_number: step.step_number,
+              step_content: step.step_content,
+              image_url: step.image_url
+            }
+          });
+        }
+      }
+    }
+
+    // Seed Media
+    if (media && media.length > 0) {
+      const mediaCount = await prisma.firstAidMedia.count({
+        where: { guide_id: guide.guide_id }
+      });
+      if (mediaCount === 0) {
+        for (const m of media) {
+          await prisma.firstAidMedia.create({
+            data: {
+              guide_id: guide.guide_id,
+              media_type: m.media_type,
+              file_url: m.file_url,
+              file_size_kb: m.file_size_kb
+            }
+          });
+        }
+      }
+    }
+  }
+
   console.log('Seed data successfully!');
 }
 

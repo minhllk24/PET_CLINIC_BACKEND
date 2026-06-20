@@ -33,7 +33,27 @@ const handleCreatePost = async (req, res) => {
 
 const handleGetFirstAidGuides = async (req, res) => {
   try {
-    let data = await contentAPIService.getFirstAidGuides();
+    let data = await contentAPIService.getFirstAidGuides(req.query);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetFirstAidGuideBySlug = async (req, res) => {
+  try {
+    let data = await contentAPIService.getFirstAidGuideBySlug(req.params.slug);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetFirstAidCategories = async (req, res) => {
+  try {
+    let data = await contentAPIService.getFirstAidCategories();
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
@@ -109,6 +129,8 @@ module.exports = {
   handleGetTrendingPosts,
   handleGetPostCategories,
   handleGetFirstAidGuides,
+  handleGetFirstAidGuideBySlug,
+  handleGetFirstAidCategories,
   handleCreateFirstAidGuide,
   handleGetAiChatSessions,
   handleCreateAiChatSession

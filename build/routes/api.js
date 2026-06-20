@@ -157,7 +157,9 @@ var initAPIRoutes = function initAPIRoutes(app) {
   router.get('/posts', _contentController["default"].handleGetPosts);
   router.get('/posts/:slug', _contentController["default"].handleGetPostBySlug);
   router.post('/posts', _authMiddleware.authMiddleware, _contentController["default"].handleCreatePost);
+  router.get('/first-aid/categories', _contentController["default"].handleGetFirstAidCategories);
   router.get('/first-aid/guides', _contentController["default"].handleGetFirstAidGuides);
+  router.get('/first-aid/guides/:slug', _contentController["default"].handleGetFirstAidGuideBySlug);
   router.post('/first-aid/guides', _authMiddleware.authMiddleware, (0, _authMiddleware.requireRole)(['ADMIN']), _contentController["default"].handleCreateFirstAidGuide);
   router.get('/ai-chat/sessions', _authMiddleware.authMiddleware, _contentController["default"].handleGetAiChatSessions);
   router.post('/ai-chat/sessions', _authMiddleware.authMiddleware, _contentController["default"].handleCreateAiChatSession);

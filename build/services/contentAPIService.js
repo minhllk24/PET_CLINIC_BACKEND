@@ -441,32 +441,83 @@ var getPostCategories = /*#__PURE__*/function () {
 // --- FIRST AID GUIDES ---
 var getFirstAidGuides = /*#__PURE__*/function () {
   var _ref7 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
-    var guides, _t7;
+    var query,
+      page,
+      limit,
+      skip,
+      categoryId,
+      search,
+      excludeId,
+      whereCondition,
+      _yield$prisma$$transa3,
+      _yield$prisma$$transa4,
+      total,
+      guides,
+      _args7 = arguments,
+      _t7;
     return _regenerator().w(function (_context7) {
       while (1) switch (_context7.p = _context7.n) {
         case 0:
-          _context7.p = 0;
-          _context7.n = 1;
-          return _prisma["default"].firstAidGuide.findMany({
-            where: {
-              status: 'published'
-            },
+          query = _args7.length > 0 && _args7[0] !== undefined ? _args7[0] : {};
+          _context7.p = 1;
+          page = parseInt(query.page) || 1;
+          limit = parseInt(query.limit) || 10;
+          skip = (page - 1) * limit;
+          categoryId = query.categoryId;
+          search = query.search;
+          excludeId = query.excludeId;
+          whereCondition = {
+            status: 'published'
+          };
+          if (categoryId) {
+            whereCondition.first_aid_category_id = (0, _prismaHelpers.toBigIntId)(categoryId);
+          }
+          if (search) {
+            whereCondition.OR = [{
+              title: {
+                contains: search
+              }
+            }, {
+              situation_description: {
+                contains: search
+              }
+            }];
+          }
+          if (excludeId) {
+            whereCondition.guide_id = {
+              not: (0, _prismaHelpers.toBigIntId)(excludeId)
+            };
+          }
+          _context7.n = 2;
+          return _prisma["default"].$transaction([_prisma["default"].firstAidGuide.count({
+            where: whereCondition
+          }), _prisma["default"].firstAidGuide.findMany({
+            where: whereCondition,
             include: {
               category: true
             },
+            skip: skip,
+            take: limit,
             orderBy: {
               created_at: 'desc'
             }
-          });
-        case 1:
-          guides = _context7.v;
+          })]);
+        case 2:
+          _yield$prisma$$transa3 = _context7.v;
+          _yield$prisma$$transa4 = _slicedToArray(_yield$prisma$$transa3, 2);
+          total = _yield$prisma$$transa4[0];
+          guides = _yield$prisma$$transa4[1];
           return _context7.a(2, {
             EM: 'Get guides successful',
             EC: 0,
-            DT: guides
+            DT: {
+              totalRows: total,
+              totalPages: Math.ceil(total / limit),
+              guides: guides
+            }
           });
-        case 2:
-          _context7.p = 2;
+        case 3:
+          _context7.p = 3;
           _t7 = _context7.v;
           console.error(_t7);
           return _context7.a(2, {
@@ -475,45 +526,51 @@ var getFirstAidGuides = /*#__PURE__*/function () {
             DT: ''
           });
       }
-    }, _callee7, null, [[0, 2]]);
+    }, _callee7, null, [[1, 3]]);
   }));
   return function getFirstAidGuides() {
     return _ref7.apply(this, arguments);
   };
 }();
-var createFirstAidGuide = /*#__PURE__*/function () {
-  var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(user, data) {
-    var newGuide, _t8;
+var getFirstAidGuideBySlug = /*#__PURE__*/function () {
+  var _ref8 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(slug) {
+    var guide, _t8;
     return _regenerator().w(function (_context8) {
       while (1) switch (_context8.p = _context8.n) {
         case 0:
           _context8.p = 0;
-          if (!(user.role_code !== 'ADMIN')) {
-            _context8.n = 1;
+          _context8.n = 1;
+          return _prisma["default"].firstAidGuide.findUnique({
+            where: {
+              slug: slug,
+              status: 'published'
+            },
+            include: {
+              category: true,
+              steps: {
+                orderBy: {
+                  step_number: 'asc'
+                }
+              },
+              media: true
+            }
+          });
+        case 1:
+          guide = _context8.v;
+          if (guide) {
+            _context8.n = 2;
             break;
           }
           return _context8.a(2, {
-            EM: 'Permission denied',
+            EM: 'Guide not found',
             EC: -1,
             DT: ''
           });
-        case 1:
-          _context8.n = 2;
-          return _prisma["default"].firstAidGuide.create({
-            data: {
-              category_id: data.category_id ? (0, _prismaHelpers.toBigIntId)(data.category_id) : null,
-              title: data.title,
-              content: data.content,
-              video_url: data.video_url || null,
-              status: data.status || 'published'
-            }
-          });
         case 2:
-          newGuide = _context8.v;
           return _context8.a(2, {
-            EM: 'Create guide successful',
+            EM: 'Get guide detail successful',
             EC: 0,
-            DT: newGuide
+            DT: guide
           });
         case 3:
           _context8.p = 3;
@@ -527,35 +584,32 @@ var createFirstAidGuide = /*#__PURE__*/function () {
       }
     }, _callee8, null, [[0, 3]]);
   }));
-  return function createFirstAidGuide(_x6, _x7) {
+  return function getFirstAidGuideBySlug(_x6) {
     return _ref8.apply(this, arguments);
   };
 }();
-
-// --- AI CHAT ---
-var getAiChatSessions = /*#__PURE__*/function () {
-  var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(userIdStr) {
-    var userId, sessions, _t9;
+var getFirstAidCategories = /*#__PURE__*/function () {
+  var _ref9 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9() {
+    var categories, _t9;
     return _regenerator().w(function (_context9) {
       while (1) switch (_context9.p = _context9.n) {
         case 0:
           _context9.p = 0;
-          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
           _context9.n = 1;
-          return _prisma["default"].aIChatSession.findMany({
+          return _prisma["default"].firstAidCategory.findMany({
             where: {
-              user_id: userId
+              status: 'active'
             },
             orderBy: {
-              started_at: 'desc'
+              category_name: 'asc'
             }
           });
         case 1:
-          sessions = _context9.v;
+          categories = _context9.v;
           return _context9.a(2, {
-            EM: 'Get sessions successful',
+            EM: 'Get categories successful',
             EC: 0,
-            DT: sessions
+            DT: categories
           });
         case 2:
           _context9.p = 2;
@@ -569,35 +623,50 @@ var getAiChatSessions = /*#__PURE__*/function () {
       }
     }, _callee9, null, [[0, 2]]);
   }));
-  return function getAiChatSessions(_x8) {
+  return function getFirstAidCategories() {
     return _ref9.apply(this, arguments);
   };
 }();
-var createAiChatSession = /*#__PURE__*/function () {
-  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(userIdStr) {
-    var userId, session, _t0;
+var createFirstAidGuide = /*#__PURE__*/function () {
+  var _ref0 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(user, data) {
+    var slug, newGuide, _t0;
     return _regenerator().w(function (_context0) {
       while (1) switch (_context0.p = _context0.n) {
         case 0:
           _context0.p = 0;
-          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
-          _context0.n = 1;
-          return _prisma["default"].aIChatSession.create({
-            data: {
-              user_id: userId,
-              status: 'active',
-              disclaimer_shown: true
-            }
+          if (!(user.role_code !== 'ADMIN')) {
+            _context0.n = 1;
+            break;
+          }
+          return _context0.a(2, {
+            EM: 'Permission denied',
+            EC: -1,
+            DT: ''
           });
         case 1:
-          session = _context0.v;
-          return _context0.a(2, {
-            EM: 'Create session successful',
-            EC: 0,
-            DT: session
+          slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+          _context0.n = 2;
+          return _prisma["default"].firstAidGuide.create({
+            data: {
+              first_aid_category_id: (0, _prismaHelpers.toBigIntId)(data.first_aid_category_id),
+              title: data.title,
+              slug: slug,
+              situation_description: data.situation_description,
+              emergency_phone: data.emergency_phone || '0868686868',
+              video_url: data.video_url || null,
+              created_by_admin_id: (0, _prismaHelpers.toBigIntId)(user.user_id),
+              status: data.status || 'published'
+            }
           });
         case 2:
-          _context0.p = 2;
+          newGuide = _context0.v;
+          return _context0.a(2, {
+            EM: 'Create guide successful',
+            EC: 0,
+            DT: newGuide
+          });
+        case 3:
+          _context0.p = 3;
           _t0 = _context0.v;
           console.error(_t0);
           return _context0.a(2, {
@@ -606,10 +675,91 @@ var createAiChatSession = /*#__PURE__*/function () {
             DT: ''
           });
       }
-    }, _callee0, null, [[0, 2]]);
+    }, _callee0, null, [[0, 3]]);
   }));
-  return function createAiChatSession(_x9) {
+  return function createFirstAidGuide(_x7, _x8) {
     return _ref0.apply(this, arguments);
+  };
+}();
+
+// --- AI CHAT ---
+var getAiChatSessions = /*#__PURE__*/function () {
+  var _ref1 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(userIdStr) {
+    var userId, sessions, _t1;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
+        case 0:
+          _context1.p = 0;
+          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
+          _context1.n = 1;
+          return _prisma["default"].aIChatSession.findMany({
+            where: {
+              user_id: userId
+            },
+            orderBy: {
+              started_at: 'desc'
+            }
+          });
+        case 1:
+          sessions = _context1.v;
+          return _context1.a(2, {
+            EM: 'Get sessions successful',
+            EC: 0,
+            DT: sessions
+          });
+        case 2:
+          _context1.p = 2;
+          _t1 = _context1.v;
+          console.error(_t1);
+          return _context1.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: ''
+          });
+      }
+    }, _callee1, null, [[0, 2]]);
+  }));
+  return function getAiChatSessions(_x9) {
+    return _ref1.apply(this, arguments);
+  };
+}();
+var createAiChatSession = /*#__PURE__*/function () {
+  var _ref10 = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(userIdStr) {
+    var userId, session, _t10;
+    return _regenerator().w(function (_context10) {
+      while (1) switch (_context10.p = _context10.n) {
+        case 0:
+          _context10.p = 0;
+          userId = (0, _prismaHelpers.toBigIntId)(userIdStr);
+          _context10.n = 1;
+          return _prisma["default"].aIChatSession.create({
+            data: {
+              user_id: userId,
+              status: 'active',
+              disclaimer_shown: true
+            }
+          });
+        case 1:
+          session = _context10.v;
+          return _context10.a(2, {
+            EM: 'Create session successful',
+            EC: 0,
+            DT: session
+          });
+        case 2:
+          _context10.p = 2;
+          _t10 = _context10.v;
+          console.error(_t10);
+          return _context10.a(2, {
+            EM: 'Something went wrong',
+            EC: -2,
+            DT: ''
+          });
+      }
+    }, _callee10, null, [[0, 2]]);
+  }));
+  return function createAiChatSession(_x0) {
+    return _ref10.apply(this, arguments);
   };
 }();
 module.exports = {
@@ -620,6 +770,8 @@ module.exports = {
   getTrendingPosts: getTrendingPosts,
   getPostCategories: getPostCategories,
   getFirstAidGuides: getFirstAidGuides,
+  getFirstAidGuideBySlug: getFirstAidGuideBySlug,
+  getFirstAidCategories: getFirstAidCategories,
   createFirstAidGuide: createFirstAidGuide,
   getAiChatSessions: getAiChatSessions,
   createAiChatSession: createAiChatSession
