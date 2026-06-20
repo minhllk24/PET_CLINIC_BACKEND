@@ -150,6 +150,9 @@ const initAPIRoutes = (app) => {
   router.get('/loyalty/transactions', verifyToken, loyaltyController.handleGetMyTransactions);
 
   // --- POSTS & FIRST AID ---
+  router.get('/post-categories', contentController.handleGetPostCategories);
+  router.get('/posts/featured', contentController.handleGetFeaturedPost);
+  router.get('/posts/trending', contentController.handleGetTrendingPosts);
   router.get('/posts', contentController.handleGetPosts);
   router.get('/posts/:slug', contentController.handleGetPostBySlug);
   router.post('/posts', verifyToken, contentController.handleCreatePost);

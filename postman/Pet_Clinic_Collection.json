@@ -1393,15 +1393,89 @@
 			"name": "16. Blog & Posts",
 			"item": [
 				{
+					"name": "Get Post Categories",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post-categories",
+							"host": ["{{base_url}}"],
+							"path": ["post-categories"]
+						}
+					}
+				},
+				{
+					"name": "Get Featured Post",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/featured",
+							"host": ["{{base_url}}"],
+							"path": ["posts", "featured"]
+						}
+					}
+				},
+				{
+					"name": "Get Trending Posts",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/trending?limit=4",
+							"host": ["{{base_url}}"],
+							"path": ["posts", "trending"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "4",
+									"description": "Số lượng bài viết xu hướng muốn lấy"
+								}
+							]
+						}
+					}
+				},
+				{
 					"name": "Get All Posts",
 					"request": {
 						"auth": { "type": "noauth" },
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/posts",
+							"raw": "{{base_url}}/posts?categoryId=1&type=official_blog&page=1&limit=8&excludeId=5",
 							"host": ["{{base_url}}"],
-							"path": ["posts"]
+							"path": ["posts"],
+							"query": [
+								{
+									"key": "categoryId",
+									"value": "1",
+									"description": "Lọc theo ID danh mục bài viết"
+								},
+								{
+									"key": "type",
+									"value": "official_blog",
+									"description": "Lọc theo loại: official_blog | community"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Số trang"
+								},
+								{
+									"key": "limit",
+									"value": "8",
+									"description": "Số bài viết trên mỗi trang"
+								},
+								{
+									"key": "excludeId",
+									"value": "5",
+									"description": "Loại trừ bài viết có ID này (dùng cho bài viết liên quan)",
+									"disabled": true
+								}
+							]
 						}
 					}
 				},
@@ -1411,6 +1485,7 @@
 						"auth": { "type": "noauth" },
 						"method": "GET",
 						"header": [],
+						"description": "Lấy chi tiết bài viết qua slug. Lượt xem (view_count) sẽ tự động được tăng thêm 1.",
 						"url": {
 							"raw": "{{base_url}}/posts/sample-post-slug",
 							"host": ["{{base_url}}"],
@@ -1425,7 +1500,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"slug\": \"chia-se-kinh-nghiem-nuoi-meo\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
+							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"excerpt\": \"Tóm tắt ngắn gọn nội dung bài viết chia sẻ về cách nuôi và chăm sóc mèo con cực đơn giản.\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

@@ -71,10 +71,43 @@ const handleCreateAiChatSession = async (req, res) => {
   }
 };
 
+const handleGetPostCategories = async (req, res) => {
+  try {
+    let data = await contentAPIService.getPostCategories();
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetFeaturedPost = async (req, res) => {
+  try {
+    let data = await contentAPIService.getFeaturedPost();
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetTrendingPosts = async (req, res) => {
+  try {
+    let data = await contentAPIService.getTrendingPosts(req.query);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetPosts,
   handleGetPostBySlug,
   handleCreatePost,
+  handleGetFeaturedPost,
+  handleGetTrendingPosts,
+  handleGetPostCategories,
   handleGetFirstAidGuides,
   handleCreateFirstAidGuide,
   handleGetAiChatSessions,
