@@ -149,3 +149,55 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - Dữ liệu mẫu phong phú của 74 thú cưng, 15 bác sĩ (kèm profile chi tiết ở bảng `doctors`), 3 danh mục dịch vụ lớn và 19 dịch vụ chi tiết đã sẵn sàng hoạt động ở Backend.
 - Frontend có thể kết nối ngay để hiển thị giao diện danh sách thú cưng, danh sách bác sĩ, và danh mục dịch vụ một cách trực quan nhờ hình ảnh thực tế đã được seed.
 
+---
+## [Ngày 20/06/2026]
+### Đã hoàn thành:
+- **Bổ sung và tối ưu hóa hệ thống API Blog phục vụ màn hình Blog nền tảng (Figma):**
+  - **Cập nhật Database Schema**: Bổ sung trường `excerpt` (tóm tắt ngắn bài viết) và `is_featured` (bài viết nổi bật) vào bảng `Post` trong Prisma Schema, đã sinh và chạy migration thành công.
+  - **Khắc phục các bug nghiêm trọng trong service bài viết (`contentAPIService.js`)**:
+    - Sửa lỗi sử dụng cột không tồn tại `published_at` sang dùng cột `created_at` để sắp xếp bài viết.
+    - Sửa lỗi hàm `createPost` bị lỗi schema do truyền sai tên cột (`author_id` -> `author_user_id`).
+    - Đồng bộ hóa các enum giá trị `post_type` (từ `'community_post'` sang `'community'`).
+  - **Triển khai 3 API GET mới**:
+    - `GET /api/v1/post-categories`: Lấy danh sách danh mục bài viết đang hoạt động (`status: 'active'`).
+    - `GET /api/v1/posts/featured`: Lấy ra 1 bài viết nổi bật duy nhất có cờ `is_featured = true`.
+    - `GET /api/v1/posts/trending?limit=4`: Lấy top bài viết xu hướng theo số lượng lượt xem (`view_count`) giảm dần.
+  - **Cải tiến API Lấy danh sách bài viết (`GET /api/v1/posts`)**:
+    - Hỗ trợ lọc bài viết linh hoạt theo danh mục qua tham số `categoryId`.
+    - Tự động map và chuẩn hóa tham số `type` (hỗ trợ cả `community_post` và `community`).
+    - Tự động lọc bỏ bài viết nổi bật khỏi danh sách chung (`is_featured: false`) để tránh lặp dữ liệu trên UI.
+    - Tối ưu hóa truy vấn Prisma chỉ select các trường dữ liệu cần thiết (tránh trả về `content` quá lớn khi lấy danh sách) và include các thông tin quan hệ của tác giả (`author`) và danh mục (`category`).
+- **Nâng cấp API phục vụ màn hình Chi tiết bài viết (Blog Detail):**
+  - **Tự động tăng lượt xem (`view_count`)**: Lập trình cơ chế tự động tăng lượt xem nguyên tử (atomic increment) theo phương thức *fire-and-forget* khi gọi API lấy chi tiết bài viết theo slug (`GET /api/v1/posts/:slug`).
+  - **Hỗ trợ loại trừ bài viết đang xem (`excludeId`)**: Thêm tham số `excludeId` vào API `GET /api/v1/posts` để loại trừ bài viết hiện tại ra khỏi kết quả, hỗ trợ tối đa cho việc hiển thị "Bài viết liên quan" (Related Posts).
+- **Khởi tạo dữ liệu mẫu cho Blog & Blog Detail (Seeding)**:
+  - Cập nhật file [seed.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/prisma/seed.js) tự động tạo 4 danh mục bài viết chuẩn thiết kế: *Sức khỏe*, *Dinh dưỡng*, *Tâm lý*, *Vệ sinh & Làm đẹp*.
+  - Khởi tạo **1 bài viết nổi bật** (`is_featured: true`) có đầy đủ tiêu đề, tóm tắt ngắn, nội dung chi tiết dạng HTML và ảnh đại diện chất lượng cao.
+  - Khởi tạo **4 bài viết xu hướng** (Trending Posts) với số lượng lượt xem giả lập lớn để kiểm thử tính năng lọc theo `view_count` giảm dần.
+  - Khởi tạo **5 bài viết thường** khác nhau thuộc cả 2 loại `official_blog` và `community` phục vụ phân trang và bộ lọc theo danh mục.
+  - Khởi tạo **các bình luận mẫu** (bao gồm cả câu trả lời lồng nhau từ admin) cho bài viết nổi bật để demo giao diện phần bình luận trong màn hình chi tiết.
+- **Đồng bộ hóa Postman Collection**:
+  - Thêm đầy đủ 3 API mới và cập nhật các tham số truy vấn nâng cao cho `Get All Posts` (bổ sung trường `excludeId`) và body payload cho `Create Post` (thêm trường `excerpt`) vào file Postman collection `Pet_Clinic_Collection.json`.
+  - Cập nhật mô tả chi tiết của request `Get Post By Slug` để ghi nhận cơ chế tăng lượt xem tự động.
+  - Bổ sung request `"Get Community Posts"` chuyên biệt để hỗ trợ Frontend dễ dàng lọc, hiển thị danh mục bài viết từ cộng đồng.
+- **Bổ sung Dữ liệu & Tính năng phục vụ Màn hình "Cộng đồng chia sẻ" (Community Blog)**:
+  - **Cập nhật Database Schema & Migration**: Thêm cột `likes_count` (lượt thích) và `hashtags` (danh sách hashtags dạng chuỗi phân tách bằng dấu phẩy) vào model `Post` trong `schema.prisma`. Đã chạy migration thành công.
+  - **Nâng cấp Service Layer**: Sửa đổi `getPosts`, `getFeaturedPost` và `getTrendingPosts` trong `contentAPIService.js` để trả về `likes_count`, `hashtags` và đếm số lượng bình luận thực tế từ bảng `PostComment` qua `_count: { select: { comments: true } }`.
+  - **Cải tiến và mở rộng Seed Data (`seed.js`)**:
+    - Khởi tạo 2 tài khoản tác giả khách hàng (`Hoàng Nam`, `Mai Anh`) làm người sáng tạo bài viết trên cộng đồng.
+    - Thêm 8 bài viết cộng đồng (Community Posts) mới với đầy đủ thông tin thực tế, hình ảnh Unsplash chất lượng cao, lượt thích (`likes_count`) giả lập đa dạng và chuỗi `hashtags` chuẩn thiết kế.
+    - **Sửa lỗi ReferenceError**: Khắc phục lỗi biến `customers` chưa được định nghĩa khi seeding bình luận của bài viết nổi bật.
+    - **Seeding bình luận phong phú**: Tự động sinh ngẫu nhiên từ 2-3 bình luận thực tế từ các tài khoản khách hàng khác nhau cho mỗi bài viết cộng đồng, từ đó hiển thị được số lượng bình luận động chính xác trên UI.
+- **Kiểm thử hệ thống**: Chạy lại thành công lệnh `npm run seed` (`babel-node prisma/seed.js`), đồng bộ hóa dữ liệu hoàn hảo vào cơ sở dữ liệu. Khởi chạy server kiểm tra toàn bộ các API Blog đều hoạt động trơn tru và trả về dữ liệu chuẩn cấu trúc.
+- **Triển khai API & Dữ liệu mẫu cho màn hình "Cẩm nang sơ cứu" (First Aid Guides)**:
+  - **Cập nhật Database Schema**: Bổ sung trường `slug` (unique) vào model `FirstAidGuide` trong `prisma/schema.prisma` và đồng bộ cấu trúc cơ sở dữ liệu.
+  - **Nâng cấp Service Layer (`contentAPIService.js`)**:
+    - Nâng cấp `getFirstAidGuides` hỗ trợ các bộ lọc nâng cao như danh mục (`categoryId`), tìm kiếm từ khóa (`search`), loại trừ bài viết đang xem (`excludeId`), và phân trang.
+    - Triển khai `getFirstAidGuideBySlug` lấy thông tin chi tiết bài viết kèm danh sách các bước (`steps`) và file đính kèm (`media`).
+    - Triển khai `getFirstAidCategories` lấy toàn bộ danh mục sơ cứu đang hoạt động (`status = active`).
+    - Sửa đổi hàm `createFirstAidGuide` để xử lý chính xác các trường dữ liệu.
+  - **Controller & Route Layer**: Đăng ký các handler tương ứng trong `contentController.js` và định tuyến các API sơ cứu mới trong `src/routes/api.js`.
+  - **Seeding dữ liệu mẫu (`seed.js`)**: Cập nhật dữ liệu cho 4 danh mục sơ cứu (*Tai nạn*, *Ngộ độc*, *Khó thở*, *Chấn thương*) cùng 4 cẩm nang mẫu chi tiết có hình ảnh minh họa chất lượng cao từ Unsplash, các bước thực hiện tuần tự và video hướng dẫn (Heimlich cho chó bị hóc, xử lý mèo ngộ độc thực phẩm, sơ cứu bỏng, xử lý vết thương cắn nhau).
+  - **Đồng bộ Postman Collection**: Thêm thư mục `17. First Aid Guides` chứa các request chi tiết (`Get First Aid Categories`, `Get All First Aid Guides`, `Get First Aid Guide By Slug`, `Create First Aid Guide`) vào file `Pet_Clinic_Collection.json`.
+  - **Xác thực**: Chạy thử nghiệm thành công script kiểm thử và xác minh toàn bộ các API hoạt động đúng logic nghiệp vụ và trả về định dạng dữ liệu chuẩn.
+
