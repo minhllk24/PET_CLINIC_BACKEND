@@ -499,12 +499,15 @@ model PetImage {
 // ============================================================
 
 model Branch {
-  branch_id   BigInt       @id @default(autoincrement()) @db.BigInt
-  branch_name String       @db.VarChar(150)
-  address     String       @db.VarChar(255)
-  phone       String?      @db.VarChar(20)
-  email       String?      @db.VarChar(150)
-  status      ActiveStatus @default(active)
+  branch_id       BigInt       @id @default(autoincrement()) @db.BigInt
+  branch_name     String       @db.VarChar(150)
+  address         String       @db.VarChar(255)
+  phone           String?      @db.VarChar(20)
+  email           String?      @db.VarChar(150)
+  operating_hours String?      @db.VarChar(255)
+  latitude        Decimal?     @db.Decimal(10, 7)
+  longitude       Decimal?     @db.Decimal(10, 7)
+  status          ActiveStatus @default(active)
 
   staff_profiles StaffProfile[]
   doctors        Doctor[]

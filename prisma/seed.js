@@ -48,27 +48,127 @@ async function main() {
   }
 
   // 1.5. Branches
-  const branch1 = await prisma.branch.findFirst({ where: { branch_name: "Chi nhánh Quận 10 (Chính)" } }) 
-    || await prisma.branch.create({
-      data: {
-        branch_name: "Chi nhánh Quận 10 (Chính)",
-        address: "123 Đường Ba Tháng Hai, Phường 11, Quận 10, TP. Hồ Chí Minh",
-        phone: "0281234567",
-        email: "branch1@petclinic.com",
-        status: "active"
-      }
-    });
+  const branchesData = [
+    {
+      branch_name: "Chi nhánh Quận 10 (Chính)",
+      address: "123 Đường Ba Tháng Hai, Phường 11, Quận 10, TP. Hồ Chí Minh",
+      phone: "0281234567",
+      email: "branch1@petclinic.com",
+      operating_hours: "Cả ngày (24/7) kể cả cuối tuần, lễ, Tết.",
+      latitude: 10.7726000,
+      longitude: 106.6605000,
+    },
+    {
+      branch_name: "Chi nhánh Bình Thạnh",
+      address: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
+      phone: "0287654321",
+      email: "branch2@petclinic.com",
+      operating_hours: "Cả ngày (24/7) kể cả cuối tuần, lễ, Tết.",
+      latitude: 10.8015000,
+      longitude: 106.7094000,
+    },
+    {
+      branch_name: "Chi nhánh Quận 1",
+      address: "15 Lê Duẩn, Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+      phone: "0281111222",
+      email: "branch3@petclinic.com",
+      operating_hours: "7:00 - 21:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.7810000,
+      longitude: 106.6994000,
+    },
+    {
+      branch_name: "Chi nhánh Quận 7",
+      address: "105 Nguyễn Văn Linh, Tân Phú, Quận 7, TP. Hồ Chí Minh",
+      phone: "0283333444",
+      email: "branch4@petclinic.com",
+      operating_hours: "8:00 - 22:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.7295000,
+      longitude: 106.7220000,
+    },
+    {
+      branch_name: "Chi nhánh Gò Vấp",
+      address: "800 Quang Trung, Phường 8, Gò Vấp, TP. Hồ Chí Minh",
+      phone: "0285555666",
+      email: "branch5@petclinic.com",
+      operating_hours: "7:30 - 21:30 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.8387000,
+      longitude: 106.6572000,
+    },
+    {
+      branch_name: "Chi nhánh Tân Bình",
+      address: "300 Cộng Hòa, Phường 13, Tân Bình, TP. Hồ Chí Minh",
+      phone: "0287777888",
+      email: "branch6@petclinic.com",
+      operating_hours: "8:00 - 22:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.8012000,
+      longitude: 106.6523000,
+    },
+    {
+      branch_name: "Chi nhánh Thủ Đức",
+      address: "50 Võ Văn Ngân, Bình Thọ, Thủ Đức, TP. Hồ Chí Minh",
+      phone: "0289999000",
+      email: "branch7@petclinic.com",
+      operating_hours: "7:00 - 22:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.8509000,
+      longitude: 106.7719000,
+    },
+    {
+      branch_name: "Chi nhánh Quận 5",
+      address: "120 Nguyễn Trãi, Phường 3, Quận 5, TP. Hồ Chí Minh",
+      phone: "0282222333",
+      email: "branch8@petclinic.com",
+      operating_hours: "8:00 - 21:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.7546000,
+      longitude: 106.6634000,
+    },
+    {
+      branch_name: "Chi nhánh Phú Nhuận",
+      address: "250 Phan Đăng Lưu, Phường 3, Phú Nhuận, TP. Hồ Chí Minh",
+      phone: "0284444555",
+      email: "branch9@petclinic.com",
+      operating_hours: "8:00 - 22:00 (kể cả cuối tuần, lễ, Tết)",
+      latitude: 10.7996000,
+      longitude: 106.6822000,
+    },
+    {
+      branch_name: "Chi nhánh Quận 3",
+      address: "150 Điện Biên Phủ, Phường 6, Quận 3, TP. Hồ Chí Minh",
+      phone: "0286666777",
+      email: "branch10@petclinic.com",
+      operating_hours: "Cả ngày (24/7) kể cả cuối tuần, lễ, Tết.",
+      latitude: 10.7868000,
+      longitude: 106.6862000,
+    }
+  ];
 
-  const branch2 = await prisma.branch.findFirst({ where: { branch_name: "Chi nhánh Bình Thạnh" } })
-    || await prisma.branch.create({
-      data: {
-        branch_name: "Chi nhánh Bình Thạnh",
-        address: "456 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh",
-        phone: "0287654321",
-        email: "branch2@petclinic.com",
-        status: "active"
-      }
-    });
+  const createdBranches = [];
+  for (const b of branchesData) {
+    let branch = await prisma.branch.findFirst({ where: { branch_name: b.branch_name } });
+    if (branch) {
+      branch = await prisma.branch.update({
+        where: { branch_id: branch.branch_id },
+        data: {
+          address: b.address,
+          phone: b.phone,
+          email: b.email,
+          operating_hours: b.operating_hours,
+          latitude: b.latitude,
+          longitude: b.longitude,
+        }
+      });
+    } else {
+      branch = await prisma.branch.create({
+        data: {
+          ...b,
+          status: "active"
+        }
+      });
+    }
+    createdBranches.push(branch);
+  }
+
+  const branch1 = createdBranches[0];
+  const branch2 = createdBranches[1];
 
   // 2. Users
   const passwordHash = await bcrypt.hash('12345678', 10);
