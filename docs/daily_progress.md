@@ -201,3 +201,23 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Đồng bộ Postman Collection**: Thêm thư mục `17. First Aid Guides` chứa các request chi tiết (`Get First Aid Categories`, `Get All First Aid Guides`, `Get First Aid Guide By Slug`, `Create First Aid Guide`) vào file `Pet_Clinic_Collection.json`.
   - **Xác thực**: Chạy thử nghiệm thành công script kiểm thử và xác minh toàn bộ các API hoạt động đúng logic nghiệp vụ và trả về định dạng dữ liệu chuẩn.
 
+---
+## [Ngày 29/06/2026]
+### Đã hoàn thành:
+- **Đồng bộ hóa cấu trúc Chi nhánh (Branch Table Update) để hỗ trợ Bản đồ & Giờ mở cửa trên Front-end:**
+  - **Cập nhật Database Schema**: Bổ sung 3 trường mới vào model `Branch` trong `prisma/schema.prisma`:
+    - `operating_hours` (`String? @db.VarChar(255)`) để lưu thông tin giờ hoạt động chi tiết.
+    - `latitude` (`Decimal? @db.Decimal(10, 7)`) và `longitude` (`Decimal? @db.Decimal(10, 7)`) để lưu tọa độ địa lý chính xác cho việc ghim vị trí.
+  - **Database Migration**: Tạo và áp dụng thành công bản ghi migration mới `20260629124413_add_operating_hours_coordinates_to_branches` để đồng bộ hóa cơ sở dữ liệu.
+- **Nâng cấp Seed Dữ liệu Chi nhánh (`seed.js`):**
+  - Cập nhật 10 chi nhánh mẫu tại các quận của TP.HCM với thông tin giờ mở cửa thực tế (mở cửa 24/7 hoặc từ 7:00/8:00 - 21:00/22:00) và tọa độ thực tế từ Google Maps.
+  - Cải tiến logic seed từ `findFirst || create` sang cơ chế cập nhật (`update` nếu tìm thấy chi nhánh cũ), giúp ghi đè và cập nhật chính xác các thông tin cột mới này lên dữ liệu có sẵn của database. Chạy thành công lệnh seed.
+- **Tích hợp Service Layer (`branchAPIService.js`):**
+  - Bổ sung `operating_hours`, `latitude`, `longitude` vào câu truy vấn select lấy danh sách chi nhánh hoạt động.
+  - Thiết lập cơ chế tự động chuyển đổi định dạng tọa độ từ Prisma `Decimal` sang kiểu `Number` thông thường của Javascript trước khi gửi về client, giúp các thư viện bản đồ ở Front-end dễ dàng tiêu thụ trực tiếp.
+- **Kiểm thử & Xác minh**:
+  - Tạo file script chạy thử `scratch/test_branches.js` và xác nhận API lấy danh sách chi nhánh (`GET /api/v1/branches`) hoạt động chính xác 100%, trả về đầy đủ các trường mới cùng kiểu dữ liệu chuẩn xác.
+- **Tối ưu hóa Git**:
+  - Thêm thư mục `.agent` vào file `.gitignore` để tránh bị commit các tệp cấu hình, nhật ký của agent lên kho chứa Git chung.
+
+
