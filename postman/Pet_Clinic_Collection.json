@@ -955,6 +955,7 @@
 					"request": {
 						"method": "POST",
 						"header": [],
+						"description": "Đặt lịch hẹn. Backend sẽ tự động tính phụ thu cân nặng (+50.000 đ/dịch vụ nếu pet > 5kg) và lưu vào trường surcharge_amount của appointment_services.",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
@@ -998,6 +999,48 @@
 							"raw": "{{base_url}}/appointments/1/status",
 							"host": ["{{base_url}}"],
 							"path": ["appointments", "1", "status"]
+						}
+					}
+				},
+				{
+					"name": "Get Appointment Pricing Preview",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"description": "Preview tổng tiền cho lịch hẹn trước khi xác nhận. Phụ thu cân nặng sẽ tự động cộng dồn từ các dịch vụ (surcharge_amount). Có hỗ trợ áp voucher (chỉ nhận voucher loại appointment hoặc all).",
+						"url": {
+							"raw": "{{base_url}}/appointments/1/pricing?voucher_code=DCFV",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "1", "pricing"],
+							"query": [
+								{
+									"key": "voucher_code",
+									"value": "DCFV",
+									"description": "Mã giảm giá (optional)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Checkout Appointment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"description": "Xác nhận đặt lịch và tiến hành thanh toán. Tạo bản ghi Order & Payment, cập nhật payment_status trên Appointment. Phụ thu cân nặng và voucher discount được áp dụng và lưu vết chính xác.",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"payment_method\": \"store\",\n    \"voucher_code\": \"DCFV\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/1/checkout",
+							"host": ["{{base_url}}"],
+							"path": ["appointments", "1", "checkout"]
 						}
 					}
 				}

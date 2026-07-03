@@ -90,6 +90,17 @@ const generateAppointmentCode = () => {
   return `BK-${randomPart}-${year}`;
 };
 
+// Quy tắc phụ thu cân nặng chung
+const WEIGHT_SURCHARGE_THRESHOLD = 5; // kg
+const WEIGHT_SURCHARGE_AMOUNT = 50000; // VND
+
+const calculateWeightSurcharge = (petWeight) => {
+  if (!petWeight) return 0;
+  const weight = parseFloat(petWeight);
+  if (isNaN(weight)) return 0;
+  return weight > WEIGHT_SURCHARGE_THRESHOLD ? WEIGHT_SURCHARGE_AMOUNT : 0;
+};
+
 const createAppointment = async (userIdStr, data) => {
   try {
     const userId = toBigIntId(userIdStr);
@@ -159,6 +170,7 @@ const createAppointment = async (userIdStr, data) => {
       let pet_name_snapshot = null;
       let pet_species_snapshot = null;
       let pet_breed_snapshot = null;
+      let petWeightKg = null;
       if (petIdBig) {
         const pet = await tx.pet.findUnique({ 
           where: { pet_id: petIdBig }, 
@@ -168,6 +180,7 @@ const createAppointment = async (userIdStr, data) => {
           pet_name_snapshot = pet.pet_name;
           pet_species_snapshot = pet.species?.species_name || null;
           pet_breed_snapshot = pet.breed?.breed_name || null;
+          petWeightKg = pet.weight_kg;
         }
       }
 
@@ -204,11 +217,15 @@ const createAppointment = async (userIdStr, data) => {
         }
       });
 
-      // 6. Create appointment_services
+      // 6. Calculate surcharge per service
+      const surchargePerService = calculateWeightSurcharge(petWeightKg);
+
+      // 7. Create appointment_services
       for (const s of dbServices) {
         const qty = servicesMap.get(s.service_id.toString()) || 1;
         const basePrice = parseFloat(s.base_price);
-        const totalPrice = basePrice * qty;
+        const serviceSurcharge = surchargePerService * qty;
+        const totalPrice = (basePrice * qty) + serviceSurcharge;
 
         await tx.appointmentService.create({
           data: {
@@ -216,12 +233,13 @@ const createAppointment = async (userIdStr, data) => {
             service_id: s.service_id,
             quantity: qty,
             unit_price: basePrice,
+            surcharge_amount: serviceSurcharge,
             total_price: totalPrice
           }
         });
       }
 
-      // 7. Log history
+      // 8. Log history
       await tx.appointmentStatusHistory.create({
         data: {
           appointment_id: newAppointment.appointment_id,
@@ -312,10 +330,289 @@ const updateAppointmentStatus = async (id, status, user, note = '') => {
   }
 };
 
+const getAppointmentPricing = async (id, currentUser, voucherCode) => {
+  try {
+    const appointmentId = toBigIntId(id);
+    if (!appointmentId) return { EM: 'Invalid appointment ID', EC: 1, DT: '' };
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { appointment_id: appointmentId },
+      include: {
+        services: {
+          include: { service: { select: { service_name: true } } }
+        },
+        pet: { select: { weight_kg: true } }
+      }
+    });
+
+    if (!appointment) return { EM: 'Appointment not found', EC: -1, DT: '' };
+
+    // Check permission
+    if (currentUser.role_code === 'CUSTOMER' && currentUser.user_id !== appointment.user_id.toString()) {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    // Calculate subtotal and surcharge from saved services
+    let subtotal = 0;
+    let surchargeAmount = 0;
+    const services = appointment.services.map(item => {
+      const uPrice = parseFloat(item.unit_price);
+      const qty = item.quantity;
+      const sCharge = parseFloat(item.surcharge_amount || 0);
+      const lineTotal = (uPrice * qty) + sCharge;
+      
+      subtotal += uPrice * qty;
+      surchargeAmount += sCharge;
+
+      return {
+        service_id: item.service_id.toString(),
+        service_name: item.service?.service_name || 'Dịch vụ',
+        quantity: qty,
+        unit_price: uPrice,
+        surcharge: sCharge,
+        total: lineTotal
+      };
+    });
+
+    // Validate and calculate voucher discount if voucherCode is passed
+    let voucherId = null;
+    let discountAmount = 0;
+    let voucherError = null;
+
+    if (voucherCode) {
+      const vCode = voucherCode.toUpperCase();
+      const voucher = await prisma.voucher.findUnique({ where: { voucher_code: vCode } });
+      
+      if (!voucher || voucher.status !== 'active') {
+        voucherError = 'Mã giảm giá không tồn tại hoặc đã bị khóa';
+      } else {
+        const now = new Date();
+        if (voucher.start_at && now < voucher.start_at) {
+          voucherError = 'Mã giảm giá chưa đến thời gian sử dụng';
+        } else if (voucher.end_at && now > voucher.end_at) {
+          voucherError = 'Mã giảm giá đã hết hạn';
+        } else if (voucher.target_type && !['all', 'appointment'].includes(voucher.target_type)) {
+          voucherError = 'Mã giảm giá không áp dụng cho dịch vụ đặt lịch';
+        } else if (voucher.min_order_amount && (subtotal + surchargeAmount) < parseFloat(voucher.min_order_amount)) {
+          voucherError = `Mã giảm giá chỉ áp dụng cho đơn từ ${parseFloat(voucher.min_order_amount).toLocaleString('vi-VN')} đ`;
+        } else if (voucher.remaining_usage !== null && voucher.remaining_usage <= 0) {
+          voucherError = 'Mã giảm giá đã hết lượt sử dụng';
+        } else {
+          // Check if user already used this voucher
+          const userUsed = await prisma.voucherUsage.findFirst({
+            where: { user_id: appointment.user_id, voucher_id: voucher.voucher_id }
+          });
+          if (userUsed) {
+            voucherError = 'Bạn đã sử dụng mã giảm giá này rồi';
+          } else {
+            voucherId = voucher.voucher_id;
+            if (voucher.discount_type === 'percent') {
+              discountAmount = (subtotal + surchargeAmount) * (parseFloat(voucher.discount_value) / 100);
+              if (voucher.max_discount_amount && discountAmount > parseFloat(voucher.max_discount_amount)) {
+                discountAmount = parseFloat(voucher.max_discount_amount);
+              }
+            } else if (voucher.discount_type === 'fixed') {
+              discountAmount = parseFloat(voucher.discount_value);
+            }
+
+            if (discountAmount > (subtotal + surchargeAmount)) {
+              discountAmount = subtotal + surchargeAmount;
+            }
+          }
+        }
+      }
+    }
+
+    const total = subtotal + surchargeAmount - discountAmount;
+
+    return {
+      EM: 'Calculate pricing successful',
+      EC: 0,
+      DT: {
+        subtotal,
+        surcharge_amount: surchargeAmount,
+        discount_amount: discountAmount,
+        total,
+        services,
+        pet_weight_kg: appointment.pet?.weight_kg ? parseFloat(appointment.pet.weight_kg) : null,
+        voucher_id: voucherId ? voucherId.toString() : null,
+        voucher_error: voucherError
+      }
+    };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const checkoutAppointment = async (id, userIdStr, data) => {
+  try {
+    const appointmentId = toBigIntId(id);
+    const userId = toBigIntId(userIdStr);
+    const { payment_method, voucher_code } = data;
+
+    if (!payment_method) {
+      return { EM: 'Missing payment method', EC: 1, DT: '' };
+    }
+
+    if (!['store', 'online'].includes(payment_method)) {
+      return { EM: 'Invalid payment method', EC: 1, DT: '' };
+    }
+
+    // Reuse pricing calculation
+    const pricingRes = await getAppointmentPricing(id, { user_id: userIdStr, role_code: 'CUSTOMER' }, voucher_code);
+    if (pricingRes.EC !== 0) {
+      return pricingRes;
+    }
+
+    const { subtotal, surcharge_amount, discount_amount, total, voucher_id, voucher_error } = pricingRes.DT;
+
+    if (voucher_code && voucher_error) {
+      return { EM: voucher_error, EC: 1, DT: '' };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get fresh locked appointment
+      const appointment = await tx.appointment.findUnique({
+        where: { appointment_id: appointmentId },
+        include: { services: { include: { service: true } } }
+      });
+
+      if (!appointment) throw new Error('Appointment not found');
+      if (appointment.status === 'cancelled') {
+        throw new Error('Appointment is cancelled');
+      }
+      if (appointment.payment_status !== 'unpaid') {
+        throw new Error('Appointment already checked out or paid');
+      }
+
+      // Generate order and payment codes
+      const orderCode = `ORD-APT-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const paymentCode = `PAY-APT-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      // 1. Create Order
+      const newOrder = await tx.order.create({
+        data: {
+          order_code: orderCode,
+          order_type: 'appointment',
+          user_id: userId,
+          appointment_id: appointmentId,
+          recipient_name: appointment.customer_name_snapshot,
+          recipient_phone: appointment.customer_phone_snapshot,
+          subtotal_amount: subtotal,
+          discount_amount: discount_amount,
+          points_discount_amount: 0,
+          shipping_fee: 0,
+          total_amount: total,
+          order_status: 'pending',
+          payment_status: 'unpaid'
+        }
+      });
+
+      // 2. Create OrderItem snapshot for services
+      for (const item of appointment.services) {
+        const uPrice = parseFloat(item.unit_price);
+        const sCharge = parseFloat(item.surcharge_amount || 0);
+        const nameSnapshot = item.service?.service_name || 'Dịch vụ';
+
+        await tx.orderItem.create({
+          data: {
+            order_id: newOrder.order_id,
+            service_id: item.service_id,
+            item_type: 'service',
+            item_name_snapshot: nameSnapshot,
+            quantity: item.quantity,
+            unit_price: uPrice,
+            total_price: (uPrice * item.quantity) + sCharge
+          }
+        });
+      }
+
+      // 3. Create Payment record
+      const newPayment = await tx.payment.create({
+        data: {
+          payment_code: paymentCode,
+          user_id: userId,
+          order_id: newOrder.order_id,
+          appointment_id: appointmentId,
+          payment_target_type: 'appointment',
+          payment_method: payment_method, // 'store' or 'online'
+          subtotal_amount: subtotal,
+          voucher_discount_amount: discount_amount,
+          points_used: 0,
+          points_discount_amount: 0,
+          final_amount: total,
+          status: 'pending'
+        }
+      });
+
+      // 4. Create VoucherUsage record + decrement voucher usage count if valid voucher is used
+      if (voucher_id) {
+        await tx.voucherUsage.create({
+          data: {
+            voucher_id: toBigIntId(voucher_id),
+            user_id: userId,
+            payment_id: newPayment.payment_id,
+            discount_amount: discount_amount
+          }
+        });
+
+        // Decrement remaining usage if not unlimited
+        const voucher = await tx.voucher.findUnique({ where: { voucher_id: toBigIntId(voucher_id) } });
+        if (voucher && voucher.remaining_usage !== null) {
+          await tx.voucher.update({
+            where: { voucher_id: toBigIntId(voucher_id) },
+            data: { remaining_usage: { decrement: 1 } }
+          });
+        }
+      }
+
+      // 5. Update Appointment status and payment_status
+      const newPaymentStatus = payment_method === 'store' ? 'waiting_store_payment' : 'unpaid';
+      
+      const updatedAppointment = await tx.appointment.update({
+        where: { appointment_id: appointmentId },
+        data: {
+          payment_status: newPaymentStatus
+        }
+      });
+
+      // 6. Log appointment history
+      await tx.appointmentStatusHistory.create({
+        data: {
+          appointment_id: appointmentId,
+          old_status: appointment.status,
+          new_status: appointment.status, // status unchanged, only payment status updated
+          changed_by_user_id: userId,
+          reason: `Xác nhận đặt lịch, thanh toán qua ${payment_method === 'store' ? 'Cửa hàng' : 'Trực tuyến'}`
+        }
+      });
+
+      return {
+        appointment: updatedAppointment,
+        order: newOrder,
+        payment: newPayment
+      };
+    });
+
+    return { EM: 'Checkout appointment successful', EC: 0, DT: result };
+  } catch (error) {
+    console.error(error);
+    if (error.message === 'Appointment not found' || 
+        error.message === 'Appointment is cancelled' || 
+        error.message === 'Appointment already checked out or paid') {
+      return { EM: error.message, EC: 2, DT: '' };
+    }
+    return { EM: 'Something went wrong during checkout', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getMyHistory,
   getAppointmentById,
   getAvailableSlots,
   createAppointment,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getAppointmentPricing,
+  checkoutAppointment
 };

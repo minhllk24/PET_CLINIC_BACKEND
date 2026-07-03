@@ -67,11 +67,37 @@ const handleUpdateStatus = async (req, res) => {
   }
 };
 
+const handleGetPricing = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const voucher_code = req.query.voucher_code || null;
+    let data = await appointmentAPIService.getAppointmentPricing(id, req.user, voucher_code);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleCheckout = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userId = req.user.user_id;
+    let data = await appointmentAPIService.checkoutAppointment(id, userId, req.body);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetMyHistory,
   handleGetDetailAppointment,
   handleGetSlots,
   handleCreateAppointment,
   handleCancelAppointment,
-  handleUpdateStatus
+  handleUpdateStatus,
+  handleGetPricing,
+  handleCheckout
 };
