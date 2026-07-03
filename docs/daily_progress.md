@@ -220,4 +220,17 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Tối ưu hóa Git**:
   - Thêm thư mục `.agent` vào file `.gitignore` để tránh bị commit các tệp cấu hình, nhật ký của agent lên kho chứa Git chung.
 
+---
+## [Ngày 03/07/2026]
+### Đã hoàn thành:
+- **Triển khai API Đặt lịch & Thanh toán dịch vụ khám (Appointment Checkout Flow):**
+  - **Tính năng Phụ thu cân nặng**: Viết helper `calculateWeightSurcharge` tự động cộng phụ thu `50.000 đ` cho mỗi đơn vị dịch vụ nếu cân nặng thú cưng `> 5kg`. Tích hợp logic này vào hàm tạo đặt lịch `createAppointment` để lưu vết `surcharge_amount` vào `appointment_services` và cộng trực tiếp vào `total_price`.
+  - **API Preview Giá (`GET /api/v1/appointments/:id/pricing`)**: Hỗ trợ Frontend tính toán chi tiết tạm tính, phụ thu cân nặng từ snapshot, giảm giá từ voucher (áp dụng lọc loại voucher `target_type` cho dịch vụ) và trả về tổng tiền breakdown. Trả về thông tin lỗi voucher chi tiết nếu voucher không đủ điều kiện áp dụng.
+  - **API Xác nhận Đặt lịch (`POST /api/v1/appointments/:id/checkout`)**: Lập trình luồng checkout trong Prisma Transaction để đảm bảo tính nhất quán. Tạo bản ghi `Order` (loại `appointment`), `OrderItem` (loại `service`), `Payment` và `VoucherUsage` tương ứng, cập nhật số lượt dùng của voucher và gán trạng thái thanh toán trên `Appointment` phù hợp với phương thức thanh toán (`store` hoặc `online`).
+- **Đồng bộ hóa tài liệu hóa API & Postman**:
+  - Bổ sung 2 requests mới của Pricing và Checkout vào thư mục **10. Appointments** trong file Postman collection `Pet_Clinic_Collection.json`.
+  - Bổ sung chi tiết mô tả (`description`) vào 3 requests đặt lịch của Postman để tài liệu hóa rõ ràng nghiệp vụ phụ thu cân nặng.
+  - Soạn thảo tài liệu hoàn thành chi tiết trong file `walkthrough.md`.
+
+
 
