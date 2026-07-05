@@ -232,5 +232,20 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - Bổ sung chi tiết mô tả (`description`) vào 3 requests đặt lịch của Postman để tài liệu hóa rõ ràng nghiệp vụ phụ thu cân nặng.
   - Soạn thảo tài liệu hoàn thành chi tiết trong file `walkthrough.md`.
 
+---
+## [Ngày 05/07/2026]
+### Đã hoàn thành:
+- **Triển khai API Tìm kiếm Tổng hợp (Unified Search API):**
+  - Viết mới `searchAPIService.js` hỗ trợ tìm kiếm song song dữ liệu trên cả 3 bảng `Product`, `Service` và `Post` dựa trên từ khóa (`keyword`).
+  - Lập trình cơ chế chấm điểm tương thích (`_relevance`) để ưu tiên hiển thị kết quả có tên khớp hoàn toàn hoặc khớp đầu từ khóa lên trên mô tả.
+  - Hỗ trợ đầy đủ bộ lọc kết hợp: Lọc khoảng giá (`minPrice`, `maxPrice`), nhóm dịch vụ (`serviceCategoryId`), danh mục sản phẩm (`productCategoryId`) và nhiều tùy chọn sắp xếp (`relevance`, `price_asc`, `price_desc`, `newest`, `best_selling`, `rating`).
+  - Hỗ trợ tính năng đếm động theo danh mục kết quả khớp (`facetCounts.productCategories` và `facetCounts.serviceCategories`) để hiển thị số lượng bộ lọc trong ngoặc ở sidebar của UI (ví dụ: `Spa & Grooming (3)`).
+  - Tự động ghi lại lịch sử tìm kiếm vào bảng `search_logs` với cơ chế fire-and-forget bất đồng bộ, ghi nhận bộ lọc đã dùng và `user_id` nếu người dùng đăng nhập.
+  - Bổ sung API Gợi ý Từ khóa (`GET /api/v1/search/suggestions`) trả về các từ khóa tìm kiếm phổ biến nhất sắp xếp theo lượt tìm kiếm giảm dần.
+- **Thêm Middleware `optionalAuth`:** Cho phép route tìm kiếm chạy public (không yêu cầu token) nhưng vẫn tự động giải mã JWT và lấy thông tin tài khoản nếu người dùng đã đăng nhập để ghi log tìm kiếm chính xác.
+- **Đồng bộ Postman Collection:** Chèn an toàn thư mục `"20. Search"` chứa 2 request mẫu (`Unified Search`, `Get Search Suggestions`) kèm đầy đủ mô tả query params vào file `Pet_Clinic_Collection.json`.
+- **Kiểm thử hệ thống:** Khởi chạy server kiểm tra toàn diện, khắc phục lỗi sắp xếp không tương thích với bảng `Service` (do thiếu cột `created_at`) bằng cách fallback sang `service_id`, sửa lỗi Prisma nested raw query trong suggestions. Xác minh response trả về hoàn hảo khớp 100% đặc tả thiết kế.
+
+
 
 
