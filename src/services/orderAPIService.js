@@ -568,7 +568,8 @@ const guestCheckout = async (data) => {
           email: email,
           phone: phone,
           password_hash: hashedPassword,
-          status: 'active'
+          status: 'active',
+          require_password_change: true
         }
       });
 

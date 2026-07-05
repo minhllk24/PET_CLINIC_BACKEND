@@ -251,3 +251,8 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Gửi Email nhắc lịch (Cron Job)**: Cài đặt và tích hợp thư viện `node-cron`. Viết `cronService` và khởi chạy job tự động quét định kỳ mỗi giờ để tìm và gửi thư nhắc lịch (`sendAppointmentReminderEmail`) qua Nodemailer cho khách hàng đúng 24 tiếng trước giờ hẹn.
   - **Thông báo Hệ thống (In-app Notification)**: Tích hợp logic tự động tạo bản ghi `Notification` (loại `system`) vào cơ sở dữ liệu ngay sau khi khách hàng hoàn tất thanh toán (Checkout Appointment) thành công.
   - **Cập nhật Postman**: Cập nhật payload request `Book Appointment` trong `Pet_Clinic_Collection.json` để bổ sung mock data mẫu cho trường `pet_data`.
+- **Cải tiến luồng Guest Checkout (Bắt buộc đổi mật khẩu):**
+  - **Cập nhật Database Schema**: Thêm cột `require_password_change` (kiểu Boolean, mặc định `false`) vào bảng `User` và chạy Prisma Migration.
+  - **Tạo người dùng mới**: Cập nhật hàm `guestCheckout` tự động đánh dấu `require_password_change = true` khi tạo tài khoản khách vãng lai.
+  - **Phản hồi Login**: Nâng cấp payload trả về của API `POST /api/v1/login` để bao gồm cờ `require_password_change` giúp Frontend nhận biết và điều hướng người dùng sang màn hình đổi mật khẩu.
+  - **Gỡ bỏ cờ hiệu**: Cập nhật API `POST /api/v1/change-password` để tự động chuyển cờ `require_password_change` về `false` sau khi đổi mật khẩu thành công.

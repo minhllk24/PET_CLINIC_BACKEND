@@ -123,7 +123,8 @@ const loginUser = async (loginData) => {
       user_id: user.user_id.toString(),
       role_code: user.role.role_code,
       email: user.email,
-      full_name: user.full_name
+      full_name: user.full_name,
+      require_password_change: user.require_password_change
     };
 
     const access_token = generateAccessToken(payload);
@@ -351,7 +352,10 @@ const changePassword = async (userId, oldPassword, newPassword) => {
     
     await prisma.user.update({
       where: { user_id: BigInt(userId) },
-      data: { password_hash: hashed_password }
+      data: { 
+        password_hash: hashed_password,
+        require_password_change: false
+      }
     });
 
     // Revoke all sessions
