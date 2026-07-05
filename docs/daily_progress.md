@@ -256,3 +256,8 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Tạo người dùng mới**: Cập nhật hàm `guestCheckout` tự động đánh dấu `require_password_change = true` khi tạo tài khoản khách vãng lai.
   - **Phản hồi Login**: Nâng cấp payload trả về của API `POST /api/v1/login` để bao gồm cờ `require_password_change` giúp Frontend nhận biết và điều hướng người dùng sang màn hình đổi mật khẩu.
   - **Gỡ bỏ cờ hiệu**: Cập nhật API `POST /api/v1/change-password` để tự động chuyển cờ `require_password_change` về `false` sau khi đổi mật khẩu thành công.
+- **Hợp nhất API Đặt lịch và Tự động hoá No-show:**
+  - Bổ sung cột `no_show_count` vào model `User` và trạng thái `missed` vào `AppointmentStatus`.
+  - **Gộp API Đặt lịch**: Viết API `POST /api/v1/appointments/book` thay thế cho 3 API rời rạc trước đây, tự động tạo Lịch hẹn, Thú cưng, Lên đơn hàng và Thanh toán trong 1 Database Transaction duy nhất.
+  - **Xem trước giá**: Cung cấp API `POST /api/v1/appointments/preview-pricing` để Frontend xem được tổng tiền, phụ phí cân nặng, mã giảm giá trước khi bấm đặt lịch mà không cần lưu vào Database.
+  - **Tự động hoá luật No-show**: Backend tự động đếm số lần Khách huỷ lịch muộn (sát giờ) hoặc Không đến (`missed`). Tự động gửi In-app Notification cảnh báo lần 1, và tự động khoá phương thức "Thanh toán tại cửa hàng" bắt đặt cọc nếu khách vắng mặt quá 2 lần.

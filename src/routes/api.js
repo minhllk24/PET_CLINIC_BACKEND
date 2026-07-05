@@ -119,6 +119,8 @@ const initAPIRoutes = (app) => {
   router.post('/appointments/:id/checkout', verifyToken, appointmentController.handleCheckout);
   router.patch('/appointments/:id/cancel', verifyToken, appointmentController.handleCancelAppointment);
   router.patch('/appointments/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF', 'DOCTOR']), appointmentController.handleUpdateStatus);
+  router.post('/appointments/preview-pricing', appointmentController.handlePreviewPricing);
+  router.post('/appointments/book', verifyToken, appointmentController.handleBookAndCheckout);
 
   // --- MEDICAL RECORD ROUTES ---
   router.get('/medical-records/pet/:petId', verifyToken, medicalRecordController.handleGetRecordsByPet);

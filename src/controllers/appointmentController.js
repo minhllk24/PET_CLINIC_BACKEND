@@ -91,6 +91,27 @@ const handleCheckout = async (req, res) => {
   }
 };
 
+const handlePreviewPricing = async (req, res) => {
+  try {
+    let data = await appointmentAPIService.previewPricing(req.body, req.user);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleBookAndCheckout = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    let data = await appointmentAPIService.bookAndCheckoutAppointment(userId, req.body);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetMyHistory,
   handleGetDetailAppointment,
@@ -99,5 +120,7 @@ module.exports = {
   handleCancelAppointment,
   handleUpdateStatus,
   handleGetPricing,
-  handleCheckout
+  handleCheckout,
+  handlePreviewPricing,
+  handleBookAndCheckout
 };
