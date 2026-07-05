@@ -201,7 +201,7 @@ const checkoutCart = async (userIdStr, data) => {
       }
     }
 
-    const shippingFee = 0; // Hardcoded to 0 as per user response
+    const shippingFee = subtotalAmount >= 500000 ? 0 : 30000; // Free ship cho đơn từ 500k, dưới 500k phí ship mặc định 30k
     const finalAmount = subtotalAmount + shippingFee - discountAmount;
 
     // Snapshot address fields
@@ -512,7 +512,7 @@ const guestCheckout = async (data) => {
       }
     }
 
-    const shippingFee = 0; // Hardcoded to 0
+    const shippingFee = subtotalAmount >= 500000 ? 0 : 30000; // Free ship cho đơn từ 500k, dưới 500k phí ship mặc định 30k
     const finalAmount = subtotalAmount + shippingFee - discountAmount;
 
     // Snapshot address fields
