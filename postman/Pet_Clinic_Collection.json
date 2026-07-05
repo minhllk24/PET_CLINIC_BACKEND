@@ -958,7 +958,7 @@
 						"description": "Đặt lịch hẹn. Backend sẽ tự động tính phụ thu cân nặng (+50.000 đ/dịch vụ nếu pet > 5kg) và lưu vào trường surcharge_amount của appointment_services.",
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
+							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"pet_data\": {\n        \"pet_name\": \"Milo\",\n        \"species_id\": \"1\",\n        \"breed_id\": \"1\",\n        \"weight_kg\": 4.5,\n        \"age\": 2,\n        \"gender\": \"male\",\n        \"health_condition\": \"Bình thường\"\n    },\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
 							"options": { "raw": { "language": "json" } }
 						},
 						"url": {

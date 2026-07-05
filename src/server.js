@@ -34,6 +34,10 @@ app.use((req, res, next) => {
 // Init API Routes
 initAPIRoutes(app);
 
+// Init Cron Jobs
+import { initCronJobs } from './services/cronService';
+initCronJobs();
+
 app.listen(PORT, () => {
   console.log('SERVER is running on PORT:', PORT);
 });

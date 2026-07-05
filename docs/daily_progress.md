@@ -246,6 +246,8 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Đồng bộ Postman Collection:** Chèn an toàn thư mục `"20. Search"` chứa 2 request mẫu (`Unified Search`, `Get Search Suggestions`) kèm đầy đủ mô tả query params vào file `Pet_Clinic_Collection.json`.
 - **Kiểm thử hệ thống:** Khởi chạy server kiểm tra toàn diện, khắc phục lỗi sắp xếp không tương thích với bảng `Service` (do thiếu cột `created_at`) bằng cách fallback sang `service_id`, sửa lỗi Prisma nested raw query trong suggestions. Xác minh response trả về hoàn hảo khớp 100% đặc tả thiết kế.
 
-
-
-
+- **Cập nhật luồng Đặt lịch & Thông báo (Booking Flow):**
+  - **Quản lý Thú cưng**: Nâng cấp API `createAppointment` nhận thêm tham số `pet_data`. Hỗ trợ tự động tạo mới hồ sơ Thú cưng nếu người dùng chọn "Thú cưng khác" (không có `pet_id`), hoặc tự động ghi đè/cập nhật hồ sơ thú cưng cũ nếu người dùng sửa thông tin trước khi đặt.
+  - **Gửi Email nhắc lịch (Cron Job)**: Cài đặt và tích hợp thư viện `node-cron`. Viết `cronService` và khởi chạy job tự động quét định kỳ mỗi giờ để tìm và gửi thư nhắc lịch (`sendAppointmentReminderEmail`) qua Nodemailer cho khách hàng đúng 24 tiếng trước giờ hẹn.
+  - **Thông báo Hệ thống (In-app Notification)**: Tích hợp logic tự động tạo bản ghi `Notification` (loại `system`) vào cơ sở dữ liệu ngay sau khi khách hàng hoàn tất thanh toán (Checkout Appointment) thành công.
+  - **Cập nhật Postman**: Cập nhật payload request `Book Appointment` trong `Pet_Clinic_Collection.json` để bổ sung mock data mẫu cho trường `pet_data`.

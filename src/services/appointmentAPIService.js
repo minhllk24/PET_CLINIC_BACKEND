@@ -106,7 +106,8 @@ const createAppointment = async (userIdStr, data) => {
     const userId = toBigIntId(userIdStr);
     const { 
       slot_id, 
-      pet_id, 
+      pet_id,
+      pet_data,
       service_ids, 
       customer_name_snapshot,
       customer_phone_snapshot,
@@ -171,17 +172,61 @@ const createAppointment = async (userIdStr, data) => {
       let pet_species_snapshot = null;
       let pet_breed_snapshot = null;
       let petWeightKg = null;
-      if (petIdBig) {
-        const pet = await tx.pet.findUnique({ 
-          where: { pet_id: petIdBig }, 
-          include: { species: true, breed: true } 
-        });
-        if (pet) {
-          pet_name_snapshot = pet.pet_name;
-          pet_species_snapshot = pet.species?.species_name || null;
-          pet_breed_snapshot = pet.breed?.breed_name || null;
-          petWeightKg = pet.weight_kg;
+      
+      let finalPetId = petIdBig;
+
+      if (finalPetId) {
+        if (pet_data) {
+          // Update pet if pet_data is provided
+          const updatedPet = await tx.pet.update({
+            where: { pet_id: finalPetId },
+            data: {
+              pet_name: pet_data.pet_name,
+              species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : undefined,
+              breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : undefined,
+              weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : undefined,
+              age: pet_data.age ? parseFloat(pet_data.age) : undefined,
+              gender: pet_data.gender,
+              health_condition: pet_data.health_condition
+            },
+            include: { species: true, breed: true }
+          });
+          pet_name_snapshot = updatedPet.pet_name;
+          pet_species_snapshot = updatedPet.species?.species_name || null;
+          pet_breed_snapshot = updatedPet.breed?.breed_name || null;
+          petWeightKg = updatedPet.weight_kg;
+        } else {
+          const pet = await tx.pet.findUnique({ 
+            where: { pet_id: finalPetId }, 
+            include: { species: true, breed: true } 
+          });
+          if (pet) {
+            pet_name_snapshot = pet.pet_name;
+            pet_species_snapshot = pet.species?.species_name || null;
+            pet_breed_snapshot = pet.breed?.breed_name || null;
+            petWeightKg = pet.weight_kg;
+          }
         }
+      } else if (pet_data && pet_data.pet_name) {
+        // Create new pet
+        const newPet = await tx.pet.create({
+          data: {
+            user_id: userId,
+            pet_name: pet_data.pet_name,
+            species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : null,
+            breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : null,
+            weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : null,
+            age: pet_data.age ? parseFloat(pet_data.age) : null,
+            gender: pet_data.gender || 'unknown',
+            health_condition: pet_data.health_condition || 'Normal'
+          },
+          include: { species: true, breed: true }
+        });
+        finalPetId = newPet.pet_id;
+        pet_name_snapshot = newPet.pet_name;
+        pet_species_snapshot = newPet.species?.species_name || null;
+        pet_breed_snapshot = newPet.breed?.breed_name || null;
+        petWeightKg = newPet.weight_kg;
       }
 
       // 4. Get service details
@@ -200,7 +245,7 @@ const createAppointment = async (userIdStr, data) => {
         data: {
           appointment_code: generateAppointmentCode(),
           user_id: userId,
-          pet_id: petIdBig,
+          pet_id: finalPetId,
           doctor_id: slot.doctor_id,
           branch_id: slot.branch_id,
           slot_id: slotIdBig,
@@ -585,6 +630,17 @@ const checkoutAppointment = async (id, userIdStr, data) => {
           new_status: appointment.status, // status unchanged, only payment status updated
           changed_by_user_id: userId,
           reason: `Xác nhận đặt lịch, thanh toán qua ${payment_method === 'store' ? 'Cửa hàng' : 'Trực tuyến'}`
+        }
+      });
+
+      // 7. Create system notification
+      await tx.notification.create({
+        data: {
+          user_id: userId,
+          title: 'Đặt lịch thành công',
+          content: `Lịch hẹn (Mã: ${appointment.appointment_code}) của bạn đã được xác nhận.`,
+          type: 'system',
+          is_read: false
         }
       });
 
