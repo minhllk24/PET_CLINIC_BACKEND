@@ -1863,6 +1863,98 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "20. Search",
+			"item": [
+				{
+					"name": "Unified Search",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/search?keyword=tam&scope=all&page=1&limit=10&sort=relevance",
+							"host": ["{{base_url}}"],
+							"path": ["search"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "tam",
+									"description": "Từ khóa tìm kiếm"
+								},
+								{
+									"key": "scope",
+									"value": "all",
+									"description": "Phạm vi tìm kiếm: all | service | product | blog"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Số trang"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Số kết quả mỗi trang"
+								},
+								{
+									"key": "sort",
+									"value": "relevance",
+									"description": "Sắp xếp: relevance | price_asc | price_desc | newest | best_selling | rating"
+								},
+								{
+									"key": "serviceCategoryId",
+									"value": "1",
+									"description": "Lọc theo nhóm dịch vụ",
+									"disabled": true
+								},
+								{
+									"key": "productCategoryId",
+									"value": "1",
+									"description": "Lọc theo danh mục sản phẩm",
+									"disabled": true
+								},
+								{
+									"key": "minPrice",
+									"value": "20000",
+									"description": "Giá tối thiểu",
+									"disabled": true
+								},
+								{
+									"key": "maxPrice",
+									"value": "200000",
+									"description": "Giá tối đa",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Search Suggestions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/search/suggestions?q=tam&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["search", "suggestions"],
+							"query": [
+								{
+									"key": "q",
+									"value": "tam",
+									"description": "Từ khóa đang gõ để gợi ý"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Số gợi ý tối đa"
+								}
+							]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [

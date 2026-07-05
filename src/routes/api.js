@@ -18,8 +18,9 @@ import loyaltyController from '../controllers/loyaltyController';
 import contentController from '../controllers/contentController';
 import rescueController from '../controllers/rescueController';
 import flashSaleController from '../controllers/flashSaleController';
+import searchController from '../controllers/searchController';
 
-import { authMiddleware as verifyToken, requireRole as checkPermission } from '../middleware/authMiddleware';
+import { authMiddleware as verifyToken, requireRole as checkPermission, optionalAuth } from '../middleware/authMiddleware';
 import upload from '../middleware/uploadMiddleware';
 
 const router = express.Router();
@@ -37,6 +38,10 @@ const initAPIRoutes = (app) => {
   router.post('/verify-otp', authController.handleVerifyOtp);
   router.post('/reset-password', authController.handleResetPassword);
   router.post('/change-password', verifyToken, authController.handleChangePassword);
+
+  // --- SEARCH ROUTES ---
+  router.get('/search', optionalAuth, searchController.handleSearch);
+  router.get('/search/suggestions', searchController.handleGetSuggestions);
 
   // --- USER ROUTES ---
   router.get('/users', verifyToken, checkPermission(['ADMIN']), userController.handleGetAllUsers);

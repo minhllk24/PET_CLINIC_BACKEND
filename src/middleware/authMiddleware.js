@@ -25,6 +25,21 @@ export const authMiddleware = (req, res, next) => {
   }
 };
 
+export const optionalAuth = (req, res, next) => {
+  const token = extractToken(req);
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+  try {
+    const decoded = Jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET);
+    req.user = decoded;
+  } catch (error) {
+    req.user = null;
+  }
+  next();
+};
+
 export const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role_code)) {
