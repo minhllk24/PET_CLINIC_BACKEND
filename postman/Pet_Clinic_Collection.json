@@ -37,54 +37,84 @@
 						}
 					],
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"login_id\": \"admin@petclinic.com\",\n    \"password\": \"12345678\",\n    \"remember_me\": true\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/login",
-							"host": ["{{base_url}}"],
-							"path": ["login"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"login"
+							]
 						}
 					}
 				},
 				{
 					"name": "Register",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"email\": \"newuser@petclinic.com\",\n    \"password\": \"Password123\",\n    \"full_name\": \"New Customer\",\n    \"phone\": \"0987654321\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/register",
-							"host": ["{{base_url}}"],
-							"path": ["register"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"register"
+							]
 						}
 					}
 				},
 				{
 					"name": "Verify Register OTP",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"login_id\": \"newuser@petclinic.com\",\n    \"otp_code\": \"123456\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/verify-register-otp",
-							"host": ["{{base_url}}"],
-							"path": ["verify-register-otp"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"verify-register-otp"
+							]
 						}
 					}
 				},
@@ -95,8 +125,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/logout",
-							"host": ["{{base_url}}"],
-							"path": ["logout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"logout"
+							]
 						}
 					}
 				},
@@ -107,8 +141,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/refresh",
-							"host": ["{{base_url}}"],
-							"path": ["refresh"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"refresh"
+							]
 						}
 					}
 				},
@@ -128,8 +166,12 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/forgot-password",
-							"host": ["{{base_url}}"],
-							"path": ["forgot-password"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"forgot-password"
+							]
 						}
 					}
 				},
@@ -149,8 +191,12 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/verify-otp",
-							"host": ["{{base_url}}"],
-							"path": ["verify-otp"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"verify-otp"
+							]
 						}
 					}
 				},
@@ -170,8 +216,12 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/reset-password",
-							"host": ["{{base_url}}"],
-							"path": ["reset-password"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reset-password"
+							]
 						}
 					}
 				},
@@ -183,12 +233,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"old_password\": \"Password123\",\n  \"new_password\": \"NewPassword123\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/change-password",
-							"host": ["{{base_url}}"],
-							"path": ["change-password"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"change-password"
+							]
 						}
 					}
 				}
@@ -204,8 +262,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users",
-							"host": ["{{base_url}}"],
-							"path": ["users"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
 						}
 					}
 				},
@@ -216,8 +278,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users/1",
-							"host": ["{{base_url}}"],
-							"path": ["users", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"1"
+							]
 						}
 					}
 				},
@@ -229,12 +296,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"full_name\": \"Updated Name\",\n    \"phone\": \"0111222333\",\n    \"avatar_url\": \"https://example.com/avatar.jpg\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/users/1",
-							"host": ["{{base_url}}"],
-							"path": ["users", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"1"
+							]
 						}
 					}
 				},
@@ -245,8 +321,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users/1",
-							"host": ["{{base_url}}"],
-							"path": ["users", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"1"
+							]
 						}
 					}
 				},
@@ -257,8 +338,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/users/1/addresses",
-							"host": ["{{base_url}}"],
-							"path": ["users", "1", "addresses"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"1",
+								"addresses"
+							]
 						}
 					}
 				},
@@ -270,12 +357,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"recipient_email\": \"recipient@example.com\",\n    \"address_line\": \"123 ABC Street\",\n    \"ward\": \"Phuong 1\",\n    \"district\": \"Quan 1\",\n    \"province\": \"Ho Chi Minh\",\n    \"country\": \"Viet Nam\",\n    \"is_default\": true\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/users/1/addresses",
-							"host": ["{{base_url}}"],
-							"path": ["users", "1", "addresses"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"1",
+								"addresses"
+							]
 						}
 					}
 				},
@@ -287,12 +384,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"recipient_name\": \"Updated Name\",\n    \"recipient_phone\": \"0999888777\",\n    \"recipient_email\": \"updated_recipient@example.com\",\n    \"address_line\": \"456 XYZ Street\",\n    \"country\": \"Viet Nam\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/addresses/1",
-							"host": ["{{base_url}}"],
-							"path": ["addresses", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"addresses",
+								"1"
+							]
 						}
 					}
 				},
@@ -303,8 +409,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/addresses/1",
-							"host": ["{{base_url}}"],
-							"path": ["addresses", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"addresses",
+								"1"
+							]
 						}
 					}
 				}
@@ -316,26 +427,40 @@
 				{
 					"name": "Get All Species",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/pets/species",
-							"host": ["{{base_url}}"],
-							"path": ["pets", "species"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"species"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get All Breeds",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/pets/breeds",
-							"host": ["{{base_url}}"],
-							"path": ["pets", "breeds"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"breeds"
+							]
 						}
 					}
 				},
@@ -346,8 +471,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/my-pets",
-							"host": ["{{base_url}}"],
-							"path": ["my-pets"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"my-pets"
+							]
 						}
 					}
 				},
@@ -358,8 +487,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/pets/1",
-							"host": ["{{base_url}}"],
-							"path": ["pets", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"1"
+							]
 						}
 					}
 				},
@@ -371,12 +505,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"species_id\": \"1\",\n    \"breed_id\": \"1\",\n    \"pet_name\": \"Milo\",\n    \"gender\": \"male\",\n    \"birth_date\": \"2024-01-15\",\n    \"weight_kg\": 3.5,\n    \"profile_image_url\": \"https://example.com/milo.jpg\",\n    \"health_status\": \"healthy\",\n    \"medical_note\": \"Khoe manh, an tot\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/pets",
-							"host": ["{{base_url}}"],
-							"path": ["pets"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets"
+							]
 						}
 					}
 				},
@@ -388,12 +530,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"pet_name\": \"Milo Updated\",\n    \"weight_kg\": 4.0\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/pets/1",
-							"host": ["{{base_url}}"],
-							"path": ["pets", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"1"
+							]
 						}
 					}
 				},
@@ -404,8 +555,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/pets/1",
-							"host": ["{{base_url}}"],
-							"path": ["pets", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"1"
+							]
 						}
 					}
 				}
@@ -417,13 +573,19 @@
 				{
 					"name": "Get All Categories",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/categories",
-							"host": ["{{base_url}}"],
-							"path": ["categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories"
+							]
 						}
 					}
 				},
@@ -435,12 +597,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"category_name\": \"Phụ kiện thú cưng\",\n    \"image_url\": \"https://example.com/category.jpg\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/categories",
-							"host": ["{{base_url}}"],
-							"path": ["categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories"
+							]
 						}
 					}
 				},
@@ -452,12 +622,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"category_name\": \"Category Updated\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/categories/1",
-							"host": ["{{base_url}}"],
-							"path": ["categories", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories",
+								"1"
+							]
 						}
 					}
 				},
@@ -468,8 +647,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/categories/1",
-							"host": ["{{base_url}}"],
-							"path": ["categories", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories",
+								"1"
+							]
 						}
 					}
 				}
@@ -481,13 +665,19 @@
 				{
 					"name": "Get All Products",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products?sort=best_selling&limit=12&page=1&minPrice=20&maxPrice=50",
-							"host": ["{{base_url}}"],
-							"path": ["products"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products"
+							],
 							"query": [
 								{
 									"key": "sort",
@@ -518,39 +708,62 @@
 				{
 					"name": "Get Product Detail",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Related Products",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1/related",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1", "related"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1",
+								"related"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Product Review Stats",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1/review-stats",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1", "review-stats"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1",
+								"review-stats"
+							]
 						}
 					}
 				},
@@ -561,8 +774,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1/related",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1", "related"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1",
+								"related"
+							]
 						}
 					}
 				},
@@ -573,8 +792,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1/review-stats",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1", "review-stats"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1",
+								"review-stats"
+							]
 						}
 					}
 				},
@@ -586,12 +811,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"product_category_id\": \"1\",\n    \"product_name\": \"Pate Whiskas\",\n    \"description\": \"Pate dinh duong cho meo\",\n    \"price\": 35000,\n    \"original_price\": 45000,\n    \"stock_quantity\": 200,\n    \"variants\": [\n        {\n            \"variant_name\": \"Size M\",\n            \"price\": 100000,\n            \"original_price\": 120000,\n            \"stock_quantity\": 50\n        },\n        {\n            \"variant_name\": \"Size L\",\n            \"price\": 120000,\n            \"original_price\": 150000,\n            \"stock_quantity\": 30\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/products",
-							"host": ["{{base_url}}"],
-							"path": ["products"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products"
+							]
 						}
 					}
 				},
@@ -603,12 +836,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"product_name\": \"Product Updated\",\n    \"price\": 50000,\n    \"original_price\": 65000,\n    \"stock_quantity\": 150,\n    \"variants\": [\n        {\n            \"variant_name\": \"Size M\",\n            \"price\": 105000,\n            \"original_price\": 120000,\n            \"stock_quantity\": 40\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/products/1",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1"
+							]
 						}
 					}
 				},
@@ -619,8 +861,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/products/1",
-							"host": ["{{base_url}}"],
-							"path": ["products", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"products",
+								"1"
+							]
 						}
 					}
 				}
@@ -636,8 +883,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/cart",
-							"host": ["{{base_url}}"],
-							"path": ["cart"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart"
+							]
 						}
 					}
 				},
@@ -649,12 +900,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"product_id\": \"1\",\n    \"quantity\": 2,\n    \"variant_id\": 1\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/cart",
-							"host": ["{{base_url}}"],
-							"path": ["cart"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart"
+							]
 						}
 					}
 				},
@@ -666,12 +925,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"quantity\": 5,\n    \"is_selected\": true\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/cart/1",
-							"host": ["{{base_url}}"],
-							"path": ["cart", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"1"
+							]
 						}
 					}
 				},
@@ -682,8 +950,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/cart/1",
-							"host": ["{{base_url}}"],
-							"path": ["cart", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"1"
+							]
 						}
 					}
 				}
@@ -699,8 +972,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/orders",
-							"host": ["{{base_url}}"],
-							"path": ["orders"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders"
+							]
 						}
 					}
 				},
@@ -711,8 +988,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/orders/1",
-							"host": ["{{base_url}}"],
-							"path": ["orders", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1"
+							]
 						}
 					}
 				},
@@ -724,12 +1006,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao hàng trong giờ hành chính\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/orders/checkout",
-							"host": ["{{base_url}}"],
-							"path": ["orders", "checkout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"checkout"
+							]
 						}
 					}
 				},
@@ -741,12 +1032,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"full_name\": \"Nguyen Van B\",\n    \"phone\": \"0987654321\",\n    \"email\": \"guest@example.com\",\n    \"address_line\": \"456 Đường Lê Lợi\",\n    \"ward\": \"Phường Bến Nghé\",\n    \"district\": \"Quận 1\",\n    \"province\": \"TP. Hồ Chí Minh\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao ngoài giờ hành chính\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/orders/guest-checkout",
-							"host": ["{{base_url}}"],
-							"path": ["orders", "guest-checkout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"guest-checkout"
+							]
 						}
 					}
 				},
@@ -758,12 +1058,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"order_status\": \"confirmed\",\n    \"note\": \"Da xac nhan don hang\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/orders/1/status",
-							"host": ["{{base_url}}"],
-							"path": ["orders", "1", "status"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1",
+								"status"
+							]
 						}
 					}
 				}
@@ -779,8 +1089,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/payments",
-							"host": ["{{base_url}}"],
-							"path": ["payments"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments"
+							]
 						}
 					}
 				},
@@ -792,12 +1106,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"status\": \"paid\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/payments/1/status",
-							"host": ["{{base_url}}"],
-							"path": ["payments", "1", "status"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"1",
+								"status"
+							]
 						}
 					}
 				}
@@ -809,52 +1133,78 @@
 				{
 					"name": "Get All Branches",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/branches",
-							"host": ["{{base_url}}"],
-							"path": ["branches"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get All Services",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/services",
-							"host": ["{{base_url}}"],
-							"path": ["services"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Service Categories",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/services/categories",
-							"host": ["{{base_url}}"],
-							"path": ["services", "categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"categories"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Service Detail",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/services/1",
-							"host": ["{{base_url}}"],
-							"path": ["services", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"1"
+							]
 						}
 					}
 				},
@@ -866,12 +1216,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"service_category_id\": \"1\",\n    \"service_name\": \"Tiem phong dai\",\n    \"description\": \"Tiem phong dai cho thu cung\",\n    \"base_price\": 200000,\n    \"duration_minutes\": 15\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/services",
-							"host": ["{{base_url}}"],
-							"path": ["services"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services"
+							]
 						}
 					}
 				},
@@ -883,12 +1241,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"service_name\": \"Service Updated\",\n    \"base_price\": 300000\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/services/1",
-							"host": ["{{base_url}}"],
-							"path": ["services", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"1"
+							]
 						}
 					}
 				},
@@ -899,8 +1266,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/services/1",
-							"host": ["{{base_url}}"],
-							"path": ["services", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"1"
+							]
 						}
 					}
 				}
@@ -912,16 +1284,29 @@
 				{
 					"name": "Get Available Slots",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/appointments/slots?date=2026-05-24&branch_id=1",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "slots"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"slots"
+							],
 							"query": [
-								{ "key": "date", "value": "2026-05-24" },
-								{ "key": "branch_id", "value": "1" }
+								{
+									"key": "date",
+									"value": "2026-05-24"
+								},
+								{
+									"key": "branch_id",
+									"value": "1"
+								}
 							]
 						}
 					}
@@ -933,8 +1318,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/appointments/my-history",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "my-history"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"my-history"
+							]
 						}
 					}
 				},
@@ -945,8 +1335,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/appointments/1",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1"
+							]
 						}
 					}
 				},
@@ -959,12 +1354,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"pet_data\": {\n        \"pet_name\": \"Milo\",\n        \"species_id\": \"1\",\n        \"breed_id\": \"1\",\n        \"weight_kg\": 4.5,\n        \"age\": 2,\n        \"gender\": \"male\",\n        \"health_condition\": \"Bình thường\"\n    },\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/appointments",
-							"host": ["{{base_url}}"],
-							"path": ["appointments"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments"
+							]
 						}
 					}
 				},
@@ -976,12 +1379,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"reason\": \"Khach hang huy do ban\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/appointments/1/cancel",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "1", "cancel"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1",
+								"cancel"
+							]
 						}
 					}
 				},
@@ -993,12 +1406,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"status\": \"confirmed\",\n    \"reason\": \"Da xac nhan lich hen\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/appointments/1/status",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "1", "status"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1",
+								"status"
+							]
 						}
 					}
 				},
@@ -1010,8 +1433,14 @@
 						"description": "Preview tổng tiền cho lịch hẹn trước khi xác nhận. Phụ thu cân nặng sẽ tự động cộng dồn từ các dịch vụ (surcharge_amount). Có hỗ trợ áp voucher (chỉ nhận voucher loại appointment hoặc all).",
 						"url": {
 							"raw": "{{base_url}}/appointments/1/pricing?voucher_code=DCFV",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "1", "pricing"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1",
+								"pricing"
+							],
 							"query": [
 								{
 									"key": "voucher_code",
@@ -1039,8 +1468,66 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/appointments/1/checkout",
-							"host": ["{{base_url}}"],
-							"path": ["appointments", "1", "checkout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1",
+								"checkout"
+							]
+						}
+					}
+				},
+				{
+					"name": "Preview Pricing",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pet_data\": {\n        \"weight_kg\": 10\n    },\n    \"service_ids\": [\n        1,\n        2\n    ],\n    \"voucher_code\": \"GMS10\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/preview-pricing",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"preview-pricing"
+							]
+						}
+					}
+				},
+				{
+					"name": "Book & Checkout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"slot_id\": 1,\n    \"pet_data\": {\n        \"pet_name\": \"Doggy\",\n        \"weight_kg\": 10\n    },\n    \"service_ids\": [\n        1\n    ],\n    \"customer_name_snapshot\": \"Test\",\n    \"customer_phone_snapshot\": \"0901234567\",\n    \"payment_method\": \"store\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/book",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"book"
+							]
 						}
 					}
 				}
@@ -1056,8 +1543,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/medical-records/pet/1",
-							"host": ["{{base_url}}"],
-							"path": ["medical-records", "pet", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"medical-records",
+								"pet",
+								"1"
+							]
 						}
 					}
 				},
@@ -1068,8 +1561,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/medical-records/1",
-							"host": ["{{base_url}}"],
-							"path": ["medical-records", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"medical-records",
+								"1"
+							]
 						}
 					}
 				},
@@ -1081,21 +1579,61 @@
 						"body": {
 							"mode": "formdata",
 							"formdata": [
-								{ "key": "pet_id", "value": "1", "type": "text" },
-								{ "key": "doctor_id", "value": "1", "type": "text" },
-								{ "key": "appointment_id", "value": "1", "type": "text" },
-								{ "key": "record_name", "value": "Kham tong quat 24/05", "type": "text" },
-								{ "key": "visit_date", "value": "2026-05-24", "type": "text" },
-								{ "key": "symptoms", "value": "Ho, so mui", "type": "text" },
-								{ "key": "diagnosis", "value": "Cam lanh nhe", "type": "text" },
-								{ "key": "treatment_note", "value": "Cho uong thuoc 3 ngay", "type": "text" },
-								{ "key": "attachments", "type": "file", "src": [] }
+								{
+									"key": "pet_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "doctor_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "appointment_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "record_name",
+									"value": "Kham tong quat 24/05",
+									"type": "text"
+								},
+								{
+									"key": "visit_date",
+									"value": "2026-05-24",
+									"type": "text"
+								},
+								{
+									"key": "symptoms",
+									"value": "Ho, so mui",
+									"type": "text"
+								},
+								{
+									"key": "diagnosis",
+									"value": "Cam lanh nhe",
+									"type": "text"
+								},
+								{
+									"key": "treatment_note",
+									"value": "Cho uong thuoc 3 ngay",
+									"type": "text"
+								},
+								{
+									"key": "attachments",
+									"type": "file",
+									"src": []
+								}
 							]
 						},
 						"url": {
 							"raw": "{{base_url}}/medical-records",
-							"host": ["{{base_url}}"],
-							"path": ["medical-records"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"medical-records"
+							]
 						}
 					}
 				},
@@ -1107,12 +1645,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"doctor_id\": \"1\",\n    \"diagnosis\": \"Updated diagnosis\",\n    \"treatment_note\": \"Updated treatment\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/medical-records/1",
-							"host": ["{{base_url}}"],
-							"path": ["medical-records", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"medical-records",
+								"1"
+							]
 						}
 					}
 				},
@@ -1123,8 +1670,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/medical-records/1",
-							"host": ["{{base_url}}"],
-							"path": ["medical-records", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"medical-records",
+								"1"
+							]
 						}
 					}
 				}
@@ -1140,8 +1692,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/health-diaries/pet/1",
-							"host": ["{{base_url}}"],
-							"path": ["health-diaries", "pet", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health-diaries",
+								"pet",
+								"1"
+							]
 						}
 					}
 				},
@@ -1153,12 +1711,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"pet_id\": \"1\",\n    \"entry_date\": \"2026-05-24\",\n    \"title\": \"Milo an uong tot\",\n    \"content\": \"Hom nay Milo an het bat com, vui ve\",\n    \"icon_code\": \"happy\",\n    \"color_code\": \"#4CAF50\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/health-diaries",
-							"host": ["{{base_url}}"],
-							"path": ["health-diaries"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health-diaries"
+							]
 						}
 					}
 				}
@@ -1174,8 +1740,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reminders/pet/1",
-							"host": ["{{base_url}}"],
-							"path": ["reminders", "pet", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reminders",
+								"pet",
+								"1"
+							]
 						}
 					}
 				},
@@ -1187,12 +1759,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"pet_id\": \"1\",\n    \"reminder_type\": \"vaccination\",\n    \"title\": \"Tiem phong dai dot 2\",\n    \"remind_date\": \"2026-06-15\",\n    \"remind_before_days\": 3,\n    \"note\": \"Nho mang so tiem chung\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/reminders",
-							"host": ["{{base_url}}"],
-							"path": ["reminders"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reminders"
+							]
 						}
 					}
 				},
@@ -1203,8 +1783,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reminders/1/complete",
-							"host": ["{{base_url}}"],
-							"path": ["reminders", "1", "complete"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reminders",
+								"1",
+								"complete"
+							]
 						}
 					}
 				},
@@ -1215,8 +1801,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reminders/1",
-							"host": ["{{base_url}}"],
-							"path": ["reminders", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reminders",
+								"1"
+							]
 						}
 					}
 				}
@@ -1257,13 +1848,22 @@
 				{
 					"name": "Get Reviews By Target",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reviews/target/product/1",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "target", "product", "1"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"target",
+								"product",
+								"1"
+							],
 							"description": "targetType: product | service\ntargetId: ID cua san pham hoac dich vu"
 						}
 					}
@@ -1275,8 +1875,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reviews/can-review/product/1",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "can-review", "product", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"can-review",
+								"product",
+								"1"
+							]
 						}
 					}
 				},
@@ -1288,12 +1895,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"target_type\": \"product\",\n    \"target_id\": \"1\",\n    \"rating\": 5,\n    \"comment\": \"San pham rat tot, be meo nha minh rat thich!\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/reviews",
-							"host": ["{{base_url}}"],
-							"path": ["reviews"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews"
+							]
 						}
 					}
 				},
@@ -1304,8 +1919,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reviews/1/like",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "1", "like"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"1",
+								"like"
+							]
 						}
 					}
 				},
@@ -1317,12 +1938,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"comment\": \"Cam on ban da phan hoi, shop se co gang hon nua!\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/reviews/1/reply",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "1", "reply"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"1",
+								"reply"
+							]
 						}
 					}
 				},
@@ -1334,12 +1965,22 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"admin_note\": \"Noi dung khong phu hop\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/reviews/1/reject",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "1", "reject"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"1",
+								"reject"
+							]
 						}
 					}
 				},
@@ -1350,8 +1991,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/reviews/1/delete",
-							"host": ["{{base_url}}"],
-							"path": ["reviews", "1", "delete"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"reviews",
+								"1",
+								"delete"
+							]
 						}
 					}
 				}
@@ -1367,8 +2014,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/vouchers",
-							"host": ["{{base_url}}"],
-							"path": ["vouchers"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vouchers"
+							]
 						}
 					}
 				},
@@ -1380,12 +2031,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"voucher_code\": \"SUMMER20\",\n    \"voucher_name\": \"Khuyen mai he 20%\",\n    \"discount_type\": \"percent\",\n    \"discount_value\": 20,\n    \"max_discount_amount\": 100000,\n    \"min_order_amount\": 200000,\n    \"target_type\": \"order\",\n    \"start_at\": \"2026-06-01T00:00:00Z\",\n    \"end_at\": \"2026-08-31T23:59:59Z\",\n    \"total_usage_limit\": 100,\n    \"remaining_usage\": 100\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/vouchers",
-							"host": ["{{base_url}}"],
-							"path": ["vouchers"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vouchers"
+							]
 						}
 					}
 				},
@@ -1397,12 +2056,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"voucher_code\": \"WELCOME10\",\n    \"order_amount\": 500000\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/vouchers/apply",
-							"host": ["{{base_url}}"],
-							"path": ["vouchers", "apply"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vouchers",
+								"apply"
+							]
 						}
 					}
 				},
@@ -1413,8 +2081,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/loyalty/my-points",
-							"host": ["{{base_url}}"],
-							"path": ["loyalty", "my-points"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loyalty",
+								"my-points"
+							]
 						}
 					}
 				},
@@ -1425,8 +2098,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/loyalty/transactions",
-							"host": ["{{base_url}}"],
-							"path": ["loyalty", "transactions"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loyalty",
+								"transactions"
+							]
 						}
 					}
 				}
@@ -1438,39 +2116,59 @@
 				{
 					"name": "Get Post Categories",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/post-categories",
-							"host": ["{{base_url}}"],
-							"path": ["post-categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"post-categories"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Featured Post",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/posts/featured",
-							"host": ["{{base_url}}"],
-							"path": ["posts", "featured"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"featured"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Trending Posts",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/posts/trending?limit=4",
-							"host": ["{{base_url}}"],
-							"path": ["posts", "trending"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"trending"
+							],
 							"query": [
 								{
 									"key": "limit",
@@ -1484,13 +2182,19 @@
 				{
 					"name": "Get All Posts",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/posts?categoryId=1&type=official_blog&page=1&limit=8&excludeId=5",
-							"host": ["{{base_url}}"],
-							"path": ["posts"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts"
+							],
 							"query": [
 								{
 									"key": "categoryId",
@@ -1525,13 +2229,19 @@
 				{
 					"name": "Get Community Posts",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/posts?type=community&page=1&limit=10",
-							"host": ["{{base_url}}"],
-							"path": ["posts"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts"
+							],
 							"query": [
 								{
 									"key": "type",
@@ -1555,14 +2265,21 @@
 				{
 					"name": "Get Post By Slug",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"description": "Lấy chi tiết bài viết qua slug. Lượt xem (view_count) sẽ tự động được tăng thêm 1.",
 						"url": {
 							"raw": "{{base_url}}/posts/sample-post-slug",
-							"host": ["{{base_url}}"],
-							"path": ["posts", "sample-post-slug"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"sample-post-slug"
+							]
 						}
 					}
 				},
@@ -1574,12 +2291,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"excerpt\": \"Tóm tắt ngắn gọn nội dung bài viết chia sẻ về cách nuôi và chăm sóc mèo con cực đơn giản.\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/posts",
-							"host": ["{{base_url}}"],
-							"path": ["posts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts"
+							]
 						}
 					}
 				}
@@ -1591,26 +2316,40 @@
 				{
 					"name": "Get First Aid Categories",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/first-aid/categories",
-							"host": ["{{base_url}}"],
-							"path": ["first-aid", "categories"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"first-aid",
+								"categories"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get All First Aid Guides",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/first-aid/guides?categoryId=1&search=hoc&page=1&limit=10&excludeId=2",
-							"host": ["{{base_url}}"],
-							"path": ["first-aid", "guides"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"first-aid",
+								"guides"
+							],
 							"query": [
 								{
 									"key": "categoryId",
@@ -1647,13 +2386,21 @@
 				{
 					"name": "Get First Aid Guide By Slug",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/first-aid/guides/so-cuu-khi-cho-bi-hoc-di-vat",
-							"host": ["{{base_url}}"],
-							"path": ["first-aid", "guides", "so-cuu-khi-cho-bi-hoc-di-vat"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"first-aid",
+								"guides",
+								"so-cuu-khi-cho-bi-hoc-di-vat"
+							]
 						}
 					}
 				},
@@ -1665,12 +2412,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xử lý khi thú cưng bị say nóng\",\n    \"situation_description\": \"Thú cưng bị say nóng khi nhiệt độ cơ thể tăng cao đột ngột do thời tiết nắng nóng hoặc ở trong không gian kín như ô tô.\",\n    \"emergency_phone\": \"0868686868\",\n    \"video_url\": \"https://www.youtube.com/watch?v=sample_heatstroke\",\n    \"status\": \"published\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/first-aid/guides",
-							"host": ["{{base_url}}"],
-							"path": ["first-aid", "guides"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"first-aid",
+								"guides"
+							]
 						}
 					}
 				}
@@ -1686,8 +2442,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/ai-chat/sessions",
-							"host": ["{{base_url}}"],
-							"path": ["ai-chat", "sessions"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ai-chat",
+								"sessions"
+							]
 						}
 					}
 				},
@@ -1699,12 +2460,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"pet_id\": \"1\",\n    \"session_type\": \"symptom\",\n    \"message\": \"Meo nha toi bi ho va so mui 2 ngay roi, can lam gi?\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/ai-chat/sessions",
-							"host": ["{{base_url}}"],
-							"path": ["ai-chat", "sessions"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ai-chat",
+								"sessions"
+							]
 						}
 					}
 				}
@@ -1716,39 +2486,60 @@
 				{
 					"name": "Get Rescue Stations",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/rescue/stations",
-							"host": ["{{base_url}}"],
-							"path": ["rescue", "stations"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rescue",
+								"stations"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Rescue Posts",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/rescue/posts",
-							"host": ["{{base_url}}"],
-							"path": ["rescue", "posts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rescue",
+								"posts"
+							]
 						}
 					}
 				},
 				{
 					"name": "Get Adoption Pets",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/adoptions/pets",
-							"host": ["{{base_url}}"],
-							"path": ["adoptions", "pets"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"pets"
+							]
 						}
 					}
 				},
@@ -1760,12 +2551,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"adoption_pet_id\": \"1\",\n    \"full_name\": \"Nguyen Van A\",\n    \"address\": \"123 ABC Street, HCMC\",\n    \"reason\": \"Toi rat yeu dong vat va muon nhan nuoi em nay\",\n    \"housing_info\": \"Nha rieng, co san vuon rong\",\n    \"experience\": \"Da nuoi 2 con meo truoc do\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/adoptions/requests",
-							"host": ["{{base_url}}"],
-							"path": ["adoptions", "requests"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"requests"
+							]
 						}
 					}
 				},
@@ -1776,8 +2576,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/adoptions/my-requests",
-							"host": ["{{base_url}}"],
-							"path": ["adoptions", "my-requests"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"my-requests"
+							]
 						}
 					}
 				},
@@ -1789,12 +2594,23 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"status\": \"approved\"\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/adoptions/requests/1/status",
-							"host": ["{{base_url}}"],
-							"path": ["adoptions", "requests", "1", "status"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"requests",
+								"1",
+								"status"
+							]
 						}
 					}
 				}
@@ -1806,13 +2622,20 @@
 				{
 					"name": "Get Active Flash Sale",
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/flash-sales/active",
-							"host": ["{{base_url}}"],
-							"path": ["flash-sales", "active"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"flash-sales",
+								"active"
+							]
 						}
 					}
 				},
@@ -1824,12 +2647,20 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"name\": \"Mega Sale\",\n    \"start_time\": \"2026-06-05T00:00:00.000Z\",\n    \"end_time\": \"2026-06-05T23:59:59.000Z\",\n    \"status\": \"active\",\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"discount_percentage\": 15,\n            \"stock_quantity\": 50\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/flash-sales",
-							"host": ["{{base_url}}"],
-							"path": ["flash-sales"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"flash-sales"
+							]
 						}
 					}
 				},
@@ -1841,12 +2672,21 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"name\": \"Mega Sale Updated\",\n    \"items\": [\n        {\n            \"product_id\": \"1\",\n            \"discount_percentage\": 20,\n            \"stock_quantity\": 100\n        }\n    ]\n}",
-							"options": { "raw": { "language": "json" } }
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
 							"raw": "{{base_url}}/flash-sales/1",
-							"host": ["{{base_url}}"],
-							"path": ["flash-sales", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"flash-sales",
+								"1"
+							]
 						}
 					}
 				},
@@ -1857,8 +2697,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/flash-sales/1",
-							"host": ["{{base_url}}"],
-							"path": ["flash-sales", "1"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"flash-sales",
+								"1"
+							]
 						}
 					}
 				}
@@ -1874,8 +2719,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/search?keyword=tam&scope=all&page=1&limit=10&sort=relevance",
-							"host": ["{{base_url}}"],
-							"path": ["search"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search"
+							],
 							"query": [
 								{
 									"key": "keyword",
@@ -1937,8 +2786,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/search/suggestions?q=tam&limit=10",
-							"host": ["{{base_url}}"],
-							"path": ["search", "suggestions"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"search",
+								"suggestions"
+							],
 							"query": [
 								{
 									"key": "q",
