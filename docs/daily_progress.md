@@ -261,3 +261,13 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Gộp API Đặt lịch**: Viết API `POST /api/v1/appointments/book` thay thế cho 3 API rời rạc trước đây, tự động tạo Lịch hẹn, Thú cưng, Lên đơn hàng và Thanh toán trong 1 Database Transaction duy nhất.
   - **Xem trước giá**: Cung cấp API `POST /api/v1/appointments/preview-pricing` để Frontend xem được tổng tiền, phụ phí cân nặng, mã giảm giá trước khi bấm đặt lịch mà không cần lưu vào Database.
   - **Tự động hoá luật No-show**: Backend tự động đếm số lần Khách huỷ lịch muộn (sát giờ) hoặc Không đến (`missed`). Tự động gửi In-app Notification cảnh báo lần 1, và tự động khoá phương thức "Thanh toán tại cửa hàng" bắt đặt cọc nếu khách vắng mặt quá 2 lần.
+
+---
+## [Ngày 11/07/2026]
+### Đã hoàn thành:
+- **Tối ưu hóa và nâng cao Validation cho module Quản lý Thú cưng:**
+  - **Kiểm tra chéo giống & loài (`breed_id` & `species_id`)**: Ràng buộc chặt chẽ trong `createPet` và `updatePet` để ngăn chặn việc chèn hoặc cập nhật giống loài sai lệch (ví dụ: loài Mèo nhưng chọn giống Poodle). Logic ở `updatePet` hỗ trợ kiểm tra thông qua dữ liệu mới hoặc fallback từ DB nếu người dùng không truyền đủ cả 2 trường.
+  - **Kiểm tra giá trị Cân nặng & Ngày sinh**: Ngăn chặn dữ liệu rác bằng cách validate `weight_kg > 0` và không vượt quá `200kg`. Đồng thời validate ngày sinh `birth_date` hợp lệ và không được là ngày trong tương lai.
+  - **Đồng bộ hóa ảnh đại diện và đảm bảo ảnh chính duy nhất (`is_primary`)**: Gỡ bỏ việc ghi dữ liệu vào field legacy `profile_image_url` trên bảng `pets` để thống nhất lưu trữ ảnh tại bảng liên kết `pet_images`. Lập trình cơ chế tự động hạ cờ `is_primary = false` cho toàn bộ ảnh cũ trước khi set ảnh mới thành ảnh chính khi người dùng cập nhật ảnh đại diện.
+- **Kiểm thử & Xác minh**:
+  - Viết và thực thi thành công script test tự động `scratch/test_pet_validations.js` để bao phủ 8 test cases (validation sai loài, cân nặng âm/quá lớn, ngày sinh tương lai, và luồng update ảnh đại diện). Toàn bộ test cases đều hoạt động chính xác 100%.
