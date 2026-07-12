@@ -271,3 +271,22 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Đồng bộ hóa ảnh đại diện và đảm bảo ảnh chính duy nhất (`is_primary`)**: Gỡ bỏ việc ghi dữ liệu vào field legacy `profile_image_url` trên bảng `pets` để thống nhất lưu trữ ảnh tại bảng liên kết `pet_images`. Lập trình cơ chế tự động hạ cờ `is_primary = false` cho toàn bộ ảnh cũ trước khi set ảnh mới thành ảnh chính khi người dùng cập nhật ảnh đại diện.
 - **Kiểm thử & Xác minh**:
   - Viết và thực thi thành công script test tự động `scratch/test_pet_validations.js` để bao phủ 8 test cases (validation sai loài, cân nặng âm/quá lớn, ngày sinh tương lai, và luồng update ảnh đại diện). Toàn bộ test cases đều hoạt động chính xác 100%.
+
+---
+## [Ngày 12/07/2026]
+### Đã hoàn thành:
+- **Hỗ trợ trường Tuổi (`age`) dạng chuỗi tự do cho Hồ sơ Thú cưng (Pet Model):**
+  - **Database Schema**: Bổ sung trường `age` kiểu dữ liệu `String? @db.VarChar(100)` vào model `Pet` trong file [schema.prisma](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/prisma/schema.prisma#L458-L459) để hỗ trợ lưu tuổi song song với ngày sinh.
+  - **Database Sync**: Chạy lệnh `npx prisma db push` đồng bộ trực tiếp schema mới vào database local.
+  - **Service Layer**: Cập nhật logic trong `createPet` và `updatePet` thuộc file [petAPIService.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/src/services/petAPIService.js#L121) để tiếp nhận và cập nhật trường `age`.
+  - **Tự động chuẩn hóa kiểu dữ liệu (Type Conversion)**: Bổ sung logic kiểm tra và tự động chuyển đổi `age` sang kiểu `String` nếu client truyền lên kiểu số (`Number`), giúp tránh lỗi type casting ở Database.
+- **Triển khai cấu trúc và seed dữ liệu cho Bảng Ma Trận Giá Dịch Vụ theo Cân nặng:**
+  - **Database Schema**: Tạo model mới `ServicePriceMatrix` lưu trữ các mốc giá theo khoảng cân nặng (`weight_min`, `weight_max`) kèm cờ `is_contact` hỗ trợ giá hiển thị dạng "Liên hệ" (cho chó mèo trên 30kg) và đồng bộ bằng `npx prisma db push`.
+  - **Service & Controller**: Viết mới `servicePricingAPIService` thực hiện thuật toán xoay dữ liệu (Pivot Data) tự động để trả về định dạng ma trận dạng cột (Mốc cân nặng) và dòng (Dịch vụ) giúp Frontend dễ dàng render bảng.
+  - **Routes & API**: Khởi tạo route `GET /api/v1/services/pricing-matrix`.
+  - **Dữ liệu mẫu (Seed Data)**: Cập nhật file `prisma/seed.js` bổ sung seed chi tiết ma trận giá cho toàn bộ 18 dịch vụ thuộc 3 danh mục (Spa & Grooming, Khám & Điều trị, Combo) khớp 100% dữ liệu thực tế từ 3 hình ảnh thiết kế bảng giá, và chạy seed thành công bằng `npm run seed`.
+  - **Postman Collection**: Cập nhật file `Pet_Clinic_Collection.json` bổ sung request mẫu `Get Pricing Matrix` giúp xác thực dữ liệu nhanh chóng.
+- **Tăng cường bảo mật khi cập nhật Hồ sơ Pet (Update Pet Security):**
+  - **Service & Controller**: Cập nhật hàm `updatePet` trong [petAPIService.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/src/services/petAPIService.js) trả về thông báo lỗi chi tiết bằng tiếng Việt cùng mã `statusCode` lỗi chuẩn (404 cho trường hợp hồ sơ không tồn tại và 403 cho trường hợp truy cập không hợp lệ).
+  - **Controller Integration**: Sửa đổi [petController.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/src/controllers/petController.js) để tự động lấy mã trạng thái HTTP thích hợp từ dịch vụ trả về thay vì mặc định trả về HTTP Status `200 OK`.
+
