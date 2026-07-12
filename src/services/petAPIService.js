@@ -100,6 +100,12 @@ const createPet = async (userIdStr, data) => {
     const speciesId = toBigIntId(data.species_id);
     const breedId = data.breed_id ? toBigIntId(data.breed_id) : null;
 
+    // Convert age to string if provided
+    let ageStr = null;
+    if (data.age !== undefined && data.age !== null && data.age !== '') {
+      ageStr = String(data.age);
+    }
+
     // Validate breed belongs to species
     if (breedId && speciesId) {
       const breed = await prisma.petBreed.findFirst({
@@ -121,6 +127,7 @@ const createPet = async (userIdStr, data) => {
         breed_id: breedId,
         gender: data.gender || 'unknown',
         birth_date: data.birth_date ? new Date(data.birth_date) : null,
+        age: ageStr,
         weight_kg: data.weight_kg ? parseFloat(data.weight_kg) : null,
         health_status: data.health_status || 'unknown',
         medical_note: data.medical_note || null,
@@ -202,6 +209,9 @@ const updatePet = async (id, data, currentUser) => {
     if (data.breed_id !== undefined) updateData.breed_id = data.breed_id ? toBigIntId(data.breed_id) : null;
     if (data.gender) updateData.gender = data.gender;
     if (data.birth_date) updateData.birth_date = new Date(data.birth_date);
+    if (data.age !== undefined) {
+      updateData.age = (data.age !== null && data.age !== '') ? String(data.age) : null;
+    }
     if (data.weight_kg) updateData.weight_kg = parseFloat(data.weight_kg);
     if (data.health_status) updateData.health_status = data.health_status;
     if (data.medical_note !== undefined) updateData.medical_note = data.medical_note;

@@ -456,6 +456,7 @@ model Pet {
   pet_name               String          @db.VarChar(100)
   gender                 PetGender       @default(unknown)
   birth_date             DateTime?       @db.Date
+  age                   String?         @db.VarChar(100)
   weight_kg              Decimal?        @db.Decimal(5, 2)
   profile_image_url      String?         @db.VarChar(500)
   health_status          PetHealthStatus @default(unknown)

@@ -96,6 +96,7 @@ async function test() {
     breed_id: catBreed.breed_id.toString(),
     gender: 'male',
     birth_date: '2024-05-15',
+    age: '2 tuổi',
     weight_kg: 4.2,
     profile_image_url: 'https://example.com/lucky_avatar.jpg',
     health_status: 'healthy',
@@ -107,12 +108,54 @@ async function test() {
   if (res5.EC === 0) {
     createdPetId = res5.DT.pet_id;
     console.log('Created Pet ID:', createdPetId.toString());
+    console.log('Created Pet Age in DB:', res5.DT.age);
 
     // Verify image in DB
     const imgInDb = await prisma.petImage.findMany({
       where: { pet_id: createdPetId }
     });
     console.log('Images for created pet in DB:', JSON.stringify(imgInDb, (k,v) => typeof v === 'bigint' ? v.toString() : v, 2));
+  }
+
+  // --- TEST CASE 5b: Success Create Pet with Age only (no birth_date) ---
+  console.log('\n--- TEST Case 5b: Happy Path Create Pet with Age Only ---');
+  const res5b = await petAPIService.createPet(userId, {
+    pet_name: 'Kitty Age Only',
+    species_id: speciesCat.species_id.toString(),
+    breed_id: catBreed.breed_id.toString(),
+    gender: 'female',
+    age: '6 tháng',
+    weight_kg: 1.5,
+    health_status: 'healthy'
+  });
+  console.log('Result (Expect Success):');
+  console.log('EC:', res5b.EC, 'EM:', res5b.EM);
+  let createdPetId5b;
+  if (res5b.EC === 0) {
+    createdPetId5b = res5b.DT.pet_id;
+    console.log('Created Pet 5b ID:', createdPetId5b.toString());
+    console.log('Created Pet 5b Birth Date (expect null):', res5b.DT.birth_date);
+    console.log('Created Pet 5b Age (expect "6 tháng"):', res5b.DT.age);
+  }
+
+  // --- TEST CASE 5c: Success Create Pet with Numeric Age (auto converted to string) ---
+  console.log('\n--- TEST Case 5c: Happy Path Create Pet with Numeric Age ---');
+  const res5c = await petAPIService.createPet(userId, {
+    pet_name: 'Doggo Numeric Age',
+    species_id: speciesDog.species_id.toString(),
+    breed_id: dogBreed.breed_id.toString(),
+    gender: 'male',
+    age: 3, // numeric age
+    weight_kg: 12.5,
+    health_status: 'healthy'
+  });
+  console.log('Result (Expect Success):');
+  console.log('EC:', res5c.EC, 'EM:', res5c.EM);
+  let createdPetId5c;
+  if (res5c.EC === 0) {
+    createdPetId5c = res5c.DT.pet_id;
+    console.log('Created Pet 5c ID:', createdPetId5c.toString());
+    console.log('Created Pet 5c Age (expect "3" as string):', typeof res5c.DT.age, 'value:', res5c.DT.age);
   }
 
   if (!createdPetId) return;
@@ -138,14 +181,16 @@ async function test() {
   console.log('Result (Expect Failure):');
   console.log('EC:', res7.EC, 'EM:', res7.EM);
 
-  // --- TEST CASE 8: Update Pet with new image (Check is_primary toggle) ---
-  console.log('\n--- TEST Case 8: Update Pet with new image ---');
+  // --- TEST CASE 8: Update Pet with new image & age ---
+  console.log('\n--- TEST Case 8: Update Pet with new image & age ---');
   const res8 = await petAPIService.updatePet(createdPetId.toString(), {
-    profile_image_url: 'https://example.com/lucky_new_avatar.jpg'
+    profile_image_url: 'https://example.com/lucky_new_avatar.jpg',
+    age: 4 // update with number
   }, mockAdminUser);
   console.log('Result (Expect Success):');
   console.log('EC:', res8.EC, 'EM:', res8.EM);
   if (res8.EC === 0) {
+    console.log('Updated Pet Age in DB:', typeof res8.DT.age, 'value:', res8.DT.age); // expect "4"
     // Verify images in DB
     const images = await prisma.petImage.findMany({
       where: { pet_id: createdPetId },
@@ -157,14 +202,32 @@ async function test() {
     });
   }
 
-  // --- CLEAN UP: Delete the created pet and its images ---
+  // --- CLEAN UP: Delete the created pets and their images ---
   console.log('\n--- CLEAN UP ---');
-  await prisma.petImage.deleteMany({
-    where: { pet_id: createdPetId }
-  });
-  await prisma.pet.delete({
-    where: { pet_id: createdPetId }
-  });
+  if (createdPetId) {
+    await prisma.petImage.deleteMany({
+      where: { pet_id: createdPetId }
+    });
+    await prisma.pet.delete({
+      where: { pet_id: createdPetId }
+    });
+  }
+  if (createdPetId5b) {
+    await prisma.petImage.deleteMany({
+      where: { pet_id: createdPetId5b }
+    });
+    await prisma.pet.delete({
+      where: { pet_id: createdPetId5b }
+    });
+  }
+  if (createdPetId5c) {
+    await prisma.petImage.deleteMany({
+      where: { pet_id: createdPetId5c }
+    });
+    await prisma.pet.delete({
+      where: { pet_id: createdPetId5c }
+    });
+  }
   console.log('Cleanup completed successfully.');
 }
 
