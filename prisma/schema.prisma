@@ -628,6 +628,7 @@ model Service {
 
   category             ServiceCategory     @relation(fields: [service_category_id], references: [service_category_id], onDelete: Restrict, onUpdate: Cascade)
   service_surcharges   ServiceSurcharge[]
+  price_matrix         ServicePriceMatrix[]
   appointment_services AppointmentService[]
   order_items          OrderItem[]
 
@@ -648,6 +649,20 @@ model ServiceSurcharge {
 
   @@index([service_id], map: "idx_surcharges_service_id")
   @@map("service_surcharges")
+}
+
+model ServicePriceMatrix {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  service_id     BigInt   @db.BigInt
+  weight_min     Decimal? @db.Decimal(5, 2)
+  weight_max     Decimal? @db.Decimal(5, 2)
+  price          Decimal? @db.Decimal(12, 2)
+  is_contact     Boolean  @default(false)
+
+  service        Service  @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@index([service_id], map: "idx_service_price_matrix_service_id")
+  @@map("service_price_matrix")
 }
 
 model Appointment {

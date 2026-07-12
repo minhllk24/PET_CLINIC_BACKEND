@@ -827,8 +827,72 @@ async function main() {
     }
   }
 
-  
-  
+  // Seeding Service Pricing Matrix
+  console.log('Seeding service pricing matrix...');
+  const matrixPricingData = {
+    // Grooming & Spa
+    'Tắm & Sấy khô': [50000, 70000, 90000, 120000, 150000, 190000, 240000, 300000, null],
+    'Massage chuyên sâu': [50000, 75000, 100000, 130000, 160000, 200000, 250000, 310000, null],
+    'Cắt tỉa tạo kiểu': [50000, 85000, 120000, 160000, 210000, 270000, 340000, 420000, null],
+    'Vắt tuyến hôi': [50000, 65000, 80000, 100000, 120000, 150000, 180000, 220000, null],
+    'Điều trị ký sinh trùng': [80000, 110000, 140000, 180000, 220000, 270000, 330000, 400000, null],
+    'Nhuộm lông thời trang': [80000, 120000, 170000, 230000, 300000, 380000, 480000, 600000, null],
+    'Vệ sinh răng miệng': [30000, 45000, 60000, 80000, 100000, 130000, 160000, 200000, null],
+    'Cắt & mài móng': [30000, 45000, 55000, 70000, 85000, 105000, 130000, 160000, null],
+    'Chăm sóc bàn chân': [30000, 45000, 55000, 70000, 85000, 105000, 130000, 160000, null],
+    
+    // Khám & Điều trị
+    'Khám & Điều trị': [30000, 45000, 60000, 80000, 100000, 130000, 160000, 200000, null],
+    'Xét nghiệm': [50000, 70000, 90000, 120000, 150000, 190000, 240000, 300000, null],
+    'Siêu âm': [100000, 120000, 140000, 170000, 200000, 240000, 290000, 350000, null],
+    'Tiêm phòng': [100000, 115000, 130000, 150000, 175000, 205000, 240000, 280000, null],
+    'Phẫu thuật': [200000, 260000, 330000, 420000, 530000, 660000, 820000, 1000000, null],
+    'Cấp cứu 24/7': [150000, 180000, 210000, 250000, 300000, 360000, 430000, 520000, null],
+    
+    // Combo
+    'Combo Tắm 11 bước': [150000, 180000, 220000, 270000, 330000, 440000, 480000, 570000, null],
+    'Combo Tắm cơ bản & cắt tỉa lông': [100000, 135000, 180000, 230000, 290000, 360000, 440000, 530000, null],
+    'Combo Chăm sóc & bảo vệ móng': [80000, 100000, 125000, 155000, 190000, 230000, 275000, 325000, null]
+  };
+
+  const weightRanges = [
+    { min: 0, max: 3 },
+    { min: 3.1, max: 5 },
+    { min: 5.1, max: 8 },
+    { min: 8.1, max: 12 },
+    { min: 12.1, max: 15 },
+    { min: 15.1, max: 20 },
+    { min: 20.1, max: 25 },
+    { min: 25.1, max: 30 },
+    { min: 30.1, max: null }
+  ];
+
+  await prisma.servicePriceMatrix.deleteMany({});
+  for (const [serviceName, prices] of Object.entries(matrixPricingData)) {
+    const service = await prisma.service.findFirst({
+      where: { service_name: serviceName }
+    });
+
+    if (service) {
+      const createData = weightRanges.map((range, index) => {
+        const price = prices[index];
+        return {
+          service_id: service.service_id,
+          weight_min: range.min,
+          weight_max: range.max,
+          price: price,
+          is_contact: price === null
+        };
+      });
+
+      await prisma.servicePriceMatrix.createMany({
+        data: createData
+      });
+    } else {
+      console.log(`Warning: Service '${serviceName}' not found during pricing matrix seed.`);
+    }
+  }
+
   // 6. Product Categories & Products (100 products generated with weights)
   const seedData = [
   {

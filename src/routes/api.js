@@ -7,6 +7,7 @@ import cartController from '../controllers/cartController';
 import orderController from '../controllers/orderController';
 import paymentController from '../controllers/paymentController';
 import clinicServiceController from '../controllers/clinicServiceController';
+import servicePricingController from '../controllers/servicePricingController';
 import appointmentController from '../controllers/appointmentController';
 import medicalRecordController from '../controllers/medicalRecordController';
 import healthDiaryController from '../controllers/healthDiaryController';
@@ -104,6 +105,7 @@ const initAPIRoutes = (app) => {
   router.get('/branches', branchController.handleGetAllBranches);
   
   router.get('/services', clinicServiceController.handleGetAllServices);
+  router.get('/services/pricing-matrix', servicePricingController.getPricingMatrix);
   router.get('/services/categories', clinicServiceController.handleGetAllCategories);
   router.get('/services/:id', clinicServiceController.handleGetServiceById);
   router.post('/services', verifyToken, checkPermission(['ADMIN']), clinicServiceController.handleCreateService);

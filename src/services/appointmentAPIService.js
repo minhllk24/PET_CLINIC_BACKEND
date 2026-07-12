@@ -1157,4 +1157,14 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
 };
 
 
-module.exports = {, previewPricing, bookAndCheckoutAppointment };
+module.exports = {
+  getMyHistory,
+  getAppointmentById,
+  getAvailableSlots,
+  createAppointment,
+  updateAppointmentStatus,
+  getAppointmentPricing,
+  checkoutAppointment,
+  previewPricing,
+  bookAndCheckoutAppointment
+};

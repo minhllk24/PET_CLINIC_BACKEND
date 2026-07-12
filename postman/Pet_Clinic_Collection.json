@@ -1169,6 +1169,26 @@
 					}
 				},
 				{
+					"name": "Get Pricing Matrix",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/services/pricing-matrix",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"pricing-matrix"
+							]
+						}
+					}
+				},
+				{
 					"name": "Get Service Categories",
 					"request": {
 						"auth": {
