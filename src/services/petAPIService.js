@@ -52,11 +52,11 @@ const getPetById = async (id, currentUser) => {
       }
     });
 
-    if (!pet) return { EM: 'Pet not found', EC: -1, DT: '' };
+    if (!pet) return { EM: 'Hồ sơ thú cưng không tồn tại', EC: -1, DT: '', statusCode: 404 };
 
     // Check permission
     if (currentUser.role_code !== 'ADMIN' && currentUser.user_id !== pet.owner_user_id.toString()) {
-      return { EM: 'Permission denied', EC: -1, DT: '' };
+      return { EM: 'Bạn không có quyền truy cập hồ sơ này', EC: -1, DT: '', statusCode: 403 };
     }
 
     return { EM: 'Get pet successful', EC: 0, DT: pet };
@@ -157,10 +157,10 @@ const updatePet = async (id, data, currentUser) => {
     if (!petId) return { EM: 'Invalid pet ID', EC: 1, DT: '' };
 
     const existingPet = await prisma.pet.findUnique({ where: { pet_id: petId } });
-    if (!existingPet) return { EM: 'Pet not found', EC: -1, DT: '' };
+    if (!existingPet) return { EM: 'Hồ sơ thú cưng không tồn tại', EC: -1, DT: '', statusCode: 404 };
 
     if (currentUser.role_code !== 'ADMIN' && currentUser.user_id !== existingPet.owner_user_id.toString()) {
-      return { EM: 'Permission denied', EC: -1, DT: '' };
+      return { EM: 'Bạn không có quyền truy cập hoặc cập nhật hồ sơ này', EC: -1, DT: '', statusCode: 403 };
     }
 
     // Validate weight_kg
@@ -251,10 +251,10 @@ const deletePet = async (id, currentUser) => {
     if (!petId) return { EM: 'Invalid pet ID', EC: 1, DT: '' };
 
     const existingPet = await prisma.pet.findUnique({ where: { pet_id: petId } });
-    if (!existingPet) return { EM: 'Pet not found', EC: -1, DT: '' };
+    if (!existingPet) return { EM: 'Hồ sơ thú cưng không tồn tại', EC: -1, DT: '', statusCode: 404 };
 
     if (currentUser.role_code !== 'ADMIN' && currentUser.user_id !== existingPet.owner_user_id.toString()) {
-      return { EM: 'Permission denied', EC: -1, DT: '' };
+      return { EM: 'Bạn không có quyền truy cập hoặc xóa hồ sơ này', EC: -1, DT: '', statusCode: 403 };
     }
 
     // Soft delete

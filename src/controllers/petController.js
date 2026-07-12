@@ -16,7 +16,8 @@ const handleGetDetailPet = async (req, res) => {
   try {
     const id = req.params.id;
     let data = await petAPIService.getPetById(id, req.user);
-    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+    const status = data.statusCode || 200;
+    return sendResponse(res, status, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
     return sendResponse(res, 500, 'Internal server error', -2);
@@ -38,7 +39,8 @@ const handleUpdatePet = async (req, res) => {
   try {
     const id = req.params.id;
     let data = await petAPIService.updatePet(id, req.body, req.user);
-    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+    const status = data.statusCode || 200;
+    return sendResponse(res, status, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
     return sendResponse(res, 500, 'Internal server error', -2);
@@ -49,7 +51,8 @@ const handleDeletePet = async (req, res) => {
   try {
     const id = req.params.id;
     let data = await petAPIService.deletePet(id, req.user);
-    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+    const status = data.statusCode || 200;
+    return sendResponse(res, status, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
     return sendResponse(res, 500, 'Internal server error', -2);
