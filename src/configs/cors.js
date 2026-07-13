@@ -12,8 +12,16 @@ const configCors = (app) => {
 
   app.use(function (req, res, next) {
     const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
+    if (origin) {
+      const originWithoutSlash = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+      const isAllowed = allowedOrigins.some(allowed => {
+        const allowedWithoutSlash = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+        return allowedWithoutSlash === originWithoutSlash;
+      });
+
+      if (isAllowed) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
     }
 
     // Request methods you wish to allow
@@ -25,7 +33,7 @@ const configCors = (app) => {
     // Request headers you wish to allow
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "X-Requested-With,Content-Type,Authorization"
+      "X-Requested-With,Content-Type,Authorization,Accept,Origin"
     );
 
     // Set to true if you need the website to include cookies in the requests sent
