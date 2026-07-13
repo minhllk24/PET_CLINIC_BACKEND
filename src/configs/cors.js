@@ -4,6 +4,8 @@ const configCors = (app) => {
   const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://www.drpetshouse.lat",
+    "https://drpetshouse.lat",
     "https://overlying-lucrative-perm.ngrok-free.dev",
     process.env.REACT_URL
   ].filter(Boolean);
