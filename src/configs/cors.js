@@ -33,7 +33,7 @@ const configCors = (app) => {
     // Request headers you wish to allow
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "X-Requested-With,Content-Type,Authorization,Accept,Origin"
+      "X-Requested-With,Content-Type,Authorization,Accept,Origin,ngrok-skip-browser-warning"
     );
 
     // Set to true if you need the website to include cookies in the requests sent
