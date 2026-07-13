@@ -290,3 +290,19 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - **Service & Controller**: Cập nhật hàm `updatePet` trong [petAPIService.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/src/services/petAPIService.js) trả về thông báo lỗi chi tiết bằng tiếng Việt cùng mã `statusCode` lỗi chuẩn (404 cho trường hợp hồ sơ không tồn tại và 403 cho trường hợp truy cập không hợp lệ).
   - **Controller Integration**: Sửa đổi [petController.js](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/src/controllers/petController.js) để tự động lấy mã trạng thái HTTP thích hợp từ dịch vụ trả về thay vì mặc định trả về HTTP Status `200 OK`.
 
+---
+## [Ngày 13/07/2026]
+### Đã hoàn thành:
+- **Triển khai phân loại khung giờ (TimeSlot) đặt lịch theo 2 loại dịch vụ:**
+  - **Cập nhật Database Schema**: Thêm `enum SlotType` với 2 giá trị (`exam`, `grooming`), bổ sung trường `slot_type` vào model `TimeSlot` và tạo index `idx_time_slots_type_branch_date` để tăng tốc độ lọc. Đồng bộ hóa vào MySQL DB thành công.
+  - **Tự động sinh TimeSlots (Auto generation)**:
+    - **Khám & Điều trị (exam)**: Mỗi khung giờ dài 30 phút, tối đa 3 lịch hẹn mỗi chi nhánh, giờ bắt đầu từ 8:00 - 21:00.
+    - **Grooming & Spa (grooming)**: Mỗi khung giờ dài 60 phút, tối đa 2 lịch hẹn mỗi chi nhánh, giờ bắt đầu từ 8:00 - 21:00.
+    - Cả hai loại đều gắn trực tiếp với chi nhánh (`doctor_id = null`).
+    - Tích hợp logic sinh slot tự động vào file `prisma/seed.js` và `cronService.js` (sinh slot ngay khi khởi động server và định kỳ chạy hàng ngày lúc 00:00 để sinh slot cho 7 ngày tới).
+  - **Cập nhật API & Logic nghiệp vụ**:
+    - Cập nhật API `GET /api/v1/appointments/slots` hỗ trợ query param `service_type` để lọc đúng danh sách slot.
+    - Sửa lỗi select statement cũ của `getAvailableSlots` khi gọi sai tên cột (`full_name` thay vì `doctor_name` trên model `Doctor`).
+    - Nâng cấp validation trong `createAppointment` và `bookAndCheckoutAppointment` để chỉ cho phép đặt 1 loại dịch vụ 1 lần và kiểm duyệt loại dịch vụ khớp với `slot_type` của khung giờ đã chọn.
+- **Đồng bộ hóa Postman**: Cập nhật query param `service_type` vào request `Get Available Slots` trong file Postman collection `Pet_Clinic_Collection.json`.
+- **Kiểm thử hệ thống**: Viết script test `scratch/test-booking.js` chạy kiểm chứng thành công 100% các luồng nghiệp vụ (đặt lịch đúng loại slot, chặn đặt lịch sai slot hoặc mix dịch vụ).
