@@ -2,9 +2,23 @@ import cron from 'node-cron';
 import prisma from '../configs/prisma';
 import { sendAppointmentReminderEmail } from '../utils/emailHelpers';
 import { toBigIntId } from '../utils/prismaHelpers';
+import appointmentAPIService from './appointmentAPIService';
 
 // Run every hour to check for appointments 24 hours from now
 export const initCronJobs = () => {
+  // Generate slots immediately on server startup
+  appointmentAPIService.generateAutoSlots(7);
+
+  // Generate slots everyday at 00:00
+  cron.schedule('0 0 * * *', async () => {
+    console.log('Running cron job: Generate auto slots');
+    try {
+      await appointmentAPIService.generateAutoSlots(7);
+    } catch (error) {
+      console.error('Error generating slots in cron job:', error);
+    }
+  });
+
   cron.schedule('0 * * * *', async () => {
     console.log('Running cron job: Check for 24h appointment reminders');
     try {

@@ -58,7 +58,7 @@ const getAppointmentById = async (id, currentUser) => {
 
 const getAvailableSlots = async (query) => {
   try {
-    const { date, doctor_id, branch_id } = query;
+    const { date, doctor_id, branch_id, service_type } = query;
     if (!date) return { EM: 'Missing date', EC: 1, DT: '' };
 
     const whereCondition = {
@@ -68,11 +68,12 @@ const getAvailableSlots = async (query) => {
 
     if (doctor_id) whereCondition.doctor_id = toBigIntId(doctor_id);
     if (branch_id) whereCondition.branch_id = toBigIntId(branch_id);
+    if (service_type) whereCondition.slot_type = service_type;
 
     const slots = await prisma.timeSlot.findMany({
       where: whereCondition,
       include: {
-        doctor: { select: { full_name: true } }
+        doctor: { select: { doctor_name: true } }
       },
       orderBy: { start_time: 'asc' }
     });
@@ -152,6 +153,33 @@ const createAppointment = async (userIdStr, data) => {
         throw new Error('Slot is fully booked or unavailable');
       }
 
+      // Query service details to validate compatibility
+      const serviceIdsToQuery = servicesInput.map(item => item.service_id);
+      const dbServices = await tx.service.findMany({
+        where: { service_id: { in: serviceIdsToQuery } },
+        include: { category: true }
+      });
+
+      const serviceTypes = dbServices.map(s => {
+        const catName = s.category?.category_name;
+        if (catName === 'Khám & Điều trị') return 'exam';
+        if (catName === 'Grooming & Spa' || catName === 'Combo Grooming & Spa') return 'grooming';
+        return 'unknown';
+      });
+
+      const uniqueTypes = [...new Set(serviceTypes)];
+      if (uniqueTypes.length > 1) {
+        throw new Error('Chỉ được chọn một loại dịch vụ (Khám hoặc Grooming) cho mỗi lần đặt lịch');
+      }
+      if (uniqueTypes.includes('unknown')) {
+        throw new Error('Loại dịch vụ không hợp lệ');
+      }
+
+      const selectedServiceType = uniqueTypes[0];
+      if (slot.slot_type !== selectedServiceType) {
+        throw new Error(`Khung giờ đã chọn không khớp với loại dịch vụ (${selectedServiceType === 'exam' ? 'Khám & Điều trị' : 'Grooming & Spa'})`);
+      }
+
       // 2. Increase booked count
       const newBookedCount = slot.booked_count + 1;
       let newStatus = slot.status;
@@ -229,12 +257,6 @@ const createAppointment = async (userIdStr, data) => {
         petWeightKg = newPet.weight_kg;
       }
 
-      // 4. Get service details
-      const serviceIdsToQuery = servicesInput.map(item => item.service_id);
-      const dbServices = await tx.service.findMany({
-        where: { service_id: { in: serviceIdsToQuery } }
-      });
-
       const servicesMap = new Map();
       for (const item of servicesInput) {
         servicesMap.set(item.service_id.toString(), item.quantity);
@@ -301,7 +323,15 @@ const createAppointment = async (userIdStr, data) => {
     return { EM: 'Create appointment successful', EC: 0, DT: result };
   } catch (error) {
     console.error(error);
-    if (error.message === 'Slot is fully booked or unavailable') {
+    const knownErrors = [
+      'Slot not found',
+      'Slot is fully booked or unavailable',
+      'Chỉ được chọn một loại dịch vụ (Khám hoặc Grooming) cho mỗi lần đặt lịch',
+      'Loại dịch vụ không hợp lệ',
+      'Khung giờ đã chọn không khớp với loại dịch vụ (Khám & Điều trị)',
+      'Khung giờ đã chọn không khớp với loại dịch vụ (Grooming & Spa)'
+    ];
+    if (knownErrors.includes(error.message) || error.message.includes('không khớp với loại dịch vụ')) {
       return { EM: error.message, EC: 2, DT: '' };
     }
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -887,6 +917,33 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
         throw new Error('Slot is fully booked or unavailable');
       }
 
+      // Validate service type compatibility
+      const serviceIdsToQuery = servicesInput.map(item => item.service_id);
+      const dbServices = await tx.service.findMany({
+        where: { service_id: { in: serviceIdsToQuery } },
+        include: { category: true }
+      });
+
+      const serviceTypes = dbServices.map(s => {
+        const catName = s.category?.category_name;
+        if (catName === 'Khám & Điều trị') return 'exam';
+        if (catName === 'Grooming & Spa' || catName === 'Combo Grooming & Spa') return 'grooming';
+        return 'unknown';
+      });
+
+      const uniqueTypes = [...new Set(serviceTypes)];
+      if (uniqueTypes.length > 1) {
+        throw new Error('Chỉ được chọn một loại dịch vụ (Khám hoặc Grooming) cho mỗi lần đặt lịch');
+      }
+      if (uniqueTypes.includes('unknown')) {
+        throw new Error('Loại dịch vụ không hợp lệ');
+      }
+
+      const selectedServiceType = uniqueTypes[0];
+      if (slot.slot_type !== selectedServiceType) {
+        throw new Error(`Khung giờ đã chọn không khớp với loại dịch vụ (${selectedServiceType === 'exam' ? 'Khám & Điều trị' : 'Grooming & Spa'})`);
+      }
+
       const newBookedCount = slot.booked_count + 1;
       let newStatus = slot.status;
       if (newBookedCount >= slot.max_booking) {
@@ -958,10 +1015,6 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       }
 
       // 3. Pricing & Services
-      const serviceIdsToQuery = servicesInput.map(item => item.service_id);
-      const dbServices = await tx.service.findMany({
-        where: { service_id: { in: serviceIdsToQuery } }
-      });
       const servicesMap = new Map();
       for (const item of servicesInput) {
         servicesMap.set(item.service_id.toString(), item.quantity);
@@ -1050,7 +1103,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           doctor_id: slot.doctor_id,
           branch_id: slot.branch_id,
           slot_id: slot.slot_id,
-          appointment_date: slot.date,
+          appointment_date: slot.slot_date,
           start_time: slot.start_time,
           end_time: slot.end_time,
           customer_name_snapshot,
@@ -1141,18 +1194,118 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
     return { EM: 'Book and checkout successful', EC: 0, DT: result };
   } catch (error) {
     console.error(error);
-    if (error.message === 'Slot not found' || 
-        error.message === 'Slot is fully booked or unavailable' ||
-        error.message === 'Mã giảm giá không hợp lệ' ||
-        error.message === 'Mã giảm giá chưa có hiệu lực' ||
-        error.message === 'Mã giảm giá đã hết hạn' ||
-        error.message === 'Mã giảm giá không áp dụng cho Đặt lịch' ||
-        error.message === 'Chưa đạt giá trị tối thiểu để dùng mã giảm giá' ||
-        error.message === 'Mã giảm giá đã hết lượt sử dụng' ||
-        error.message === 'Bạn đã sử dụng mã giảm giá này rồi') {
+    const knownErrors = [
+      'Slot not found',
+      'Slot is fully booked or unavailable',
+      'Mã giảm giá không hợp lệ',
+      'Mã giảm giá chưa có hiệu lực',
+      'Mã giảm giá đã hết hạn',
+      'Mã giảm giá không áp dụng cho Đặt lịch',
+      'Chưa đạt giá trị tối thiểu để dùng mã giảm giá',
+      'Mã giảm giá đã hết lượt sử dụng',
+      'Bạn đã sử dụng mã giảm giá này rồi',
+      'Chỉ được chọn một loại dịch vụ (Khám hoặc Grooming) cho mỗi lần đặt lịch',
+      'Loại dịch vụ không hợp lệ',
+      'Khung giờ đã chọn không khớp với loại dịch vụ (Khám & Điều trị)',
+      'Khung giờ đã chọn không khớp với loại dịch vụ (Grooming & Spa)'
+    ];
+    if (knownErrors.includes(error.message) || error.message.includes('dịch vụ') || error.message.includes('không khớp')) {
       return { EM: error.message, EC: 2, DT: '' };
     }
     return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const generateSlotsForDate = async (dateStr) => {
+  const dateObj = new Date(dateStr);
+  const branches = await prisma.branch.findMany({
+    where: { status: 'active' }
+  });
+
+  const slotsToCreate = [];
+
+  const examInterval = 30; // 30 mins
+  const groomInterval = 60; // 60 mins
+
+  for (const branch of branches) {
+    // 1. Exam Slots (8:00 to 21:00) -> 30-min interval, max_booking = 3
+    let current = new Date(dateStr + 'T08:00:00.000Z');
+    const examEnd = new Date(dateStr + 'T21:00:00.000Z');
+    
+    while (current.getTime() < examEnd.getTime()) {
+      const next = new Date(current.getTime() + examInterval * 60000);
+      
+      const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
+      const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+      
+      slotsToCreate.push({
+        branch_id: branch.branch_id,
+        slot_date: dateObj,
+        start_time: startTime,
+        end_time: endTime,
+        max_booking: 3,
+        slot_type: 'exam',
+        status: 'available'
+      });
+      
+      current = next;
+    }
+
+    // 2. Grooming Slots (8:00 to 21:00) -> 60-min interval, max_booking = 2
+    current = new Date(dateStr + 'T08:00:00.000Z');
+    const groomEnd = new Date(dateStr + 'T21:00:00.000Z');
+    
+    while (current.getTime() < groomEnd.getTime()) {
+      const next = new Date(current.getTime() + groomInterval * 60000);
+      
+      const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
+      const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+      
+      slotsToCreate.push({
+        branch_id: branch.branch_id,
+        slot_date: dateObj,
+        start_time: startTime,
+        end_time: endTime,
+        max_booking: 2,
+        slot_type: 'grooming',
+        status: 'available'
+      });
+      
+      current = next;
+    }
+  }
+
+  // Insert slots sequentially (avoiding duplicates)
+  for (const slot of slotsToCreate) {
+    const existing = await prisma.timeSlot.findFirst({
+      where: {
+        branch_id: slot.branch_id,
+        slot_date: slot.slot_date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        slot_type: slot.slot_type
+      }
+    });
+
+    if (!existing) {
+      await prisma.timeSlot.create({
+        data: slot
+      });
+    }
+  }
+};
+
+const generateAutoSlots = async (daysAhead = 7) => {
+  try {
+    const today = new Date();
+    for (let i = 0; i <= daysAhead; i++) {
+      const targetDate = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = targetDate.toISOString().substring(0, 10);
+      await generateSlotsForDate(dateStr);
+    }
+    console.log(`Successfully generated/checked slots for today and ${daysAhead} days ahead.`);
+  } catch (error) {
+    console.error('Error generating auto slots:', error);
   }
 };
 
@@ -1166,5 +1319,8 @@ module.exports = {
   getAppointmentPricing,
   checkoutAppointment,
   previewPricing,
-  bookAndCheckoutAppointment
+  bookAndCheckoutAppointment,
+  generateSlotsForDate,
+  generateAutoSlots
 };
+

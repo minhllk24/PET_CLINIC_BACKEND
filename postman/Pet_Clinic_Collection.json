@@ -1310,7 +1310,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/appointments/slots?date=2026-05-24&branch_id=1",
+							"raw": "{{base_url}}/appointments/slots?date=2026-05-24&branch_id=1&service_type=exam",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1326,6 +1326,11 @@
 								{
 									"key": "branch_id",
 									"value": "1"
+								},
+								{
+									"key": "service_type",
+									"value": "exam",
+									"description": "Loại dịch vụ lọc: exam hoặc grooming"
 								}
 							]
 						}

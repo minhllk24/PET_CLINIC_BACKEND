@@ -67,6 +67,10 @@ enum TimeSlotStatus {
   locked
   inactive
 }
+enum SlotType {
+  exam
+  grooming
+}
 enum AppointmentStatus {
   pending
   confirmed
@@ -590,6 +594,7 @@ model TimeSlot {
   max_booking  Int            @default(1)
   booked_count Int            @default(0)
   status       TimeSlotStatus @default(available)
+  slot_type    SlotType       @default(exam)
 
   doctor       Doctor?       @relation(fields: [doctor_id], references: [doctor_id], onDelete: SetNull, onUpdate: Cascade)
   branch       Branch        @relation(fields: [branch_id], references: [branch_id], onDelete: Restrict, onUpdate: Cascade)
@@ -597,6 +602,7 @@ model TimeSlot {
 
   @@index([doctor_id], map: "idx_time_slots_doctor_id")
   @@index([branch_id], map: "idx_time_slots_branch_id")
+  @@index([slot_type, branch_id, slot_date], map: "idx_time_slots_type_branch_date")
   @@map("time_slots")
 }
 

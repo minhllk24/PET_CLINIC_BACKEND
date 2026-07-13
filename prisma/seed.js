@@ -2453,6 +2453,94 @@ async function main() {
     }
   }
 
+  // 10. Generate TimeSlots
+  console.log('Generating timeslots for 7 days ahead...');
+  const branches = await prisma.branch.findMany({
+    where: { status: 'active' }
+  });
+
+  const today = new Date();
+  const examInterval = 30; // 30 mins
+  const groomInterval = 60; // 60 mins
+
+  for (let i = 0; i <= 7; i++) {
+    const targetDate = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+    const dateStr = targetDate.toISOString().substring(0, 10);
+    const dateObj = new Date(dateStr);
+
+    for (const branch of branches) {
+      // Exam Slots (8:00 to 21:00)
+      let current = new Date(dateStr + 'T08:00:00.000Z');
+      const examEnd = new Date(dateStr + 'T21:00:00.000Z');
+      
+      while (current.getTime() < examEnd.getTime()) {
+        const next = new Date(current.getTime() + examInterval * 60000);
+        const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
+        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        
+        const existing = await prisma.timeSlot.findFirst({
+          where: {
+            branch_id: branch.branch_id,
+            slot_date: dateObj,
+            start_time: startTime,
+            end_time: endTime,
+            slot_type: 'exam'
+          }
+        });
+
+        if (!existing) {
+          await prisma.timeSlot.create({
+            data: {
+              branch_id: branch.branch_id,
+              slot_date: dateObj,
+              start_time: startTime,
+              end_time: endTime,
+              max_booking: 3,
+              slot_type: 'exam',
+              status: 'available'
+            }
+          });
+        }
+        current = next;
+      }
+
+      // Grooming Slots (8:00 to 21:00)
+      current = new Date(dateStr + 'T08:00:00.000Z');
+      const groomEnd = new Date(dateStr + 'T21:00:00.000Z');
+      
+      while (current.getTime() < groomEnd.getTime()) {
+        const next = new Date(current.getTime() + groomInterval * 60000);
+        const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
+        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        
+        const existing = await prisma.timeSlot.findFirst({
+          where: {
+            branch_id: branch.branch_id,
+            slot_date: dateObj,
+            start_time: startTime,
+            end_time: endTime,
+            slot_type: 'grooming'
+          }
+        });
+
+        if (!existing) {
+          await prisma.timeSlot.create({
+            data: {
+              branch_id: branch.branch_id,
+              slot_date: dateObj,
+              start_time: startTime,
+              end_time: endTime,
+              max_booking: 2,
+              slot_type: 'grooming',
+              status: 'available'
+            }
+          });
+        }
+        current = next;
+      }
+    }
+  }
+
   console.log('Seed data successfully!');
 }
 
