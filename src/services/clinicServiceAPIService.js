@@ -35,7 +35,7 @@ const getAllServices = async (query) => {
         include: { category: true },
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' }
+        orderBy: { service_id: 'desc' }
       })
     ]);
 
