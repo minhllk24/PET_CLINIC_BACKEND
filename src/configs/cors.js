@@ -1,9 +1,18 @@
 require("dotenv").config();
 
 const configCors = (app) => {
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://overlying-lucrative-perm.ngrok-free.dev",
+    process.env.REACT_URL
+  ].filter(Boolean);
+
   app.use(function (req, res, next) {
-    // Website you wish to allow to connect
-    res.setHeader("Access-Control-Allow-Origin", process.env.REACT_URL);
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
 
     // Request methods you wish to allow
     res.setHeader(
@@ -14,11 +23,10 @@ const configCors = (app) => {
     // Request headers you wish to allow
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "X-Requested-With,content-type, Authorization"
+      "X-Requested-With,Content-Type,Authorization"
     );
 
     // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
     res.setHeader("Access-Control-Allow-Credentials", true);
 
     if (req.method === "OPTIONS") {
