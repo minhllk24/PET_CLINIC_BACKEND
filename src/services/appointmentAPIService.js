@@ -215,7 +215,7 @@ const createAppointment = async (userIdStr, data) => {
               weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : undefined,
               age: pet_data.age ? parseFloat(pet_data.age) : undefined,
               gender: pet_data.gender,
-              health_condition: pet_data.health_condition
+              health_status: pet_data.health_status
             },
             include: { species: true, breed: true }
           });
@@ -239,14 +239,14 @@ const createAppointment = async (userIdStr, data) => {
         // Create new pet
         const newPet = await tx.pet.create({
           data: {
-            user_id: userId,
+            owner_user_id: userId,
             pet_name: pet_data.pet_name,
             species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : null,
             breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : null,
             weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : null,
             age: pet_data.age ? parseFloat(pet_data.age) : null,
             gender: pet_data.gender || 'unknown',
-            health_condition: pet_data.health_condition || 'Normal'
+            health_status: pet_data.health_status || 'healthy'
           },
           include: { species: true, breed: true }
         });
@@ -973,7 +973,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
               weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : undefined,
               age: pet_data.age ? parseFloat(pet_data.age) : undefined,
               gender: pet_data.gender,
-              health_condition: pet_data.health_condition
+              health_status: pet_data.health_status
             },
             include: { species: true, breed: true }
           });
@@ -996,14 +996,14 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       } else if (pet_data && pet_data.pet_name) {
         const newPet = await tx.pet.create({
           data: {
-            user_id: userId,
+            owner_user_id: userId,
             pet_name: pet_data.pet_name,
             species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : null,
             breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : null,
             weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : null,
             age: pet_data.age ? parseFloat(pet_data.age) : null,
             gender: pet_data.gender || 'unknown',
-            health_condition: pet_data.health_condition || 'Normal'
+            health_status: pet_data.health_status || 'healthy'
           },
           include: { species: true, breed: true }
         });
