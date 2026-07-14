@@ -98,9 +98,10 @@ const searchServices = async (keyword, filters = {}) => {
   };
 };
 
-const searchPosts = async (keyword) => {
+const searchPosts = async (keyword, isCommunity = false) => {
   const whereCondition = {
     status: 'published',
+    post_type: isCommunity ? 'community' : 'official_blog',
     OR: [
       { title: { contains: keyword } },
       { excerpt: { contains: keyword } },
@@ -138,9 +139,48 @@ const searchPosts = async (keyword) => {
   return {
     count,
     items: items.map(item => ({
-      _type: 'blog',
+      _type: isCommunity ? 'community' : 'blog',
       ...item,
       _relevance: calculateRelevance(keyword, item.title, item.excerpt)
+    }))
+  };
+};
+
+const searchFirstAid = async (keyword) => {
+  const whereCondition = {
+    status: 'active',
+    OR: [
+      { title: { contains: keyword } },
+      { summary: { contains: keyword } }
+    ]
+  };
+
+  const [count, items] = await prisma.$transaction([
+    prisma.firstAidGuide.count({ where: whereCondition }),
+    prisma.firstAidGuide.findMany({
+      where: whereCondition,
+      select: {
+        guide_id: true,
+        title: true,
+        slug: true,
+        summary: true,
+        thumbnail_url: true,
+        view_count: true,
+        created_at: true,
+        category: {
+          select: { category_name: true }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    })
+  ]);
+
+  return {
+    count,
+    items: items.map(item => ({
+      _type: 'firstaid',
+      ...item,
+      _relevance: calculateRelevance(keyword, item.title, item.summary)
     }))
   };
 };
@@ -325,7 +365,7 @@ const unifiedSearch = async (query) => {
     }
 
     // Run parallel queries based on scope and calculate facets
-    const validScopes = ['all', 'service', 'product', 'blog'];
+    const validScopes = ['all', 'service', 'product', 'blog', 'firstaid', 'community'];
     const activeScope = validScopes.includes(scope) ? scope : 'all';
 
     const promises = [];
@@ -341,8 +381,16 @@ const unifiedSearch = async (query) => {
       scopeKeys.push('service');
     }
     if (activeScope === 'all' || activeScope === 'blog') {
-      promises.push(searchPosts(keyword));
+      promises.push(searchPosts(keyword, false));
       scopeKeys.push('blog');
+    }
+    if (activeScope === 'all' || activeScope === 'community') {
+      promises.push(searchPosts(keyword, true));
+      scopeKeys.push('community');
+    }
+    if (activeScope === 'all' || activeScope === 'firstaid') {
+      promises.push(searchFirstAid(keyword));
+      scopeKeys.push('firstaid');
     }
 
     // Facet queries (run in parallel for sidebar counts)
@@ -356,7 +404,7 @@ const unifiedSearch = async (query) => {
     ]);
 
     // Build counts and merge items
-    const counts = { service: 0, product: 0, blog: 0 };
+    const counts = { service: 0, product: 0, blog: 0, community: 0, firstaid: 0 };
     let allItems = [];
 
     searchResults.forEach((result, index) => {
@@ -379,8 +427,16 @@ const unifiedSearch = async (query) => {
         countKeys.push('service');
       }
       if (activeScope !== 'blog') {
-        countPromises.push(searchPosts(keyword).then(r => r.count));
+        countPromises.push(searchPosts(keyword, false).then(r => r.count));
         countKeys.push('blog');
+      }
+      if (activeScope !== 'community') {
+        countPromises.push(searchPosts(keyword, true).then(r => r.count));
+        countKeys.push('community');
+      }
+      if (activeScope !== 'firstaid') {
+        countPromises.push(searchFirstAid(keyword).then(r => r.count));
+        countKeys.push('firstaid');
       }
 
       const otherCounts = await Promise.all(countPromises);
