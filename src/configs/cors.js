@@ -17,7 +17,7 @@ const configCors = (app) => {
       const isAllowed = allowedOrigins.some(allowed => {
         const allowedWithoutSlash = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
         return allowedWithoutSlash === originWithoutSlash;
-      });
+      }) || (originWithoutSlash && originWithoutSlash.endsWith('.vercel.app'));
 
       if (isAllowed) {
         res.setHeader("Access-Control-Allow-Origin", origin);
