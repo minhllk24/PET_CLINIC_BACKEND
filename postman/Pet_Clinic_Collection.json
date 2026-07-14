@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "c13d8036-6c8f-4f67-8e10-1c6f3d9b895a",
 		"name": "Pet Clinic & E-Commerce API",
-		"description": "Full API Collection for Dr.Pet's House / Pet Clinic Backend.\n\nHướng dẫn:\n1. Import file này vào Postman.\n2. Gọi API Login trước tiên, token sẽ tự động lưu vào biến {{access_token}}.\n3. Tất cả API yêu cầu đăng nhập đã được set sẵn Header Authorization.\n\nTài khoản test (password: Abc12345):\n- Admin: admin@petclinic.com\n- Doctor: doctor1@petclinic.com\n- Customer: customer1@petclinic.com",
+		"description": "Full API Collection for Dr.Pet's House / Pet Clinic Backend.\n\nHÆ°á»›ng dáº«n:\n1. Import file nĂ y vĂ o Postman.\n2. Gá»i API Login trÆ°á»›c tiĂªn, token sáº½ tá»± Ä‘á»™ng lÆ°u vĂ o biáº¿n {{access_token}}.\n3. Táº¥t cáº£ API yĂªu cáº§u Ä‘Äƒng nháº­p Ä‘Ă£ Ä‘Æ°á»£c set sáºµn Header Authorization.\n\nTĂ i khoáº£n test (password: Abc12345):\n- Admin: admin@petclinic.com\n- Doctor: doctor1@petclinic.com\n- Customer: customer1@petclinic.com",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -492,6 +492,40 @@
 							],
 							"path": [
 								"my-pets"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "luna",
+									"description": "Tìm theo tên thú cưng (không bắt buộc)",
+									"disabled": true
+								},
+								{
+									"key": "health_status",
+									"value": "healthy",
+									"description": "healthy | treating | need_recheck | unknown",
+									"disabled": true
+								},
+								{
+									"key": "sort_by",
+									"value": "pet_name",
+									"description": "created_at | pet_name",
+									"disabled": true
+								},
+								{
+									"key": "sort_order",
+									"value": "asc",
+									"description": "asc | desc",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "12"
+								}
 							]
 						}
 					}
@@ -520,7 +554,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"species_id\": \"1\",\n    \"breed_id\": \"1\",\n    \"pet_name\": \"Milo\",\n    \"gender\": \"male\",\n    \"birth_date\": \"2024-01-15\",\n    \"age\": \"2 tuổi\",\n    \"weight_kg\": 3.5,\n    \"profile_image_url\": \"https://example.com/milo.jpg\",\n    \"health_status\": \"healthy\",\n    \"medical_note\": \"Khoe manh, an tot\"\n}",
+							"raw": "{\n    \"species_id\": \"1\",\n    \"breed_id\": \"1\",\n    \"pet_name\": \"Milo\",\n    \"gender\": \"male\",\n    \"birth_date\": \"2024-01-15\",\n    \"age\": \"2 tuá»•i\",\n    \"weight_kg\": 3.5,\n    \"profile_image_url\": \"https://example.com/milo.jpg\",\n    \"health_status\": \"healthy\",\n    \"medical_note\": \"Khoe manh, an tot\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -545,7 +579,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"pet_name\": \"Milo Updated\",\n    \"age\": \"3 tuổi\",\n    \"weight_kg\": 4.0\n}",
+							"raw": "{\n    \"pet_name\": \"Milo Updated\",\n    \"age\": \"3 tuá»•i\",\n    \"weight_kg\": 4.0\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -612,7 +646,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"category_name\": \"Phụ kiện thú cưng\",\n    \"image_url\": \"https://example.com/category.jpg\"\n}",
+							"raw": "{\n    \"category_name\": \"Phá»¥ kiá»‡n thĂº cÆ°ng\",\n    \"image_url\": \"https://example.com/category.jpg\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -710,12 +744,12 @@
 								{
 									"key": "minPrice",
 									"value": "20",
-									"description": "Giá tối thiểu (VD: 20)"
+									"description": "GiĂ¡ tá»‘i thiá»ƒu (VD: 20)"
 								},
 								{
 									"key": "maxPrice",
 									"value": "50",
-									"description": "Giá tối đa (VD: 50)"
+									"description": "GiĂ¡ tá»‘i Ä‘a (VD: 50)"
 								}
 							]
 						}
@@ -1083,7 +1117,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao hàng trong giờ hành chính\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}",
+							"raw": "{\n    \"recipient_name\": \"Nguyen Van A\",\n    \"recipient_phone\": \"0123456789\",\n    \"shipping_address\": \"123 ABC Street, HCMC\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao hĂ ng trong giá» hĂ nh chĂ­nh\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": 3,\n            \"quantity\": 1\n        }\n    ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1109,7 +1143,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"full_name\": \"Nguyen Van B\",\n    \"phone\": \"0987654321\",\n    \"email\": \"guest@example.com\",\n    \"address_line\": \"456 Đường Lê Lợi\",\n    \"ward\": \"Phường Bến Nghé\",\n    \"district\": \"Quận 1\",\n    \"province\": \"TP. Hồ Chí Minh\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao ngoài giờ hành chính\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
+							"raw": "{\n    \"full_name\": \"Nguyen Van B\",\n    \"phone\": \"0987654321\",\n    \"email\": \"guest@example.com\",\n    \"address_line\": \"456 ÄÆ°á»ng LĂª Lá»£i\",\n    \"ward\": \"PhÆ°á»ng Báº¿n NghĂ©\",\n    \"district\": \"Quáº­n 1\",\n    \"province\": \"TP. Há»“ ChĂ­ Minh\",\n    \"payment_method\": \"cod\",\n    \"voucher_code\": \"\",\n    \"note\": \"Giao ngoĂ i giá» hĂ nh chĂ­nh\",\n    \"items\": [\n        {\n            \"product_id\": 1,\n            \"variant_id\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1408,7 +1442,7 @@
 								{
 									"key": "service_type",
 									"value": "exam",
-									"description": "Loại dịch vụ lọc: exam hoặc grooming"
+									"description": "Loáº¡i dá»‹ch vá»¥ lá»c: exam hoáº·c grooming"
 								}
 							]
 						}
@@ -1432,22 +1466,22 @@
 								{
 									"key": "status",
 									"value": "pending",
-									"description": "Lọc theo trạng thái: pending, confirmed, completed, cancelled, rescheduled, missed (optional)"
+									"description": "Lá»c theo tráº¡ng thĂ¡i: pending, confirmed, completed, cancelled, rescheduled, missed (optional)"
 								},
 								{
 									"key": "keyword",
 									"value": "Milo",
-									"description": "Tìm kiếm theo tên pet, mã đặt lịch, tên dịch vụ (optional)"
+									"description": "TĂ¬m kiáº¿m theo tĂªn pet, mĂ£ Ä‘áº·t lá»‹ch, tĂªn dá»‹ch vá»¥ (optional)"
 								},
 								{
 									"key": "page",
 									"value": "1",
-									"description": "Số trang (optional)"
+									"description": "Sá»‘ trang (optional)"
 								},
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Số lượng bản ghi mỗi trang (optional)"
+									"description": "Sá»‘ lÆ°á»£ng báº£n ghi má»—i trang (optional)"
 								}
 							]
 						}
@@ -1476,7 +1510,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"description": "Lấy thông tin chi tiết lịch hẹn nâng cấp (bao gồm thông tin chủ thú cưng, thông tin thú cưng mở rộng, dịch vụ kèm danh mục, khung giờ khám và thanh toán chi tiết).",
+						"description": "Láº¥y thĂ´ng tin chi tiáº¿t lá»‹ch háº¹n nĂ¢ng cáº¥p (bao gá»“m thĂ´ng tin chá»§ thĂº cÆ°ng, thĂ´ng tin thĂº cÆ°ng má»Ÿ rá»™ng, dá»‹ch vá»¥ kĂ¨m danh má»¥c, khung giá» khĂ¡m vĂ  thanh toĂ¡n chi tiáº¿t).",
 						"url": {
 							"raw": "{{base_url}}/appointments/1",
 							"host": [
@@ -1494,7 +1528,7 @@
 					"request": {
 						"method": "POST",
 						"header": [],
-						"description": "Đặt lịch hẹn. Backend sẽ tự động tính phụ thu cân nặng (+50.000 đ/dịch vụ nếu pet > 5kg) và lưu vào trường surcharge_amount của appointment_services.",
+						"description": "Äáº·t lá»‹ch háº¹n. Backend sáº½ tá»± Ä‘á»™ng tĂ­nh phá»¥ thu cĂ¢n náº·ng (+50.000 Ä‘/dá»‹ch vá»¥ náº¿u pet > 5kg) vĂ  lÆ°u vĂ o trÆ°á»ng surcharge_amount cá»§a appointment_services.",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"slot_id\": \"1\",\n    \"pet_id\": \"1\",\n    \"pet_data\": {\n        \"pet_name\": \"Milo\",\n        \"species_id\": \"1\",\n        \"breed_id\": \"1\",\n        \"weight_kg\": 4.5,\n        \"age\": 2,\n        \"gender\": \"male\",\n        \"health_status\": \"healthy\"\n    },\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ],\n    \"customer_name_snapshot\": \"Nguyen Van A\",\n    \"customer_phone_snapshot\": \"0123456789\",\n    \"note\": \"Meo bi ho, can kham tong quat\",\n    \"condition_description\": \"Thu cung co bieu hien met moi\"\n}",
@@ -1601,7 +1635,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"description": "Preview tổng tiền cho lịch hẹn trước khi xác nhận. Phụ thu cân nặng sẽ tự động cộng dồn từ các dịch vụ (surcharge_amount). Có hỗ trợ áp voucher (chỉ nhận voucher loại appointment hoặc all).",
+						"description": "Preview tá»•ng tiá»n cho lá»‹ch háº¹n trÆ°á»›c khi xĂ¡c nháº­n. Phá»¥ thu cĂ¢n náº·ng sáº½ tá»± Ä‘á»™ng cá»™ng dá»“n tá»« cĂ¡c dá»‹ch vá»¥ (surcharge_amount). CĂ³ há»— trá»£ Ă¡p voucher (chá»‰ nháº­n voucher loáº¡i appointment hoáº·c all).",
 						"url": {
 							"raw": "{{base_url}}/appointments/1/pricing?voucher_code=DCFV",
 							"host": [
@@ -1616,7 +1650,7 @@
 								{
 									"key": "voucher_code",
 									"value": "DCFV",
-									"description": "Mã giảm giá (optional)"
+									"description": "MĂ£ giáº£m giĂ¡ (optional)"
 								}
 							]
 						}
@@ -1627,7 +1661,7 @@
 					"request": {
 						"method": "POST",
 						"header": [],
-						"description": "Xác nhận đặt lịch và tiến hành thanh toán. Tạo bản ghi Order & Payment, cập nhật payment_status trên Appointment. Phụ thu cân nặng và voucher discount được áp dụng và lưu vết chính xác.",
+						"description": "XĂ¡c nháº­n Ä‘áº·t lá»‹ch vĂ  tiáº¿n hĂ nh thanh toĂ¡n. Táº¡o báº£n ghi Order & Payment, cáº­p nháº­t payment_status trĂªn Appointment. Phá»¥ thu cĂ¢n náº·ng vĂ  voucher discount Ä‘Æ°á»£c Ă¡p dá»¥ng vĂ  lÆ°u váº¿t chĂ­nh xĂ¡c.",
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"payment_method\": \"store\",\n    \"voucher_code\": \"DCFV\"\n}",
@@ -2344,7 +2378,7 @@
 								{
 									"key": "limit",
 									"value": "4",
-									"description": "Số lượng bài viết xu hướng muốn lấy"
+									"description": "Sá»‘ lÆ°á»£ng bĂ i viáº¿t xu hÆ°á»›ng muá»‘n láº¥y"
 								}
 							]
 						}
@@ -2370,27 +2404,27 @@
 								{
 									"key": "categoryId",
 									"value": "1",
-									"description": "Lọc theo ID danh mục bài viết"
+									"description": "Lá»c theo ID danh má»¥c bĂ i viáº¿t"
 								},
 								{
 									"key": "type",
 									"value": "official_blog",
-									"description": "Lọc theo loại: official_blog | community"
+									"description": "Lá»c theo loáº¡i: official_blog | community"
 								},
 								{
 									"key": "page",
 									"value": "1",
-									"description": "Số trang"
+									"description": "Sá»‘ trang"
 								},
 								{
 									"key": "limit",
 									"value": "8",
-									"description": "Số bài viết trên mỗi trang"
+									"description": "Sá»‘ bĂ i viáº¿t trĂªn má»—i trang"
 								},
 								{
 									"key": "excludeId",
 									"value": "5",
-									"description": "Loại trừ bài viết có ID này (dùng cho bài viết liên quan)",
+									"description": "Loáº¡i trá»« bĂ i viáº¿t cĂ³ ID nĂ y (dĂ¹ng cho bĂ i viáº¿t liĂªn quan)",
 									"disabled": true
 								}
 							]
@@ -2417,17 +2451,17 @@
 								{
 									"key": "type",
 									"value": "community",
-									"description": "Lọc theo loại bài viết cộng đồng"
+									"description": "Lá»c theo loáº¡i bĂ i viáº¿t cá»™ng Ä‘á»“ng"
 								},
 								{
 									"key": "page",
 									"value": "1",
-									"description": "Số trang"
+									"description": "Sá»‘ trang"
 								},
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Số bài viết trên mỗi trang"
+									"description": "Sá»‘ bĂ i viáº¿t trĂªn má»—i trang"
 								}
 							]
 						}
@@ -2441,7 +2475,7 @@
 						},
 						"method": "GET",
 						"header": [],
-						"description": "Lấy chi tiết bài viết qua slug. Lượt xem (view_count) sẽ tự động được tăng thêm 1.",
+						"description": "Láº¥y chi tiáº¿t bĂ i viáº¿t qua slug. LÆ°á»£t xem (view_count) sáº½ tá»± Ä‘á»™ng Ä‘Æ°á»£c tÄƒng thĂªm 1.",
 						"url": {
 							"raw": "{{base_url}}/posts/sample-post-slug",
 							"host": [
@@ -2461,7 +2495,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"excerpt\": \"Tóm tắt ngắn gọn nội dung bài viết chia sẻ về cách nuôi và chăm sóc mèo con cực đơn giản.\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
+							"raw": "{\n    \"post_category_id\": \"1\",\n    \"post_type\": \"community\",\n    \"title\": \"Chia se kinh nghiem nuoi meo\",\n    \"excerpt\": \"TĂ³m táº¯t ngáº¯n gá»n ná»™i dung bĂ i viáº¿t chia sáº» vá» cĂ¡ch nuĂ´i vĂ  chÄƒm sĂ³c mĂ¨o con cá»±c Ä‘Æ¡n giáº£n.\",\n    \"content\": \"<p>Day la bai viet chia se kinh nghiem nuoi meo cua minh...</p>\",\n    \"thumbnail_url\": \"https://example.com/thumb.jpg\",\n    \"status\": \"published\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2514,7 +2548,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"content\": \"Bài viết rất hay và bổ ích!\"\n}",
+							"raw": "{\n    \"content\": \"BĂ i viáº¿t ráº¥t hay vĂ  bá»• Ă­ch!\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2541,7 +2575,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"content\": \"Cảm ơn bạn đã phản hồi!\"\n}",
+							"raw": "{\n    \"content\": \"Cáº£m Æ¡n báº¡n Ä‘Ă£ pháº£n há»“i!\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2644,29 +2678,29 @@
 								{
 									"key": "categoryId",
 									"value": "1",
-									"description": "Lọc theo ID danh mục sơ cứu",
+									"description": "Lá»c theo ID danh má»¥c sÆ¡ cá»©u",
 									"disabled": true
 								},
 								{
 									"key": "search",
 									"value": "hoc",
-									"description": "Tìm kiếm theo từ khóa trong tiêu đề/mô tả",
+									"description": "TĂ¬m kiáº¿m theo tá»« khĂ³a trong tiĂªu Ä‘á»/mĂ´ táº£",
 									"disabled": true
 								},
 								{
 									"key": "page",
 									"value": "1",
-									"description": "Trang hiện tại"
+									"description": "Trang hiá»‡n táº¡i"
 								},
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Số lượng bản ghi mỗi trang"
+									"description": "Sá»‘ lÆ°á»£ng báº£n ghi má»—i trang"
 								},
 								{
 									"key": "excludeId",
 									"value": "2",
-									"description": "Loại trừ ID cẩm nang này (dùng cho bài viết liên quan)",
+									"description": "Loáº¡i trá»« ID cáº©m nang nĂ y (dĂ¹ng cho bĂ i viáº¿t liĂªn quan)",
 									"disabled": true
 								}
 							]
@@ -2701,7 +2735,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xử lý khi thú cưng bị say nóng\",\n    \"situation_description\": \"Thú cưng bị say nóng khi nhiệt độ cơ thể tăng cao đột ngột do thời tiết nắng nóng hoặc ở trong không gian kín như ô tô.\",\n    \"emergency_phone\": \"0868686868\",\n    \"video_url\": \"https://www.youtube.com/watch?v=sample_heatstroke\",\n    \"status\": \"published\"\n}",
+							"raw": "{\n    \"first_aid_category_id\": \"1\",\n    \"title\": \"Xá»­ lĂ½ khi thĂº cÆ°ng bá»‹ say nĂ³ng\",\n    \"situation_description\": \"ThĂº cÆ°ng bá»‹ say nĂ³ng khi nhiá»‡t Ä‘á»™ cÆ¡ thá»ƒ tÄƒng cao Ä‘á»™t ngá»™t do thá»i tiáº¿t náº¯ng nĂ³ng hoáº·c á»Ÿ trong khĂ´ng gian kĂ­n nhÆ° Ă´ tĂ´.\",\n    \"emergency_phone\": \"0868686868\",\n    \"video_url\": \"https://www.youtube.com/watch?v=sample_heatstroke\",\n    \"status\": \"published\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -3019,50 +3053,50 @@
 								{
 									"key": "keyword",
 									"value": "tam",
-									"description": "Từ khóa tìm kiếm"
+									"description": "Tá»« khĂ³a tĂ¬m kiáº¿m"
 								},
 								{
 									"key": "scope",
 									"value": "all",
-									"description": "Phạm vi tìm kiếm: all | service | product | blog"
+									"description": "Pháº¡m vi tĂ¬m kiáº¿m: all | service | product | blog"
 								},
 								{
 									"key": "page",
 									"value": "1",
-									"description": "Số trang"
+									"description": "Sá»‘ trang"
 								},
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Số kết quả mỗi trang"
+									"description": "Sá»‘ káº¿t quáº£ má»—i trang"
 								},
 								{
 									"key": "sort",
 									"value": "relevance",
-									"description": "Sắp xếp: relevance | price_asc | price_desc | newest | best_selling | rating"
+									"description": "Sáº¯p xáº¿p: relevance | price_asc | price_desc | newest | best_selling | rating"
 								},
 								{
 									"key": "serviceCategoryId",
 									"value": "1",
-									"description": "Lọc theo nhóm dịch vụ",
+									"description": "Lá»c theo nhĂ³m dá»‹ch vá»¥",
 									"disabled": true
 								},
 								{
 									"key": "productCategoryId",
 									"value": "1",
-									"description": "Lọc theo danh mục sản phẩm",
+									"description": "Lá»c theo danh má»¥c sáº£n pháº©m",
 									"disabled": true
 								},
 								{
 									"key": "minPrice",
 									"value": "20000",
-									"description": "Giá tối thiểu",
+									"description": "GiĂ¡ tá»‘i thiá»ƒu",
 									"disabled": true
 								},
 								{
 									"key": "maxPrice",
 									"value": "200000",
-									"description": "Giá tối đa",
+									"description": "GiĂ¡ tá»‘i Ä‘a",
 									"disabled": true
 								}
 							]
@@ -3087,12 +3121,12 @@
 								{
 									"key": "q",
 									"value": "tam",
-									"description": "Từ khóa đang gõ để gợi ý"
+									"description": "Tá»« khĂ³a Ä‘ang gĂµ Ä‘á»ƒ gá»£i Ă½"
 								},
 								{
 									"key": "limit",
 									"value": "10",
-									"description": "Số gợi ý tối đa"
+									"description": "Sá»‘ gá»£i Ă½ tá»‘i Ä‘a"
 								}
 							]
 						}

@@ -4,7 +4,7 @@ import { sendResponse } from '../utils/responseHelpers';
 const handleGetMyPets = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    let data = await petAPIService.getMyPets(userId);
+    let data = await petAPIService.getMyPets(userId, req.query);
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);

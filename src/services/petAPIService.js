@@ -1,37 +1,73 @@
 import prisma from '../configs/prisma';
 import { toBigIntId } from '../utils/prismaHelpers';
 
-const getMyPets = async (userIdStr) => {
+const getMyPets = async (userIdStr, query = {}) => {
   try {
     const userId = toBigIntId(userIdStr);
     if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
 
-    const pets = await prisma.pet.findMany({
-      where: {
-        owner_user_id: userId,
-        status: 'active'
-      },
-      include: {
-        species: true,
-        breed: true,
-        pet_images: { where: { is_primary: true } },
-        medical_records: {
-          orderBy: { visit_date: 'desc' },
-          take: 1,
-          select: { visit_date: true }
-        }
-      },
-      orderBy: { created_at: 'desc' }
-    });
+    const search = typeof query.search === 'string' ? query.search.trim() : '';
+    const healthStatus = query.health_status;
+    const validHealthStatuses = ['healthy', 'treating', 'need_recheck', 'unknown'];
+    if (healthStatus && !validHealthStatuses.includes(healthStatus)) {
+      return { EM: 'Invalid health_status', EC: 1, DT: '' };
+    }
 
-    // Format latest_exam_date
+    const sortFields = {
+      created_at: 'created_at',
+      pet_name: 'pet_name'
+    };
+    const sortBy = sortFields[query.sort_by] || 'created_at';
+    const sortOrder = query.sort_order === 'asc' ? 'asc' : 'desc';
+    const page = Math.max(parseInt(query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(query.limit, 10) || 12, 1), 100);
+
+    const where = {
+      owner_user_id: userId,
+      status: 'active',
+      ...(search ? { pet_name: { contains: search } } : {}),
+      ...(healthStatus ? { health_status: healthStatus } : {})
+    };
+
+    const [pets, total] = await prisma.$transaction([
+      prisma.pet.findMany({
+        where,
+        include: {
+          species: true,
+          breed: true,
+          pet_images: { where: { is_primary: true } },
+          medical_records: {
+            orderBy: { visit_date: 'desc' },
+            take: 1,
+            select: { visit_date: true }
+          }
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit
+      }),
+      prisma.pet.count({ where })
+    ]);
+
     const formattedPets = pets.map(pet => ({
       ...pet,
       latest_exam_date: pet.medical_records.length > 0 ? pet.medical_records[0].visit_date : null,
-      medical_records: undefined // hide raw array
+      medical_records: undefined
     }));
 
-    return { EM: 'Get my pets successful', EC: 0, DT: formattedPets };
+    return {
+      EM: 'Get my pets successful',
+      EC: 0,
+      DT: {
+        pets: formattedPets,
+        pagination: {
+          page,
+          limit,
+          total,
+          total_pages: Math.ceil(total / limit)
+        }
+      }
+    };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -131,6 +167,7 @@ const createPet = async (userIdStr, data) => {
         weight_kg: data.weight_kg ? parseFloat(data.weight_kg) : null,
         health_status: data.health_status || 'unknown',
         medical_note: data.medical_note || null,
+        profile_image_url: data.profile_image_url || null,
       }
     });
 
@@ -215,6 +252,7 @@ const updatePet = async (id, data, currentUser) => {
     if (data.weight_kg) updateData.weight_kg = parseFloat(data.weight_kg);
     if (data.health_status) updateData.health_status = data.health_status;
     if (data.medical_note !== undefined) updateData.medical_note = data.medical_note;
+    if (data.profile_image_url !== undefined) updateData.profile_image_url = data.profile_image_url || null;
     if (data.status && currentUser.role_code === 'ADMIN') updateData.status = data.status;
 
     const updatedPet = await prisma.pet.update({
@@ -222,20 +260,21 @@ const updatePet = async (id, data, currentUser) => {
       data: updateData
     });
 
-    if (data.profile_image_url) {
-      // Set all existing images to is_primary: false
+    if (data.profile_image_url !== undefined) {
       await prisma.petImage.updateMany({
         where: { pet_id: petId, is_primary: true },
         data: { is_primary: false }
       });
-      // Create new primary image
-      await prisma.petImage.create({
-        data: {
-          pet_id: petId,
-          image_url: data.profile_image_url,
-          is_primary: true
-        }
-      });
+
+      if (data.profile_image_url) {
+        await prisma.petImage.create({
+          data: {
+            pet_id: petId,
+            image_url: data.profile_image_url,
+            is_primary: true
+          }
+        });
+      }
     }
 
     return { EM: 'Update pet successful', EC: 0, DT: updatedPet };

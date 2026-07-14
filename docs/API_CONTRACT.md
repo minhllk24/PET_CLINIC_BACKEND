@@ -1,4 +1,4 @@
-# Pet Clinic Backend API Contract
+﻿# Pet Clinic Backend API Contract
 
 Tai lieu nay duoc lap tu source backend thuc te, chu yeu tu:
 
@@ -392,7 +392,32 @@ Success `DT`: breeds of species.
 
 Auth: Auth
 
-Success `DT`: current user's active pets, include `species`, `breed`, primary `pet_images`, `latest_exam_date`.
+Query params (all optional):
+
+```text
+search=luna          # search by pet name (contains)
+health_status=healthy # filter by health_status (healthy|treating|need_recheck|unknown)
+sort_by=pet_name     # sort field (created_at|pet_name)
+sort_order=desc      # asc or desc
+page=1               # page number (default 1)
+limit=12             # items per page (default 12, max 100)
+```
+
+Success `DT`:
+
+```json
+{
+  "pets": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 12,
+    "total": 5,
+    "total_pages": 1
+  }
+}
+```
+
+Each pet includes `species`, `breed`, primary `pet_images`, `latest_exam_date`.
 
 ### GET `/pets/:id`
 
