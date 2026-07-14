@@ -2469,26 +2469,29 @@ async function main() {
     const dateObj = new Date(dateStr);
 
     for (const branch of branches) {
+      // Get existing slots for the branch and date to avoid duplicates
+      const existingSlots = await prisma.timeSlot.findMany({
+        where: {
+          branch_id: branch.branch_id,
+          slot_date: dateObj
+        }
+      });
+
+      const existingKeys = new Set(
+        existingSlots.map(s => `${s.slot_type}-${s.start_time.toISOString().substring(11, 19)}`)
+      );
+
       // Exam Slots (8:00 to 21:00)
       let current = new Date(dateStr + 'T08:00:00.000Z');
       const examEnd = new Date(dateStr + 'T21:00:00.000Z');
       
       while (current.getTime() < examEnd.getTime()) {
         const next = new Date(current.getTime() + examInterval * 60000);
-        const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
-        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        const startTimeIso = current.toISOString().substring(11, 19);
         
-        const existing = await prisma.timeSlot.findFirst({
-          where: {
-            branch_id: branch.branch_id,
-            slot_date: dateObj,
-            start_time: startTime,
-            end_time: endTime,
-            slot_type: 'exam'
-          }
-        });
-
-        if (!existing) {
+        if (!existingKeys.has(`exam-${startTimeIso}`)) {
+          const startTime = new Date(`1970-01-01T${startTimeIso}Z`);
+          const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
           await prisma.timeSlot.create({
             data: {
               branch_id: branch.branch_id,
@@ -2510,20 +2513,11 @@ async function main() {
       
       while (current.getTime() < groomEnd.getTime()) {
         const next = new Date(current.getTime() + groomInterval * 60000);
-        const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
-        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        const startTimeIso = current.toISOString().substring(11, 19);
         
-        const existing = await prisma.timeSlot.findFirst({
-          where: {
-            branch_id: branch.branch_id,
-            slot_date: dateObj,
-            start_time: startTime,
-            end_time: endTime,
-            slot_type: 'grooming'
-          }
-        });
-
-        if (!existing) {
+        if (!existingKeys.has(`grooming-${startTimeIso}`)) {
+          const startTime = new Date(`1970-01-01T${startTimeIso}Z`);
+          const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
           await prisma.timeSlot.create({
             data: {
               branch_id: branch.branch_id,
