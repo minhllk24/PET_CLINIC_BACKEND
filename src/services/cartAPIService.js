@@ -6,8 +6,8 @@ const getCartByUserId = async (userIdStr) => {
     const userId = toBigIntId(userIdStr);
     if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
 
-    let cart = await prisma.cart.findUnique({
-      where: { user_id: userId },
+    let cart = await prisma.cart.findFirst({
+      where: { user_id: userId, status: 'active' },
       include: {
         cart_items: {
           include: {
@@ -48,7 +48,7 @@ const addToCart = async (userIdStr, data) => {
     const variantId = data.variant_id ? toBigIntId(data.variant_id) : null;
 
     // Get or create cart
-    let cart = await prisma.cart.findUnique({ where: { user_id: userId } });
+    let cart = await prisma.cart.findFirst({ where: { user_id: userId, status: 'active' } });
     if (!cart) {
       cart = await prisma.cart.create({ data: { user_id: userId } });
     }
@@ -116,7 +116,7 @@ const updateCartItem = async (userIdStr, itemId, data) => {
     const cartItemId = toBigIntId(itemId);
     if (!userId || !cartItemId) return { EM: 'Invalid ID', EC: 1, DT: '' };
 
-    const cart = await prisma.cart.findUnique({ where: { user_id: userId } });
+    const cart = await prisma.cart.findFirst({ where: { user_id: userId, status: 'active' } });
     if (!cart) return { EM: 'Cart not found', EC: -1, DT: '' };
 
     const item = await prisma.cartItem.findFirst({
@@ -171,7 +171,7 @@ const deleteCartItem = async (userIdStr, itemId) => {
     const cartItemId = toBigIntId(itemId);
     if (!userId || !cartItemId) return { EM: 'Invalid ID', EC: 1, DT: '' };
 
-    const cart = await prisma.cart.findUnique({ where: { user_id: userId } });
+    const cart = await prisma.cart.findFirst({ where: { user_id: userId, status: 'active' } });
     if (!cart) return { EM: 'Cart not found', EC: -1, DT: '' };
 
     const item = await prisma.cartItem.findFirst({

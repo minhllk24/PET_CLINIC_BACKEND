@@ -150,8 +150,8 @@ const checkoutCart = async (userIdStr, data) => {
       }
     } else {
       // Fallback: Get cart items from DB that are selected
-      const cart = await prisma.cart.findUnique({
-        where: { user_id: userId },
+      const cart = await prisma.cart.findFirst({
+        where: { user_id: userId, status: 'active' },
         include: { cart_items: { where: { is_selected: true }, include: { product: true } } }
       });
 
