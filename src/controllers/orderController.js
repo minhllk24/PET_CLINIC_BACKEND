@@ -55,11 +55,35 @@ const handleGuestCheckout = async (req, res) => {
   }
 };
 
+const handleGetOrderCounts = async (req, res) => {
+  try {
+    let data = await orderAPIService.getOrderCounts(req.user);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleCancelOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    let data = await orderAPIService.cancelOrderByCustomer(id, req.user);
+    const status = data.statusCode || 200;
+    return sendResponse(res, status, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetOrders,
   handleGetDetailOrder,
   handleCheckout,
   handleGuestCheckout,
-  handleUpdateOrderStatus
+  handleUpdateOrderStatus,
+  handleGetOrderCounts,
+  handleCancelOrder
 };
 

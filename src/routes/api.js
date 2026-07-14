@@ -92,10 +92,12 @@ const initAPIRoutes = (app) => {
 
   // --- ORDER ROUTES ---
   router.get('/orders', verifyToken, orderController.handleGetOrders);
+  router.get('/orders/counts', verifyToken, orderController.handleGetOrderCounts);
   router.get('/orders/:id', verifyToken, orderController.handleGetDetailOrder);
   router.post('/orders/checkout', verifyToken, orderController.handleCheckout);
   router.post('/orders/guest-checkout', orderController.handleGuestCheckout);
   router.put('/orders/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF']), orderController.handleUpdateOrderStatus);
+  router.patch('/orders/:id/cancel', verifyToken, orderController.handleCancelOrder);
 
   // --- PAYMENT ROUTES ---
   router.get('/payments', verifyToken, checkPermission(['ADMIN']), paymentController.handleGetPayments);

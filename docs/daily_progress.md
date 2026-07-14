@@ -339,4 +339,9 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Sửa lỗi API Đánh giá dịch vụ (Service Review) phục vụ màn hình đánh giá:**
   - Khắc phục lỗi crash `TypeError` trong `createReview` và `updateReviewStatus` bằng cách sửa tên model Prisma sai từ `tx.clinicService` thành `tx.service`.
   - Khắc phục lỗi crash schema validation trong `checkCanReview` bằng cách điều chỉnh query `service_id` của `Appointment` (vốn không tồn tại trực tiếp) sang tìm kiếm qua bảng quan hệ nhiều-nhiều `services: { some: { service_id: targetIdBig } }`.
+- **Bổ sung và nâng cấp các API cho màn hình Đơn hàng của tôi (My Orders):**
+  - Mở rộng query `include` trong `getOrders` và `getOrderById` để lấy thêm hình ảnh chính của sản phẩm (`product_images` với `is_primary: true`) và tên biến thể (`variant`), phục vụ hiển thị ảnh/chi tiết trên thẻ đơn hàng.
+  - Viết mới API đếm số lượng đơn hàng theo trạng thái `GET /api/v1/orders/counts` của người dùng, sử dụng phương thức `groupBy` tối ưu của Prisma.
+  - Viết mới API hủy đơn hàng trực tuyến dành riêng cho khách hàng `PATCH /api/v1/orders/:id/cancel`, thực hiện kiểm tra quyền sở hữu đơn hàng, kiểm tra các trạng thái cho phép hủy (`pending`, `confirmed`) và chạy Prisma transaction để cập nhật trạng thái đơn đồng thời hoàn trả lại tồn kho.
+  - Cập nhật thêm 2 request mới vào tài liệu Postman collection `Pet_Clinic_Collection.json`.
 

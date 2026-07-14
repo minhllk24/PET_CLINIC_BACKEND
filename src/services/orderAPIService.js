@@ -24,7 +24,24 @@ const getOrders = async (user, query) => {
         where: whereCondition,
         include: {
           payments: true,
-          order_items: true
+          order_items: {
+            include: {
+              product: {
+                select: {
+                  product_name: true,
+                  price: true,
+                  product_images: {
+                    where: { is_primary: true },
+                    take: 1,
+                    select: { image_url: true }
+                  }
+                }
+              },
+              variant: {
+                select: { variant_name: true }
+              }
+            }
+          }
         },
         skip,
         take: limit,
@@ -56,7 +73,22 @@ const getOrderById = async (id, user) => {
       where: { order_id: orderId },
       include: {
         order_items: {
-          include: { product: { select: { product_name: true, price: true } } }
+          include: {
+            product: {
+              select: {
+                product_name: true,
+                price: true,
+                product_images: {
+                  where: { is_primary: true },
+                  take: 1,
+                  select: { image_url: true }
+                }
+              }
+            },
+            variant: {
+              select: { variant_name: true }
+            }
+          }
         },
         payments: true,
         address: true
@@ -720,11 +752,108 @@ const guestCheckout = async (data) => {
   }
 };
 
+const getOrderCounts = async (user) => {
+  try {
+    const userId = toBigIntId(user.user_id);
+    if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
+
+    const counts = await prisma.order.groupBy({
+      by: ['order_status'],
+      where: { user_id: userId },
+      _count: { order_status: true }
+    });
+
+    const result = {
+      all: 0,
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      cancelled: 0
+    };
+
+    counts.forEach(c => {
+      const status = c.order_status;
+      const countVal = c._count.order_status;
+      if (status in result) {
+        result[status] = countVal;
+        result.all += countVal;
+      }
+    });
+
+    return { EM: 'Get order counts successful', EC: 0, DT: result };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const cancelOrderByCustomer = async (id, user) => {
+  try {
+    const orderId = toBigIntId(id);
+    if (!orderId) return { EM: 'Invalid order ID', EC: 1, DT: '' };
+
+    const order = await prisma.order.findUnique({
+      where: { order_id: orderId },
+      include: { order_items: true }
+    });
+
+    if (!order) return { EM: 'Đơn hàng không tồn tại', EC: -1, DT: '', statusCode: 404 };
+
+    // Check ownership
+    if (order.user_id.toString() !== user.user_id) {
+      return { EM: 'Bạn không có quyền hủy đơn hàng này', EC: -1, DT: '', statusCode: 403 };
+    }
+
+    // Check status
+    const allowedStatuses = ['pending', 'confirmed'];
+    if (!allowedStatuses.includes(order.order_status)) {
+      return { EM: `Không thể hủy đơn hàng đang ở trạng thái: ${order.order_status}`, EC: 2, DT: '' };
+    }
+
+    // Process transaction for cancel and return stock
+    await prisma.$transaction(async (tx) => {
+      for (const item of order.order_items) {
+        if (item.variant_id) {
+          await tx.productVariant.update({
+            where: { variant_id: item.variant_id },
+            data: { stock_quantity: { increment: item.quantity } }
+          });
+          await tx.product.update({
+            where: { product_id: item.product_id },
+            data: { sold_quantity: { decrement: item.quantity } }
+          });
+        } else if (item.product_id) {
+          await tx.product.update({
+            where: { product_id: item.product_id },
+            data: {
+              stock_quantity: { increment: item.quantity },
+              sold_quantity: { decrement: item.quantity }
+            }
+          });
+        }
+      }
+
+      await tx.order.update({
+        where: { order_id: orderId },
+        data: { order_status: 'cancelled' }
+      });
+    });
+
+    return { EM: 'Hủy đơn hàng thành công', EC: 0, DT: '' };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getOrders,
   getOrderById,
   checkoutCart,
   guestCheckout,
-  updateOrderStatus
+  updateOrderStatus,
+  getOrderCounts,
+  cancelOrderByCustomer
 };
 

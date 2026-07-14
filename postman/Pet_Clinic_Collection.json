@@ -999,6 +999,41 @@
 					}
 				},
 				{
+					"name": "Get Order Counts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/orders/counts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"counts"
+							]
+						}
+					}
+				},
+				{
+					"name": "Cancel Order (Customer)",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/orders/1/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1",
+								"cancel"
+							]
+						}
+					}
+				},
+				{
 					"name": "Checkout Order",
 					"request": {
 						"method": "POST",
