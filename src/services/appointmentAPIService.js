@@ -315,9 +315,69 @@ const getAppointmentById = async (id, currentUser) => {
       where: { appointment_id: appointmentId },
       include: {
         doctor: { select: { doctor_name: true, avatar_url: true } },
-        pet: { select: { pet_name: true } },
-        services: { include: { service: true } },
-        appointment_status_history: true
+        pet: {
+          select: {
+            pet_name: true,
+            gender: true,
+            weight_kg: true,
+            age: true,
+            health_status: true,
+            profile_image_url: true,
+            pet_images: {
+              where: { is_primary: true },
+              take: 1
+            }
+          }
+        },
+        services: {
+          include: {
+            service: {
+              include: {
+                category: {
+                  select: { category_name: true }
+                }
+              }
+            }
+          }
+        },
+        slot: {
+          select: {
+            start_time: true,
+            end_time: true
+          }
+        },
+        user: {
+          select: {
+            full_name: true,
+            phone: true,
+            user_addresses: {
+              where: { is_default: true },
+              take: 1
+            }
+          }
+        },
+        payments: {
+          select: {
+            payment_method: true,
+            final_amount: true,
+            status: true
+          }
+        },
+        orders: {
+          select: {
+            shipping_address: true,
+            total_amount: true
+          },
+          take: 1
+        },
+        status_history: {
+          include: {
+            changed_by: {
+              select: { full_name: true }
+            }
+          },
+          orderBy: { changed_at: 'asc' }
+        }
       }
     });
 
@@ -327,7 +387,36 @@ const getAppointmentById = async (id, currentUser) => {
       return { EM: 'Permission denied', EC: -1, DT: '' };
     }
 
-    return { EM: 'Get appointment successful', EC: 0, DT: appointment };
+    // Post-processing to extract final_price, payment_method, and customer_address
+    const validPayment = appointment.payments.find(p => p.status !== 'failed' && p.status !== 'cancelled') || appointment.payments[0];
+    let finalPrice = 0;
+    let paymentMethod = 'store'; // default fallback
+    if (validPayment) {
+      finalPrice = parseFloat(validPayment.final_amount);
+      paymentMethod = validPayment.payment_method;
+    } else {
+      finalPrice = appointment.services.reduce((sum, s) => sum + parseFloat(s.total_price), 0);
+    }
+
+    // Extract address
+    let customerAddress = '';
+    if (appointment.orders && appointment.orders.length > 0 && appointment.orders[0].shipping_address) {
+      customerAddress = appointment.orders[0].shipping_address;
+    } else if (appointment.user && appointment.user.user_addresses && appointment.user.user_addresses.length > 0) {
+      const addr = appointment.user.user_addresses[0];
+      customerAddress = [addr.address_line, addr.ward, addr.district, addr.province].filter(Boolean).join(', ');
+    }
+
+    // Clean up fields to match UI and prevent sending raw arrays of payments and orders
+    const { payments, orders, ...rest } = appointment;
+    const formattedData = {
+      ...rest,
+      final_price: finalPrice,
+      payment_method: paymentMethod,
+      customer_address: customerAddress
+    };
+
+    return { EM: 'Get appointment successful', EC: 0, DT: serializeBigInt(formattedData) };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };

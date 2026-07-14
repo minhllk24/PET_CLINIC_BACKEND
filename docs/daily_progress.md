@@ -322,4 +322,18 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 - **Cập nhật lại khung giờ làm việc đặt lịch (8:00 - 20:00):**
   - Điều chỉnh mốc thời gian kết thúc tạo slot (`examEnd` và `groomEnd`) trong `generateSlotsForDate` từ `21:00` thành `20:00`.
   - Thực hiện xoá bỏ 270 bản ghi slot bắt đầu từ 20:00 trở đi đã sinh ra trước đó trong database để khớp chuẩn giờ hoạt động mới.
+- **Mở rộng phạm vi tìm kiếm (Search Scope):**
+  - Cập nhật hàm `unifiedSearch` trong `searchAPIService.js` để bổ sung thêm 2 scope mới là `firstaid` và `community`.
+  - Tạo mới hàm `searchFirstAid` để truy vấn dữ liệu từ bảng `first_aid_guides`.
+  - Cập nhật hàm `searchPosts` hỗ trợ lọc theo cờ `isCommunity` để phân tách rõ ràng giữa `official_blog` và `community` post.
+- **Nâng cấp và bổ sung các API phục vụ màn hình Lịch sử đặt lịch:**
+  - Cải tiến API `GET /api/v1/appointments/my-history` để hỗ trợ phân trang (`page`, `limit`), lọc trạng thái (`status`), tìm kiếm từ khoá (`keyword`) và lấy thông tin tổng tiền cuối cùng của lịch hẹn (`final_price`).
+  - Viết mới API đếm số lượng lịch hẹn theo trạng thái `GET /api/v1/appointments/my-history/counts` tối ưu bằng một câu truy vấn `groupBy` của Prisma.
+  - Viết mới API đổi lịch hẹn trực tuyến `PATCH /api/v1/appointments/:id/reschedule` cho khách hàng, bao gồm logic xử lý transaction giải phóng slot cũ và chiếm slot mới, tự động log lịch sử trạng thái và thông báo.
+  - Đồng bộ hoá toàn bộ các API mới và query parameters vào Postman Collection `Pet_Clinic_Collection.json`.
+- **Nâng cấp API chi tiết đặt lịch (Get Appointment Detail) phục vụ màn hình chi tiết:**
+  - Sửa lỗi crash API do gọi sai tên quan hệ `appointment_status_history` thành `status_history`.
+  - Mở rộng query `include` của Prisma để lấy đầy đủ các thông tin: thú cưng (gender, weight, age, health status, ảnh chính), khung giờ (start/end time), dịch vụ và danh mục cha (category_name), thông tin thanh toán (payment_method, final_amount, status).
+  - Thêm logic post-processing để trả về trực tiếp các trường `final_price`, `payment_method` và `customer_address` ở cấp độ gốc (root-level), dọn dẹp các mảng raw của Prisma để tối ưu dữ liệu truyền tải.
+  - Cập nhật tài liệu Postman collection `Pet_Clinic_Collection.json` cho endpoint này.
 

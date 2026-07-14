@@ -1337,18 +1337,58 @@
 					}
 				},
 				{
-					"name": "Get My Appointment History",
+					"name": "Get My Appointment History (with Search, Filter, Pagination)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/appointments/my-history",
+							"raw": "{{base_url}}/appointments/my-history?status=pending&keyword=Milo&page=1&limit=10",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"appointments",
 								"my-history"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending",
+									"description": "Lọc theo trạng thái: pending, confirmed, completed, cancelled, rescheduled, missed (optional)"
+								},
+								{
+									"key": "keyword",
+									"value": "Milo",
+									"description": "Tìm kiếm theo tên pet, mã đặt lịch, tên dịch vụ (optional)"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Số trang (optional)"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Số lượng bản ghi mỗi trang (optional)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Appointment History Counts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/appointments/my-history/counts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"my-history",
+								"counts"
 							]
 						}
 					}
@@ -1358,6 +1398,7 @@
 					"request": {
 						"method": "GET",
 						"header": [],
+						"description": "Lấy thông tin chi tiết lịch hẹn nâng cấp (bao gồm thông tin chủ thú cưng, thông tin thú cưng mở rộng, dịch vụ kèm danh mục, khung giờ khám và thanh toán chi tiết).",
 						"url": {
 							"raw": "{{base_url}}/appointments/1",
 							"host": [
@@ -1419,6 +1460,33 @@
 								"appointments",
 								"1",
 								"cancel"
+							]
+						}
+					}
+				},
+				{
+					"name": "Reschedule Appointment",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"new_slot_id\": \"2\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/appointments/1/reschedule",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"appointments",
+								"1",
+								"reschedule"
 							]
 						}
 					}
