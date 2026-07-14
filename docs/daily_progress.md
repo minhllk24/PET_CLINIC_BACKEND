@@ -336,4 +336,7 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - Mở rộng query `include` của Prisma để lấy đầy đủ các thông tin: thú cưng (gender, weight, age, health status, ảnh chính), khung giờ (start/end time), dịch vụ và danh mục cha (category_name), thông tin thanh toán (payment_method, final_amount, status).
   - Thêm logic post-processing để trả về trực tiếp các trường `final_price`, `payment_method` và `customer_address` ở cấp độ gốc (root-level), dọn dẹp các mảng raw của Prisma để tối ưu dữ liệu truyền tải.
   - Cập nhật tài liệu Postman collection `Pet_Clinic_Collection.json` cho endpoint này.
+- **Sửa lỗi API Đánh giá dịch vụ (Service Review) phục vụ màn hình đánh giá:**
+  - Khắc phục lỗi crash `TypeError` trong `createReview` và `updateReviewStatus` bằng cách sửa tên model Prisma sai từ `tx.clinicService` thành `tx.service`.
+  - Khắc phục lỗi crash schema validation trong `checkCanReview` bằng cách điều chỉnh query `service_id` của `Appointment` (vốn không tồn tại trực tiếp) sang tìm kiếm qua bảng quan hệ nhiều-nhiều `services: { some: { service_id: targetIdBig } }`.
 

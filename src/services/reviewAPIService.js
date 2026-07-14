@@ -105,7 +105,7 @@ const createReview = async (userIdStr, data) => {
           data: { average_rating: avgRating }
         });
       } else if (target_type === 'service') {
-        await tx.clinicService.update({
+        await tx.service.update({
           where: { service_id: targetIdBig },
           data: { average_rating: avgRating }
         });
@@ -151,7 +151,7 @@ const updateReviewStatus = async (id, status) => {
           data: { average_rating: avgRating }
         });
       } else if (review.target_type === 'service') {
-        await tx.clinicService.update({
+        await tx.service.update({
           where: { service_id: review.target_id },
           data: { average_rating: avgRating }
         });
@@ -373,7 +373,11 @@ const checkCanReview = async (userIdStr, targetType, targetIdStr) => {
         where: {
           user_id: userId,
           status: 'completed',
-          service_id: targetIdBig
+          services: {
+            some: {
+              service_id: targetIdBig
+            }
+          }
         }
       });
       if (!hasAppt) {
