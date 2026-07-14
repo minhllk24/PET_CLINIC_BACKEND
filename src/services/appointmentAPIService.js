@@ -1235,74 +1235,80 @@ const generateSlotsForDate = async (dateStr) => {
     where: { status: 'active' }
   });
 
-  const slotsToCreate = [];
-
   const examInterval = 30; // 30 mins
   const groomInterval = 60; // 60 mins
 
   for (const branch of branches) {
-    // 1. Exam Slots (8:00 to 21:00) -> 30-min interval, max_booking = 3
+    // 1. Get existing slots for the branch and date to avoid duplicates
+    const existingSlots = await prisma.timeSlot.findMany({
+      where: {
+        branch_id: branch.branch_id,
+        slot_date: dateObj
+      }
+    });
+
+    const existingKeys = new Set(
+      existingSlots.map(s => `${s.slot_type}-${s.start_time.toISOString().substring(11, 19)}`)
+    );
+
+    const slotsToCreate = [];
+
+    // 2. Exam Slots (8:00 to 21:00) -> 30-min interval, max_booking = 3
     let current = new Date(dateStr + 'T08:00:00.000Z');
     const examEnd = new Date(dateStr + 'T21:00:00.000Z');
     
     while (current.getTime() < examEnd.getTime()) {
       const next = new Date(current.getTime() + examInterval * 60000);
       
-      const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
-      const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
-      
-      slotsToCreate.push({
-        branch_id: branch.branch_id,
-        slot_date: dateObj,
-        start_time: startTime,
-        end_time: endTime,
-        max_booking: 3,
-        slot_type: 'exam',
-        status: 'available'
-      });
+      const startTimeIso = current.toISOString().substring(11, 19);
+      if (!existingKeys.has(`exam-${startTimeIso}`)) {
+        const startTime = new Date(`1970-01-01T${startTimeIso}Z`);
+        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        
+        slotsToCreate.push({
+          branch_id: branch.branch_id,
+          slot_date: dateObj,
+          start_time: startTime,
+          end_time: endTime,
+          max_booking: 3,
+          slot_type: 'exam',
+          status: 'available'
+        });
+      }
       
       current = next;
     }
 
-    // 2. Grooming Slots (8:00 to 21:00) -> 60-min interval, max_booking = 2
+    // 3. Grooming Slots (8:00 to 21:00) -> 60-min interval, max_booking = 2
     current = new Date(dateStr + 'T08:00:00.000Z');
     const groomEnd = new Date(dateStr + 'T21:00:00.000Z');
     
     while (current.getTime() < groomEnd.getTime()) {
       const next = new Date(current.getTime() + groomInterval * 60000);
       
-      const startTime = new Date(`1970-01-01T${current.toISOString().substring(11, 19)}Z`);
-      const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
-      
-      slotsToCreate.push({
-        branch_id: branch.branch_id,
-        slot_date: dateObj,
-        start_time: startTime,
-        end_time: endTime,
-        max_booking: 2,
-        slot_type: 'grooming',
-        status: 'available'
-      });
+      const startTimeIso = current.toISOString().substring(11, 19);
+      if (!existingKeys.has(`grooming-${startTimeIso}`)) {
+        const startTime = new Date(`1970-01-01T${startTimeIso}Z`);
+        const endTime = new Date(`1970-01-01T${next.toISOString().substring(11, 19)}Z`);
+        
+        slotsToCreate.push({
+          branch_id: branch.branch_id,
+          slot_date: dateObj,
+          start_time: startTime,
+          end_time: endTime,
+          max_booking: 2,
+          slot_type: 'grooming',
+          status: 'available'
+        });
+      }
       
       current = next;
     }
-  }
 
-  // Insert slots sequentially (avoiding duplicates)
-  for (const slot of slotsToCreate) {
-    const existing = await prisma.timeSlot.findFirst({
-      where: {
-        branch_id: slot.branch_id,
-        slot_date: slot.slot_date,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        slot_type: slot.slot_type
-      }
-    });
-
-    if (!existing) {
-      await prisma.timeSlot.create({
-        data: slot
+    // Insert new slots
+    if (slotsToCreate.length > 0) {
+      await prisma.timeSlot.createMany({
+        data: slotsToCreate
       });
     }
   }
