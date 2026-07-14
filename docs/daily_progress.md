@@ -311,14 +311,15 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
 ## [Ngày 14/07/2026]
 ### Đã hoàn thành:
 - **Khắc phục lỗi tạo thú cưng mới trong luồng đặt lịch (`/appointments/book` & `/appointments`):**
-  - Sửa lỗi mapping trường khi gọi hàm tạo thú cưng (`prisma.pet.create` và `prisma.pet.update`) ở backend. Đổi các field truyền sai sang đúng chuẩn của Prisma Schema:
-    - Đổi `user_id` thành `owner_user_id`.
-    - Đổi `health_condition` thành `health_status`.
-    - Thay thế giá trị mặc định của tình trạng sức khỏe từ `'Normal'` thành `'healthy'` (khớp với enum trong database).
+  - Sửa lỗi mapping trường khi gọi hàm tạo thú cưng (`prisma.pet.create` và `prisma.pet.update`) ở backend. Đổi các field truyền sai sang đúng chuẩn của Prisma Schema.
   - Sửa lỗi tương tự cho cả 2 hàm xử lý chính là `createAppointment` và `bookAndCheckout` trong `appointmentAPIService.js`.
 - **Đồng bộ hóa Postman Collection:**
-  - Cập nhật payload của request "Book Appointment" trong `Pet_Clinic_Collection.json` để thay đổi trường `"health_condition": "Bình thường"` thành `"health_status": "healthy"` tương ứng với thay đổi ở backend, giúp tránh lỗi crash 500 khi test trên Postman.
+  - Cập nhật payload của request "Book Appointment" trong `Pet_Clinic_Collection.json` để thay đổi trường `"health_condition": "Bình thường"` thành `"health_status": "healthy"`.
+- **Khắc phục lỗi nhân bản (duplicate) Time Slots khi restart server:**
+  - Cập nhật hàm `generateSlotsForDate` trong `appointmentAPIService.js` để tìm và kiểm tra slot trùng khớp qua `Set` trong RAM thay vì dùng truy vấn `findFirst` trực tiếp của Prisma với kiểu `TIME` (vốn bị lỗi timezone/mismatch khiến luôn trả về `null`).
+  - Đổi phương thức lưu từ tuần tự từng bản ghi sang lưu hàng loạt bằng `createMany` để tăng hiệu suất.
+  - Viết script nội bộ dọn dẹp hơn 89,000 bản ghi slot trùng lặp rác trong DB để khôi phục dung lượng.
+- **Cập nhật lại khung giờ làm việc đặt lịch (8:00 - 20:00):**
+  - Điều chỉnh mốc thời gian kết thúc tạo slot (`examEnd` và `groomEnd`) trong `generateSlotsForDate` từ `21:00` thành `20:00`.
+  - Thực hiện xoá bỏ 270 bản ghi slot bắt đầu từ 20:00 trở đi đã sinh ra trước đó trong database để khớp chuẩn giờ hoạt động mới.
 
--   * * S �a   l �i   s i n h   t r � n g   T i m e   S l o t : * *   C �p   n h �t   h � m   \ g e n e r a t e A u t o S l o t s \   t r o n g   \  p p o i n t m e n t A P I S e r v i c e . j s \   �  k i �m   t r a   s l o t   t r � n g   b �n g   c � c h   s o   s � n h   t r o n g   R A M   t h a y   v �   d � n g   t r u y   v �n   \  i n d F i r s t \   c �a   P r i s m a   v �i   k i �u   T I M E ,   g i � p   n g n   c h �n   v i �c   t �o   h � n g   l o �t   s l o t   t r � n g   l �p   ( l � n   t �i   8 4   s l o t   m �i   k h u n g   g i �)   k h i   k h �i   �n g   l �i   s e r v e r .   �n g   t h �i   �i   s a n g   i n s e r t   b �n g   \ c r e a t e M a n y \   �  t �i   �u   h i �u   s u �t .  
- -   * * D �n   d �p   D B : * *   �   c h �y   s c r i p t   n �i   b �  �  x o �   h �n   8 9 , 0 0 0   b �n   g h i   t r � n g   l �p   t r o n g   b �n g   \ 	 i m e _ s l o t s \ ,   c h �  g i �  l �i   s �  l ��n g   t h �c   t �  c �n   t h i �t ,   s �a   l �i   f r o n t e n d   h i �n   t h �  t �n g   m a x _ b o o k i n g   l � n   t �i   8 4 .  
- 

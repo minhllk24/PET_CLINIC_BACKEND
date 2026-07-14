@@ -1253,9 +1253,9 @@ const generateSlotsForDate = async (dateStr) => {
 
     const slotsToCreate = [];
 
-    // 2. Exam Slots (8:00 to 21:00) -> 30-min interval, max_booking = 3
+    // 2. Exam Slots (8:00 to 20:00) -> 30-min interval, max_booking = 3
     let current = new Date(dateStr + 'T08:00:00.000Z');
-    const examEnd = new Date(dateStr + 'T21:00:00.000Z');
+    const examEnd = new Date(dateStr + 'T20:00:00.000Z');
     
     while (current.getTime() < examEnd.getTime()) {
       const next = new Date(current.getTime() + examInterval * 60000);
@@ -1279,9 +1279,9 @@ const generateSlotsForDate = async (dateStr) => {
       current = next;
     }
 
-    // 3. Grooming Slots (8:00 to 21:00) -> 60-min interval, max_booking = 2
+    // 3. Grooming Slots (8:00 to 20:00) -> 60-min interval, max_booking = 2
     current = new Date(dateStr + 'T08:00:00.000Z');
-    const groomEnd = new Date(dateStr + 'T21:00:00.000Z');
+    const groomEnd = new Date(dateStr + 'T20:00:00.000Z');
     
     while (current.getTime() < groomEnd.getTime()) {
       const next = new Date(current.getTime() + groomInterval * 60000);
