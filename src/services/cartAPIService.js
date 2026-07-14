@@ -13,7 +13,8 @@ const getCartByUserId = async (userIdStr) => {
           include: {
             product: {
               include: { product_images: { where: { is_primary: true } } }
-            }
+            },
+            variant: true
           }
         }
       }

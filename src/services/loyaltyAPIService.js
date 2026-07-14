@@ -25,7 +25,7 @@ const createVoucher = async (data) => {
     const newVoucher = await prisma.voucher.create({
       data: {
         code,
-        discount_type: data.discount_type || 'percentage',
+        discount_type: data.discount_type || 'percent',
         discount_value: parseFloat(data.discount_value) || 0,
         max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
         min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : null,
@@ -79,7 +79,7 @@ const applyVoucher = async (userIdStr, data) => {
     }
 
     let discountAmount = 0;
-    if (voucher.discount_type === 'percentage') {
+    if (voucher.discount_type === 'percent' || voucher.discount_type === 'percentage') {
       discountAmount = orderValue * (parseFloat(voucher.discount_value) / 100);
       if (voucher.max_discount && discountAmount > parseFloat(voucher.max_discount)) {
         discountAmount = parseFloat(voucher.max_discount);
