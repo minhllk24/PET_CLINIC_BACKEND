@@ -171,7 +171,7 @@ async function main() {
   const branch2 = createdBranches[1];
 
   // 2. Users
-  const passwordHash = await bcrypt.hash('12345678', 10);
+  const passwordHash = await bcrypt.hash('Abc12345', 10);
   
   const admin = await prisma.user.upsert({
     where: { email: 'admin@petclinic.com' },
