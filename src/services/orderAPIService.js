@@ -91,7 +91,10 @@ const getOrderById = async (id, user) => {
           }
         },
         payments: true,
-        address: true
+        address: true,
+        status_history: {
+          orderBy: { changed_at: 'asc' }
+        }
       }
     });
 
