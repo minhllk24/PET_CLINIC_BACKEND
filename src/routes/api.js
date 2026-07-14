@@ -54,6 +54,7 @@ const initAPIRoutes = (app) => {
   router.post('/users/:id/addresses', verifyToken, userController.handleCreateAddress);
   router.put('/addresses/:addressId', verifyToken, userController.handleUpdateAddress);
   router.delete('/addresses/:addressId', verifyToken, userController.handleDeleteAddress);
+  router.get('/doctors', userController.handleGetDoctors);
 
   // --- PET ROUTES ---
   router.get('/pets/species', petController.handleGetSpecies);
@@ -98,6 +99,7 @@ const initAPIRoutes = (app) => {
   router.post('/orders/guest-checkout', orderController.handleGuestCheckout);
   router.put('/orders/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF']), orderController.handleUpdateOrderStatus);
   router.patch('/orders/:id/cancel', verifyToken, orderController.handleCancelOrder);
+  router.post('/orders/:id/repay', verifyToken, orderController.handleRepayOrder);
 
   // --- PAYMENT ROUTES ---
   router.get('/payments', verifyToken, checkPermission(['ADMIN']), paymentController.handleGetPayments);
@@ -171,6 +173,12 @@ const initAPIRoutes = (app) => {
   router.get('/posts', contentController.handleGetPosts);
   router.get('/posts/:slug', contentController.handleGetPostBySlug);
   router.post('/posts', verifyToken, contentController.handleCreatePost);
+  
+  router.get('/posts/:id/comments', contentController.handleGetPostComments);
+  router.post('/posts/:id/comments', verifyToken, contentController.handleCreatePostComment);
+  router.post('/posts/comments/:commentId/reply', verifyToken, contentController.handleReplyPostComment);
+  router.delete('/posts/comments/:commentId', verifyToken, contentController.handleDeletePostComment);
+  router.post('/posts/:id/like', verifyToken, contentController.handleTogglePostLike);
   
   router.get('/first-aid/categories', contentController.handleGetFirstAidCategories);
   router.get('/first-aid/guides', contentController.handleGetFirstAidGuides);

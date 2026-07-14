@@ -345,4 +345,9 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
   - Viết mới API đếm số lượng đơn hàng theo trạng thái `GET /api/v1/orders/counts` của người dùng, sử dụng phương thức `groupBy` tối ưu của Prisma.
   - Viết mới API hủy đơn hàng trực tuyến dành riêng cho khách hàng `PATCH /api/v1/orders/:id/cancel`, thực hiện kiểm tra quyền sở hữu đơn hàng, kiểm tra các trạng thái cho phép hủy (`pending`, `confirmed`) và chạy Prisma transaction để cập nhật trạng thái đơn đồng thời hoàn trả lại tồn kho.
   - Cập nhật thêm 2 request mới vào tài liệu Postman collection `Pet_Clinic_Collection.json`.
+- **Bổ sung và điều chỉnh 3 tính năng theo phản hồi của nhóm trưởng (Community, Order Repay, Staff):**
+  - **Community (Bình luận & Thích bài đăng):** Cập nhật `schema.prisma` thêm model `PostLike` lưu quan hệ thích bài viết, thực hiện DB push & Prisma generate. Bổ sung các API quản lý bình luận 2 cấp (`GET /posts/:id/comments` lấy bình luận chính và replies lồng nhau, `POST /posts/:id/comments` viết bình luận, `POST /posts/comments/:commentId/reply` trả lời bình luận, `DELETE /posts/comments/:commentId` xóa bình luận) và API toggle thích bài viết `POST /posts/:id/like` (tự động cập nhật `likes_count`).
+  - **Order Repay (Thanh toán lại):** Bổ sung API `POST /orders/:id/repay` cho phép khách hàng thanh toán lại các đơn hàng chưa thanh toán (`unpaid`), hỗ trợ cập nhật lại phương thức thanh toán mới và sinh URL thanh toán giả lập (mock payment URL) kèm thông tin số tiền và đơn hàng.
+  - **Staff (Danh sách bác sĩ):** Bổ sung API `GET /doctors` công khai, trả về danh sách các bác sĩ hoạt động (`status: active`) đầy đủ thông tin chi tiết: tên, avatar, bio, điểm đánh giá trung bình, chi nhánh làm việc (`Branch`) và các chuyên khoa y khoa liên kết (`Specialty`).
+  - **Tài liệu & Kiểm thử:** Đồng bộ 7 request mới vào Postman Collection `Pet_Clinic_Collection.json`.
 

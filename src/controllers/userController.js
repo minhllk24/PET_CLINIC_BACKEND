@@ -91,6 +91,16 @@ const handleDeleteAddress = async (req, res) => {
   }
 };
 
+const handleGetDoctors = async (req, res) => {
+  try {
+    let data = await userAPIService.getDoctors();
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetAllUsers,
   handleGetDetailUser,
@@ -99,5 +109,6 @@ module.exports = {
   handleGetUserAddresses,
   handleCreateAddress,
   handleUpdateAddress,
-  handleDeleteAddress
+  handleDeleteAddress,
+  handleGetDoctors
 };

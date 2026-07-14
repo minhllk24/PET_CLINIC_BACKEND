@@ -320,6 +320,7 @@ model User {
   review_likes                ReviewLike[]
   posts                       Post[]
   post_comments               PostComment[]
+  post_likes                  PostLike[]
   first_aid_guides_created    FirstAidGuide[]
   rescue_posts_created        RescuePost[]
   adoption_pets_created       AdoptionPet[]
@@ -1316,6 +1317,7 @@ model Post {
   category PostCategory @relation(fields: [post_category_id], references: [post_category_id], onDelete: Restrict, onUpdate: Cascade)
   author   User         @relation(fields: [author_user_id], references: [user_id], onDelete: Restrict, onUpdate: Cascade)
   comments PostComment[]
+  post_likes PostLike[]
 
   @@index([post_category_id], map: "idx_posts_category_id")
   @@index([author_user_id], map: "idx_posts_author_id")
@@ -1614,4 +1616,15 @@ model ReviewLike {
 
   @@id([user_id, review_id])
   @@map("review_likes")
+}
+
+model PostLike {
+  user_id BigInt @db.BigInt
+  post_id BigInt @db.BigInt
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  post Post @relation(fields: [post_id], references: [post_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([user_id, post_id])
+  @@map("post_likes")
 }

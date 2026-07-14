@@ -246,6 +246,49 @@ const deleteAddress = async (addressId) => {
   }
 };
 
+const getDoctors = async () => {
+  try {
+    const doctors = await prisma.doctor.findMany({
+      where: { status: 'active' },
+      select: {
+        doctor_id: true,
+        doctor_name: true,
+        bio: true,
+        avatar_url: true,
+        average_rating: true,
+        branch: {
+          select: {
+            branch_id: true,
+            branch_name: true,
+            address: true
+          }
+        },
+        doctor_specialties: {
+          select: {
+            specialty: {
+              select: {
+                specialty_id: true,
+                specialty_name: true
+              }
+            }
+          }
+        },
+        user: {
+          select: {
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    return { EM: 'Get doctors successful', EC: 0, DT: doctors };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -254,5 +297,6 @@ module.exports = {
   getUserAddresses,
   createAddress,
   updateAddress,
-  deleteAddress
+  deleteAddress,
+  getDoctors
 };

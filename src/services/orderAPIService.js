@@ -850,6 +850,73 @@ const cancelOrderByCustomer = async (id, user) => {
   }
 };
 
+const repayOrder = async (id, user, data) => {
+  try {
+    const orderId = toBigIntId(id);
+    const userId = toBigIntId(user.user_id);
+    if (!orderId) return { EM: 'Invalid order ID', EC: 1, DT: '' };
+
+    const order = await prisma.order.findUnique({
+      where: { order_id: orderId },
+      include: { payments: true }
+    });
+
+    if (!order) return { EM: 'Order not found', EC: -1, DT: '' };
+
+    // Check ownership
+    if (order.user_id !== userId && user.role_code !== 'ADMIN') {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    // Check status
+    if (order.payment_status !== 'unpaid' || order.order_status === 'cancelled') {
+      return { EM: 'Chỉ có thể thanh toán lại cho đơn hàng chưa thanh toán và chưa bị hủy', EC: -1, DT: '' };
+    }
+
+    const payment_method = data.payment_method || 'online'; // Default to online for repay
+
+    // Find the latest pending/failed payment
+    const pendingPayment = order.payments.find(p => p.status === 'pending' || p.status === 'failed');
+    
+    let paymentRecord;
+    
+    if (pendingPayment) {
+       // Update existing payment
+       paymentRecord = await prisma.payment.update({
+          where: { payment_id: pendingPayment.payment_id },
+          data: { payment_method, status: 'pending' }
+       });
+    } else {
+       // Create new payment record
+       const paymentCode = `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+       paymentRecord = await prisma.payment.create({
+          data: {
+            payment_code: paymentCode,
+            user_id: userId,
+            order_id: orderId,
+            payment_target_type: 'order',
+            payment_method: payment_method,
+            subtotal_amount: order.subtotal_amount,
+            voucher_discount_amount: order.discount_amount,
+            points_used: 0,
+            points_discount_amount: 0,
+            final_amount: order.total_amount,
+            status: 'pending'
+          }
+       });
+    }
+
+    // In a real app, generate payment URL (ZaloPay/Momo) here based on final_amount
+    const mockPaymentUrl = `https://sandbox.zalopay.vn/mock-payment?amount=${order.total_amount}&orderId=${orderId}`;
+
+    return { EM: 'Tạo yêu cầu thanh toán lại thành công', EC: 0, DT: { payment_url: mockPaymentUrl, order_id: orderId.toString() } };
+
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getOrders,
   getOrderById,
@@ -857,6 +924,7 @@ module.exports = {
   guestCheckout,
   updateOrderStatus,
   getOrderCounts,
-  cancelOrderByCustomer
+  cancelOrderByCustomer,
+  repayOrder
 };
 

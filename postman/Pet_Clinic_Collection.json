@@ -272,6 +272,22 @@
 					}
 				},
 				{
+					"name": "Get Doctors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/doctors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"doctors"
+							]
+						}
+					}
+				},
+				{
 					"name": "Get User Detail",
 					"request": {
 						"method": "GET",
@@ -1029,6 +1045,33 @@
 								"orders",
 								"1",
 								"cancel"
+							]
+						}
+					}
+				},
+				{
+					"name": "Repay Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"payment_method\": \"online\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/1/repay",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"orders",
+								"1",
+								"repay"
 							]
 						}
 					}
@@ -2432,6 +2475,125 @@
 							],
 							"path": [
 								"posts"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Post Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/1/comments?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"1",
+								"comments"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Post Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"Bài viết rất hay và bổ ích!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/posts/1/comments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"1",
+								"comments"
+							]
+						}
+					}
+				},
+				{
+					"name": "Reply Post Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"content\": \"Cảm ơn bạn đã phản hồi!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/posts/comments/1/reply",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"comments",
+								"1",
+								"reply"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Post Comment",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/comments/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"comments",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Toggle Post Like",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/posts/1/like",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"posts",
+								"1",
+								"like"
 							]
 						}
 					}

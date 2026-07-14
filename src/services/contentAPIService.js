@@ -382,6 +382,155 @@ const createAiChatSession = async (userIdStr) => {
   }
 };
 
+// --- POST COMMENTS & LIKES ---
+const getPostComments = async (postIdStr, query) => {
+  try {
+    const postId = toBigIntId(postIdStr);
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [total, comments] = await prisma.$transaction([
+      prisma.postComment.count({ where: { post_id: postId, status: 'visible', parent_comment_id: null } }),
+      prisma.postComment.findMany({
+        where: { post_id: postId, status: 'visible', parent_comment_id: null },
+        include: {
+          user: { select: { full_name: true, avatar_url: true } },
+          children: {
+            where: { status: 'visible' },
+            include: { user: { select: { full_name: true, avatar_url: true } } },
+            orderBy: { created_at: 'asc' }
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: { created_at: 'desc' }
+      })
+    ]);
+
+    return { EM: 'Get comments successful', EC: 0, DT: { totalRows: total, totalPages: Math.ceil(total / limit), comments } };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const createPostComment = async (user, postIdStr, data) => {
+  try {
+    const postId = toBigIntId(postIdStr);
+    const userId = toBigIntId(user.user_id);
+    
+    if (!data.content) return { EM: 'Content is required', EC: 1, DT: '' };
+
+    const newComment = await prisma.postComment.create({
+      data: {
+        post_id: postId,
+        user_id: userId,
+        content: data.content,
+        status: 'visible'
+      }
+    });
+
+    return { EM: 'Create comment successful', EC: 0, DT: newComment };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const replyPostComment = async (user, commentIdStr, data) => {
+  try {
+    const parentId = toBigIntId(commentIdStr);
+    const userId = toBigIntId(user.user_id);
+
+    if (!data.content) return { EM: 'Content is required', EC: 1, DT: '' };
+
+    const parentComment = await prisma.postComment.findUnique({ where: { comment_id: parentId } });
+    if (!parentComment) return { EM: 'Parent comment not found', EC: -1, DT: '' };
+
+    const newReply = await prisma.postComment.create({
+      data: {
+        post_id: parentComment.post_id,
+        user_id: userId,
+        parent_comment_id: parentId,
+        content: data.content,
+        status: 'visible'
+      }
+    });
+
+    return { EM: 'Reply comment successful', EC: 0, DT: newReply };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const deletePostComment = async (user, commentIdStr) => {
+  try {
+    const commentId = toBigIntId(commentIdStr);
+    const userId = toBigIntId(user.user_id);
+
+    const comment = await prisma.postComment.findUnique({ where: { comment_id: commentId } });
+    if (!comment) return { EM: 'Comment not found', EC: -1, DT: '' };
+
+    if (comment.user_id !== userId && user.role_code !== 'ADMIN') {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    await prisma.postComment.update({
+      where: { comment_id: commentId },
+      data: { status: 'deleted' }
+    });
+
+    return { EM: 'Delete comment successful', EC: 0, DT: '' };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const togglePostLike = async (user, postIdStr) => {
+  try {
+    const postId = toBigIntId(postIdStr);
+    const userId = toBigIntId(user.user_id);
+
+    const post = await prisma.post.findUnique({ where: { post_id: postId } });
+    if (!post) return { EM: 'Post not found', EC: -1, DT: '' };
+
+    const existingLike = await prisma.postLike.findUnique({
+      where: { user_id_post_id: { user_id: userId, post_id: postId } }
+    });
+
+    let action = '';
+    await prisma.$transaction(async (tx) => {
+      if (existingLike) {
+        await tx.postLike.delete({
+          where: { user_id_post_id: { user_id: userId, post_id: postId } }
+        });
+        await tx.post.update({
+          where: { post_id: postId },
+          data: { likes_count: { decrement: 1 } }
+        });
+        action = 'unliked';
+      } else {
+        await tx.postLike.create({
+          data: { user_id: userId, post_id: postId }
+        });
+        await tx.post.update({
+          where: { post_id: postId },
+          data: { likes_count: { increment: 1 } }
+        });
+        action = 'liked';
+      }
+    });
+
+    return { EM: `Post ${action} successful`, EC: 0, DT: { action } };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
 module.exports = {
   getPosts,
   getPostBySlug,
@@ -394,5 +543,10 @@ module.exports = {
   getFirstAidCategories,
   createFirstAidGuide,
   getAiChatSessions,
-  createAiChatSession
+  createAiChatSession,
+  getPostComments,
+  createPostComment,
+  replyPostComment,
+  deletePostComment,
+  togglePostLike
 };

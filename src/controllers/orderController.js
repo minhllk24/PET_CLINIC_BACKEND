@@ -77,6 +77,17 @@ const handleCancelOrder = async (req, res) => {
   }
 };
 
+const handleRepayOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    let data = await orderAPIService.repayOrder(id, req.user, req.body);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
 module.exports = {
   handleGetOrders,
   handleGetDetailOrder,
@@ -84,6 +95,7 @@ module.exports = {
   handleGuestCheckout,
   handleUpdateOrderStatus,
   handleGetOrderCounts,
-  handleCancelOrder
+  handleCancelOrder,
+  handleRepayOrder
 };
 
