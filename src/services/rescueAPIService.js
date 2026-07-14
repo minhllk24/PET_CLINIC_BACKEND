@@ -18,7 +18,6 @@ const getRescuePosts = async () => {
   try {
     const posts = await prisma.rescuePost.findMany({
       where: { status: 'published' },
-      include: { station: true },
       orderBy: { created_at: 'desc' }
     });
     return { EM: 'Get rescue posts successful', EC: 0, DT: posts };
@@ -34,8 +33,7 @@ const getAdoptionPets = async () => {
     const pets = await prisma.adoptionPet.findMany({
       where: { status: 'available' },
       include: {
-        station: true,
-        adoption_pet_images: true
+        images: true
       },
       orderBy: { created_at: 'desc' }
     });
@@ -80,8 +78,12 @@ const createAdoptionRequest = async (userIdStr, data) => {
       data: {
         adoption_pet_id: adoptionPetId,
         user_id: userId,
-        status: 'pending',
-        message: data.message || null
+        full_name: data.full_name,
+        address: data.address,
+        reason: data.reason,
+        housing_info: data.housing_info || null,
+        experience: data.experience || null,
+        status: 'pending'
       }
     });
 
@@ -97,7 +99,7 @@ const getMyAdoptionRequests = async (userIdStr) => {
     const userId = toBigIntId(userIdStr);
     const requests = await prisma.adoptionRequest.findMany({
       where: { user_id: userId },
-      include: { adoption_pet: { include: { adoption_pet_images: true } } },
+      include: { adoption_pet: { include: { images: true } } },
       orderBy: { created_at: 'desc' }
     });
     return { EM: 'Get requests successful', EC: 0, DT: requests };
@@ -115,12 +117,12 @@ const updateAdoptionRequestStatus = async (id, status) => {
     const validStatuses = ['pending', 'approved', 'rejected'];
     if (!validStatuses.includes(status)) return { EM: 'Invalid status', EC: 1, DT: '' };
 
-    const adoptionReq = await prisma.adoptionRequest.findUnique({ where: { request_id: reqId } });
+    const adoptionReq = await prisma.adoptionRequest.findUnique({ where: { adoption_request_id: reqId } });
     if (!adoptionReq) return { EM: 'Request not found', EC: -1, DT: '' };
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedReq = await tx.adoptionRequest.update({
-        where: { request_id: reqId },
+        where: { adoption_request_id: reqId },
         data: { status }
       });
 

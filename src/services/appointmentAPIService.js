@@ -28,7 +28,7 @@ const getMyHistory = async (userIdStr) => {
             }
           }
         },
-        appointment_services: {
+        services: {
           include: {
             service: {
               select: {
@@ -67,7 +67,7 @@ const getAppointmentById = async (id, currentUser) => {
       include: {
         doctor: { select: { doctor_name: true, avatar_url: true } },
         pet: { select: { pet_name: true } },
-        appointment_services: { include: { service: true } },
+        services: { include: { service: true } },
         appointment_status_history: true
       }
     });
@@ -506,7 +506,7 @@ const getAppointmentPricing = async (id, currentUser, voucherCode) => {
     const appointment = await prisma.appointment.findUnique({
       where: { appointment_id: appointmentId },
       include: {
-        appointment_services: {
+        services: {
           include: { service: { select: { service_name: true } } }
         },
         pet: { select: { weight_kg: true } }
@@ -523,7 +523,7 @@ const getAppointmentPricing = async (id, currentUser, voucherCode) => {
     // Calculate subtotal and surcharge from saved services
     let subtotal = 0;
     let surchargeAmount = 0;
-    const services = appointment.appointment_services.map(item => {
+    const services = appointment.services.map(item => {
       const uPrice = parseFloat(item.unit_price);
       const qty = item.quantity;
       const sCharge = parseFloat(item.surcharge_amount || 0);
@@ -643,7 +643,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       // Get fresh locked appointment
       const appointment = await tx.appointment.findUnique({
         where: { appointment_id: appointmentId },
-        include: { appointment_services: { include: { service: true } } }
+        include: { services: { include: { service: true } } }
       });
 
       if (!appointment) throw new Error('Appointment not found');
@@ -678,7 +678,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       });
 
       // 2. Create OrderItem snapshot for services
-      for (const item of appointment.appointment_services) {
+      for (const item of appointment.services) {
         const uPrice = parseFloat(item.unit_price);
         const sCharge = parseFloat(item.surcharge_amount || 0);
         const nameSnapshot = item.service?.service_name || 'Dịch vụ';

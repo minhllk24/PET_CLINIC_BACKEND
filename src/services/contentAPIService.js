@@ -294,7 +294,7 @@ const getFirstAidGuides = async (query = {}) => {
 
 const getFirstAidGuideBySlug = async (slug) => {
   try {
-    const guide = await prisma.firstAidGuide.findUnique({
+    const guide = await prisma.firstAidGuide.findFirst({
       where: { slug, status: 'published' },
       include: {
         category: true,
