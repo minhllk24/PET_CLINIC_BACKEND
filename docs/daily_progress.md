@@ -306,3 +306,16 @@ File này dùng để ghi chú lại các công việc đã hoàn thành, các v
     - Nâng cấp validation trong `createAppointment` và `bookAndCheckoutAppointment` để chỉ cho phép đặt 1 loại dịch vụ 1 lần và kiểm duyệt loại dịch vụ khớp với `slot_type` của khung giờ đã chọn.
 - **Đồng bộ hóa Postman**: Cập nhật query param `service_type` vào request `Get Available Slots` trong file Postman collection `Pet_Clinic_Collection.json`.
 - **Kiểm thử hệ thống**: Viết script test `scratch/test-booking.js` chạy kiểm chứng thành công 100% các luồng nghiệp vụ (đặt lịch đúng loại slot, chặn đặt lịch sai slot hoặc mix dịch vụ).
+
+---
+## [Ngày 14/07/2026]
+### Đã hoàn thành:
+- **Khắc phục lỗi tạo thú cưng mới trong luồng đặt lịch (`/appointments/book` & `/appointments`):**
+  - Sửa lỗi mapping trường khi gọi hàm tạo thú cưng (`prisma.pet.create` và `prisma.pet.update`) ở backend. Đổi các field truyền sai sang đúng chuẩn của Prisma Schema:
+    - Đổi `user_id` thành `owner_user_id`.
+    - Đổi `health_condition` thành `health_status`.
+    - Thay thế giá trị mặc định của tình trạng sức khỏe từ `'Normal'` thành `'healthy'` (khớp với enum trong database).
+  - Sửa lỗi tương tự cho cả 2 hàm xử lý chính là `createAppointment` và `bookAndCheckout` trong `appointmentAPIService.js`.
+- **Đồng bộ hóa Postman Collection:**
+  - Cập nhật payload của request "Book Appointment" trong `Pet_Clinic_Collection.json` để thay đổi trường `"health_condition": "Bình thường"` thành `"health_status": "healthy"` tương ứng với thay đổi ở backend, giúp tránh lỗi crash 500 khi test trên Postman.
+

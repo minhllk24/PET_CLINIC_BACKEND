@@ -102,6 +102,47 @@ const calculateWeightSurcharge = (petWeight) => {
   return weight > WEIGHT_SURCHARGE_THRESHOLD ? WEIGHT_SURCHARGE_AMOUNT : 0;
 };
 
+const normalizePetHealthStatus = (value) => {
+  const statusMap = {
+    normal: 'healthy',
+    healthy: 'healthy',
+    treating: 'treating',
+    chronic: 'unknown',
+    need_recheck: 'need_recheck',
+    unknown: 'unknown'
+  };
+
+  return statusMap[value] || 'unknown';
+};
+
+const buildPetUpdateData = (petData = {}) => ({
+  pet_name: petData.pet_name || undefined,
+  species_id: petData.species_id ? toBigIntId(petData.species_id) : undefined,
+  breed_id: petData.breed_id ? toBigIntId(petData.breed_id) : undefined,
+  weight_kg: petData.weight_kg ? parseFloat(petData.weight_kg) : undefined,
+  age: petData.age ? String(petData.age) : undefined,
+  gender: petData.gender || undefined,
+  health_status: petData.health_status ? normalizePetHealthStatus(petData.health_status) : undefined,
+  medical_note: petData.medical_note || undefined
+});
+
+const buildPetCreateData = (petData = {}, userId) => {
+  const speciesId = petData.species_id ? toBigIntId(petData.species_id) : null;
+  if (!speciesId) throw new Error('Missing pet species');
+
+  return {
+    owner_user_id: userId,
+    pet_name: petData.pet_name,
+    species_id: speciesId,
+    breed_id: petData.breed_id ? toBigIntId(petData.breed_id) : null,
+    weight_kg: petData.weight_kg ? parseFloat(petData.weight_kg) : null,
+    age: petData.age ? String(petData.age) : null,
+    gender: petData.gender || 'unknown',
+    health_status: normalizePetHealthStatus(petData.health_status),
+    medical_note: petData.medical_note || null
+  };
+};
+
 const createAppointment = async (userIdStr, data) => {
   try {
     const userId = toBigIntId(userIdStr);
@@ -208,15 +249,7 @@ const createAppointment = async (userIdStr, data) => {
           // Update pet if pet_data is provided
           const updatedPet = await tx.pet.update({
             where: { pet_id: finalPetId },
-            data: {
-              pet_name: pet_data.pet_name,
-              species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : undefined,
-              breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : undefined,
-              weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : undefined,
-              age: pet_data.age ? parseFloat(pet_data.age) : undefined,
-              gender: pet_data.gender,
-              health_condition: pet_data.health_condition
-            },
+            data: buildPetUpdateData(pet_data),
             include: { species: true, breed: true }
           });
           pet_name_snapshot = updatedPet.pet_name;
@@ -238,16 +271,7 @@ const createAppointment = async (userIdStr, data) => {
       } else if (pet_data && pet_data.pet_name) {
         // Create new pet
         const newPet = await tx.pet.create({
-          data: {
-            user_id: userId,
-            pet_name: pet_data.pet_name,
-            species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : null,
-            breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : null,
-            weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : null,
-            age: pet_data.age ? parseFloat(pet_data.age) : null,
-            gender: pet_data.gender || 'unknown',
-            health_condition: pet_data.health_condition || 'Normal'
-          },
+          data: buildPetCreateData(pet_data, userId),
           include: { species: true, breed: true }
         });
         finalPetId = newPet.pet_id;
@@ -326,6 +350,7 @@ const createAppointment = async (userIdStr, data) => {
     const knownErrors = [
       'Slot not found',
       'Slot is fully booked or unavailable',
+      'Missing pet species',
       'Chỉ được chọn một loại dịch vụ (Khám hoặc Grooming) cho mỗi lần đặt lịch',
       'Loại dịch vụ không hợp lệ',
       'Khung giờ đã chọn không khớp với loại dịch vụ (Khám & Điều trị)',
@@ -389,7 +414,8 @@ const updateAppointmentStatus = async (id, status, user, note = '') => {
               user_id: appointment.user_id,
               title: 'Nhắc nhở: Lịch hẹn bị bỏ lỡ',
               content: `Bạn đã không đến đúng hẹn cho lịch hẹn ${appointment.appointment_code}. Lưu ý: Nếu vắng mặt nhiều lần, bạn sẽ phải đặt cọc cho các lần đặt lịch sau.`,
-              type: 'system',
+              notification_type: 'system',
+              channel: 'in_app',
               is_read: false
             }
           });
@@ -966,15 +992,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
         if (pet_data) {
           const updatedPet = await tx.pet.update({
             where: { pet_id: finalPetId },
-            data: {
-              pet_name: pet_data.pet_name,
-              species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : undefined,
-              breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : undefined,
-              weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : undefined,
-              age: pet_data.age ? parseFloat(pet_data.age) : undefined,
-              gender: pet_data.gender,
-              health_condition: pet_data.health_condition
-            },
+            data: buildPetUpdateData(pet_data),
             include: { species: true, breed: true }
           });
           pet_name_snapshot = updatedPet.pet_name;
@@ -995,16 +1013,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
         }
       } else if (pet_data && pet_data.pet_name) {
         const newPet = await tx.pet.create({
-          data: {
-            user_id: userId,
-            pet_name: pet_data.pet_name,
-            species_id: pet_data.species_id ? toBigIntId(pet_data.species_id) : null,
-            breed_id: pet_data.breed_id ? toBigIntId(pet_data.breed_id) : null,
-            weight_kg: pet_data.weight_kg ? parseFloat(pet_data.weight_kg) : null,
-            age: pet_data.age ? parseFloat(pet_data.age) : null,
-            gender: pet_data.gender || 'unknown',
-            health_condition: pet_data.health_condition || 'Normal'
-          },
+          data: buildPetCreateData(pet_data, userId),
           include: { species: true, breed: true }
         });
         finalPetId = newPet.pet_id;
@@ -1074,14 +1083,6 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           discountAmount = subtotal + surchargeAmount;
         }
 
-        // Apply voucher usage
-        await tx.voucherUsage.create({
-          data: {
-            user_id: userId,
-            voucher_id: voucherId,
-            order_id: null // Set later
-          }
-        });
         if (voucher.remaining_usage !== null) {
           await tx.voucher.update({
             where: { voucher_id: voucherId },
@@ -1105,7 +1106,6 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           slot_id: slot.slot_id,
           appointment_date: slot.slot_date,
           start_time: slot.start_time,
-          end_time: slot.end_time,
           customer_name_snapshot,
           customer_phone_snapshot,
           pet_name_snapshot,
@@ -1114,7 +1114,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           condition_description: condition_description || null,
           note: note || null,
           status: payment_method === 'store' ? 'pending' : 'confirmed', // If online, might be pending until paid, but simplified here
-          payment_status: newPaymentStatus
+          payment_status: payment_method === 'store' ? 'waiting_store_payment' : 'unpaid'
         }
       });
 
@@ -1126,7 +1126,8 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
             service_id: svc.service_id,
             quantity: svc.quantity,
             unit_price: svc.unit_price,
-            surcharge_amount: svc.surcharge_amount
+            surcharge_amount: svc.surcharge_amount,
+            total_price: (svc.unit_price * svc.quantity) + (svc.surcharge_amount * svc.quantity)
           }
         });
       }
@@ -1153,25 +1154,35 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
         }
       });
 
-      if (voucherId) {
-        await tx.voucherUsage.updateMany({
-          where: { user_id: userId, voucher_id: voucherId, order_id: null },
-          data: { order_id: newOrder.order_id }
-        });
-      }
-
       const paymentCode = `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       const newPayment = await tx.payment.create({
         data: {
           payment_code: paymentCode,
+          user_id: userId,
           order_id: newOrder.order_id,
           appointment_id: newAppointment.appointment_id,
+          payment_target_type: 'appointment',
           payment_method: payment_method,
-          payment_status: newPaymentStatus,
-          amount: totalAmount,
-          transaction_id: paymentCode
+          subtotal_amount: subtotal + surchargeAmount,
+          voucher_discount_amount: discountAmount,
+          points_used: 0,
+          points_discount_amount: 0,
+          final_amount: totalAmount,
+          status: payment_method === 'store' ? 'waiting_store_payment' : 'pending',
+          gateway_transaction_id: payment_method === 'online' ? paymentCode : null
         }
       });
+
+      if (voucherId) {
+        await tx.voucherUsage.create({
+          data: {
+            user_id: userId,
+            voucher_id: voucherId,
+            payment_id: newPayment.payment_id,
+            discount_amount: discountAmount
+          }
+        });
+      }
 
       // 8. Notification
       await tx.notification.create({
@@ -1179,7 +1190,8 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           user_id: userId,
           title: 'Đặt lịch thành công',
           content: `Lịch hẹn (Mã: ${appointmentCode}) của bạn đã được lưu thành công.`,
-          type: 'system',
+          notification_type: 'system',
+          channel: 'in_app',
           is_read: false
         }
       });
@@ -1197,6 +1209,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
     const knownErrors = [
       'Slot not found',
       'Slot is fully booked or unavailable',
+      'Missing pet species',
       'Mã giảm giá không hợp lệ',
       'Mã giảm giá chưa có hiệu lực',
       'Mã giảm giá đã hết hạn',
