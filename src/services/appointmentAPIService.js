@@ -1,5 +1,5 @@
 import prisma from '../configs/prisma';
-import { toBigIntId } from '../utils/prismaHelpers';
+import { serializeBigInt, toBigIntId } from '../utils/prismaHelpers';
 
 const getMyHistory = async (userIdStr) => {
   try {
@@ -9,10 +9,39 @@ const getMyHistory = async (userIdStr) => {
     const appointments = await prisma.appointment.findMany({
       where: { user_id: userId },
       include: {
-        doctor: { select: { full_name: true } },
-        pet: { select: { pet_name: true, species: true } },
+        doctor: { select: { doctor_name: true, avatar_url: true } },
+        branch: { select: { branch_name: true, address: true, phone: true } },
+        pet: {
+          select: {
+            pet_name: true,
+            age: true,
+            gender: true,
+            weight_kg: true,
+            profile_image_url: true,
+            health_status: true,
+            medical_note: true,
+            species: true,
+            breed: true,
+            pet_images: {
+              where: { is_primary: true },
+              take: 1
+            }
+          }
+        },
         appointment_services: {
-          include: { service: { select: { service_name: true } } }
+          include: {
+            service: {
+              select: {
+                service_id: true,
+                service_name: true,
+                description: true,
+                base_price: true,
+                duration_minutes: true,
+                image_url: true,
+                category: { select: { category_name: true } }
+              }
+            }
+          }
         }
       },
       orderBy: [
@@ -21,7 +50,7 @@ const getMyHistory = async (userIdStr) => {
       ]
     });
 
-    return { EM: 'Get history successful', EC: 0, DT: appointments };
+    return { EM: 'Get history successful', EC: 0, DT: serializeBigInt(appointments) };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -36,7 +65,7 @@ const getAppointmentById = async (id, currentUser) => {
     const appointment = await prisma.appointment.findUnique({
       where: { appointment_id: appointmentId },
       include: {
-        doctor: { select: { full_name: true } },
+        doctor: { select: { doctor_name: true, avatar_url: true } },
         pet: { select: { pet_name: true } },
         appointment_services: { include: { service: true } },
         appointment_status_history: true
@@ -477,7 +506,7 @@ const getAppointmentPricing = async (id, currentUser, voucherCode) => {
     const appointment = await prisma.appointment.findUnique({
       where: { appointment_id: appointmentId },
       include: {
-        services: {
+        appointment_services: {
           include: { service: { select: { service_name: true } } }
         },
         pet: { select: { weight_kg: true } }
@@ -494,7 +523,7 @@ const getAppointmentPricing = async (id, currentUser, voucherCode) => {
     // Calculate subtotal and surcharge from saved services
     let subtotal = 0;
     let surchargeAmount = 0;
-    const services = appointment.services.map(item => {
+    const services = appointment.appointment_services.map(item => {
       const uPrice = parseFloat(item.unit_price);
       const qty = item.quantity;
       const sCharge = parseFloat(item.surcharge_amount || 0);
@@ -614,7 +643,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       // Get fresh locked appointment
       const appointment = await tx.appointment.findUnique({
         where: { appointment_id: appointmentId },
-        include: { services: { include: { service: true } } }
+        include: { appointment_services: { include: { service: true } } }
       });
 
       if (!appointment) throw new Error('Appointment not found');
@@ -649,7 +678,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       });
 
       // 2. Create OrderItem snapshot for services
-      for (const item of appointment.services) {
+      for (const item of appointment.appointment_services) {
         const uPrice = parseFloat(item.unit_price);
         const sCharge = parseFloat(item.surcharge_amount || 0);
         const nameSnapshot = item.service?.service_name || 'Dịch vụ';
