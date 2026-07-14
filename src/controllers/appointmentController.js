@@ -4,7 +4,30 @@ import { sendResponse } from '../utils/responseHelpers';
 const handleGetMyHistory = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    let data = await appointmentAPIService.getMyHistory(userId);
+    let data = await appointmentAPIService.getMyHistory(userId, req.query);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleGetMyHistoryCounts = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    let data = await appointmentAPIService.getMyHistoryCounts(userId);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleRescheduleAppointment = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { new_slot_id } = req.body;
+    let data = await appointmentAPIService.rescheduleAppointment(id, new_slot_id, req.user);
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
@@ -114,6 +137,8 @@ const handleBookAndCheckout = async (req, res) => {
 
 module.exports = {
   handleGetMyHistory,
+  handleGetMyHistoryCounts,
+  handleRescheduleAppointment,
   handleGetDetailAppointment,
   handleGetSlots,
   handleCreateAppointment,

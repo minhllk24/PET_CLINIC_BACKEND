@@ -1,58 +1,307 @@
 import prisma from '../configs/prisma';
 import { serializeBigInt, toBigIntId } from '../utils/prismaHelpers';
 
-const getMyHistory = async (userIdStr) => {
+const getMyHistory = async (userIdStr, query = {}) => {
   try {
     const userId = toBigIntId(userIdStr);
     if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
 
-    const appointments = await prisma.appointment.findMany({
-      where: { user_id: userId },
-      include: {
-        doctor: { select: { doctor_name: true, avatar_url: true } },
-        branch: { select: { branch_name: true, address: true, phone: true } },
-        pet: {
-          select: {
-            pet_name: true,
-            age: true,
-            gender: true,
-            weight_kg: true,
-            profile_image_url: true,
-            health_status: true,
-            medical_note: true,
-            species: true,
-            breed: true,
-            pet_images: {
-              where: { is_primary: true },
-              take: 1
-            }
-          }
-        },
-        services: {
-          include: {
-            service: {
-              select: {
-                service_id: true,
-                service_name: true,
-                description: true,
-                base_price: true,
-                duration_minutes: true,
-                image_url: true,
-                category: { select: { category_name: true } }
+    const { status, keyword, page = 1, limit = 10 } = query;
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+    const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
+    const skip = (parsedPage - 1) * parsedLimit;
+    const take = parsedLimit;
+
+    const whereClause = { user_id: userId };
+
+    const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'missed'];
+    if (status && validStatuses.includes(status)) {
+      whereClause.status = status;
+    }
+
+    if (keyword && keyword.trim()) {
+      const kw = keyword.trim();
+      whereClause.OR = [
+        { appointment_code: { contains: kw } },
+        { pet_name_snapshot: { contains: kw } },
+        {
+          services: {
+            some: {
+              service: {
+                service_name: { contains: kw }
               }
             }
           }
         }
-      },
-      orderBy: [
-        { appointment_date: 'desc' },
-        { start_time: 'desc' }
-      ]
+      ];
+    }
+
+    const [appointments, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          doctor: { select: { doctor_name: true, avatar_url: true } },
+          branch: { select: { branch_name: true, address: true, phone: true } },
+          pet: {
+            select: {
+              pet_name: true,
+              age: true,
+              gender: true,
+              weight_kg: true,
+              profile_image_url: true,
+              health_status: true,
+              medical_note: true,
+              species: true,
+              breed: true,
+              pet_images: {
+                where: { is_primary: true },
+                take: 1
+              }
+            }
+          },
+          services: {
+            include: {
+              service: {
+                select: {
+                  service_id: true,
+                  service_name: true,
+                  description: true,
+                  base_price: true,
+                  duration_minutes: true,
+                  image_url: true,
+                  category: { select: { category_name: true } }
+                }
+              }
+            }
+          },
+          payments: {
+            select: {
+              final_amount: true,
+              status: true
+            }
+          }
+        },
+        orderBy: [
+          { appointment_date: 'desc' },
+          { start_time: 'desc' }
+        ],
+        skip,
+        take
+      }),
+      prisma.appointment.count({ where: whereClause })
+    ]);
+
+    const formattedData = appointments.map(app => {
+      const validPayment = app.payments.find(p => p.status !== 'failed' && p.status !== 'cancelled') || app.payments[0];
+      let finalPrice = 0;
+      if (validPayment) {
+        finalPrice = parseFloat(validPayment.final_amount);
+      } else {
+        finalPrice = app.services.reduce((sum, s) => sum + parseFloat(s.total_price), 0);
+      }
+      
+      const { payments, ...rest } = app;
+      return {
+        ...rest,
+        final_price: finalPrice
+      };
     });
 
-    return { EM: 'Get history successful', EC: 0, DT: serializeBigInt(appointments) };
+    return {
+      EM: 'Get history successful',
+      EC: 0,
+      DT: {
+        total,
+        page: parsedPage,
+        limit: parsedLimit,
+        data: serializeBigInt(formattedData)
+      }
+    };
   } catch (error) {
     console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const getMyHistoryCounts = async (userIdStr) => {
+  try {
+    const userId = toBigIntId(userIdStr);
+    if (!userId) return { EM: 'Invalid user ID', EC: 1, DT: '' };
+
+    const statusCounts = await prisma.appointment.groupBy({
+      by: ['status'],
+      where: { user_id: userId },
+      _count: true
+    });
+
+    const counts = {
+      all: 0,
+      pending: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      rescheduled: 0,
+      missed: 0
+    };
+
+    let totalAll = 0;
+    statusCounts.forEach(item => {
+      const countVal = item._count;
+      const statusKey = item.status;
+      if (statusKey in counts) {
+        counts[statusKey] = countVal;
+      }
+      totalAll += countVal;
+    });
+    counts.all = totalAll;
+
+    return { EM: 'Get counts successful', EC: 0, DT: counts };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const rescheduleAppointment = async (id, newSlotIdStr, user) => {
+  try {
+    const appointmentId = toBigIntId(id);
+    const newSlotId = toBigIntId(newSlotIdStr);
+    
+    if (!appointmentId || !newSlotId) {
+      return { EM: 'Invalid appointment ID or slot ID', EC: 1, DT: '' };
+    }
+
+    // 1. Find the appointment
+    const appointment = await prisma.appointment.findUnique({
+      where: { appointment_id: appointmentId },
+      include: {
+        services: {
+          include: {
+            service: {
+              include: { category: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!appointment) return { EM: 'Appointment not found', EC: -1, DT: '' };
+
+    // 2. Validate permissions
+    if (user.role_code === 'CUSTOMER' && user.user_id !== appointment.user_id.toString()) {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    // 3. Check status eligibility
+    if (!['pending', 'confirmed'].includes(appointment.status)) {
+      return { EM: `Không thể đổi lịch hẹn ở trạng thái ${appointment.status}`, EC: 1, DT: '' };
+    }
+
+    // 4. Check payment status
+    if (!['unpaid', 'waiting_store_payment'].includes(appointment.payment_status)) {
+      return { EM: 'Lịch hẹn đã thanh toán không thể tự đổi lịch trực tuyến', EC: 1, DT: '' };
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get new slot
+      const newSlot = await tx.timeSlot.findUnique({
+        where: { slot_id: newSlotId }
+      });
+
+      if (!newSlot) throw new Error('Slot mới không tồn tại');
+      if (newSlot.status !== 'available' || newSlot.booked_count >= newSlot.max_booking) {
+        throw new Error('Slot mới đã đầy hoặc không có sẵn');
+      }
+
+      // Check slot type compatibility
+      const serviceCategories = appointment.services.map(s => {
+        const catName = s.service?.category?.category_name;
+        if (catName === 'Khám & Điều trị') return 'exam';
+        if (catName === 'Grooming & Spa' || catName === 'Combo Grooming & Spa') return 'grooming';
+        return 'unknown';
+      });
+      const uniqueTypes = [...new Set(serviceCategories)];
+      const selectedServiceType = uniqueTypes[0] || 'unknown';
+
+      if (newSlot.slot_type !== selectedServiceType) {
+        throw new Error(`Khung giờ mới không khớp với loại dịch vụ (${selectedServiceType === 'exam' ? 'Khám & Điều trị' : 'Grooming & Spa'})`);
+      }
+
+      // Nhả slot cũ
+      const oldSlot = await tx.timeSlot.findUnique({
+        where: { slot_id: appointment.slot_id }
+      });
+      if (oldSlot) {
+        const newBookedCount = Math.max(0, oldSlot.booked_count - 1);
+        await tx.timeSlot.update({
+          where: { slot_id: oldSlot.slot_id },
+          data: {
+            booked_count: newBookedCount,
+            status: newBookedCount < oldSlot.max_booking ? 'available' : oldSlot.status
+          }
+        });
+      }
+
+      // Chiếm slot mới
+      const newBookedCount = newSlot.booked_count + 1;
+      const newStatus = newBookedCount >= newSlot.max_booking ? 'full' : newSlot.status;
+      await tx.timeSlot.update({
+        where: { slot_id: newSlotId },
+        data: {
+          booked_count: newBookedCount,
+          status: newStatus
+        }
+      });
+
+      // Cập nhật appointment
+      const updatedAppointment = await tx.appointment.update({
+        where: { appointment_id: appointmentId },
+        data: {
+          slot_id: newSlotId,
+          appointment_date: newSlot.slot_date,
+          start_time: newSlot.start_time,
+          doctor_id: newSlot.doctor_id,
+          branch_id: newSlot.branch_id,
+          status: 'rescheduled'
+        }
+      });
+
+      // Log lịch sử
+      await tx.appointmentStatusHistory.create({
+        data: {
+          appointment_id: appointmentId,
+          old_status: appointment.status,
+          new_status: 'rescheduled',
+          changed_by_user_id: toBigIntId(user.user_id),
+          reason: `Khách hàng đổi lịch sang ngày ${newSlot.slot_date.toISOString().substring(0, 10)} lúc ${newSlot.start_time.toISOString().substring(11, 16)}`
+        }
+      });
+
+      // Tạo thông báo
+      await tx.notification.create({
+        data: {
+          user_id: appointment.user_id,
+          title: 'Đổi lịch hẹn thành công',
+          content: `Lịch hẹn ${appointment.appointment_code} đã được đổi sang ngày ${newSlot.slot_date.toISOString().substring(0, 10)} lúc ${newSlot.start_time.toISOString().substring(11, 16)}.`,
+          notification_type: 'system',
+          channel: 'in_app',
+          is_read: false
+        }
+      });
+
+      return updatedAppointment;
+    });
+
+    return { EM: 'Đổi lịch hẹn thành công', EC: 0, DT: result };
+  } catch (error) {
+    console.error(error);
+    const knownErrors = [
+      'Slot mới không tồn tại',
+      'Slot mới đã đầy hoặc không có sẵn'
+    ];
+    if (knownErrors.includes(error.message) || error.message.includes('khớp với loại dịch vụ')) {
+      return { EM: error.message, EC: 2, DT: '' };
+    }
     return { EM: 'Something went wrong', EC: -2, DT: '' };
   }
 };
@@ -1360,6 +1609,8 @@ const generateAutoSlots = async (daysAhead = 7) => {
 
 module.exports = {
   getMyHistory,
+  getMyHistoryCounts,
+  rescheduleAppointment,
   getAppointmentById,
   getAvailableSlots,
   createAppointment,

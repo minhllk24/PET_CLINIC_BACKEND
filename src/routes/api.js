@@ -114,12 +114,14 @@ const initAPIRoutes = (app) => {
 
   // --- APPOINTMENT ROUTES ---
   router.get('/appointments/my-history', verifyToken, appointmentController.handleGetMyHistory);
+  router.get('/appointments/my-history/counts', verifyToken, appointmentController.handleGetMyHistoryCounts);
   router.get('/appointments/slots', appointmentController.handleGetSlots);
   router.get('/appointments/:id/pricing', verifyToken, appointmentController.handleGetPricing);
   router.get('/appointments/:id', verifyToken, appointmentController.handleGetDetailAppointment);
   router.post('/appointments', verifyToken, appointmentController.handleCreateAppointment);
   router.post('/appointments/:id/checkout', verifyToken, appointmentController.handleCheckout);
   router.patch('/appointments/:id/cancel', verifyToken, appointmentController.handleCancelAppointment);
+  router.patch('/appointments/:id/reschedule', verifyToken, appointmentController.handleRescheduleAppointment);
   router.patch('/appointments/:id/status', verifyToken, checkPermission(['ADMIN', 'STAFF', 'DOCTOR']), appointmentController.handleUpdateStatus);
   router.post('/appointments/preview-pricing', appointmentController.handlePreviewPricing);
   router.post('/appointments/book', verifyToken, appointmentController.handleBookAndCheckout);
