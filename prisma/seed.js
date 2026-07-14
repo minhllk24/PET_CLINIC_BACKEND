@@ -2541,6 +2541,99 @@ async function main() {
     }
   }
 
+  // 11. Seeding Orders
+  console.log('Seeding orders...');
+  // Clean up existing orders and user addresses to prevent duplication on multiple seeds
+  await prisma.order.deleteMany({});
+  await prisma.userAddress.deleteMany({});
+
+  const customersForOrders = await prisma.user.findMany({
+    where: { role: { role_code: 'CUSTOMER' } },
+    take: 5
+  });
+
+  const productsForOrders = await prisma.product.findMany({
+    take: 10
+  });
+
+  if (customersForOrders.length > 0 && productsForOrders.length > 0) {
+    for (let i = 0; i < customersForOrders.length; i++) {
+      const customer = customersForOrders[i];
+      
+      // Create an address first
+      const address = await prisma.userAddress.create({
+        data: {
+          user_id: customer.user_id,
+          recipient_name: customer.full_name,
+          recipient_phone: customer.phone || '0901234567',
+          recipient_email: customer.email,
+          address_line: `Đường số ${i + 1}, Phường 1`,
+          ward: 'Phường 1',
+          district: 'Quận 10',
+          province: 'TP. Hồ Chí Minh',
+          country: 'Việt Nam',
+          is_default: true
+        }
+      });
+      
+      // Create 1-2 orders for this customer
+      const orderCount = i === 0 ? 3 : Math.floor(Math.random() * 2) + 1; // customer1 (index 0) gets 3 orders
+      for (let o = 0; o < orderCount; o++) {
+        const orderProducts = [
+          productsForOrders[Math.floor(Math.random() * productsForOrders.length)],
+          productsForOrders[Math.floor(Math.random() * productsForOrders.length)]
+        ];
+        
+        let subtotal = 0;
+        const orderItemsData = [];
+        
+        for (const prod of orderProducts) {
+          const qty = Math.floor(Math.random() * 2) + 1;
+          const price = Number(prod.price);
+          const itemTotal = price * qty;
+          subtotal += itemTotal;
+          
+          orderItemsData.push({
+            item_type: 'product',
+            product_id: prod.product_id,
+            item_name_snapshot: prod.product_name,
+            quantity: qty,
+            unit_price: price,
+            total_price: itemTotal
+          });
+        }
+        
+        const shippingFee = 30000;
+        const discount = 0;
+        const totalAmount = subtotal + shippingFee - discount;
+        
+        const orderCode = `ORD-${Math.floor(100000 + Math.random() * 900000)}-${Date.now().toString().slice(-4)}`;
+        
+        await prisma.order.create({
+          data: {
+            order_code: orderCode,
+            user_id: customer.user_id,
+            address_id: address.address_id,
+            order_type: 'product',
+            order_status: o === 0 ? 'completed' : (o === 1 ? 'shipping' : 'pending'),
+            payment_status: o === 0 ? 'paid' : 'unpaid',
+            shipping_fee: shippingFee,
+            subtotal_amount: subtotal,
+            discount_amount: discount,
+            total_amount: totalAmount,
+            recipient_name: customer.full_name,
+            recipient_phone: customer.phone || '0901234567',
+            shipping_address: address.address_line,
+            note: `Đơn hàng mẫu số ${o + 1} của ${customer.full_name}`,
+            order_items: {
+              create: orderItemsData
+            }
+          }
+        });
+      }
+    }
+  }
+
   console.log('Seed data successfully!');
 }
 
