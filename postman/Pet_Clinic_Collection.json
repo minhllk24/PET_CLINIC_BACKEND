@@ -3098,6 +3098,24 @@
                   "value": "200000",
                   "description": "GiĂ¡ tá»‘i Ä‘a",
                   "disabled": true
+                },
+                {
+                  "key": "minRating",
+                  "value": "4",
+                  "description": "Lọc theo số sao tối thiểu (ví dụ: 4)",
+                  "disabled": true
+                },
+                {
+                  "key": "targetSpecies",
+                  "value": "dog",
+                  "description": "Lọc theo thú cưng (dog/cat/all)",
+                  "disabled": true
+                },
+                {
+                  "key": "postCategoryId",
+                  "value": "1",
+                  "description": "Lọc theo danh mục bài viết",
+                  "disabled": true
                 }
               ]
             }

@@ -370,6 +370,60 @@ const getServiceCategoryFacets = async (keyword, filters = {}) => {
   return countsMap;
 };
 
+const getPostCategoryFacets = async (keyword) => {
+  const facets = await prisma.post.groupBy({
+    by: ['post_category_id', 'post_type'],
+    where: {
+      status: 'published',
+      OR: [
+        { title: { contains: keyword } },
+        { excerpt: { contains: keyword } },
+        { hashtags: { contains: keyword } }
+      ]
+    },
+    _count: { post_id: true }
+  });
+
+  const blogCounts = {};
+  const communityCounts = {};
+
+  facets.forEach(f => {
+    if (f.post_type === 'official_blog') {
+      if (f.post_category_id) {
+        blogCounts[f.post_category_id.toString()] = (blogCounts[f.post_category_id.toString()] || 0) + f._count.post_id;
+      }
+    } else if (f.post_type === 'community') {
+      if (f.post_category_id) {
+        communityCounts[f.post_category_id.toString()] = (communityCounts[f.post_category_id.toString()] || 0) + f._count.post_id;
+      }
+    }
+  });
+
+  return { blog: blogCounts, community: communityCounts };
+};
+
+const getFirstAidCategoryFacets = async (keyword) => {
+  const facets = await prisma.firstAidGuide.groupBy({
+    by: ['first_aid_category_id'],
+    where: {
+      status: 'active',
+      OR: [
+        { title: { contains: keyword } },
+        { summary: { contains: keyword } }
+      ]
+    },
+    _count: { guide_id: true }
+  });
+  
+  const countsMap = {};
+  facets.forEach(f => {
+    if (f.first_aid_category_id) {
+      countsMap[f.first_aid_category_id.toString()] = f._count.guide_id;
+    }
+  });
+  return countsMap;
+};
+
 // --- MAIN SEARCH FUNCTION ---
 
 const unifiedSearch = async (query) => {
@@ -402,7 +456,7 @@ const unifiedSearch = async (query) => {
     }
 
     // Run parallel queries based on scope and calculate facets
-    const validScopes = ['all', 'service', 'product', 'blog', 'firstaid', 'community'];
+    const validScopes = ['all', 'service', 'product', 'blog', 'firstaid', 'community', 'article'];
     const activeScope = validScopes.includes(scope) ? scope : 'all';
 
     const promises = [];
@@ -417,15 +471,15 @@ const unifiedSearch = async (query) => {
       promises.push(searchServices(keyword, filters));
       scopeKeys.push('service');
     }
-    if (activeScope === 'all' || activeScope === 'blog') {
+    if (['all', 'article', 'blog'].includes(activeScope)) {
       promises.push(searchPosts(keyword, false, filters));
       scopeKeys.push('blog');
     }
-    if (activeScope === 'all' || activeScope === 'community') {
+    if (['all', 'article', 'community'].includes(activeScope)) {
       promises.push(searchPosts(keyword, true, filters));
       scopeKeys.push('community');
     }
-    if (activeScope === 'all' || activeScope === 'firstaid') {
+    if (['all', 'article', 'firstaid'].includes(activeScope)) {
       promises.push(searchFirstAid(keyword));
       scopeKeys.push('firstaid');
     }
@@ -433,15 +487,19 @@ const unifiedSearch = async (query) => {
     // Facet queries (run in parallel for sidebar counts)
     const productFacetPromise = getProductCategoryFacets(keyword, filters);
     const serviceFacetPromise = getServiceCategoryFacets(keyword, filters);
+    const postFacetPromise = getPostCategoryFacets(keyword);
+    const firstAidFacetPromise = getFirstAidCategoryFacets(keyword);
 
-    const [searchResults, productFacets, serviceFacets] = await Promise.all([
+    const [searchResults, productFacets, serviceFacets, postFacets, firstAidFacets] = await Promise.all([
       Promise.all(promises),
       productFacetPromise,
-      serviceFacetPromise
+      serviceFacetPromise,
+      postFacetPromise,
+      firstAidFacetPromise
     ]);
 
     // Build counts and merge items
-    const counts = { service: 0, product: 0, blog: 0, community: 0, firstaid: 0 };
+    const counts = { service: 0, product: 0, blog: 0, community: 0, firstaid: 0, article: 0 };
     let allItems = [];
 
     searchResults.forEach((result, index) => {
@@ -463,23 +521,31 @@ const unifiedSearch = async (query) => {
         countPromises.push(searchServices(keyword, filters).then(r => r.count));
         countKeys.push('service');
       }
-      if (activeScope !== 'blog') {
+      if (!['blog', 'article'].includes(activeScope)) {
         countPromises.push(searchPosts(keyword, false, filters).then(r => r.count));
         countKeys.push('blog');
       }
-      if (activeScope !== 'community') {
+      if (!['community', 'article'].includes(activeScope)) {
         countPromises.push(searchPosts(keyword, true, filters).then(r => r.count));
         countKeys.push('community');
       }
-      if (activeScope !== 'firstaid') {
+      if (!['firstaid', 'article'].includes(activeScope)) {
         countPromises.push(searchFirstAid(keyword).then(r => r.count));
         countKeys.push('firstaid');
       }
+
+      // Compute aggregated article count
+      counts.article = counts.blog + counts.community + counts.firstaid;
 
       const otherCounts = await Promise.all(countPromises);
       otherCounts.forEach((count, index) => {
         counts[countKeys[index]] = count;
       });
+      
+      // Update article count again in case blog/community/firstaid were in otherCounts
+      counts.article = counts.blog + counts.community + counts.firstaid;
+    } else {
+      counts.article = counts.blog + counts.community + counts.firstaid;
     }
 
     // Sort merged results
@@ -505,7 +571,10 @@ const unifiedSearch = async (query) => {
         counts,
         facetCounts: {
           productCategories: productFacets,
-          serviceCategories: serviceFacets
+          serviceCategories: serviceFacets,
+          blogCategories: postFacets.blog,
+          communityCategories: postFacets.community,
+          firstAidCategories: firstAidFacets
         },
         results: paginatedItems
       }
