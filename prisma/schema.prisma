@@ -1631,3 +1631,16 @@ model PostLike {
   @@id([user_id, post_id])
   @@map("post_likes")
 }
+
+model ContactMessage {
+  contact_id  BigInt    @id @default(autoincrement()) @db.BigInt
+  name        String    @db.VarChar(150)
+  gender      String?   @db.VarChar(10)
+  phone       String    @db.VarChar(20)
+  email       String    @db.VarChar(150)
+  message     String    @db.Text
+  status      String    @default("unread") @db.VarChar(20)
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+
+  @@map("contact_messages")
+}

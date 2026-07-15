@@ -20,6 +20,7 @@ import contentController from '../controllers/contentController';
 import rescueController from '../controllers/rescueController';
 import flashSaleController from '../controllers/flashSaleController';
 import searchController from '../controllers/searchController';
+import contactController from '../controllers/contactController';
 
 import { authMiddleware as verifyToken, requireRole as checkPermission, optionalAuth } from '../middleware/authMiddleware';
 import upload from '../middleware/uploadMiddleware';
@@ -187,6 +188,7 @@ const initAPIRoutes = (app) => {
   router.get('/ai-chat/sessions', verifyToken, contentController.handleGetAiChatSessions);
   router.post('/ai-chat/sessions', verifyToken, contentController.handleCreateAiChatSession);
 
+
   // --- RESCUE & ADOPTION ---
   router.get('/rescue/stations', rescueController.handleGetStations);
   router.get('/rescue/posts', rescueController.handleGetRescuePosts);
@@ -194,6 +196,10 @@ const initAPIRoutes = (app) => {
   router.post('/adoptions/requests', verifyToken, rescueController.handleCreateAdoptionRequest);
   router.get('/adoptions/my-requests', verifyToken, rescueController.handleGetMyRequests);
   router.patch('/adoptions/requests/:id/status', verifyToken, checkPermission(['ADMIN']), rescueController.handleUpdateStatus);
+
+  // --- CONTACT ---
+  router.post('/contacts', contactController.handleCreateContactMessage);
+  router.get('/contacts', verifyToken, checkPermission(['ADMIN']), contactController.handleGetContactMessages);
 
   return app.use('/api/v1', router);
 };
