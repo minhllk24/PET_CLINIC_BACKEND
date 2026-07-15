@@ -635,8 +635,9 @@ model Service {
   base_price          Decimal      @default(0.00) @db.Decimal(12, 2)
   duration_minutes    Int          @default(30)
   image_url           String?      @db.VarChar(500)
-  average_rating      Decimal      @default(0.00) @db.Decimal(3, 2)
-  status              ActiveStatus @default(active)
+  average_rating      Decimal       @default(0.00) @db.Decimal(3, 2)
+  status              ActiveStatus  @default(active)
+  target_species      TargetSpecies @default(all)
 
   category             ServiceCategory     @relation(fields: [service_category_id], references: [service_category_id], onDelete: Restrict, onUpdate: Cascade)
   service_surcharges   ServiceSurcharge[]
@@ -950,6 +951,7 @@ model Product {
   stock_quantity      Int           @default(0)
   average_rating      Decimal       @default(0.00) @db.Decimal(3, 2)
   status              ProductStatus @default(active)
+  target_species      TargetSpecies @default(all)
   created_at          DateTime      @default(now()) @db.DateTime(0)
   updated_at          DateTime      @updatedAt @db.DateTime(0)
 
@@ -1565,6 +1567,12 @@ enum FlashSaleStatus {
   active
   inactive
   ended
+}
+
+enum TargetSpecies {
+  dog
+  cat
+  all
 }
 
 model FlashSale {

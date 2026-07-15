@@ -4,7 +4,7 @@ import { toBigIntId } from '../utils/prismaHelpers';
 // --- INTERNAL SEARCH HELPERS ---
 
 const searchProducts = async (keyword, filters = {}) => {
-  const { productCategoryId, minPrice, maxPrice } = filters;
+  const { productCategoryId, minPrice, maxPrice, minRating, targetSpecies } = filters;
 
   const andConditions = [
     {
@@ -23,6 +23,17 @@ const searchProducts = async (keyword, filters = {}) => {
   }
   if (maxPrice !== undefined) {
     andConditions.push({ price: { lte: maxPrice } });
+  }
+  if (minRating !== undefined) {
+    andConditions.push({ average_rating: { gte: minRating } });
+  }
+  if (targetSpecies && targetSpecies !== 'all') {
+    andConditions.push({
+      OR: [
+        { target_species: targetSpecies },
+        { target_species: 'all' }
+      ]
+    });
   }
 
   const whereCondition = {
@@ -53,7 +64,7 @@ const searchProducts = async (keyword, filters = {}) => {
 };
 
 const searchServices = async (keyword, filters = {}) => {
-  const { serviceCategoryId, minPrice, maxPrice } = filters;
+  const { serviceCategoryId, minPrice, maxPrice, minRating, targetSpecies } = filters;
 
   const andConditions = [
     {
@@ -72,6 +83,17 @@ const searchServices = async (keyword, filters = {}) => {
   }
   if (maxPrice !== undefined) {
     andConditions.push({ base_price: { lte: maxPrice } });
+  }
+  if (minRating !== undefined) {
+    andConditions.push({ average_rating: { gte: minRating } });
+  }
+  if (targetSpecies && targetSpecies !== 'all') {
+    andConditions.push({
+      OR: [
+        { target_species: targetSpecies },
+        { target_species: 'all' }
+      ]
+    });
   }
 
   const whereCondition = {
@@ -98,15 +120,27 @@ const searchServices = async (keyword, filters = {}) => {
   };
 };
 
-const searchPosts = async (keyword, isCommunity = false) => {
+const searchPosts = async (keyword, isCommunity = false, filters = {}) => {
+  const { postCategoryId } = filters;
+
+  const andConditions = [
+    {
+      OR: [
+        { title: { contains: keyword } },
+        { excerpt: { contains: keyword } },
+        { hashtags: { contains: keyword } }
+      ]
+    }
+  ];
+
+  if (postCategoryId) {
+    andConditions.push({ post_category_id: toBigIntId(postCategoryId) });
+  }
+
   const whereCondition = {
     status: 'published',
     post_type: isCommunity ? 'community' : 'official_blog',
-    OR: [
-      { title: { contains: keyword } },
-      { excerpt: { contains: keyword } },
-      { hashtags: { contains: keyword } }
-    ]
+    AND: andConditions
   };
 
   const [count, items] = await prisma.$transaction([
@@ -355,7 +389,10 @@ const unifiedSearch = async (query) => {
       serviceCategoryId: query.serviceCategoryId || null,
       productCategoryId: query.productCategoryId || null,
       minPrice: query.minPrice ? parseFloat(query.minPrice) : undefined,
-      maxPrice: query.maxPrice ? parseFloat(query.maxPrice) : undefined
+      maxPrice: query.maxPrice ? parseFloat(query.maxPrice) : undefined,
+      minRating: query.minRating ? parseFloat(query.minRating) : undefined,
+      targetSpecies: query.targetSpecies || null,
+      postCategoryId: query.postCategoryId || null
     };
 
     // Validate price range
@@ -381,11 +418,11 @@ const unifiedSearch = async (query) => {
       scopeKeys.push('service');
     }
     if (activeScope === 'all' || activeScope === 'blog') {
-      promises.push(searchPosts(keyword, false));
+      promises.push(searchPosts(keyword, false, filters));
       scopeKeys.push('blog');
     }
     if (activeScope === 'all' || activeScope === 'community') {
-      promises.push(searchPosts(keyword, true));
+      promises.push(searchPosts(keyword, true, filters));
       scopeKeys.push('community');
     }
     if (activeScope === 'all' || activeScope === 'firstaid') {
@@ -427,11 +464,11 @@ const unifiedSearch = async (query) => {
         countKeys.push('service');
       }
       if (activeScope !== 'blog') {
-        countPromises.push(searchPosts(keyword, false).then(r => r.count));
+        countPromises.push(searchPosts(keyword, false, filters).then(r => r.count));
         countKeys.push('blog');
       }
       if (activeScope !== 'community') {
-        countPromises.push(searchPosts(keyword, true).then(r => r.count));
+        countPromises.push(searchPosts(keyword, true, filters).then(r => r.count));
         countKeys.push('community');
       }
       if (activeScope !== 'firstaid') {
