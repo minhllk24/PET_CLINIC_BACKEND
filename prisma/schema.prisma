@@ -1477,6 +1477,9 @@ model AdoptionRequest {
   adoption_pet_id     BigInt                @db.BigInt
   user_id             BigInt                @db.BigInt
   full_name           String                @db.VarChar(150)
+  phone               String                @db.VarChar(20)
+  gender              String?               @db.VarChar(10)
+  birth_year          Int?
   address             String                @db.VarChar(255)
   reason              String                @db.Text
   housing_info        String?               @db.Text

@@ -3133,6 +3133,88 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "14. Rescue & Adoption",
+			"item": [
+				{
+					"name": "Get Rescue Stations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/rescue/stations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rescue",
+								"stations"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Adoption Pets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/adoptions/pets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"pets"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Adoption Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"adoption_pet_id\": \"1\",\n    \"full_name\": \"Nguyễn Văn A\",\n    \"phone\": \"0868686868\",\n    \"gender\": \"Nam\",\n    \"birth_year\": \"1995\",\n    \"address\": \"Số 123, Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh\",\n    \"reason\": \"Tôi rất yêu mèo và có điều kiện chăm sóc tốt cho bé.\",\n    \"housing_info\": \"Nhà riêng (Có sân vườn)\\nGia đình đồng ý: Tất cả đều đồng ý và ủng hộ\\nThú cưng hiện tại: Không nuôi bé nào\\nThời gian ở một mình: Dưới 4 tiếng\",\n    \"experience\": \"Không nuôi bé nào\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/adoptions/requests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"requests"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Adoption Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/adoptions/my-requests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"adoptions",
+								"my-requests"
+							]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [

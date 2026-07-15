@@ -2628,6 +2628,151 @@ async function main() {
     }
   }
 
+  // 17. Seed Rescue Stations
+  const existingStations = await prisma.rescueStation.count();
+  if (existingStations === 0) {
+    console.log('Seeding rescue stations...');
+    await prisma.rescueStation.createMany({
+      data: [
+        {
+          station_name: "Vietnam Animal Welfare Association",
+          fanpage_url: "https://www.facebook.com/vawa.org/",
+          address: "675B, Nguyễn Kiệm, phường 9, Quận Phú Nhuận, Ho Chi Minh City, Vietnam, 700000",
+          status: "active"
+        },
+        {
+          station_name: "Nhóm cứu hộ chó mèo Sân Nhà Nhiều Chó",
+          fanpage_url: "https://www.facebook.com/Sannhanhieucho",
+          address: "Ngõ 15 đường Cột Mốc, Đoài Phương, Hà Nội 100000",
+          status: "active"
+        },
+        {
+          station_name: "Trạm Cứu Hộ Động Vật Nông Nghiệp Hà Nội",
+          fanpage_url: "https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi",
+          address: "Ngô Xuân Quảng_ Gia Lâm, Hanoi, Vietnam",
+          status: "active"
+        },
+        {
+          station_name: "Trạm Cứu Hộ Chó Mèo Sài Gòn Time",
+          fanpage_url: "https://www.facebook.com/savesgt",
+          address: "Foster House, Ho Chi Minh City, Vietnam",
+          status: "active"
+        },
+        {
+          station_name: "We Act For Animals",
+          fanpage_url: "https://www.facebook.com/wafavn/?ref=page_internal",
+          address: "Nha Trang, Vietnam, 650000",
+          status: "active"
+        },
+        {
+          station_name: "Laws for Paws Vietnam",
+          fanpage_url: "https://www.facebook.com/lawsforpawsvietnam",
+          address: "Ho Chi Minh City, Vietnam",
+          status: "active"
+        }
+      ]
+    });
+  }
+
+  // 18. Seed Adoption Pets
+  const existingAdoptionPets = await prisma.adoptionPet.count();
+  if (existingAdoptionPets === 0) {
+    console.log('Seeding adoption pets...');
+    const adminUser = await prisma.user.findFirst({ where: { email: 'admin@petclinic.com' } });
+    if (adminUser) {
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Mimi",
+          description: "Mimi được cứu vào một chiều mưa và đang tìm một gia đình thật dịu dàng.",
+          personality: "Mèo Tam Thể đang phục hồi tốt sau khi được chăm sóc.",
+          adoption_conditions: "Cần hạt, pate và người nhận nuôi có kinh nghiệm.",
+          status: "available",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Mimi 2",
+          description: "Mimi là cô mèo nhỏ nhắn, thích sưởi nắng và rất quấn người.",
+          personality: "Mèo Tam Thể đã tiêm phòng cơ bản.",
+          adoption_conditions: "Cần người chăm sóc lâu dài và vật dụng vệ sinh.",
+          status: "available",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Lucy",
+          description: "Một bé mèo hiền, quen sống trong nhà và đang học tin người trở lại.",
+          personality: "Đang theo dõi sức khỏe, ăn uống ổn định.",
+          adoption_conditions: "Cần hỗ trợ chi phí khám định kỳ.",
+          status: "adopted",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Nâu",
+          description: "Nâu được đón về từ khu chợ nhỏ, ngoan và hợp với gia đình yên tĩnh.",
+          personality: "Đã tẩy giun, đang tăng cân tốt.",
+          adoption_conditions: "Cần thức ăn mềm và nhà tạm.",
+          status: "adopted",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1526336024174-e58f5cdd8e13?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Bông",
+          description: "Bông thân thiện, thích được vuốt ve và có thể hòa nhập với mèo khác.",
+          personality: "Sức khỏe ổn định, còn hơi nhát.",
+          adoption_conditions: "Cần người nhận nuôi kiên nhẫn.",
+          status: "available",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+      await prisma.adoptionPet.create({
+        data: {
+          name: "Miu",
+          description: "Miu nhỏ người, sạch sẽ, phù hợp căn hộ và người mới nuôi mèo.",
+          personality: "Đã khám tổng quát, không phát hiện bất thường.",
+          adoption_conditions: "Cần cát vệ sinh, hạt kitten và đồ chơi.",
+          status: "adopted",
+          created_by_admin_id: adminUser.user_id,
+          images: {
+            create: [
+              { image_url: "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400", is_primary: true }
+            ]
+          }
+        }
+      });
+    }
+  }
+
   console.log('Seed data successfully!');
 }
 
