@@ -31,7 +31,7 @@ const getRescuePosts = async () => {
 const getAdoptionPets = async () => {
   try {
     const pets = await prisma.adoptionPet.findMany({
-      where: { status: 'available' },
+      where: { status: { in: ['available', 'adopted'] } },
       include: {
         images: true
       },
