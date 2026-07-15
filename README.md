@@ -45,8 +45,9 @@ npm start
 ```
 Nếu Terminal báo `SERVER is running on PORT: 8080`, bạn đã cài đặt thành công!
 
-## Thông tin đăng nhập mẫu (Seed Data)
-Tất cả các tài khoản mẫu đều có chung password là: `12345678`
+## Thông tin đăng nhập mẫu (Tài Khoản Test / Seed Data)
+Thầy cô có thể sử dụng các tài khoản mẫu dưới đây để test:
+Tất cả các tài khoản mẫu đều có chung password là: `Abc12345`
 - Admin: `admin@petclinic.com`
 - Doctor: `doctor1@petclinic.com`
 - Customer: `customer1@petclinic.com`
