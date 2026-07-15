@@ -486,9 +486,12 @@ const getSearchSuggestions = async (query) => {
     const q = (query.q || '').trim();
     const limit = parseInt(query.limit) || 10;
 
-    let suggestions;
+    let logs = [];
+    let products = [];
+    let services = [];
+
     if (q) {
-      suggestions = await prisma.$queryRaw`
+      logs = await prisma.$queryRaw`
         SELECT keyword, COUNT(*) as search_count
         FROM search_logs
         WHERE keyword LIKE ${'%' + q + '%'}
@@ -496,8 +499,20 @@ const getSearchSuggestions = async (query) => {
         ORDER BY search_count DESC
         LIMIT ${limit}
       `;
+
+      products = await prisma.product.findMany({
+        where: { product_name: { contains: q }, status: 'active' },
+        select: { product_name: true },
+        take: 3
+      });
+
+      services = await prisma.service.findMany({
+        where: { service_name: { contains: q }, status: 'active' },
+        select: { service_name: true },
+        take: 3
+      });
     } else {
-      suggestions = await prisma.$queryRaw`
+      logs = await prisma.$queryRaw`
         SELECT keyword, COUNT(*) as search_count
         FROM search_logs
         GROUP BY keyword
@@ -506,13 +521,39 @@ const getSearchSuggestions = async (query) => {
       `;
     }
 
+    const uniqueKeywords = new Set();
+    const result = [];
+
+    // Ưu tiên đưa tên sản phẩm, dịch vụ lên trước nếu có search query
+    services.forEach(s => {
+      const kw = s.service_name;
+      if (!uniqueKeywords.has(kw)) {
+        uniqueKeywords.add(kw);
+        result.push({ keyword: kw, count: 0, type: 'service' });
+      }
+    });
+
+    products.forEach(p => {
+      const kw = p.product_name;
+      if (!uniqueKeywords.has(kw)) {
+        uniqueKeywords.add(kw);
+        result.push({ keyword: kw, count: 0, type: 'product' });
+      }
+    });
+
+    // Lịch sử search
+    logs.forEach(l => {
+      const kw = l.keyword;
+      if (!uniqueKeywords.has(kw)) {
+        uniqueKeywords.add(kw);
+        result.push({ keyword: kw, count: Number(l.search_count), type: 'history' });
+      }
+    });
+
     return {
       EM: 'Get suggestions successful',
       EC: 0,
-      DT: suggestions.map(s => ({
-        keyword: s.keyword,
-        count: Number(s.search_count)
-      }))
+      DT: result.slice(0, limit)
     };
   } catch (error) {
     console.error('Search suggestions error:', error);
