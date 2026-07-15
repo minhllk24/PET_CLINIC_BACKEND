@@ -21,6 +21,7 @@ import rescueController from '../controllers/rescueController';
 import flashSaleController from '../controllers/flashSaleController';
 import searchController from '../controllers/searchController';
 import contactController from '../controllers/contactController';
+import notificationController from '../controllers/notificationController';
 
 import { authMiddleware as verifyToken, requireRole as checkPermission, optionalAuth } from '../middleware/authMiddleware';
 import upload from '../middleware/uploadMiddleware';
@@ -200,6 +201,11 @@ const initAPIRoutes = (app) => {
   // --- CONTACT ---
   router.post('/contacts', contactController.handleCreateContactMessage);
   router.get('/contacts', verifyToken, checkPermission(['ADMIN']), contactController.handleGetContactMessages);
+
+  // --- NOTIFICATIONS ---
+  router.get('/notifications', verifyToken, notificationController.handleGetNotifications);
+  router.patch('/notifications/read-all', verifyToken, notificationController.handleMarkAllAsRead);
+  router.patch('/notifications/:id/read', verifyToken, notificationController.handleMarkAsRead);
 
   return app.use('/api/v1', router);
 };
