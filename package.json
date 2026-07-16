@@ -4,9 +4,10 @@
   "description": "Backend for Pet Clinic using Express and Prisma",
   "main": "src/server.js",
   "scripts": {
-    "start": "nodemon --exec babel-node src/server.js",
+    "dev": "nodemon --exec babel-node src/server.js",
     "build-src": "babel src -d build --copy-files",
-    "build": "node build/server.js",
+    "build": "prisma generate && babel src --out-dir dist",
+    "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:studio": "prisma studio",
