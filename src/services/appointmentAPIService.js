@@ -469,17 +469,33 @@ const calculateWeightSurcharge = (petWeight) => {
   return weight > WEIGHT_SURCHARGE_THRESHOLD ? WEIGHT_SURCHARGE_AMOUNT : 0;
 };
 
+const normalizePetGender = (value) => {
+  if (!value) return 'unknown';
+  const val = String(value).trim().toLowerCase();
+  if (['male', 'đực', 'duc', 'nam', 'm'].includes(val)) return 'male';
+  if (['female', 'cái', 'cai', 'nữ', 'nu', 'f'].includes(val)) return 'female';
+  return 'unknown';
+};
+
 const normalizePetHealthStatus = (value) => {
+  if (!value) return 'unknown';
+  const val = String(value).trim().toLowerCase();
   const statusMap = {
     normal: 'healthy',
     healthy: 'healthy',
+    'bình thường': 'healthy',
+    'binh thuong': 'healthy',
     treating: 'treating',
+    'đang điều trị': 'treating',
+    'dang dieu tri': 'treating',
     chronic: 'unknown',
+    'có bệnh nền': 'unknown',
+    'co benh nen': 'unknown',
     need_recheck: 'need_recheck',
     unknown: 'unknown'
   };
 
-  return statusMap[value] || 'unknown';
+  return statusMap[val] || 'unknown';
 };
 
 const buildPetUpdateData = (petData = {}) => ({
@@ -488,23 +504,51 @@ const buildPetUpdateData = (petData = {}) => ({
   breed_id: petData.breed_id ? toBigIntId(petData.breed_id) : undefined,
   weight_kg: petData.weight_kg ? parseFloat(petData.weight_kg) : undefined,
   age: petData.age ? String(petData.age) : undefined,
-  gender: petData.gender || undefined,
+  gender: petData.gender ? normalizePetGender(petData.gender) : undefined,
   health_status: petData.health_status ? normalizePetHealthStatus(petData.health_status) : undefined,
   medical_note: petData.medical_note || undefined
 });
 
-const buildPetCreateData = (petData = {}, userId) => {
-  const speciesId = petData.species_id ? toBigIntId(petData.species_id) : null;
+const buildPetCreateData = async (tx, petData = {}, userId) => {
+  let speciesId = petData.species_id ? toBigIntId(petData.species_id) : null;
+  
+  if (!speciesId) {
+    const nameSearch = petData.species_name || petData.species || 'Chó';
+    const foundSpecies = await tx.petSpecies.findFirst({
+      where: {
+        OR: [
+          { species_name: { contains: nameSearch } },
+          { species_id: !isNaN(Number(nameSearch)) ? toBigIntId(nameSearch) : undefined }
+        ].filter(Boolean)
+      }
+    });
+    if (foundSpecies) {
+      speciesId = foundSpecies.species_id;
+    } else {
+      const firstSpecies = await tx.petSpecies.findFirst();
+      if (firstSpecies) speciesId = firstSpecies.species_id;
+    }
+  }
+
   if (!speciesId) throw new Error('Missing pet species');
+
+  let breedId = petData.breed_id ? toBigIntId(petData.breed_id) : null;
+  if (!breedId && (petData.breed_name || petData.breed)) {
+    const breedSearch = petData.breed_name || petData.breed;
+    const foundBreed = await tx.petBreed.findFirst({
+      where: { breed_name: { contains: breedSearch } }
+    });
+    if (foundBreed) breedId = foundBreed.breed_id;
+  }
 
   return {
     owner_user_id: userId,
-    pet_name: petData.pet_name,
+    pet_name: petData.pet_name || 'Thú cưng',
     species_id: speciesId,
-    breed_id: petData.breed_id ? toBigIntId(petData.breed_id) : null,
+    breed_id: breedId,
     weight_kg: petData.weight_kg ? parseFloat(petData.weight_kg) : null,
     age: petData.age ? String(petData.age) : null,
-    gender: petData.gender || 'unknown',
+    gender: normalizePetGender(petData.gender),
     health_status: normalizePetHealthStatus(petData.health_status),
     medical_note: petData.medical_note || null
   };
@@ -644,17 +688,18 @@ const createAppointment = async (userIdStr, data) => {
             petWeightKg = pet.weight_kg;
           }
         }
-      } else if (pet_data && pet_data.pet_name) {
+      } else if (pet_data) {
         // Create new pet
+        const petCreateInput = await buildPetCreateData(tx, pet_data, userId);
         const newPet = await tx.pet.create({
-          data: buildPetCreateData(pet_data, userId),
+          data: petCreateInput,
           include: { species: true, breed: true }
         });
         finalPetId = newPet.pet_id;
         pet_name_snapshot = newPet.pet_name;
         pet_species_snapshot = newPet.species?.species_name || null;
         pet_breed_snapshot = newPet.breed?.breed_name || null;
-        petWeightKg = newPet.weight_kg;
+        petWeightKg = newPet.weight_kg ? parseFloat(newPet.weight_kg) : null;
       }
 
       const servicesMap = new Map();
@@ -1396,16 +1441,17 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
             petWeightKg = pet.weight_kg;
           }
         }
-      } else if (pet_data && pet_data.pet_name) {
+      } else if (pet_data) {
+        const petCreateInput = await buildPetCreateData(tx, pet_data, userId);
         const newPet = await tx.pet.create({
-          data: buildPetCreateData(pet_data, userId),
+          data: petCreateInput,
           include: { species: true, breed: true }
         });
         finalPetId = newPet.pet_id;
         pet_name_snapshot = newPet.pet_name;
         pet_species_snapshot = newPet.species?.species_name || null;
         pet_breed_snapshot = newPet.breed?.breed_name || null;
-        petWeightKg = newPet.weight_kg;
+        petWeightKg = newPet.weight_kg ? parseFloat(newPet.weight_kg) : null;
       }
 
       // 3. Pricing & Services
