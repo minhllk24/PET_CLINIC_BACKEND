@@ -462,6 +462,14 @@ const generateAppointmentCode = () => {
 const WEIGHT_SURCHARGE_THRESHOLD = 5; // kg
 const WEIGHT_SURCHARGE_AMOUNT = 50000; // VND
 
+const normalizePaymentMethod = (method) => {
+  if (!method) return 'store';
+  const m = String(method).trim().toLowerCase();
+  if (['online', 'banking', 'vnpay', 'momo', 'card', 'trực tuyến', 'truc tuyen'].includes(m)) return 'online';
+  if (['cod', 'cash_on_delivery'].includes(m)) return 'cod';
+  return 'store';
+};
+
 const calculateWeightSurcharge = (petWeight) => {
   if (!petWeight) return 0;
   const weight = parseFloat(petWeight);
@@ -1050,6 +1058,9 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       const orderCode = `ORD-APT-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       const paymentCode = `PAY-APT-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+      const normalizedPaymentMethod = normalizePaymentMethod(payment_method);
+      const safeRecipientPhone = appointment.customer_phone_snapshot ? String(appointment.customer_phone_snapshot).substring(0, 20) : 'N/A';
+
       // 1. Create Order
       const newOrder = await tx.order.create({
         data: {
@@ -1058,7 +1069,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
           user_id: userId,
           appointment_id: appointmentId,
           recipient_name: appointment.customer_name_snapshot,
-          recipient_phone: appointment.customer_phone_snapshot,
+          recipient_phone: safeRecipientPhone,
           subtotal_amount: subtotal,
           discount_amount: discount_amount,
           points_discount_amount: 0,
@@ -1096,13 +1107,13 @@ const checkoutAppointment = async (id, userIdStr, data) => {
           order_id: newOrder.order_id,
           appointment_id: appointmentId,
           payment_target_type: 'appointment',
-          payment_method: payment_method, // 'store' or 'online'
+          payment_method: normalizedPaymentMethod,
           subtotal_amount: subtotal,
           voucher_discount_amount: discount_amount,
           points_used: 0,
           points_discount_amount: 0,
           final_amount: total,
-          status: 'pending'
+          status: normalizedPaymentMethod === 'store' ? 'waiting_store_payment' : 'pending'
         }
       });
 
@@ -1128,7 +1139,7 @@ const checkoutAppointment = async (id, userIdStr, data) => {
       }
 
       // 5. Update Appointment status and payment_status
-      const newPaymentStatus = payment_method === 'store' ? 'waiting_store_payment' : 'unpaid';
+      const newPaymentStatus = normalizedPaymentMethod === 'store' ? 'waiting_store_payment' : 'unpaid';
       
       const updatedAppointment = await tx.appointment.update({
         where: { appointment_id: appointmentId },
@@ -1342,9 +1353,11 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       return { EM: 'Missing payment method', EC: 1, DT: '' };
     }
 
+    const normalizedPaymentMethod = normalizePaymentMethod(payment_method);
+
     // --- RULE: No-show checking ---
     const user = await prisma.user.findUnique({ where: { user_id: userId } });
-    if (user && user.no_show_count >= 2 && payment_method === 'store') {
+    if (user && user.no_show_count >= 2 && normalizedPaymentMethod === 'store') {
       return { EM: 'Bạn đã vắng mặt nhiều lần. Vui lòng thanh toán trực tuyến (đặt cọc) để đặt lịch.', EC: 1, DT: '' };
     }
 
@@ -1544,8 +1557,8 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           pet_breed_snapshot,
           condition_description: condition_description || null,
           note: note || null,
-          status: payment_method === 'store' ? 'pending' : 'confirmed', // If online, might be pending until paid, but simplified here
-          payment_status: payment_method === 'store' ? 'waiting_store_payment' : 'unpaid'
+          status: normalizedPaymentMethod === 'store' ? 'pending' : 'confirmed', // If online, might be pending until paid, but simplified here
+          payment_status: normalizedPaymentMethod === 'store' ? 'waiting_store_payment' : 'unpaid'
         }
       });
 
@@ -1593,14 +1606,14 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           order_id: newOrder.order_id,
           appointment_id: newAppointment.appointment_id,
           payment_target_type: 'appointment',
-          payment_method: payment_method,
+          payment_method: normalizedPaymentMethod,
           subtotal_amount: subtotal + surchargeAmount,
           voucher_discount_amount: discountAmount,
           points_used: 0,
           points_discount_amount: 0,
           final_amount: totalAmount,
-          status: payment_method === 'store' ? 'waiting_store_payment' : 'pending',
-          gateway_transaction_id: payment_method === 'online' ? paymentCode : null
+          status: normalizedPaymentMethod === 'store' ? 'waiting_store_payment' : 'pending',
+          gateway_transaction_id: normalizedPaymentMethod === 'online' ? paymentCode : null
         }
       });
 
