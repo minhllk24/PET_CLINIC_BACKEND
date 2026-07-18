@@ -532,6 +532,15 @@ const createAppointment = async (userIdStr, data) => {
       return { EM: 'Missing customer_name_snapshot', EC: 1, DT: '' };
     }
 
+    if (customer_phone_snapshot) {
+      const phoneRegex = /^\+?[0-9]{9,15}$/;
+      if (!phoneRegex.test(String(customer_phone_snapshot).replace(/[\s-]/g, ''))) {
+        return { EM: 'Số điện thoại liên hệ không hợp lệ', EC: 1, DT: '' };
+      }
+    }
+    
+    const safePhone = customer_phone_snapshot ? String(customer_phone_snapshot).substring(0, 20) : '';
+
     const slotIdBig = toBigIntId(slot_id);
     const petIdBig = pet_id ? toBigIntId(pet_id) : null;
 
@@ -668,7 +677,7 @@ const createAppointment = async (userIdStr, data) => {
           note: note || null,
           condition_description: condition_description || null,
           customer_name_snapshot,
-          customer_phone_snapshot: customer_phone_snapshot || null,
+          customer_phone_snapshot: safePhone,
           pet_name_snapshot,
           pet_species_snapshot,
           pet_breed_snapshot
@@ -1273,8 +1282,17 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       return { EM: 'Missing slot_id or service_ids', EC: 1, DT: '' };
     }
     if (!customer_name_snapshot) {
-      return { EM: 'Missing customer_name_snapshot', EC: 1, DT: '' };
+      return { EM: 'Vui lòng cung cấp họ tên khách hàng', EC: 1, DT: '' };
     }
+
+    if (customer_phone_snapshot) {
+      const phoneRegex = /^\+?[0-9]{9,15}$/;
+      if (!phoneRegex.test(String(customer_phone_snapshot).replace(/[\s-]/g, ''))) {
+        return { EM: 'Số điện thoại liên hệ không hợp lệ', EC: 1, DT: '' };
+      }
+    }
+
+    const safePhone = customer_phone_snapshot ? String(customer_phone_snapshot).substring(0, 20) : '';
     if (!payment_method) {
       return { EM: 'Missing payment method', EC: 1, DT: '' };
     }
@@ -1459,7 +1477,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       }
 
       const totalAmount = subtotal + surchargeAmount - discountAmount;
-      const newPaymentStatus = payment_method === 'store' ? 'waiting_store_payment' : 'unpaid';
+      const newPaymentStatus = 'unpaid'; // OrderPaymentStatus only has unpaid, paid, failed, refunded
 
       // 5. Create Appointment
       const appointmentCode = `APT-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -1474,7 +1492,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           appointment_date: slot.slot_date,
           start_time: slot.start_time,
           customer_name_snapshot,
-          customer_phone_snapshot,
+          customer_phone_snapshot: safePhone,
           pet_name_snapshot,
           pet_species_snapshot,
           pet_breed_snapshot,
@@ -1508,7 +1526,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
           user_id: userId,
           voucher_id: voucherId,
           recipient_name: customer_name_snapshot,
-          recipient_phone: customer_phone_snapshot,
+          recipient_phone: safePhone,
           shipping_address: 'In-store',
           subtotal_amount: subtotal + surchargeAmount,
           discount_amount: discountAmount,
