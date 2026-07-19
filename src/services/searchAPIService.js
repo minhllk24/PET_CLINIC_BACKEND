@@ -182,10 +182,10 @@ const searchPosts = async (keyword, isCommunity = false, filters = {}) => {
 
 const searchFirstAid = async (keyword) => {
   const whereCondition = {
-    status: 'active',
+    status: 'published',
     OR: [
       { title: { contains: keyword } },
-      { summary: { contains: keyword } }
+      { situation_description: { contains: keyword } }
     ]
   };
 
@@ -197,12 +197,21 @@ const searchFirstAid = async (keyword) => {
         guide_id: true,
         title: true,
         slug: true,
-        summary: true,
-        thumbnail_url: true,
-        view_count: true,
+        situation_description: true,
         created_at: true,
         category: {
           select: { category_name: true }
+        },
+        media: {
+          where: { media_type: 'image' },
+          select: { file_url: true },
+          take: 1
+        },
+        steps: {
+          where: { image_url: { not: null } },
+          select: { image_url: true },
+          orderBy: { step_number: 'asc' },
+          take: 1
         }
       },
       orderBy: { created_at: 'desc' }
@@ -213,8 +222,11 @@ const searchFirstAid = async (keyword) => {
     count,
     items: items.map(item => ({
       _type: 'firstaid',
+      summary: item.situation_description,
+      thumbnail_url: item.media?.[0]?.file_url || item.steps?.[0]?.image_url || null,
+      view_count: 0,
       ...item,
-      _relevance: calculateRelevance(keyword, item.title, item.summary)
+      _relevance: calculateRelevance(keyword, item.title, item.situation_description)
     }))
   };
 };
@@ -406,10 +418,10 @@ const getFirstAidCategoryFacets = async (keyword) => {
   const facets = await prisma.firstAidGuide.groupBy({
     by: ['first_aid_category_id'],
     where: {
-      status: 'active',
+      status: 'published',
       OR: [
         { title: { contains: keyword } },
-        { summary: { contains: keyword } }
+        { situation_description: { contains: keyword } }
       ]
     },
     _count: { guide_id: true }
@@ -670,6 +682,8 @@ const getSearchSuggestions = async (query) => {
 // --- SEARCH LOG ---
 
 const logSearch = (userId, keyword, scope, filters) => {
+  const loggableScopes = ['all', 'product', 'service', 'blog'];
+  const safeScope = loggableScopes.includes(scope) ? scope : 'blog';
   const filtersJson = {};
   if (filters.serviceCategoryId) filtersJson.serviceCategoryId = filters.serviceCategoryId;
   if (filters.productCategoryId) filtersJson.productCategoryId = filters.productCategoryId;
@@ -680,7 +694,7 @@ const logSearch = (userId, keyword, scope, filters) => {
     data: {
       user_id: userId ? toBigIntId(userId) : null,
       keyword: keyword.substring(0, 255),
-      search_scope: scope,
+      search_scope: safeScope,
       filters_json: Object.keys(filtersJson).length > 0 ? filtersJson : undefined
     }
   }).catch(err => console.error('Failed to log search:', err));
