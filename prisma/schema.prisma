@@ -638,6 +638,7 @@ model Service {
   average_rating      Decimal       @default(0.00) @db.Decimal(3, 2)
   status              ActiveStatus  @default(active)
   target_species      TargetSpecies @default(all)
+  is_weight_surcharge_applied Boolean @default(false)
 
   category             ServiceCategory     @relation(fields: [service_category_id], references: [service_category_id], onDelete: Restrict, onUpdate: Cascade)
   service_surcharges   ServiceSurcharge[]

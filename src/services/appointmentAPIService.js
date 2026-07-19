@@ -458,10 +458,6 @@ const generateAppointmentCode = () => {
   return `BK-${randomPart}-${year}`;
 };
 
-// Quy tắc phụ thu cân nặng chung
-const WEIGHT_SURCHARGE_THRESHOLD = 5; // kg
-const WEIGHT_SURCHARGE_AMOUNT = 50000; // VND
-
 const normalizePaymentMethod = (method) => {
   if (!method) return 'store';
   const m = String(method).trim().toLowerCase();
@@ -470,11 +466,17 @@ const normalizePaymentMethod = (method) => {
   return 'store';
 };
 
-const calculateWeightSurcharge = (petWeight) => {
-  if (!petWeight) return 0;
-  const weight = parseFloat(petWeight);
-  if (isNaN(weight)) return 0;
-  return weight > WEIGHT_SURCHARGE_THRESHOLD ? WEIGHT_SURCHARGE_AMOUNT : 0;
+// Quy tắc phụ thu cân nặng chung (Luỹ tiến)
+const calculateWeightSurcharge = (dbSvc, petWeightKg, quantity = 1) => {
+  if (!dbSvc || !dbSvc.is_weight_surcharge_applied) return 0;
+  if (!petWeightKg) return 0;
+  
+  const weight = parseFloat(petWeightKg);
+  if (isNaN(weight) || weight <= 5) return 0;
+  
+  const extraWeight = weight - 5;
+  const surchargePerUnit = Math.ceil(extraWeight) * 10000;
+  return surchargePerUnit * quantity;
 };
 
 const normalizePetGender = (value) => {
@@ -737,14 +739,13 @@ const createAppointment = async (userIdStr, data) => {
         }
       });
 
-      // 6. Calculate surcharge per service
-      const surchargePerService = calculateWeightSurcharge(petWeightKg);
+      // 6. Calculate surcharge per service is now done inside the loop
 
       // 7. Create appointment_services
       for (const s of dbServices) {
         const qty = servicesMap.get(s.service_id.toString()) || 1;
         const basePrice = parseFloat(s.base_price);
-        const serviceSurcharge = surchargePerService * qty;
+        const serviceSurcharge = calculateWeightSurcharge(s, petWeightKg, qty);
         const totalPrice = (basePrice * qty) + serviceSurcharge;
 
         await tx.appointmentService.create({
@@ -1233,11 +1234,7 @@ const previewPricing = async (data, currentUser) => {
       const qty = servicesMap.get(dbSvc.service_id.toString()) || 1;
       const uPrice = parseFloat(dbSvc.base_price);
       
-      let sCharge = 0;
-      if (dbSvc.is_weight_surcharge_applied && petWeight > 5) {
-        const extraWeight = petWeight - 5;
-        sCharge = Math.ceil(extraWeight) * 10000;
-      }
+      const sCharge = calculateWeightSurcharge(dbSvc, petWeight, 1);
       
       surchargeAmount += (sCharge * qty);
       subtotal += (uPrice * qty);
@@ -1480,11 +1477,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       for (const dbSvc of dbServices) {
         const qty = servicesMap.get(dbSvc.service_id.toString()) || 1;
         const uPrice = parseFloat(dbSvc.base_price);
-        let sCharge = 0;
-        if (dbSvc.is_weight_surcharge_applied && petWeightKg && petWeightKg > 5) {
-          const extraWeight = petWeightKg - 5;
-          sCharge = Math.ceil(extraWeight) * 10000;
-        }
+        const sCharge = calculateWeightSurcharge(dbSvc, petWeightKg, 1);
         surchargeAmount += (sCharge * qty);
         subtotal += (uPrice * qty);
         servicesDetail.push({
