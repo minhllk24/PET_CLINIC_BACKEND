@@ -1,6 +1,12 @@
 import prisma from '../configs/prisma';
 import { toBigIntId } from '../utils/prismaHelpers';
 
+const toBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true';
+  return Boolean(value);
+};
+
 const getAllCategories = async () => {
   try {
     const categories = await prisma.serviceCategory.findMany({
@@ -86,6 +92,7 @@ const createService = async (data) => {
         description: data.description || null,
         base_price: parseFloat(data.base_price),
         duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes) : 30,
+        is_weight_surcharge_applied: toBoolean(data.is_weight_surcharge_applied),
         status: data.status || 'active'
       }
     });
@@ -108,6 +115,9 @@ const updateService = async (id, data) => {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.base_price) updateData.base_price = parseFloat(data.base_price);
     if (data.duration_minutes) updateData.duration_minutes = parseInt(data.duration_minutes);
+    if (data.is_weight_surcharge_applied !== undefined) {
+      updateData.is_weight_surcharge_applied = toBoolean(data.is_weight_surcharge_applied);
+    }
     if (data.status) updateData.status = data.status;
 
     const updatedService = await prisma.service.update({

@@ -38,7 +38,7 @@ const getOrders = async (user, query) => {
                 }
               },
               variant: {
-                select: { variant_name: true }
+                select: { variant_id: true, variant_name: true, price: true }
               }
             }
           }
@@ -86,7 +86,7 @@ const getOrderById = async (id, user) => {
               }
             },
             variant: {
-              select: { variant_name: true }
+              select: { variant_id: true, variant_name: true, price: true }
             }
           }
         },

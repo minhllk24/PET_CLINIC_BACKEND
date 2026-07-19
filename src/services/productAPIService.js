@@ -1,6 +1,21 @@
 import prisma from '../configs/prisma';
 import { toBigIntId } from '../utils/prismaHelpers';
 
+const parseIdList = (...values) => {
+  const rawValues = values
+    .flatMap(value => Array.isArray(value) ? value : [value])
+    .filter(value => value !== undefined && value !== null && value !== '');
+
+  const ids = rawValues
+    .flatMap(value => String(value).split(','))
+    .map(value => value.trim())
+    .filter(Boolean)
+    .map(value => toBigIntId(value))
+    .filter(Boolean);
+
+  return [...new Set(ids.map(id => id.toString()))].map(id => BigInt(id));
+};
+
 // --- PRODUCT CATEGORY ---
 
 const getAllCategories = async () => {
@@ -100,7 +115,12 @@ const getAllProducts = async (query) => {
     const skip = (page - 1) * limit;
 
     const filter = query.filter || '';
-    const categoryId = query.category_id ? toBigIntId(query.category_id) : undefined;
+    const categoryIds = parseIdList(
+      query.category_ids,
+      query.categoryIds,
+      query.category_id,
+      query.product_category_id
+    );
     const sort = query.sort || 'newest';
     const minPrice = query.minPrice ? parseFloat(query.minPrice) : undefined;
     const maxPrice = query.maxPrice ? parseFloat(query.maxPrice) : undefined;
@@ -108,7 +128,7 @@ const getAllProducts = async (query) => {
     const whereCondition = {
       status: 'active',
       product_name: filter ? { contains: filter } : undefined,
-      product_category_id: categoryId ? categoryId : undefined,
+      product_category_id: categoryIds.length ? { in: categoryIds } : undefined,
       ...(minPrice !== undefined || maxPrice !== undefined ? {
         price: {
           ...(minPrice !== undefined ? { gte: minPrice } : {}),

@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:studio": "prisma studio",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "services:enable-weight-surcharge": "babel-node prisma/enableWeightSurcharge.js"
   },
   "prisma": {
     "seed": "babel-node prisma/seed.js"

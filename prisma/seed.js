@@ -637,6 +637,7 @@ async function main() {
       duration_minutes: 45,
       description: 'Dịch vụ tắm sạch bằng sữa tắm dưỡng lông cao cấp và sấy khô, giúp loại bỏ bụi bẩn và mùi hôi.',
       image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -646,6 +647,7 @@ async function main() {
       duration_minutes: 30,
       description: 'Massage thư giãn giảm căng thẳng, kích thích tuần hoàn máu và hỗ trợ sức khỏe xương khớp cho thú cưng.',
       image_url: 'https://images.unsplash.com/photo-1544568100-847a948585b9?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -655,6 +657,7 @@ async function main() {
       duration_minutes: 20,
       description: 'Chải răng, loại bỏ mảng bám thức ăn và sử dụng xịt thơm miệng chuyên dụng cho thú cưng.',
       image_url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -664,6 +667,7 @@ async function main() {
       duration_minutes: 15,
       description: 'Cắt móng an toàn và mài mịn các góc nhọn, tránh cào xước da chủ nuôi và đồ đạc.',
       image_url: 'https://images.unsplash.com/photo-1597633425046-08f5110420b5?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -673,6 +677,7 @@ async function main() {
       duration_minutes: 20,
       description: 'Cạo lông kẽ chân, vệ sinh sạch sẽ và thoa kem dưỡng ẩm bảo vệ đệm chân thú cưng.',
       image_url: 'https://images.unsplash.com/photo-1537151608828-ea2b117b62e4?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -682,6 +687,7 @@ async function main() {
       duration_minutes: 30,
       description: 'Tắm thuốc chuyên dụng loại bỏ ve, rận, bọ chét và hướng dẫn phòng ngừa tái nhiễm.',
       image_url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -691,6 +697,7 @@ async function main() {
       duration_minutes: 60,
       description: 'Cắt tỉa và tạo kiểu lông chuyên nghiệp bởi các groomer giàu kinh nghiệm theo yêu cầu.',
       image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -700,6 +707,7 @@ async function main() {
       duration_minutes: 90,
       description: 'Nhuộm màu thời trang cho tai, đuôi hoặc chân bằng màu nhuộm organic an toàn tuyệt đối cho thú cưng.',
       image_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -709,6 +717,7 @@ async function main() {
       duration_minutes: 15,
       description: 'Vắt tuyến hôi hậu môn giúp làm giảm mùi hôi đặc trưng và ngăn ngừa viêm nhiễm tuyến hôi.',
       image_url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     // Combo Grooming & Spa
@@ -719,6 +728,7 @@ async function main() {
       duration_minutes: 90,
       description: 'Quy trình chăm sóc toàn diện 11 bước: 1. Khám da & lông sơ bộ; 2. Chải lông gỡ rối; 3. Cắt & mài móng; 4. Vệ sinh tai; 5. Cạo lông kẽ bàn chân; 6. Vắt tuyến hôi; 7. Tắm lần 1 (sạch sâu); 8. Tắm lần 2 (dưỡng mượt); 9. Massage nhẹ nhàng; 10. Sấy khô & chải phồng; 11. Xịt dưỡng bóng lông & nước hoa.',
       image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -728,6 +738,7 @@ async function main() {
       duration_minutes: 75,
       description: 'Gói combo tiết kiệm bao gồm dịch vụ tắm sấy thơm tho kết hợp cắt tỉa tạo kiểu gọn gàng cho thú cưng.',
       image_url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -737,6 +748,7 @@ async function main() {
       duration_minutes: 30,
       description: 'Gói chăm sóc móng chuyên biệt: cắt móng, mài mịn, vệ sinh sạch đệm chân và thoa dầu dưỡng đệm chân cao cấp.',
       image_url: 'https://images.unsplash.com/photo-1597633425046-08f5110420b5?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     // Khám & Điều trị
@@ -809,6 +821,7 @@ async function main() {
           duration_minutes: s.duration_minutes,
           description: s.description,
           image_url: s.image_url,
+          is_weight_surcharge_applied: Boolean(s.is_weight_surcharge_applied),
           status: s.status
         }
       });
@@ -821,6 +834,7 @@ async function main() {
           duration_minutes: s.duration_minutes,
           description: s.description,
           image_url: s.image_url,
+          is_weight_surcharge_applied: Boolean(s.is_weight_surcharge_applied),
           status: s.status
         }
       });

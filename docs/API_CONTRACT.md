@@ -521,6 +521,7 @@ page=1
 limit=10
 filter=keyword
 category_id=1
+category_ids=1,2,3      # optional, loc nhieu danh muc; cung ho tro category_id lap lai/array
 sort=newest|best_selling|price_asc|price_desc|rating
 minPrice=10000
 maxPrice=500000
@@ -958,11 +959,14 @@ Body:
   "description": "Basic check",
   "base_price": 200000,
   "duration_minutes": 30,
+  "is_weight_surcharge_applied": false,
   "status": "active"
 }
 ```
 
 Required: `service_name`, `category_id`, `base_price`.
+
+Note: when `is_weight_surcharge_applied = true`, appointment pricing adds weight surcharge for pets over 5kg.
 
 ### PUT `/services/:id`
 
