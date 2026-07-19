@@ -47,9 +47,15 @@ const handleLogin = async (req, res) => {
     
     // Set refresh token in HttpOnly cookie if login successful
     if (data && data.DT && data.DT.refresh_token) {
+      const isRememberMe = req.body.remember_me === true;
+      const sessionExpiryDays = isRememberMe ? 30 : 1;
+      const isProduction = process.env.NODE_ENV === 'production';
+
       res.cookie('refresh_token', data.DT.refresh_token, {
         httpOnly: true,
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        secure: isProduction,
+        sameSite: isProduction ? 'None' : 'Lax',
+        maxAge: sessionExpiryDays * 24 * 60 * 60 * 1000
       });
     }
 
@@ -62,7 +68,12 @@ const handleLogin = async (req, res) => {
 
 const handleLogout = async (req, res) => {
   try {
-    res.clearCookie('refresh_token');
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'None' : 'Lax'
+    });
     return sendResponse(res, 200, 'Logout successful', 0);
   } catch (error) {
     console.error(error);
@@ -146,7 +157,12 @@ const handleChangePassword = async (req, res) => {
 
     // If change password successful, clear refresh token cookie (logout from current device too)
     if (data.EC === 0) {
-      res.clearCookie('refresh_token');
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.clearCookie('refresh_token', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'None' : 'Lax'
+      });
     }
 
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
