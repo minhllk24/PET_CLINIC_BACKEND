@@ -167,7 +167,7 @@ const checkoutCart = async (userIdStr, data) => {
 
     // Check stock and calculate total
     let subtotalAmount = 0;
-    const variantsData = {}; // Cache variants
+    const variantsData = {}; // Cache variants by variant_id key (not index) to avoid off-by-one bugs
     for (let i = 0; i < cartItemsToCheckout.length; i++) {
       const item = cartItemsToCheckout[i];
       let availableStock = item.product.stock_quantity;
@@ -180,7 +180,7 @@ const checkoutCart = async (userIdStr, data) => {
         }
         availableStock = variant.stock_quantity;
         price = parseFloat(variant.price);
-        variantsData[i] = variant;
+        variantsData[item.variant_id.toString()] = variant;
       }
 
       if (availableStock < item.quantity) {
@@ -276,9 +276,10 @@ const checkoutCart = async (userIdStr, data) => {
         const item = cartItemsToCheckout[i];
         let price = parseFloat(item.product.price);
         let itemNameSnapshot = item.product.product_name;
-        if (item.variant_id && variantsData[i]) {
-          price = parseFloat(variantsData[i].price);
-          itemNameSnapshot = `${item.product.product_name} - ${variantsData[i].variant_name}`;
+        const cachedVariant = item.variant_id ? variantsData[item.variant_id.toString()] : null;
+        if (item.variant_id && cachedVariant) {
+          price = parseFloat(cachedVariant.price);
+          itemNameSnapshot = `${item.product.product_name} - ${cachedVariant.variant_name}`;
         }
 
         await tx.orderItem.create({
@@ -486,7 +487,7 @@ const guestCheckout = async (data) => {
 
     // Check stock and calculate subtotal
     let subtotalAmount = 0;
-    const variantsData = {}; // Cache variants
+    const variantsData = {}; // Cache variants by variant_id key (not index) to avoid off-by-one bugs
     for (let i = 0; i < cartItemsToCheckout.length; i++) {
       const item = cartItemsToCheckout[i];
       let availableStock = item.product.stock_quantity;
@@ -499,7 +500,7 @@ const guestCheckout = async (data) => {
         }
         availableStock = variant.stock_quantity;
         price = parseFloat(variant.price);
-        variantsData[i] = variant;
+        variantsData[item.variant_id.toString()] = variant;
       }
 
       if (availableStock < item.quantity) {
@@ -649,9 +650,10 @@ const guestCheckout = async (data) => {
         const item = cartItemsToCheckout[i];
         let price = parseFloat(item.product.price);
         let itemNameSnapshot = item.product.product_name;
-        if (item.variant_id && variantsData[i]) {
-          price = parseFloat(variantsData[i].price);
-          itemNameSnapshot = `${item.product.product_name} - ${variantsData[i].variant_name}`;
+        const cachedVariant = item.variant_id ? variantsData[item.variant_id.toString()] : null;
+        if (item.variant_id && cachedVariant) {
+          price = parseFloat(cachedVariant.price);
+          itemNameSnapshot = `${item.product.product_name} - ${cachedVariant.variant_name}`;
         }
 
         await tx.orderItem.create({

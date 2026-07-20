@@ -182,6 +182,15 @@ const refreshNewToken = async (refreshToken) => {
     if (!newAccessToken) {
       return { EM: 'Refresh token is invalid or expired', EC: -999, DT: '' };
     }
+
+    // Rolling session: gia hạn expires_at mỗi khi refresh thành công
+    // remember_me=true → gia hạn thêm 30 ngày; false → gia hạn thêm 1 ngày
+    const rollingDays = session.remember_me ? 30 : 1;
+    await prisma.userSession.update({
+      where: { session_token: refreshToken },
+      data: { expires_at: new Date(Date.now() + rollingDays * 24 * 60 * 60 * 1000) }
+    });
+
     return {
       EM: 'Refresh token successfully',
       EC: 0,

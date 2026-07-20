@@ -48,15 +48,22 @@ const handleLogin = async (req, res) => {
     // Set refresh token in HttpOnly cookie if login successful
     if (data && data.DT && data.DT.refresh_token) {
       const isRememberMe = req.body.remember_me === true;
-      const sessionExpiryDays = isRememberMe ? 30 : 1;
       const isProduction = process.env.NODE_ENV === 'production';
 
-      res.cookie('refresh_token', data.DT.refresh_token, {
+      const cookieOptions = {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? 'None' : 'Lax',
-        maxAge: sessionExpiryDays * 24 * 60 * 60 * 1000
-      });
+        sameSite: isProduction ? 'None' : 'Lax'
+      };
+
+      if (isRememberMe) {
+        // Persistent cookie: còn sau khi đóng browser, hết hạn sau 30 ngày
+        cookieOptions.maxAge = 30 * 24 * 60 * 60 * 1000;
+      }
+      // Nếu không tick remember me: session cookie (không set maxAge)
+      // → trình duyệt tự xóa cookie khi người dùng đóng browser/tab
+
+      res.cookie('refresh_token', data.DT.refresh_token, cookieOptions);
     }
 
     return sendResponse(res, 200, data.EM, data.EC, data.DT);

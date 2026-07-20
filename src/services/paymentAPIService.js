@@ -48,12 +48,12 @@ const updatePaymentStatus = async (id, status) => {
     const result = await prisma.$transaction(async (tx) => {
       const updatedPayment = await tx.payment.update({
         where: { payment_id: paymentId },
-        data: { payment_status: status }
+        data: { status: status }
       });
 
-      if (payment.target_type === 'order' && status === 'paid') {
+      if (payment.payment_target_type === 'order' && status === 'paid') {
         await tx.order.update({
-          where: { order_id: payment.target_id },
+          where: { order_id: payment.order_id },
           data: { payment_status: 'paid' }
         });
       }
