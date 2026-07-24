@@ -87,6 +87,24 @@ const formatPetData = (pet) => {
     }
   }
   formatted.age_text = calculateAgeText(pet.birth_date, pet.age);
+
+  // Normalize species_name & breed_name for direct property access compatibility
+  formatted.species_name = pet.species?.species_name || pet.species_name || null;
+  formatted.breed_name = pet.breed?.breed_name || pet.breed_name || null;
+
+  // Primary image normalization: if pet_images array exists, prefer primary image URL over raw column
+  if (pet.pet_images && Array.isArray(pet.pet_images) && pet.pet_images.length > 0) {
+    const primaryImg = pet.pet_images.find(img => img.is_primary);
+    formatted.profile_image_url = primaryImg ? primaryImg.image_url : pet.pet_images[0].image_url;
+  }
+
+  // Calculate latest_exam_date from medical_records relation
+  if (pet.medical_records && Array.isArray(pet.medical_records) && pet.medical_records.length > 0) {
+    formatted.latest_exam_date = pet.medical_records[0].visit_date;
+  } else if (formatted.latest_exam_date === undefined) {
+    formatted.latest_exam_date = null;
+  }
+
   return formatted;
 };
 
@@ -124,7 +142,7 @@ const getMyPets = async (userIdStr, query = {}) => {
         include: {
           species: true,
           breed: true,
-          pet_images: { where: { is_primary: true } },
+          pet_images: true,
           medical_records: {
             orderBy: { visit_date: 'desc' },
             take: 1,
@@ -138,14 +156,7 @@ const getMyPets = async (userIdStr, query = {}) => {
       prisma.pet.count({ where })
     ]);
 
-    const formattedPets = pets.map(pet => {
-      const formatted = formatPetData(pet);
-      return {
-        ...formatted,
-        latest_exam_date: pet.medical_records.length > 0 ? pet.medical_records[0].visit_date : null,
-        medical_records: undefined
-      };
-    });
+    const formattedPets = pets.map(pet => formatPetData(pet));
 
     return {
       EM: 'Get my pets successful',
@@ -176,7 +187,12 @@ const getPetById = async (id, currentUser) => {
       include: {
         species: true,
         breed: true,
-        pet_images: true
+        pet_images: true,
+        medical_records: {
+          orderBy: { visit_date: 'desc' },
+          take: 1,
+          select: { visit_date: true }
+        }
       }
     });
 
@@ -283,7 +299,22 @@ const createPet = async (userIdStr, data) => {
       });
     }
 
-    const formattedPet = formatPetData(newPet);
+    // Re-fetch created pet with full relations for consistent structure
+    const createdPet = await prisma.pet.findUnique({
+      where: { pet_id: newPet.pet_id },
+      include: {
+        species: true,
+        breed: true,
+        pet_images: true,
+        medical_records: {
+          orderBy: { visit_date: 'desc' },
+          take: 1,
+          select: { visit_date: true }
+        }
+      }
+    });
+
+    const formattedPet = formatPetData(createdPet);
     return { EM: 'Create pet successful', EC: 0, DT: formattedPet };
   } catch (error) {
     console.error(error);
@@ -396,7 +427,22 @@ const updatePet = async (id, data, currentUser) => {
       }
     }
 
-    const formattedPet = formatPetData(updatedPet);
+    // Re-fetch updated pet with full relations for consistent structure
+    const freshPet = await prisma.pet.findUnique({
+      where: { pet_id: petId },
+      include: {
+        species: true,
+        breed: true,
+        pet_images: true,
+        medical_records: {
+          orderBy: { visit_date: 'desc' },
+          take: 1,
+          select: { visit_date: true }
+        }
+      }
+    });
+
+    const formattedPet = formatPetData(freshPet);
     return { EM: 'Update pet successful', EC: 0, DT: formattedPet };
   } catch (error) {
     console.error(error);

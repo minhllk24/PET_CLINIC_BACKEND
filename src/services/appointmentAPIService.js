@@ -323,6 +323,8 @@ const getAppointmentById = async (id, currentUser) => {
             age: true,
             health_status: true,
             profile_image_url: true,
+            species: true,
+            breed: true,
             pet_images: {
               where: { is_primary: true },
               take: 1
