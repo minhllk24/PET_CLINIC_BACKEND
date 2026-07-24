@@ -466,17 +466,60 @@ const normalizePaymentMethod = (method) => {
   return 'store';
 };
 
-// Quy tắc phụ thu cân nặng chung (Luỹ tiến)
+// Quy tắc phụ thu cân nặng chung (Luỹ tiến theo Service Price Matrix)
 const calculateWeightSurcharge = (dbSvc, petWeightKg, quantity = 1) => {
-  if (!dbSvc || !dbSvc.is_weight_surcharge_applied) return 0;
-  if (!petWeightKg) return 0;
-  
+  const basePrice = parseFloat(dbSvc.base_price || 0);
+
+  // Nếu không áp dụng phụ thu, phí phụ thu là 0 và giá gốc được giữ nguyên
+  if (!dbSvc || !dbSvc.is_weight_surcharge_applied) {
+    return { surcharge: 0, unitPrice: basePrice, isContact: false };
+  }
+
+  const matrix = dbSvc.price_matrix || [];
+  if (matrix.length === 0) {
+    return { surcharge: 0, unitPrice: basePrice, isContact: false };
+  }
+
+  // Giá tiêu chuẩn là mức cân nặng đầu tiên (Dưới 3kg)
+  const sortedMatrix = [...matrix].sort((a, b) => parseFloat(a.weight_min || 0) - parseFloat(b.weight_min || 0));
+  const standardItem = sortedMatrix[0];
+  const standardPrice = standardItem ? parseFloat(standardItem.price || 0) : basePrice;
+
+  if (!petWeightKg) {
+    return { surcharge: 0, unitPrice: standardPrice, isContact: false };
+  }
+
   const weight = parseFloat(petWeightKg);
-  if (isNaN(weight) || weight <= 5) return 0;
-  
-  const extraWeight = weight - 5;
-  const surchargePerUnit = Math.ceil(extraWeight) * 10000;
-  return surchargePerUnit * quantity;
+  if (isNaN(weight)) {
+    return { surcharge: 0, unitPrice: standardPrice, isContact: false };
+  }
+
+  // Tìm khoảng cân nặng phù hợp
+  const matchedItem = sortedMatrix.find(item => {
+    const min = parseFloat(item.weight_min || 0);
+    const max = item.weight_max ? parseFloat(item.weight_max) : null;
+    if (max === null) {
+      return weight >= min;
+    }
+    return weight >= min && weight <= max;
+  });
+
+  if (!matchedItem) {
+    return { surcharge: 0, unitPrice: standardPrice, isContact: false };
+  }
+
+  if (matchedItem.is_contact) {
+    return { surcharge: 0, unitPrice: standardPrice, isContact: true };
+  }
+
+  const actualPrice = parseFloat(matchedItem.price || 0);
+  const surcharge = Math.max(0, actualPrice - standardPrice);
+
+  return {
+    surcharge: surcharge * quantity,
+    unitPrice: standardPrice,
+    isContact: false
+  };
 };
 
 const normalizePetGender = (value) => {
@@ -628,7 +671,7 @@ const createAppointment = async (userIdStr, data) => {
       const serviceIdsToQuery = servicesInput.map(item => item.service_id);
       const dbServices = await tx.service.findMany({
         where: { service_id: { in: serviceIdsToQuery } },
-        include: { category: true }
+        include: { category: true, price_matrix: true }
       });
 
       const serviceTypes = dbServices.map(s => {
@@ -744,17 +787,19 @@ const createAppointment = async (userIdStr, data) => {
       // 7. Create appointment_services
       for (const s of dbServices) {
         const qty = servicesMap.get(s.service_id.toString()) || 1;
-        const basePrice = parseFloat(s.base_price);
-        const serviceSurcharge = calculateWeightSurcharge(s, petWeightKg, qty);
-        const totalPrice = (basePrice * qty) + serviceSurcharge;
+        const { surcharge, unitPrice, isContact } = calculateWeightSurcharge(s, petWeightKg, qty);
+        if (isContact) {
+          throw new Error(`Dịch vụ "${s.service_name}" không hỗ trợ đặt lịch online cho cân nặng hiện tại của thú cưng. Vui lòng liên hệ trực tiếp chi nhánh.`);
+        }
+        const totalPrice = (unitPrice * qty) + surcharge;
 
         await tx.appointmentService.create({
           data: {
             appointment_id: newAppointment.appointment_id,
             service_id: s.service_id,
             quantity: qty,
-            unit_price: basePrice,
-            surcharge_amount: serviceSurcharge,
+            unit_price: unitPrice,
+            surcharge_amount: surcharge,
             total_price: totalPrice
           }
         });
@@ -1216,7 +1261,8 @@ const previewPricing = async (data, currentUser) => {
 
     const serviceIdsToQuery = servicesInput.map(item => item.service_id);
     const dbServices = await prisma.service.findMany({
-      where: { service_id: { in: serviceIdsToQuery } }
+      where: { service_id: { in: serviceIdsToQuery } },
+      include: { price_matrix: true }
     });
 
     const servicesMap = new Map();
@@ -1232,9 +1278,10 @@ const previewPricing = async (data, currentUser) => {
 
     for (const dbSvc of dbServices) {
       const qty = servicesMap.get(dbSvc.service_id.toString()) || 1;
-      const uPrice = parseFloat(dbSvc.base_price);
-      
-      const sCharge = calculateWeightSurcharge(dbSvc, petWeight, 1);
+      const { surcharge: sCharge, unitPrice: uPrice, isContact } = calculateWeightSurcharge(dbSvc, petWeight, 1);
+      if (isContact) {
+        return { EM: `Dịch vụ "${dbSvc.service_name}" không hỗ trợ đặt lịch online cho cân nặng hiện tại của thú cưng. Vui lòng liên hệ trực tiếp chi nhánh.`, EC: 1, DT: '' };
+      }
       
       surchargeAmount += (sCharge * qty);
       subtotal += (uPrice * qty);
@@ -1387,7 +1434,7 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
       const serviceIdsToQuery = servicesInput.map(item => item.service_id);
       const dbServices = await tx.service.findMany({
         where: { service_id: { in: serviceIdsToQuery } },
-        include: { category: true }
+        include: { category: true, price_matrix: true }
       });
 
       const serviceTypes = dbServices.map(s => {
@@ -1476,8 +1523,10 @@ const bookAndCheckoutAppointment = async (userIdStr, data) => {
 
       for (const dbSvc of dbServices) {
         const qty = servicesMap.get(dbSvc.service_id.toString()) || 1;
-        const uPrice = parseFloat(dbSvc.base_price);
-        const sCharge = calculateWeightSurcharge(dbSvc, petWeightKg, 1);
+        const { surcharge: sCharge, unitPrice: uPrice, isContact } = calculateWeightSurcharge(dbSvc, petWeightKg, 1);
+        if (isContact) {
+          throw new Error(`Dịch vụ "${dbSvc.service_name}" không hỗ trợ đặt lịch online cho cân nặng hiện tại của thú cưng. Vui lòng liên hệ trực tiếp chi nhánh.`);
+        }
         surchargeAmount += (sCharge * qty);
         subtotal += (uPrice * qty);
         servicesDetail.push({
