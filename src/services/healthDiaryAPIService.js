@@ -1,6 +1,40 @@
 import prisma from '../configs/prisma';
 import { toBigIntId } from '../utils/prismaHelpers';
 
+const parseEntryTime = (value) => {
+  if (!value) return null;
+  const match = String(value).match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return new Date(Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0));
+};
+
+const buildDiaryAttachments = (diaryId, data) => {
+  let attachments = [];
+
+  if (data.attachments && Array.isArray(data.attachments)) {
+    attachments = data.attachments.map(att => ({
+      diary_entry_id: diaryId,
+      file_url: att.file_url,
+      file_type: att.file_type || 'image',
+      file_name: att.file_name || 'Attachment',
+      file_size_kb: att.file_size_kb || null
+    }));
+  }
+
+  if (data.files && Array.isArray(data.files)) {
+    const uploadedFiles = data.files.map(file => ({
+      diary_entry_id: diaryId,
+      file_url: `/uploads/${file.filename}`,
+      file_type: file.mimetype.startsWith('image/') ? 'image' : 'document',
+      file_name: file.originalname,
+      file_size_kb: file.size ? Math.ceil(file.size / 1024) : null
+    }));
+    attachments = [...attachments, ...uploadedFiles];
+  }
+
+  return attachments;
+};
+
 // --- HEALTH DIARY ---
 const getDiariesByPet = async (petIdStr, query, user) => {
   try {
@@ -28,7 +62,7 @@ const getDiariesByPet = async (petIdStr, query, user) => {
       };
     }
 
-    const diaries = await prisma.healthDiary.findMany({
+    const diaries = await prisma.healthDiaryEntry.findMany({
       where: whereCondition,
       include: { attachments: true },
       orderBy: [{ entry_date: 'desc' }, { entry_time: 'desc' }]
@@ -52,11 +86,12 @@ const createDiary = async (data, user) => {
       return { EM: 'Permission denied', EC: -1, DT: '' };
     }
 
-    const newDiary = await prisma.healthDiary.create({
+    const newDiary = await prisma.healthDiaryEntry.create({
       data: {
         pet_id: petId,
+        user_id: toBigIntId(user.user_id),
         entry_date: data.entry_date ? new Date(data.entry_date) : new Date(),
-        entry_time: data.entry_time || null,
+        entry_time: parseEntryTime(data.entry_time),
         icon_code: data.icon_code || null,
         color_code: data.color_code || null,
         title: data.title || 'Note',
@@ -64,17 +99,82 @@ const createDiary = async (data, user) => {
       }
     });
 
-    if (data.attachments && Array.isArray(data.attachments)) {
-      const attData = data.attachments.map(att => ({
-        diary_id: newDiary.diary_id,
-        file_url: att.file_url,
-        file_type: att.file_type || 'image',
-        file_name: att.file_name || 'Attachment'
-      }));
+    const attData = buildDiaryAttachments(newDiary.diary_entry_id, data);
+    if (attData.length > 0) {
       await prisma.healthDiaryAttachment.createMany({ data: attData });
     }
 
-    return { EM: 'Create diary successful', EC: 0, DT: newDiary };
+    const diaryWithAttachments = await prisma.healthDiaryEntry.findUnique({
+      where: { diary_entry_id: newDiary.diary_entry_id },
+      include: { attachments: true }
+    });
+
+    return { EM: 'Create diary successful', EC: 0, DT: diaryWithAttachments };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const updateDiary = async (id, data, user) => {
+  try {
+    const diaryId = toBigIntId(id);
+    if (!diaryId) return { EM: 'Invalid diary ID', EC: 1, DT: '' };
+
+    const diary = await prisma.healthDiaryEntry.findUnique({
+      where: { diary_entry_id: diaryId },
+      include: { pet: true }
+    });
+    if (!diary) return { EM: 'Diary not found', EC: -1, DT: '' };
+    if (user.role_code === 'CUSTOMER' && user.user_id !== diary.pet.owner_user_id.toString()) {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    const updatedDiary = await prisma.healthDiaryEntry.update({
+      where: { diary_entry_id: diaryId },
+      data: {
+        entry_date: data.entry_date ? new Date(data.entry_date) : diary.entry_date,
+        entry_time: data.entry_time !== undefined ? parseEntryTime(data.entry_time) : diary.entry_time,
+        icon_code: data.icon_code !== undefined ? data.icon_code : diary.icon_code,
+        color_code: data.color_code !== undefined ? data.color_code : diary.color_code,
+        title: data.title !== undefined ? data.title : diary.title,
+        content: data.content !== undefined ? data.content : diary.content
+      }
+    });
+
+    const attData = buildDiaryAttachments(diaryId, data);
+    if (attData.length > 0) {
+      await prisma.healthDiaryAttachment.createMany({ data: attData });
+    }
+
+    const diaryWithAttachments = await prisma.healthDiaryEntry.findUnique({
+      where: { diary_entry_id: updatedDiary.diary_entry_id },
+      include: { attachments: true }
+    });
+
+    return { EM: 'Update diary successful', EC: 0, DT: diaryWithAttachments };
+  } catch (error) {
+    console.error(error);
+    return { EM: 'Something went wrong', EC: -2, DT: '' };
+  }
+};
+
+const deleteDiary = async (id, user) => {
+  try {
+    const diaryId = toBigIntId(id);
+    if (!diaryId) return { EM: 'Invalid diary ID', EC: 1, DT: '' };
+
+    const diary = await prisma.healthDiaryEntry.findUnique({
+      where: { diary_entry_id: diaryId },
+      include: { pet: true }
+    });
+    if (!diary) return { EM: 'Diary not found', EC: -1, DT: '' };
+    if (user.role_code === 'CUSTOMER' && user.user_id !== diary.pet.owner_user_id.toString()) {
+      return { EM: 'Permission denied', EC: -1, DT: '' };
+    }
+
+    await prisma.healthDiaryEntry.delete({ where: { diary_entry_id: diaryId } });
+    return { EM: 'Delete diary successful', EC: 0, DT: '' };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -119,13 +219,13 @@ const createReminder = async (data, user) => {
     const newReminder = await prisma.petReminder.create({
       data: {
         pet_id: petId,
+        user_id: toBigIntId(user.user_id),
         reminder_type: data.reminder_type || 'other',
         title: data.title,
         remind_date: new Date(data.remind_date),
         remind_before_days: data.remind_before_days ? parseInt(data.remind_before_days) : 0,
-        repeat_type: data.repeat_type || 'none',
         status: 'pending',
-        notes: data.notes || null
+        note: data.notes || data.note || null
       }
     });
 
@@ -190,6 +290,8 @@ const deleteReminder = async (id, user) => {
 module.exports = {
   getDiariesByPet,
   createDiary,
+  updateDiary,
+  deleteDiary,
   getRemindersByPet,
   createReminder,
   completeReminder,

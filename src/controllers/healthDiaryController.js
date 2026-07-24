@@ -14,7 +14,35 @@ const handleGetDiaries = async (req, res) => {
 
 const handleCreateDiary = async (req, res) => {
   try {
-    let data = await healthDiaryAPIService.createDiary(req.body, req.user);
+    const payload = { ...req.body };
+    if (req.files && req.files.length > 0) {
+      payload.files = req.files;
+    }
+    let data = await healthDiaryAPIService.createDiary(payload, req.user);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleUpdateDiary = async (req, res) => {
+  try {
+    const payload = { ...req.body };
+    if (req.files && req.files.length > 0) {
+      payload.files = req.files;
+    }
+    let data = await healthDiaryAPIService.updateDiary(req.params.id, payload, req.user);
+    return sendResponse(res, 200, data.EM, data.EC, data.DT);
+  } catch (error) {
+    console.error(error);
+    return sendResponse(res, 500, 'Internal server error', -2);
+  }
+};
+
+const handleDeleteDiary = async (req, res) => {
+  try {
+    let data = await healthDiaryAPIService.deleteDiary(req.params.id, req.user);
     return sendResponse(res, 200, data.EM, data.EC, data.DT);
   } catch (error) {
     console.error(error);
@@ -68,6 +96,8 @@ const handleDeleteReminder = async (req, res) => {
 module.exports = {
   handleGetDiaries,
   handleCreateDiary,
+  handleUpdateDiary,
+  handleDeleteDiary,
   handleGetReminders,
   handleCreateReminder,
   handleCompleteReminder,

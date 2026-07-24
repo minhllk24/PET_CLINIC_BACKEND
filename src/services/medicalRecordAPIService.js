@@ -95,20 +95,24 @@ const createRecord = async (data, user) => {
     let attData = [];
     if (data.attachments && Array.isArray(data.attachments)) {
       attData = data.attachments.map(att => ({
-        record_id: newRecord.record_id,
+        medical_record_id: newRecord.record_id,
         file_url: att.file_url,
         file_type: att.file_type || 'image',
-        file_name: att.file_name || 'Attachment'
+        file_name: att.file_name || 'Attachment',
+        file_size_kb: att.file_size_kb || null,
+        uploaded_by_user_id: toBigIntId(user.user_id)
       }));
     }
     
     // Add uploaded files from multer
     if (data.files && Array.isArray(data.files)) {
       const fileAttData = data.files.map(file => ({
-        record_id: newRecord.record_id,
+        medical_record_id: newRecord.record_id,
         file_url: `/uploads/${file.filename}`,
         file_type: file.mimetype.startsWith('image/') ? 'image' : 'document',
-        file_name: file.originalname
+        file_name: file.originalname,
+        file_size_kb: file.size ? Math.ceil(file.size / 1024) : null,
+        uploaded_by_user_id: toBigIntId(user.user_id)
       }));
       attData = [...attData, ...fileAttData];
     }
@@ -117,7 +121,15 @@ const createRecord = async (data, user) => {
       await prisma.medicalRecordAttachment.createMany({ data: attData });
     }
 
-    return { EM: 'Create record successful', EC: 0, DT: newRecord };
+    const recordWithAttachments = await prisma.medicalRecord.findUnique({
+      where: { record_id: newRecord.record_id },
+      include: {
+        doctor: { select: { full_name: true } },
+        attachments: true
+      }
+    });
+
+    return { EM: 'Create record successful', EC: 0, DT: recordWithAttachments };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };
@@ -158,15 +170,25 @@ const updateRecord = async (id, data, user) => {
     // Add new uploaded files from multer
     if (data.files && Array.isArray(data.files)) {
       const fileAttData = data.files.map(file => ({
-        record_id: recordId,
+        medical_record_id: recordId,
         file_url: `/uploads/${file.filename}`,
         file_type: file.mimetype.startsWith('image/') ? 'image' : 'document',
-        file_name: file.originalname
+        file_name: file.originalname,
+        file_size_kb: file.size ? Math.ceil(file.size / 1024) : null,
+        uploaded_by_user_id: toBigIntId(user.user_id)
       }));
       await prisma.medicalRecordAttachment.createMany({ data: fileAttData });
     }
 
-    return { EM: 'Update record successful', EC: 0, DT: updatedRecord };
+    const recordWithAttachments = await prisma.medicalRecord.findUnique({
+      where: { record_id: updatedRecord.record_id },
+      include: {
+        doctor: { select: { full_name: true } },
+        attachments: true
+      }
+    });
+
+    return { EM: 'Update record successful', EC: 0, DT: recordWithAttachments };
   } catch (error) {
     console.error(error);
     return { EM: 'Something went wrong', EC: -2, DT: '' };

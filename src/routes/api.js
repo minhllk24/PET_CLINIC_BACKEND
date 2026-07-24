@@ -141,7 +141,9 @@ const initAPIRoutes = (app) => {
 
   // --- HEALTH DIARY ROUTES ---
   router.get('/health-diaries/pet/:petId', verifyToken, healthDiaryController.handleGetDiaries);
-  router.post('/health-diaries', verifyToken, healthDiaryController.handleCreateDiary);
+  router.post('/health-diaries', verifyToken, upload.array('attachments', 5), healthDiaryController.handleCreateDiary);
+  router.put('/health-diaries/:id', verifyToken, upload.array('attachments', 5), healthDiaryController.handleUpdateDiary);
+  router.delete('/health-diaries/:id', verifyToken, healthDiaryController.handleDeleteDiary);
 
   // --- REMINDER ROUTES ---
   router.get('/reminders/pet/:petId', verifyToken, healthDiaryController.handleGetReminders);
