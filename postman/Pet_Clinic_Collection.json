@@ -1550,6 +1550,33 @@
           }
         },
         {
+          "name": "Preview Pricing",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Xem trước giá lịch đặt hẹn bao gồm phụ thu cân nặng.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"pet_data\": {\n        \"weight_kg\": 6\n    },\n    \"service_ids\": [\n        { \"service_id\": \"1\", \"quantity\": 1 }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/preview-pricing",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "appointments",
+                "preview-pricing"
+              ]
+            }
+          }
+        },
+        {
           "name": "Cancel Appointment",
           "request": {
             "method": "PATCH",

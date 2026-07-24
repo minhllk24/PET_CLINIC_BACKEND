@@ -17,6 +17,12 @@ const getOrders = async (user, query) => {
     if (query.status) {
       whereCondition.order_status = query.status;
     }
+    
+    if (query.order_type) {
+      whereCondition.order_type = query.order_type;
+    } else {
+      whereCondition.order_type = 'product';
+    }
 
     const [total, orders] = await prisma.$transaction([
       prisma.order.count({ where: whereCondition }),
