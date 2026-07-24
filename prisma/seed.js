@@ -783,6 +783,7 @@ async function main() {
       duration_minutes: 30,
       description: 'Khám lâm sàng tổng quát bởi bác sĩ thú y để chẩn đoán tình trạng sức khỏe và đưa ra phác đồ điều trị.',
       image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -792,6 +793,7 @@ async function main() {
       duration_minutes: 40,
       description: 'Xét nghiệm máu, xét nghiệm phân, hoặc soi kính hiển vi để phát hiện ký sinh trùng, virus và các bệnh lý.',
       image_url: 'https://images.unsplash.com/photo-1579154204601-01588f35116f?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -801,6 +803,7 @@ async function main() {
       duration_minutes: 25,
       description: 'Siêu âm ổ bụng, siêu âm thai để kiểm tra tình trạng nội tạng, phát hiện khối u hoặc theo dõi thai kỳ.',
       image_url: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -810,6 +813,7 @@ async function main() {
       duration_minutes: 15,
       description: 'Tiêm vaccine phòng các bệnh truyền nhiễm nguy hiểm (dại, 5 bệnh, 7 bệnh) kèm sổ theo dõi sức khỏe.',
       image_url: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -819,6 +823,7 @@ async function main() {
       duration_minutes: 120,
       description: 'Phẫu thuật ngoại khoa vô trùng: triệt sản, mổ đẻ, khâu vết thương sâu, phẫu thuật xương khớp.',
       image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     },
     {
@@ -828,6 +833,7 @@ async function main() {
       duration_minutes: 60,
       description: 'Dịch vụ xử lý cấp cứu khẩn cấp 24/7 đối với các trường hợp tai nạn, ngộ độc, khó đẻ hoặc suy hô hấp.',
       image_url: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=400',
+      is_weight_surcharge_applied: true,
       status: 'active'
     }
   ];
