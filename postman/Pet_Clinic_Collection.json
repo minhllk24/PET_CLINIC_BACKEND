@@ -1941,13 +1941,49 @@
             "method": "POST",
             "header": [],
             "body": {
-              "mode": "raw",
-              "raw": "{\n    \"pet_id\": \"1\",\n    \"entry_date\": \"2026-05-24\",\n    \"title\": \"Milo an uong tot\",\n    \"content\": \"Hom nay Milo an het bat com, vui ve\",\n    \"icon_code\": \"happy\",\n    \"color_code\": \"#4CAF50\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "pet_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "entry_date",
+                  "value": "2026-05-24",
+                  "type": "text"
+                },
+                {
+                  "key": "entry_time",
+                  "value": "08:30",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Milo an uong tot",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "Hom nay Milo an het bat com, vui ve",
+                  "type": "text"
+                },
+                {
+                  "key": "icon_code",
+                  "value": "happy",
+                  "type": "text"
+                },
+                {
+                  "key": "color_code",
+                  "value": "#4CAF50",
+                  "type": "text"
+                },
+                {
+                  "key": "attachments",
+                  "type": "file",
+                  "src": []
                 }
-              }
+              ]
             },
             "url": {
               "raw": "{{base_url}}/health-diaries",
@@ -1956,6 +1992,80 @@
               ],
               "path": [
                 "health-diaries"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Diary Entry",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "entry_date",
+                  "value": "2026-05-24",
+                  "type": "text"
+                },
+                {
+                  "key": "entry_time",
+                  "value": "09:00",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Milo an uong tot - Cap nhat",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "Hom nay Milo an rat nhieu va di dao nua",
+                  "type": "text"
+                },
+                {
+                  "key": "icon_code",
+                  "value": "excited",
+                  "type": "text"
+                },
+                {
+                  "key": "color_code",
+                  "value": "#E91E63",
+                  "type": "text"
+                },
+                {
+                  "key": "attachments",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/health-diaries/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health-diaries",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Diary Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health-diaries/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health-diaries",
+                "1"
               ]
             }
           }
