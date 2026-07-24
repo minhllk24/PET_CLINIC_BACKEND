@@ -570,6 +570,30 @@ async function main() {
           imageData.push({ pet_id: pet.pet_id, image_url: img2, is_primary: false });
         }
         await prisma.petImage.createMany({ data: imageData });
+
+        // Create 1-3 medical records (visit_date in 2025/2026)
+        const recordCount = Math.floor(Math.random() * 3) + 1;
+        const diagnoses = ["Khám tổng quát định kỳ", "Điều trị ký sinh trùng", "Tiêm phòng vaccine dại", "Khám da liễu", "Kiểm tra răng miệng"];
+        const symptoms = ["Thú cưng khỏe mạnh, ăn ngủ bình thường", "Có dấu hiệu ngứa nhẹ vùng tai", "Kiểm tra sức khỏe định kỳ", "Hơi biếng ăn nhẹ"];
+        const treatments = ["Duy trì chế độ ăn và vận động hiện tại", "Bôi thuốc trị nấm tai, vệ sinh tai hàng ngày", "Tiêm vaccine phòng dại, theo dõi 30p", "Cho uống men tiêu hóa bổ sung"];
+
+        for (let r = 0; r < recordCount; r++) {
+          const visitDate = randomDate(2025, 2026);
+          const diag = randomElement(diagnoses);
+          await prisma.medicalRecord.create({
+            data: {
+              pet_id: pet.pet_id,
+              doctor_id: doctor1.user_id,
+              visit_date: visitDate,
+              symptoms: randomElement(symptoms),
+              record_name: diag,
+              diagnosis: diag,
+              treatment_note: randomElement(treatments),
+              created_by_user_id: admin.user_id,
+              source_type: "doctor_created"
+            }
+          });
+        }
       }
     }
 
