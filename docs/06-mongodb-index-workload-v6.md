@@ -1,4 +1,4 @@
-# 06 MongoDB Index + Workload v5
+# 06 MongoDB Index + Workload v6
 
 Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query trong bang.
 
@@ -24,7 +24,7 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 | Q16 | Returns by order / queue | trung | orderId; status | createdAt | cursor | strong | order_returns (orderId, status); (status, createdAt) | order_returns |
 | Q17 | Refund by return | trung | orderReturnId | -- | -- | strong | order_refunds orderReturnId unique partial | order_refunds |
 | Q18 | Staff shifts | cao | staffId, range | startAt | -- | strong | shifts (staffId, startAt) | shifts |
-| Q19 | Branch/day availability | rat cao | branchId, date, role | -- | -- | strong | shifts (branchId, staffSubRole, status, startAt); branch_service_configs unique (branchId, serviceId); appointments (branchId, scheduledStart); slot_reservations (branchId, slotStart) | nhieu |
+| Q19 | Branch/day availability (tim staff theo tung segment) | rat cao | branchId, date, requiredStaffRole cua tung segment | -- | -- | strong | shifts (branchId, staffSubRole, status, startAt); branch_service_configs unique (branchId, serviceId); appointments (branchId, scheduledStart); slot_reservations (branchId, slotStart) | nhieu |
 | Q20 | Appointments by customer | cao | customerId | scheduledStart -1 | cursor | strong | appointments (customerId, scheduledStart -1) | appointments |
 | Q21 | Appointments by branch/date | cao | branchId, range, status | scheduledStart | cursor | strong | appointments (branchId, scheduledStart) | appointments |
 | Q22 | Services by bookingMode/serviceType/role | trung | status + field | name | offset | eventual | services (status, bookingMode); (status, serviceType); (requiredStaffRole, status) | services |
@@ -41,7 +41,8 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 ## Unique/idempotency index quan trong
 | Index | Muc dich |
 |---|---|
-| slot_reservations unique partial (branchId, resourceKey, slotStart, unitIndex) | chong double booking |
+| slot_reservations unique partial (staffId, slotStart) kind STAFF | chong trung lich staff (moi segment) |
+| slot_reservations unique partial (branchId, serviceId, slotStart, unitIndex) kind CAPACITY | chong vuot capacity cua BranchServiceConfig |
 | inventory_stocks unique (branchId, inventoryItemId) | mot dong ton moi branch/item |
 | inventory_transactions unique partial (ORDER, sourceId, inventoryItemId, transactionType) | khong tru/hoan ton don hang 2 lan |
 | inventory_transactions unique partial (SERVICE_RECORD_REVISION, sourceId, recordVersion, inventoryItemId) | khong ghi revision 2 lan |
@@ -57,7 +58,8 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 | Payment fail/cancel/expire lap lai | conditional update payment status PENDING->terminal + unique ledger (ORDER, orderId, item, RECEIPT) => khong hoan ton 2 lan |
 | Cancel/Confirm song song | conditional update `status` hien tai (CAS) |
 | Return vuot so luong | conditional `returnReservedQty + q <= quantity` trong tx |
-| Slot booking | unique reservation + tx + Idempotency-Key |
+| Slot booking nhieu segment | tx: reserve STAFF cho tung segment + CAPACITY; duplicate key => thu staff ung vien ke tiep; het ung vien => rollback toan bo, 409 SLOT_UNAVAILABLE; Idempotency-Key |
+| Reassign staff segment | tx: giai phong STAFF cu + giu STAFF moi (unique (staffId, slotStart)); trung => 409 STAFF_UNAVAILABLE |
 | Finalize/reopen | CAS status + version + unique (record, version, item) |
 | Shift overlap | tx tim overlap roi insert |
 | Branch config / manager assignment | version optimistic |

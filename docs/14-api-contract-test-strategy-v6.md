@@ -1,9 +1,9 @@
-# 14 API Contract Test Strategy v5
+# 14 API Contract Test Strategy v6
 
-Muc tieu: OpenAPI v5 == Customer Angular == Admin Angular == Backend. Hai chieu: requirement > OpenAPI > BE/FE va BE/FE > OpenAPI.
+Muc tieu: OpenAPI v6 == Customer Angular == Admin Angular == Backend. Hai chieu: requirement > OpenAPI > BE/FE va BE/FE > OpenAPI.
 
 ## Pipeline
-1 Lint + validate `07-openapi-v5.yaml` (da validate 3.1.1, 143 operation). 2 Sinh Angular client (openapi-generator `typescript-angular` hoac `ng-openapi-gen`) theo `x-audience` cho `api-customer` va `api-admin`. 3 BE validator middleware doc cung file. 4 Contract tests CI. 5 oasdiff chan breaking change. 6 Audit nhat quan (script, ket qua o 16).
+1 Lint + validate `07-openapi-v6.yaml` (da validate 3.1.1, 143 operation). 2 Sinh Angular client (openapi-generator `typescript-angular` hoac `ng-openapi-gen`) theo `x-audience` cho `api-customer` va `api-admin`. 3 BE validator middleware doc cung file. 4 Contract tests CI. 5 oasdiff chan breaking change. 6 Audit nhat quan (script, ket qua o 16).
 
 ## Lop test
 | Lop | Noi dung |
@@ -19,7 +19,7 @@ Muc tieu: OpenAPI v5 == Customer Angular == Admin Angular == Backend. Hai chieu:
 | **Refund formula** | Vi du: 2 san pham 100k, voucher lam line net 180k, tra 1/2 => 90,000; line net 180,001 qty 3 tra 3 lan 1 don vi => 60,000 + 60,000 + 60,001; tong phan bo discount = orderDiscountTotal; shipping khong hoan; client gui so tien bi 400; Manager khong nhap tay |
 | Return window | deliveredAt+7d bien (ngay 7 OK, sau 7 => RETURN_WINDOW_EXPIRED); qty vuot => RETURN_QTY_EXCEEDS_RETURNABLE; hai return dong thoi khong vuot ordered; receive KHONG doi ton kho |
 | Service/BranchService | Manager sua global Service 403; Manager upsert BranchService trong BR OK , ngoai BR 404/403 |
-| Booking | multi-service cung serviceType + requiredStaffRole; khac role 422 + suggestedGroups; duration = tong; deposit khoa PERCENTAGE 30% tren finalAmount sau voucher (khong override, khong FIXED); nhieu service: 30% toan appointment; reschedule <24h 422, lan 3 422; cancel >=24h hoan 100%, <24h forfeit; chi luu DB sau khi xac nhan; pet moi tu luu; nhac lich tao notification |
+| Booking | multi-service cung serviceType (GROOMING+MEDICAL => MIXED_SERVICE_TYPES); cac service co the khac requiredStaffRole; moi segment co staff rieng, noi tiep, duration = tong; backend tu tim va reserve staff (Customer gui staff => 400); khong tim duoc staff cho TOAN BO Appointment => slot khong tra trong availability va tao => 409 SLOT_UNAVAILABLE (rollback tat ca segment); reschedule <24h 422, lan 3 422; cancel >=24h hoan 100% khoan tra truoc, <24h khong hoan; chi luu DB khi xac nhan; pet moi tu luu; nhac lich tao notification |
 | Medical | Nurse goi finalize 403; submit => WAITING_VET_REVIEW; chi Vet finalize; revision/delta (0>5 ISSUE -5, 5>3 ADJUSTMENT +2, 5>8 ISSUE -3) |
 | Auth | mat khau yeu (thieu chu hoa/so) 422; lastLogin chi tang khi login ok; Guest khong co users truoc activation |
 | Idempotency | cung key => 1 order/payment/refund/finalize; khac body => 409 |
@@ -31,6 +31,11 @@ Muc tieu: OpenAPI v5 == Customer Angular == Admin Angular == Backend. Hai chieu:
 | Return state | REQUESTED > PROCESSING > RECEIVED > APPROVED > COMPLETED; approve khi chua RECEIVED bi 409; Receptionist approve/reject 403; reject tu PROCESSING va RECEIVED |
 | Deposit | service bat coc: 30% finalAmount sau voucher (1,000,000 > 300,000); khong override; nhieu service: 30% toan appointment |
 | Commerce coverage | productVariants*, checkoutValidate, ordersReturnQuote ton tai; cart/checkout khong nhan hay tra branch lua chon |
+| **Payment flow Appointment** | ONLINE_MOCK: tra 100% finalAmount sau voucher ngay khi dat (kind FULL), depositAmount=0, balance=0; PAY_AT_STORE co service bat coc: coc 30% (kind DEPOSIT) giu slot, phan con lai 70% thu tai cua hang (kind BALANCE); PAY_AT_STORE khong service bat coc: khong coc, vao PENDING_CONFIRMATION; deposit 30% khong ap dung cho online; paymentMethod thieu => 400; COD cho lich hen => 400 |
+| **Ghi nhan coc ngay** | hoa don 1,000,000, coc 300,000 thanh cong => paidAmount=300,000 va deposit HELD ngay (khong cho balance); COMPLETED => deposit APPLIED tu dong; balance payment chi thu 700,000 va khong doi trang thai deposit; balance payment cho ONLINE_MOCK hoac Appointment chua COMPLETED => 422 |
+| **Internal booking khong CONFIRMED** | dat ho voi/khong staffAssignments => PENDING_PAYMENT hoac PENDING_CONFIRMATION; chi appointmentsConfirm => CONFIRMED; confirm khi chua dat tra truoc => 409/422; duyet request cung khong CONFIRMED |
+| **Reassign segment** | trung requiredStaffRole va available => OK, khong doi trang thai; khac role (du ranh) => 422 STAFF_ROLE_MISMATCH; trung lich/ngoai shift/khong authorized => 409 STAFF_UNAVAILABLE; segment da bat dau => 409; Customer goi => 403; Receptionist/Manager ngoai branch => 404 |
+| **COD** | Order COD khong goi duoc record-at-store (422); payment COD chi PAID khi ordersMarkDelivered; record-at-store chi chap nhan Payment Appointment PAY_AT_STORE |
 | **Fulfillment resolver** | `fulfillmentBranchPriority=[Q10,Q7]`: Q10 du => Order.fulfillmentBranchId=Q10; Q10 thieu, Q7 du => Q7; branch INACTIVE bi bo qua; khong branch nao du toan bo cart => 422 INSUFFICIENT_INVENTORY (khong tach don); danh sach rong => 422 FULFILLMENT_NOT_CONFIGURED; Q10=3 va Q7=3 mua 5 (tong 6) => `fulfillable=false` o checkoutValidate va 422 o checkout; dua tranh decrement => thu branch ke tiep; Customer khong gui branch (gui thi 400) |
 | **Cart validation layering** | cartsAddItem chi kiem tra purchasable + ton tong quat (them 5 khi tong 6 van duoc); khong tra loi branch; checkoutValidate/checkoutQuote moi tra NOT_FULFILLABLE_BY_SINGLE_BRANCH |
 | **Return reject sau RECEIVED** | reject tu RECEIVED: Return REJECTED, khong OrderRefund, khong ledger, returnReservedQty duoc tra lai; reject tu PROCESSING tuong tu |

@@ -1,4 +1,4 @@
-# 15 ADR v5 (ADR-25..29 la moi cua V4)
+# 15 ADR v6 (ADR-25..29 la moi cua V4)
 
 ADR v1, v2 giu lam lich su. ADR duoi day la hien hanh; muc "thay the" ghi ro. Research chi dung de chon ky thuat; trang thai xac minh o 16.
 
@@ -11,8 +11,8 @@ ADR v1, v2 giu lam lich su. ADR duoi day la hien hanh; muc "thay the" ghi ro. Re
 | ADR-05 | Role + sub-role | quyen khac nhau theo sub-role | systemRole + staffSubRole | policy phuc tap | role phang |
 | ADR-06 | Multi-branch staff, Manager assignedBranches | sheet | authorizedBranchIds, shifts.branchId, assignedBranchIds | validate them | Manager = ALL |
 | ADR-07 | Availability tinh dong | khong time_slots | computed + slot_reservations | tinh moi lan | bang slot |
-| ADR-08 | Multi-service cung serviceType va requiredStaffRole | CD-08, CD-14 | services[] snapshot, loi 422 + suggestedGroups | nhieu role phai tach lich | multi-staff 1 appointment |
-| ADR-09 | Deposit khoa PERCENTAGE 30 cho service bat coc; tinh tren final amount toan appointment | V5 hard lock, CD-13 | APPLIED khi COMPLETED; cau hinh chi Admin | it linh hoat | cac phuong an nhieu muc coc |
+| ADR-08 | Appointment = cac service segment doc lap ve Staff (thay ADR-08 cu, bo rang buoc dong nhat role) | review feedback V6 | mot serviceType; moi segment co requiredStaffRole, duration, assignedStaffId rieng; noi tiep; backend tu tim va reserve staff; chi kha dung khi moi segment tim duoc staff | availability phuc tap hon (tim staff tung segment) | rang buoc dong nhat role; customer chon staff |
+| ADR-09 | Thanh toan lich hen: ONLINE_MOCK 100% / PAY_AT_STORE coc 30% | review feedback V6 | deposit 30% chi cho PAY_AT_STORE tren final amount sau voucher; ghi nhan ngay; APPLIED tu dong khi COMPLETED; balance chi thu phan con lai | online khong co deposit | deposit cho ca online; APPLIED gan voi balance payment |
 | ADR-10 | Payment mock, state that | sheet | PaymentProvider + Mock; status khop sheet | -- | gateway that |
 | ADR-11 | Inventory ledger append-only + stocks projection | rule 2 | transactions bat bien; mot vi tri ton kho moi branch | hoan hang khong tu dong nhap kho | them vi tri ton kho phu |
 | ADR-12 | Service record revision + inventory delta | sheet 4.4 | revision collection, delta | them collection | overwrite ledger |
@@ -37,3 +37,6 @@ Ghi chu: cac ADR cu ve cong thuc hoan tien co them thanh phan va vi tri kho phu 
 | ADR-30 | Mot field state canonical `x-authz.stateTransition` | review feedback (hai field lech nhau) | bo `transition`; audit so khop voi 09 | -- | giu hai field |
 | ADR-31 | Cart chi validate purchasable + ton tong quat | review feedback | validation branch o checkoutValidate/Quote/Create | khach co the them vao cart roi moi biet khong fulfill | kiem tra branch tai add item |
 | ADR-32 | Reject sau RECEIVED khong refund, khong nhap stock | review feedback, TA-24 | hang xu ly thu cong ngoai he thong | mat dau vet he thong cho hang tra lai | tu dong nhap kho/hoan tien |
+| ADR-33 | Assign staff khong phai CONFIRMED | review feedback V6 | confirm la action rieng cho moi nguon tao (tu dat, dat ho, duyet request) | them mot buoc | assign = CONFIRMED |
+| ADR-34 | Reassign theo segment | review feedback V6 | Manager/Receptionist doi staff trung requiredStaffRole va available | -- | gan staff khac role |
+| ADR-35 | COD gan voi delivery | review feedback V6 | COD chi PAID khi Mark Delivered; record-at-store chi Appointment PAY_AT_STORE | -- | dung chung flow thanh toan tai cua hang |

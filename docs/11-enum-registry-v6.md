@@ -1,6 +1,6 @@
-# 11 Enum Registry v5
+# 11 Enum Registry v6
 
-Sinh TU DONG tu `07-openapi-v5.yaml`. Audit: khong co hai enum cung tap gia tri duoi hai ten. Figma: FIGMA_ACCESS_UNVERIFIED.
+Sinh TU DONG tu `07-openapi-v6.yaml`. Audit: khong co hai enum cung tap gia tri duoi hai ten. Figma: FIGMA_ACCESS_UNVERIFIED.
 
 | Concept | OpenAPI schema | Canonical values | DB field | Ghi chu |
 |---|---|---|---|---|
@@ -21,8 +21,8 @@ Sinh TU DONG tu `07-openapi-v5.yaml`. Audit: khong co hai enum cung tap gia tri 
 | paymentMethod | PaymentMethod | ONLINE_MOCK, PAY_AT_STORE, COD | payments.method | Tap tong hop cua hai nhom ben duoi |
 | appointmentPaymentMethod | AppointmentPaymentMethod | ONLINE_MOCK, PAY_AT_STORE | payments.method (target APPOINTMENT) | Khong co COD |
 | orderPaymentMethod (inline checkout) | CheckoutRequest.paymentMethod | ONLINE_MOCK, COD | orders.paymentMethod | ONLINE_MOCK, COD. Khong co PAY_AT_STORE |
-| paymentKind | PaymentKind | DEPOSIT, BALANCE, ORDER | payments.kind |  |
-| depositStatus | DepositStatus | NOT_REQUIRED, PENDING, HELD, APPLIED, REFUNDED, FORFEITED, TRANSFERRED | appointments.deposit.status |  |
+| paymentKind | PaymentKind | DEPOSIT, BALANCE, FULL, ORDER | payments.kind | FULL = 100% online lich hen; DEPOSIT = coc 30% PAY_AT_STORE; BALANCE = phan con lai tai cua hang; ORDER = don hang |
+| depositStatus | DepositStatus | NOT_REQUIRED, PENDING, HELD, APPLIED, REFUNDED, FORFEITED, TRANSFERRED | appointments.deposit.status | Chi PAY_AT_STORE. HELD ghi nhan ngay khi coc thanh cong; APPLIED tu dong khi COMPLETED |
 | bookingRefundStatus | BookingRefundStatus | REQUESTED, PROCESSING, APPROVED, REJECTED, REFUNDED | booking_refunds.status |  |
 | orderReturnStatus | OrderReturnStatus | REQUESTED, PROCESSING, APPROVED, REJECTED, CANCELLED, RECEIVED, COMPLETED | order_returns.status | REQUESTED > PROCESSING > RECEIVED > APPROVED > COMPLETED. REJECTED |
 | orderRefundStatus | OrderRefundStatus | PENDING, REFUNDED, FAILED | order_refunds.status |  |
@@ -33,8 +33,9 @@ Sinh TU DONG tu `07-openapi-v5.yaml`. Audit: khong co hai enum cung tap gia tri 
 | voucherScope | VoucherScope | ORDER, PRODUCT, SERVICE | vouchers.scope |  |
 | voucherDiscountType | VoucherDiscountType | PERCENTAGE, FIXED | vouchers.discountType |  |
 | reviewTarget | ReviewTarget | PRODUCT, SERVICE | reviews.targetType |  |
+| allowedActions (Appointment) | Appointment.allowedActions | RESCHEDULE, CANCEL, PAY_PREPAYMENT, PAY_BALANCE, REQUEST_REFUND | (tinh) | Server tinh |
 | fulfillmentIssue | FulfillmentIssue | NOT_FULFILLABLE_BY_SINGLE_BRANCH, FULFILLMENT_NOT_CONFIGURED | (khong luu; tra o checkout quote/validate) | Ket qua resolver |
-| errorCode | ErrorCode | VALIDATION_ERROR, AUTHENTICATION_ERROR, AUTHORIZATION_ERROR, OWNERSHIP_ERROR, BRANCH_SCOPE_ERROR, ASSIGNMENT_SCOPE_ERROR, NOT_FOUND, CONFLICT, SLOT_UNAVAILABLE, SHIFT_OVERLAP, IDEMPOTENCY_KEY_REUSED, INVALID_STATE_TRANSITION, RESCHEDULE_TOO_LATE, RESCHEDULE_LIMIT, MIXED_SERVICE_TYPES, INCOMPATIBLE_STAFF_ROLES, SERVICE_NOT_ENABLED_AT_BRANCH, BOOKING_MODE_NOT_ALLOWED, INSUFFICIENT_INVENTORY, PAYMENT_STATE_ERROR, REFUND_STATE_ERROR, RETURN_WINDOW_EXPIRED, RETURN_QTY_EXCEEDS_RETURNABLE, MEDICAL_REVIEW_REQUIRED, EXTERNAL_PROVIDER_ERROR, RATE_LIMIT, INTERNAL_ERROR, PRODUCT_NOT_PURCHASABLE, VOUCHER_INVALID, ORDER_NOT_RETURNABLE, FULFILLMENT_NOT_CONFIGURED | (Problem.code) | RFC 9457 extension |
+| errorCode | ErrorCode | VALIDATION_ERROR, AUTHENTICATION_ERROR, AUTHORIZATION_ERROR, OWNERSHIP_ERROR, BRANCH_SCOPE_ERROR, ASSIGNMENT_SCOPE_ERROR, NOT_FOUND, CONFLICT, SLOT_UNAVAILABLE, SHIFT_OVERLAP, IDEMPOTENCY_KEY_REUSED, INVALID_STATE_TRANSITION, RESCHEDULE_TOO_LATE, RESCHEDULE_LIMIT, MIXED_SERVICE_TYPES, SERVICE_NOT_ENABLED_AT_BRANCH, BOOKING_MODE_NOT_ALLOWED, INSUFFICIENT_INVENTORY, PAYMENT_STATE_ERROR, REFUND_STATE_ERROR, RETURN_WINDOW_EXPIRED, RETURN_QTY_EXCEEDS_RETURNABLE, MEDICAL_REVIEW_REQUIRED, EXTERNAL_PROVIDER_ERROR, RATE_LIMIT, INTERNAL_ERROR, PRODUCT_NOT_PURCHASABLE, VOUCHER_INVALID, ORDER_NOT_RETURNABLE, FULFILLMENT_NOT_CONFIGURED, STAFF_ROLE_MISMATCH, STAFF_UNAVAILABLE | (Problem.code) | RFC 9457 extension |
 
 ## Khong dua vao canonical
 | Legacy / bi bo | Ly do |

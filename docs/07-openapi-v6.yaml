@@ -1,9 +1,9 @@
 openapi: 3.1.1
 info:
   title: Pet Clinic Web 2 API (greenfield)
-  version: 5.0.0
-  description: 'Canonical contract v5 (review fixes) cho backend moi. Hai FE dich: Customer Angular va Admin Angular (x-audience). Error: RFC 9457. Khong tuong thich nguoc voi backend cu. Versioning: URI
-    major /api/v1 (API contract version 1 cua backend moi; tai lieu v2 la revision cua bo spec).'
+  version: 6.0.0
+  description: 'Canonical contract v6 (appointment staffing + payment flow) cho backend moi. Hai FE dich: Customer Angular va Admin Angular (x-audience). Error: RFC 9457. Khong tuong thich nguoc voi backend
+    cu. Versioning: URI major /api/v1 (API contract version 1 cua backend moi; tai lieu v2 la revision cua bo spec).'
 servers:
 - url: /api/v1
 tags:
@@ -1660,8 +1660,8 @@ paths:
         - STAFF
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         resolver: Appointment
       x-audience:
       - customer
@@ -1709,8 +1709,10 @@ paths:
         scope: 'customer: tu dat cho minh'
         stateTransition: (new)->PENDING_PAYMENT | PENDING_CONFIRMATION
         audit: appointment.create
-        sideEffects: 'Customer/Guest tu dat. Chi luu DB khi bam Dat lich cuoi. slot HELD tong duration; snapshot service; deposit = 30% finalAmount toan appointment neu co service bat coc; Customer chon
-          pet khac => tu luu pet moi; nhac lich email + notification. Dat ho: internalAppointmentsCreate'
+        sideEffects: 'Customer/Guest tu dat, KHONG chon staff. Chi luu DB khi bam Dat lich cuoi. 1 tx: backend tim va reserve staff cho tung segment (noi tiep), reserve capacity, tao Appointment, snapshot,
+          tao Payment: ONLINE_MOCK => kind FULL, 100% finalAmount sau voucher, Appointment PENDING_PAYMENT cho den khi PAID; PAY_AT_STORE => neu co service bat coc thi kind DEPOSIT = 30% finalAmount (PENDING_PAYMENT
+          cho den khi coc thanh cong), nguoc lai khong coc va vao thang PENDING_CONFIRMATION, phan con lai thu tai cua hang. Khong tim duoc staff cho toan bo Appointment => 409 SLOT_UNAVAILABLE. Customer
+          chon pet khac => tu luu pet moi. Nhac lich email + notification'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -1806,6 +1808,8 @@ paths:
         audit: request.approve
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: AppointmentRequest
+        sideEffects: Tao Appointment (source REQUEST) o PENDING_PAYMENT hoac PENDING_CONFIRMATION, KHONG tu CONFIRMED. staffAssignments tuy chon, khong gui thi backend tu tim. Phai goi appointmentsConfirm
+          de CONFIRMED
       x-audience:
       - admin
   /appointment-requests/{id}/reject:
@@ -1895,8 +1899,8 @@ paths:
         - STAFF
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         resolver: Appointment
       x-audience:
       - customer
@@ -1916,12 +1920,6 @@ paths:
         schema:
           $ref: '#/components/schemas/ObjectId'
       - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AppointmentConfirm'
       responses:
         '200':
           description: Appointment
@@ -1947,11 +1945,12 @@ paths:
         - RECEPTIONIST
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: PENDING_CONFIRMATION->CONFIRMED
         audit: appointment.confirm
-        sideEffects: staff phai co requiredStaffRole va shift tai branch/thoi gian
+        sideEffects: 'Hanh dong rieng: chi doi trang thai sang CONFIRMED khi thanh toan truoc da dat (PAY_AT_STORE khong coc: khong can) va moi segment da co staff. Khong gan staff o buoc nay (phan cong
+          da lam luc tao hoac qua appointmentSegmentReassign). notify'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -2001,8 +2000,8 @@ paths:
         - RECEPTIONIST
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: PENDING_CONFIRMATION->CANCELLED
         audit: appointment.reject
         sideEffects: release slot; deposit theo store-cancel rule
@@ -2048,8 +2047,8 @@ paths:
         - RECEPTIONIST
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: CONFIRMED->NO_SHOW
         audit: appointment.no_show
         sideEffects: deposit FORFEITED
@@ -2096,8 +2095,8 @@ paths:
         - CARE_STAFF_GROOMER
         - NURSE
         - VETERINARIAN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: CONFIRMED->IN_PROGRESS
         audit: appointment.start
         sideEffects: snapshot defaultMaterials
@@ -2155,7 +2154,8 @@ paths:
         - STAFF
         - MANAGER
         - ADMIN
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         resolver: ServiceRecord
       x-audience:
       - customer
@@ -2196,7 +2196,8 @@ paths:
         - STAFF
         - MANAGER
         - ADMIN
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         resolver: ServiceRecord
       x-audience:
       - customer
@@ -2546,58 +2547,6 @@ paths:
         resolver: InventoryStock/InventoryTransaction
       x-audience:
       - admin
-  /payments/bookings/{appointmentId}:
-    post:
-      operationId: bookingPaymentCreate
-      summary: Tao thanh toan deposit (MOCK)
-      tags:
-      - Payment
-      security: []
-      parameters:
-      - name: appointmentId
-        in: path
-        required: true
-        schema:
-          $ref: '#/components/schemas/ObjectId'
-      - $ref: '#/components/parameters/IdempotencyKey'
-      responses:
-        '201':
-          description: Payment
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Payment'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '422':
-          $ref: '#/components/responses/Unprocessable'
-      x-authz:
-        auth: optional bearer
-        roles:
-        - CUSTOMER
-        - guest(lookup token)
-        scope: ownership resolver cua resource (xem 08)
-        stateTransition: Payment PENDING; Deposit PENDING
-        audit: payment.create
-        idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
-        sideEffects: paymentMethod ONLINE_MOCK hoac PAY_AT_STORE (staff ghi nhan qua paymentRecordAtStore)
-        resolver: Payment
-      x-audience:
-      - customer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BookingPaymentRequest'
   /payments/{id}/mock/complete:
     post:
       operationId: paymentMockComplete
@@ -2645,7 +2594,8 @@ paths:
         scope: target ORDER -> Order.fulfillmentBranchId; target APPOINTMENT -> Appointment.branchId; owner = target owner (khong co truong branch tren Payment)
         stateTransition: 'PENDING->PAID|FAILED. Callback lap lai: no-op, tra trang thai hien tai'
         audit: payment.mock
-        sideEffects: 'Payment cua Order: FAILED => Order CANCELLED + RECEIPT hoan ton + restore voucher, khong lap RECEIPT. Payment cua Appointment: FAILED => giu hold den het han'
+        sideEffects: 'Payment cua Order: FAILED => Order CANCELLED + RECEIPT hoan ton + restore voucher, khong lap RECEIPT. Payment cua Appointment: PAID (DEPOSIT hoac FULL) => ghi nhan NGAY paidAmount,
+          Appointment PENDING_PAYMENT -> PENDING_CONFIRMATION, deposit HELD (DEPOSIT); FAILED => giu hold den het han'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Payment
       x-audience:
@@ -3240,7 +3190,8 @@ paths:
         roles:
         - public
         scope: public
-        sideEffects: khong giu cho. duration = tong durationMinutes. 422 INCOMPATIBLE_STAFF_ROLES kem suggestedGroups
+        sideEffects: khong giu cho, khong chon staff. Slot chi kha dung khi TAT CA segment (noi tiep theo thu tu) deu tim duoc staff phu hop (staff co role trung voi requiredStaffRole cua segment, authorizedBranchIds,
+          shift phu khoang, khong trung lich) va capacity BranchServiceConfig con. Khong tim duoc to hop staff cho toan bo Appointment => slot khong kha dung
         resolver: Appointment
       x-audience:
       - customer
@@ -3288,11 +3239,12 @@ paths:
         auth: bearer
         roles:
         - CUSTOMER
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
-        stateTransition: CONFIRMED->CONFIRMED (rescheduleCount+1)
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
+        stateTransition: CONFIRMED->CONFIRMED
         audit: appointment.reschedule
-        sideEffects: 422 RESCHEDULE_TOO_LATE neu <24h; 422 RESCHEDULE_LIMIT neu count>=2; deposit TRANSFERRED sang lich moi
+        sideEffects: rescheduleCount + 1. 422 RESCHEDULE_TOO_LATE neu <24h; 422 RESCHEDULE_LIMIT neu count>=2; backend tim lai va reserve staff cho tung segment o khung moi (409 SLOT_UNAVAILABLE neu khong
+          du); khoan tra truoc chuyen sang lich moi
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -3342,8 +3294,8 @@ paths:
         roles:
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: CONFIRMED->CONFIRMED
         audit: appointment.reschedule.override
         sideEffects: bat buoc reason; actor/role do server suy ra tu token
@@ -3395,11 +3347,11 @@ paths:
         auth: bearer
         roles:
         - CUSTOMER
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
         stateTransition: PENDING_PAYMENT|PENDING_CONFIRMATION|CONFIRMED->CANCELLED
         audit: appointment.cancel
-        sideEffects: 'server tinh >=24h: deposit refund 100%; <24h: deposit FORFEITED'
+        sideEffects: 'Server tinh >=24h: khoan tra truoc (coc hoac thanh toan 100%) hoan 100%; <24h: khong hoan (TA-30). Giai phong reservation staff va capacity'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -3450,11 +3402,11 @@ paths:
         - RECEPTIONIST
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
-        stateTransition: PENDING*|CONFIRMED->CANCELLED
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
+        stateTransition: PENDING_PAYMENT|PENDING_CONFIRMATION|CONFIRMED->CANCELLED
         audit: appointment.store_cancel
-        sideEffects: deposit REFUNDED 100% hoac TRANSFERRED (depositResolution); server ghi cancelledBy=STORE tu actor
+        sideEffects: Khoan tra truoc (coc hoac thanh toan 100%) REFUNDED 100% hoac TRANSFERRED theo prepaidResolution; server ghi cancelledBy=STORE tu actor; giai phong reservation staff va capacity
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -3504,11 +3456,11 @@ paths:
         roles:
         - MANAGER
         - ADMIN
-        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: assignedStaffId
-          == actor. ADMIN ALL'
-        stateTransition: ->CANCELLED
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
+        stateTransition: PENDING_PAYMENT|PENDING_CONFIRMATION|CONFIRMED->CANCELLED
         audit: appointment.cancel.override
-        sideEffects: reason bat buoc
+        sideEffects: reason bat buoc; prepaidOutcome tuy chinh; giai phong reservation
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -3558,7 +3510,8 @@ paths:
         - CARE_STAFF_GROOMER(GROOMING)
         - NURSE(MEDICAL)
         - VETERINARIAN(review)
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         audit: material.update
         sideEffects: khong dong kho o buoc nay
         resolver: ServiceRecord
@@ -3607,7 +3560,8 @@ paths:
         auth: bearer
         roles:
         - VETERINARIAN
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         audit: record.professional.update
         resolver: ServiceRecord
       x-audience:
@@ -3649,7 +3603,8 @@ paths:
         auth: bearer
         roles:
         - NURSE
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         stateTransition: IN_PROGRESS|REOPENED->WAITING_VET_REVIEW
         audit: record.submit_review
         resolver: ServiceRecord
@@ -3694,8 +3649,10 @@ paths:
         roles:
         - CARE_STAFF_GROOMER(GROOMING)
         - VETERINARIAN(MEDICAL)
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
-        stateTransition: 'GROOMING: IN_PROGRESS|REOPENED->FINALIZED; MEDICAL: WAITING_VET_REVIEW->FINALIZED. Appointment IN_PROGRESS->COMPLETED lan dau'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
+        stateTransition: 'GROOMING: IN_PROGRESS|REOPENED->FINALIZED; MEDICAL: WAITING_VET_REVIEW->FINALIZED. Appointment IN_PROGRESS->COMPLETED lan dau. Lan dau: deposit HELD->APPLIED (system, khong cho
+          balance payment)'
         audit: record.finalize|inventory.delta
         sideEffects: '1 tx: tao revision N, tinh delta=newActual-previousActual theo tung vat tu, ghi ledger (delta>0 ISSUE; delta<0 ADJUSTMENT), cap nhat stock co dieu kien; thieu ton => 422 INSUFFICIENT_INVENTORY
           khong ghi gi; Nurse goi => 403'
@@ -3747,7 +3704,8 @@ paths:
         roles:
         - MANAGER
         - ADMIN
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         stateTransition: FINALIZED->REOPENED
         audit: record.reopen
         sideEffects: khong sua ledger cu. revision moi chi ghi khi finalize lai
@@ -3789,7 +3747,8 @@ paths:
         - STAFF(assigned)
         - MANAGER
         - ADMIN
-        scope: 'ServiceRecord.branchId trong scope + assignedStaffId == actor (Care/Nurse/Vet). Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds. ADMIN ALL'
+        scope: 'ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds (cac segment cua Appointment) voi Care/Nurse/Vet. Customer: qua pet/appointment cua minh (field-limited). Manager: assignedBranchIds.
+          ADMIN ALL'
         resolver: ServiceRecord
       x-audience:
       - admin
@@ -3833,15 +3792,14 @@ paths:
         - RECEPTIONIST
         - MANAGER
         - ADMIN
-        - CUSTOMER
         scope: target ORDER -> Order.fulfillmentBranchId; target APPOINTMENT -> Appointment.branchId; owner = target owner (khong co truong branch tren Payment)
-        stateTransition: Payment PENDING; Deposit HELD->APPLIED
+        stateTransition: Payment PENDING (BALANCE)
         audit: payment.balance.create
-        sideEffects: amount = finalAmount - deposit APPLIED, server tinh
+        sideEffects: 'Chi cho Appointment COMPLETED, method PAY_AT_STORE, balance > 0 (nguoc lai 422 PAYMENT_STATE_ERROR). amount = finalAmount - paidAmount (vd 1,000,000 - 300,000 = 700,000), server tinh.
+          KHONG anh huong trang thai deposit: deposit da duoc ghi nhan tu luc coc thanh cong va chuyen APPLIED tu dong khi COMPLETED'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Payment
       x-audience:
-      - customer
       - admin
   /orders/{id}/returnable-items:
     get:
@@ -3928,7 +3886,7 @@ paths:
           ADMIN ALL'
         stateTransition: SHIPPED->COMPLETED
         audit: order.delivered
-        sideEffects: 'deliveredAt = server time luc bam Mark Delivered; han tra hang 7 ngay tinh tu day. COD: payment PENDING -> PAID'
+        sideEffects: 'deliveredAt = server time luc bam Mark Delivered; han tra hang 7 ngay tinh tu day. Order COD: payment PENDING -> PAID CHI tai buoc nay (COD gan voi delivery, khong qua record-at-store)'
         resolver: Order
       x-audience:
       - admin
@@ -5842,7 +5800,8 @@ paths:
         scope: target ORDER -> Order.fulfillmentBranchId; target APPOINTMENT -> Appointment.branchId; owner = target owner (khong co truong branch tren Payment)
         stateTransition: PENDING->PAID
         audit: payment.record_at_store
-        sideEffects: chi cho method PAY_AT_STORE/COD
+        sideEffects: CHI cho Payment cua Appointment co method PAY_AT_STORE (kind DEPOSIT hoac BALANCE). KHONG dung cho Order; Order COD khong qua flow nay (COD chi PAID khi Mark Delivered). Method khac
+          => 422 PAYMENT_STATE_ERROR. Ghi nhan paidAmount ngay (coc 300k = da tra truoc 300k)
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Payment
       x-audience:
@@ -6223,7 +6182,7 @@ paths:
         scope: owner
         stateTransition: PENDING->CANCELLED
         audit: payment.cancel
-        sideEffects: 'Payment cua Order: Order CANCELLED + RECEIPT hoan ton + restore voucher (1 tx, idempotent)'
+        sideEffects: 'Payment cua Order: Order CANCELLED + RECEIPT hoan ton + restore voucher (1 tx, idempotent). Payment cua Appointment (PENDING): Appointment CANCELLED + giai phong reservation'
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Payment
       x-audience:
@@ -6506,10 +6465,11 @@ paths:
         - MANAGER
         - ADMIN
         scope: Appointment.branchId trong authorizedBranchIds (Receptionist) / assignedBranchIds (Manager); ADMIN ALL
-        stateTransition: (new)->PENDING_PAYMENT | PENDING_CONFIRMATION | CONFIRMED (khi da gan staff)
+        stateTransition: (new)->PENDING_PAYMENT | PENDING_CONFIRMATION
         audit: appointment.create.internal
-        sideEffects: 'cung quy tac availability, cung serviceType + requiredStaffRole, deposit 30%; cho BOOKABLE va REQUEST_ONLY (da xu ly yeu cau), CONTACT_ONLY khong tao. Guest: guest_contact, khong tao
-          user'
+        sideEffects: Dat ho; cung quy tac availability, cung serviceType, cung bookingMode. Staff duoc backend tu tim hoac chi dinh qua staffAssignments (role trung voi requiredStaffRole cua segment, dang
+          available); phan cong staff KHONG lam Appointment CONFIRMED. Sau khi tao van o PENDING_PAYMENT hoac PENDING_CONFIRMATION; phai goi appointmentsConfirm. Payment theo paymentMethod giong tu dat
+          (ONLINE_MOCK 100% / PAY_AT_STORE coc 30%). Cho BOOKABLE va REQUEST_ONLY (da xu ly yeu cau); CONTACT_ONLY khong tao. Guest khong tao account
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
@@ -6579,6 +6539,65 @@ paths:
         resolver: Settings
       x-audience:
       - admin
+  /appointments/{id}/segments/{serviceId}/staff:
+    put:
+      operationId: appointmentSegmentReassign
+      summary: Doi staff cho tung service segment (role trung voi requiredStaffRole cua segment, dang available)
+      tags:
+      - Booking
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      - name: serviceId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffReassignRequest'
+      responses:
+        '200':
+          description: Appointment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+      x-authz:
+        auth: bearer
+        roles:
+        - RECEPTIONIST
+        - MANAGER
+        - ADMIN
+        scope: 'Customer: Appointment.customerId == actor. Receptionist: Appointment.branchId trong authorizedBranchIds. Manager: Appointment.branchId trong assignedBranchIds. Care/Nurse/Vet: actor thuoc
+          assignedStaffId cua it nhat mot segment. ADMIN ALL'
+        audit: appointment.segment.reassign
+        sideEffects: Staff moi phai co role trung voi requiredStaffRole cua segment (422 STAFF_ROLE_MISMATCH), thuoc authorizedBranchIds cua branch, co shift phu khoang segment va khong trung lich (409
+          STAFF_UNAVAILABLE). Khong duoc gan staff khac role chi vi con trong lich. Giai phong reservation cua staff cu, giu cho staff moi trong 1 tx. Khong doi trang thai Appointment. Segment da bat dau
+          khong doi duoc
+        resolver: Appointment
+      x-audience:
+      - admin
 components:
   securitySchemes:
     bearerAuth:
@@ -6626,8 +6645,8 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     Unprocessable:
-      description: '422 business rule: RESCHEDULE_TOO_LATE | RESCHEDULE_LIMIT | MIXED_SERVICE_TYPES | INCOMPATIBLE_STAFF_ROLES | SERVICE_NOT_ENABLED_AT_BRANCH | BOOKING_MODE_NOT_ALLOWED | INSUFFICIENT_INVENTORY
-        | PAYMENT_STATE_ERROR | REFUND_STATE_ERROR | RETURN_WINDOW_EXPIRED | RETURN_QTY_EXCEEDS_RETURNABLE | MEDICAL_REVIEW_REQUIRED'
+      description: '422 business rule: RESCHEDULE_TOO_LATE | RESCHEDULE_LIMIT | MIXED_SERVICE_TYPES | STAFF_ROLE_MISMATCH | STAFF_UNAVAILABLE | SERVICE_NOT_ENABLED_AT_BRANCH | BOOKING_MODE_NOT_ALLOWED |
+        INSUFFICIENT_INVENTORY | PAYMENT_STATE_ERROR | REFUND_STATE_ERROR | RETURN_WINDOW_EXPIRED | RETURN_QTY_EXCEEDS_RETURNABLE | MEDICAL_REVIEW_REQUIRED'
       content:
         application/problem+json:
           schema:
@@ -6791,22 +6810,6 @@ components:
               code:
                 type: string
             additionalProperties: false
-        suggestedGroups:
-          type: array
-          description: Goi y tach lich khi INCOMPATIBLE_STAFF_ROLES
-          items:
-            type: object
-            properties:
-              requiredStaffRole:
-                $ref: '#/components/schemas/StaffSubRole'
-              serviceIds:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ObjectId'
-            additionalProperties: false
-            required:
-            - requiredStaffRole
-            - serviceIds
       additionalProperties: true
     ErrorCode:
       type: string
@@ -6826,7 +6829,6 @@ components:
       - RESCHEDULE_TOO_LATE
       - RESCHEDULE_LIMIT
       - MIXED_SERVICE_TYPES
-      - INCOMPATIBLE_STAFF_ROLES
       - SERVICE_NOT_ENABLED_AT_BRANCH
       - BOOKING_MODE_NOT_ALLOWED
       - INSUFFICIENT_INVENTORY
@@ -6842,6 +6844,8 @@ components:
       - VOUCHER_INVALID
       - ORDER_NOT_RETURNABLE
       - FULFILLMENT_NOT_CONFIGURED
+      - STAFF_ROLE_MISMATCH
+      - STAFF_UNAVAILABLE
     AuthTokens:
       type: object
       properties:
@@ -7755,6 +7759,23 @@ components:
         remaining:
           type: integer
           minimum: 1
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              serviceId:
+                $ref: '#/components/schemas/ObjectId'
+              start:
+                $ref: '#/components/schemas/DateTime'
+              end:
+                $ref: '#/components/schemas/DateTime'
+            additionalProperties: false
+            required:
+            - serviceId
+            - start
+            - end
+          description: Timeline noi tiep cua tung service. Khong lo staff
       additionalProperties: false
       required:
       - start
@@ -7850,6 +7871,7 @@ components:
       - serviceIds
       - branchId
       - slotStart
+      - paymentMethod
     AppointmentRequestCreate:
       type: object
       properties:
@@ -7901,23 +7923,22 @@ components:
           $ref: '#/components/schemas/ObjectId'
         slotStart:
           $ref: '#/components/schemas/DateTime'
-        primaryStaffId:
-          $ref: '#/components/schemas/ObjectId'
+        staffAssignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffAssignment'
+          uniqueItems: true
         supportStaffIds:
           type: array
           items:
             $ref: '#/components/schemas/ObjectId'
+        paymentMethod:
+          $ref: '#/components/schemas/AppointmentPaymentMethod'
       additionalProperties: false
       required:
       - branchId
       - slotStart
-      - primaryStaffId
-    AppointmentConfirm:
-      type: object
-      properties:
-        assignedStaffId:
-          $ref: '#/components/schemas/ObjectId'
-      additionalProperties: false
+      - paymentMethod
     RescheduleRequest:
       type: object
       properties:
@@ -7943,15 +7964,24 @@ components:
         finalAmount:
           $ref: '#/components/schemas/Money'
         depositAmount:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: 30% finalAmount, CHI khi paymentMethod=PAY_AT_STORE va co service bat coc; ONLINE_MOCK luon 0
         balanceAmount:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: 'Con phai thu sau thanh toan truoc: ONLINE_MOCK = 0; PAY_AT_STORE = finalAmount - depositAmount'
+        paidAmount:
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          description: Tong da thanh toan thanh cong (ghi nhan ngay khi coc/thanh toan thanh cong, khong cho balance)
       additionalProperties: false
       required:
       - subtotal
       - finalAmount
       - depositAmount
       - balanceAmount
+      - paidAmount
     Appointment:
       type: object
       properties:
@@ -7972,6 +8002,7 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/ServiceLine'
+          description: 'Moi phan tu la mot service segment doc lap ve Staff: serviceType + requiredStaffRole + duration + assignedStaffId rieng; cac segment noi tiep'
         petSnapshot:
           type: object
         customerSnapshot:
@@ -7984,10 +8015,6 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/AppointmentStatus'
-        assignedStaffId:
-          oneOf:
-          - $ref: '#/components/schemas/ObjectId'
-          - type: 'null'
         supportStaffIds:
           type: array
           items:
@@ -8019,10 +8046,12 @@ components:
             enum:
             - RESCHEDULE
             - CANCEL
-            - PAY_DEPOSIT
+            - PAY_PREPAYMENT
             - PAY_BALANCE
             - REQUEST_REFUND
           description: Server tinh
+        paymentMethod:
+          $ref: '#/components/schemas/AppointmentPaymentMethod'
       additionalProperties: false
       required:
       - id
@@ -8034,6 +8063,7 @@ components:
       - scheduledEnd
       - scheduledDurationMinutes
       - status
+      - paymentMethod
     AppointmentPage:
       type: object
       properties:
@@ -8102,8 +8132,6 @@ components:
             $ref: '#/components/schemas/ObjectId'
         branchId:
           $ref: '#/components/schemas/ObjectId'
-        assignedStaffId:
-          $ref: '#/components/schemas/ObjectId'
         recordType:
           allOf:
           - $ref: '#/components/schemas/ServiceType'
@@ -8135,6 +8163,11 @@ components:
           oneOf:
           - $ref: '#/components/schemas/DateTime'
           - type: 'null'
+        assignedStaffIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectId'
+          description: Staff cua cac segment trong Appointment (derived)
       additionalProperties: false
       required:
       - id
@@ -8494,6 +8527,7 @@ components:
       enum:
       - DEPOSIT
       - BALANCE
+      - FULL
       - ORDER
     OrderReturnStatus:
       type: string
@@ -8622,7 +8656,7 @@ components:
         reason:
           type: string
           minLength: 3
-        depositResolution:
+        prepaidResolution:
           type: string
           enum:
           - REFUND_100
@@ -8630,14 +8664,14 @@ components:
       additionalProperties: false
       required:
       - reason
-      - depositResolution
+      - prepaidResolution
     CancelOverrideRequest:
       type: object
       properties:
         reason:
           type: string
           minLength: 3
-        depositOutcome:
+        prepaidOutcome:
           type: string
           enum:
           - REFUND_100
@@ -8646,7 +8680,7 @@ components:
       additionalProperties: false
       required:
       - reason
-      - depositOutcome
+      - prepaidOutcome
     ServiceLine:
       type: object
       properties:
@@ -8670,6 +8704,19 @@ components:
           $ref: '#/components/schemas/BookingMode'
         depositConfig:
           $ref: '#/components/schemas/DepositConfig'
+        sequence:
+          type: integer
+          minimum: 1
+          description: Thu tu thuc hien (mac dinh noi tiep theo thu tu serviceIds)
+        scheduledStart:
+          $ref: '#/components/schemas/DateTime'
+        scheduledEnd:
+          $ref: '#/components/schemas/DateTime'
+        assignedStaffId:
+          oneOf:
+          - $ref: '#/components/schemas/ObjectId'
+          - type: 'null'
+          description: Staff duoc backend tu tim va reserve cho segment nay (role trung voi requiredStaffRole cua segment). Customer khong chon
       additionalProperties: false
       required:
       - serviceId
@@ -8680,6 +8727,9 @@ components:
       - requiredStaffRole
       - bookingMode
       - depositConfig
+      - sequence
+      - scheduledStart
+      - scheduledEnd
     ServiceRecordRevision:
       type: object
       properties:
@@ -9718,14 +9768,6 @@ components:
       enum:
       - ONLINE_MOCK
       - PAY_AT_STORE
-    BookingPaymentRequest:
-      type: object
-      properties:
-        paymentMethod:
-          $ref: '#/components/schemas/AppointmentPaymentMethod'
-      additionalProperties: false
-      required:
-      - paymentMethod
     ReturnQuote:
       type: object
       properties:
@@ -9837,8 +9879,6 @@ components:
           type: string
         paymentMethod:
           $ref: '#/components/schemas/AppointmentPaymentMethod'
-        assignedStaffId:
-          $ref: '#/components/schemas/ObjectId'
         supportStaffIds:
           type: array
           items:
@@ -9847,10 +9887,17 @@ components:
           type: string
         conditionDescription:
           type: string
+        staffAssignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffAssignment'
+          uniqueItems: true
+          description: 'Tuy chon: chi dinh staff cho tung segment (role trung voi requiredStaffRole cua segment, dang available). Khong gui thi backend tu tim. Chi la phan cong, KHONG lam Appointment CONFIRMED'
       required:
       - branchId
       - serviceIds
       - slotStart
+      - paymentMethod
       oneOf:
       - required:
         - customerId
@@ -9862,7 +9909,8 @@ components:
         not:
           required:
           - customerId
-      description: 'Dat ho Customer (customerId) HOAC Guest (contact: phone/email). Dung mot trong hai. Khong tao account/password cho Guest. actor, source=INTERNAL do server gan'
+      description: Dat ho Customer (customerId) HOAC Guest (contact). Dung mot trong hai. Sau khi tao, Appointment o PENDING_PAYMENT hoac PENDING_CONFIRMATION; phai goi appointmentsConfirm de sang CONFIRMED.
+        Khong tao account/password cho Guest. actor, source=INTERNAL do server gan
     FulfillmentIssue:
       type: string
       enum:
@@ -9879,3 +9927,22 @@ components:
       required:
       - freeShippingThreshold
       - shippingFlatFee
+    StaffAssignment:
+      type: object
+      properties:
+        serviceId:
+          $ref: '#/components/schemas/ObjectId'
+        staffId:
+          $ref: '#/components/schemas/ObjectId'
+      additionalProperties: false
+      required:
+      - serviceId
+      - staffId
+    StaffReassignRequest:
+      type: object
+      properties:
+        staffId:
+          $ref: '#/components/schemas/ObjectId'
+      additionalProperties: false
+      required:
+      - staffId

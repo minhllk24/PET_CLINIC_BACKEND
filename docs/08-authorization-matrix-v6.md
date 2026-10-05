@@ -1,4 +1,4 @@
-# 08 Authorization Matrix v5 + Resource Scope Resolver
+# 08 Authorization Matrix v6 + Resource Scope Resolver
 
 Thu tu: Authentication > systemRole + staffSubRole > Ownership/Branch/Assignment (resolver, filter ngay trong query) > State > Field. Khong du quyen doc => 404; du quyen doc nhung khong du quyen action => 403 voi code cu the. Actor, role, branch scope, assignment luon do server suy ra tu token + DB; client khong gui `actorId`, `actorRole`, `approvedBy`, `cancelledBy`, `override`, `branchScope`, `stockAfter`, `refundAmount`, `paymentStatus`, `orderStatus`, `accountStatus`, `lastLogin`.
 Moi operation trong OpenAPI co `x-authz.resolver` va `x-authz.scope` theo bang duoi.
@@ -12,8 +12,8 @@ Moi operation trong OpenAPI co `x-authz.resolver` va `x-authz.scope` theo bang d
 | Service Catalog | NONE / GLOBAL | -- | Admin global |
 | BranchServiceConfig | `branchId` | -- | Manager: assignedBranchIds |
 | Shift | `shift.branchId` | Staff: shift cua minh | Manager: assignedBranchIds |
-| Appointment | `appointment.branchId` | `appointment.customerId` | staff duoc giao (`assignedStaffId`) |
-| ServiceRecord | `serviceRecord.branchId` | Customer qua pet/appointment cua minh | staff duoc giao |
+| Appointment | `appointment.branchId` | `appointment.customerId` | staff duoc giao: `services[].assignedStaffId` cua it nhat mot segment |
+| ServiceRecord | `serviceRecord.branchId` | Customer qua pet/appointment cua minh | staff thuoc `assignedStaffIds` (cac segment) |
 | InventoryStock | `inventoryStock.branchId` | -- | Manager: assignedBranchIds |
 | InventoryTransaction | `inventoryTransaction.branchId` | -- | Manager/Staff theo role |
 | Order | `order.fulfillmentBranchId` | `order.customerId` | Manager/Receptionist theo branch |
@@ -35,13 +35,13 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 | Customer | Order return | R | C | - | cancel (truoc RECEIVED) | - | OWN |
 | Customer | Appointment | R | C (tu dat) | reschedule | cancel | - | OWN |
 | Customer | Payment, Booking refund, Review, Notification | R | C | - | - | - | OWN |
-| Receptionist | Order | R | - | - | confirm, process, ship, mark-delivered, staff-cancel, record-at-store | - | BR |
+| Receptionist | Order | R | - | - | confirm, process, ship, mark-delivered, staff-cancel (COD PAID khi mark-delivered; khong co record-at-store cho Order) | - | BR |
 | Receptionist | Order return | R | - | - | **process, receive** | **KHONG approve/reject** | BR |
-| Receptionist | Appointment, request | R | **C (dat ho Customer/Guest)** | U | confirm, reject, no-show, store-cancel, approve/reject request | - | BR |
+| Receptionist | Appointment, request | R | **C (dat ho Customer/Guest; co the chi dinh staff tung segment)** | U | confirm (action rieng), reject, no-show, store-cancel, approve/reject request, **reassign staff tung segment (trung requiredStaffRole, available)**, record-at-store (Appointment PAY_AT_STORE: coc, balance) | - | BR |
 | Receptionist | Booking refund | R | - | - | receive/check | KHONG | BR |
 | Receptionist | Customer (qua Order/Appointment dang xu ly) | R need-to-know | - | - | activation invite | - | BR |
 | Receptionist | BranchServiceConfig, Inventory stock | R | - | - | - | - | BR |
-| Care Staff/Groomer | Service record GROOMING | R | - | U actual materials | start, finalize | - | BR + assigned |
+| Care Staff/Groomer | Appointment (segment duoc giao), Service record GROOMING | R | - | U actual materials | start, finalize | - | BR + assigned |
 | Care Staff/Groomer | Service record MEDICAL | KHONG | KHONG | KHONG | KHONG | - | - |
 | Nurse | Service record MEDICAL | R | - | U actual materials | start, submit-review | KHONG finalize | BR + assigned |
 | Veterinarian | Service record MEDICAL | R | - | U diagnosis/treatment/result | start, finalize | - | BR + assigned |
@@ -50,9 +50,9 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 | Manager | BranchServiceConfig (enabled, capacity, availability) | R | C | U | - | - | BR |
 | Manager | Branch | R | - | U thong tin | - | - | BR |
 | Manager | Staff, Shift | R | C shift | U shift | cancel shift | - | BR |
-| Manager | Order | R | - | - | confirm, process, ship, mark-delivered, staff-cancel, record-at-store | - | BR |
+| Manager | Order | R | - | - | confirm, process, ship, mark-delivered, staff-cancel | - | BR |
 | Manager | Order return / refund | R | - | - | process refund (mock) | **approve, reject** | BR |
-| Manager | Appointment | R | **C (dat ho)** | U | confirm, reject, no-show, store-cancel, reschedule-override, cancel-override | - | BR |
+| Manager | Appointment | R | **C (dat ho)** | U | confirm (action rieng), reject, no-show, store-cancel, reschedule-override, cancel-override, **reassign staff tung segment (trung requiredStaffRole, available)**, record-at-store | - | BR |
 | Manager | Booking refund | R | - | - | receive | approve, reject, override | BR |
 | Manager | **Inventory** | R | RECEIPT, ISSUE, ADJUSTMENT, TRANSFER (khong sua quantity truc tiep) | - | - | - | BR (transfer: ca hai branch) |
 | Manager | Service record | R | - | - | reopen | - | BR |
@@ -78,3 +78,6 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 
 ## Test authorization (V5 s.48)
 Customer A xem Order cua B: 404. Customer vao data branch Manager: 403/404. Manager Branch A sang Branch B: 404. Manager ghi global Product/Category/Service: 403. Manager Inventory branch duoc gan: OK; branch khong gan: 404. Admin block/unblock Customer: OK. Manager block/unblock: 403.
+
+## Ghi chu staffing
+Customer/Guest khong chon va khong thay lua chon staff. Phan cong staff (tu dong luc tao, `staffAssignments` khi dat ho, hoac `appointmentSegmentReassign`) khong doi trang thai Appointment; chuyen sang CONFIRMED chi bang `appointmentsConfirm`. Doi staff phai cung `requiredStaffRole` cua segment; khac role => `STAFF_ROLE_MISMATCH`.

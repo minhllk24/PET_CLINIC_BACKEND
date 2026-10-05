@@ -1,4 +1,4 @@
-# 12 Legacy Data / Schema Reference v5
+# 12 Legacy Data / Schema Reference v6
 
 Giu ten file de khop danh sach output. Noi dung la tham khao, **khong phai ke hoach migrate**.
 
@@ -13,7 +13,7 @@ NO DATA MIGRATION IN CURRENT IMPLEMENTATION SCOPE. Sheet va Team Lead khong yeu 
 | staff_profiles.branch_id | authorizedBranchIds[], homeBranchId, shifts.branchId |
 | time_slots | availability tinh dong + slot_reservations |
 | services + price matrix | services (serviceType, bookingMode, requiredStaffRole, depositConfig, priceVariants) + branch_service_configs |
-| appointments + appointment_services | appointments (services[] cung serviceType, cung requiredStaffRole) |
+| appointments + appointment_services | appointments (services[] la cac segment cung serviceType, moi segment co requiredStaffRole va assignedStaffId rieng) |
 | payments (order_id NOT NULL), refunds | payments (target APPOINTMENT/ORDER), booking_refunds, order_returns, order_refunds |
 | products.stock_quantity (ghi truc tiep) | inventory_stocks + ledger |
 | carts, orders, order_items | carts (token cho Guest), orders (items[] snapshot, lineNet) |

@@ -1,4 +1,4 @@
-# 04 Domain Model v5 (scope lock)
+# 04 Domain Model v6 (scope lock)
 
 Nguon: Team Lead/Boss decisions > Feature > Business Rule/Flow > domain consistency. Khong them feature, role, workflow ngoai Feature/Rule. Khi thieu chi tiet ky thuat: phuong an toi gian.
 
@@ -29,17 +29,31 @@ Service (Admin): name, description, `serviceType` (GROOMING|MEDICAL), durationMi
 BranchServiceConfig (Manager trong assignedBranchIds, Admin ALL): `enabled`, `capacity`, `availability`. Khong co deposit override. Manager khong sua Service global.
 `ServiceRecord.recordType` chi la snapshot cua `services.serviceType` luc thuc hien.
 
-## Deposit (khoa cung)
-Service bat deposit: `depositType = PERCENTAGE`, `depositValue = 30`. Tat deposit: `NONE`. Chi mot gia tri co dinh, ap dung dong nhat cho moi branch va moi service co bat coc. Tinh: service price > voucher/discount > `finalAmount` > `depositAmount = round(finalAmount * 30 / 100)`. Vi du final 1,000,000 > coc 300,000, balance 700,000. Appointment co nhieu service: deposit ap dung tren **toan Appointment** neu co it nhat mot service bat deposit. Khi COMPLETED deposit APPLIED, tru vao tong.
+## Thanh toan lich hen: ONLINE_MOCK va PAY_AT_STORE (hai luong tach biet)
+| | ONLINE_MOCK | PAY_AT_STORE |
+|---|---|---|
+| Khach tra khi dat | **100% finalAmount** (sau voucher), `payments.kind = FULL` | **coc 30% finalAmount** de giu slot, `payments.kind = DEPOSIT` (chi khi co service bat coc) |
+| Phan con lai | 0 | 70% thu tai cua hang sau khi hoan thanh, `kind = BALANCE`, Receptionist/Manager/Admin ghi nhan |
+| `pricing.depositAmount` | 0 | 30% finalAmount |
+| `pricing.balanceAmount` | 0 | finalAmount - depositAmount |
+| Appointment sau khi tao | PENDING_PAYMENT cho den khi PAID | PENDING_PAYMENT cho den khi coc thanh cong; neu khong service nao bat coc thi PENDING_CONFIRMATION |
+**Deposit 30% chi ap dung cho PAY_AT_STORE, khong ap dung cho online.** Service bat deposit: `depositType = PERCENTAGE`, `depositValue = 30` (khoa cung, dong nhat moi branch); tat: `NONE`. Appointment nhieu service: 30% tinh tren **toan Appointment** neu co it nhat mot service bat deposit. Tinh: service price > voucher/discount > `finalAmount` > `depositAmount = round(finalAmount * 30 / 100)`.
+**Ghi nhan ngay**: khi khach coc thanh cong (hoac thanh toan 100%), he thong ghi nhan `pricing.paidAmount` ngay. Vi du hoa don 1,000,000, coc 300,000 => `paidAmount = 300,000`, deposit `HELD`. Khong cho balance payment moi xac nhan deposit. Khi dich vu hoan thanh (Appointment COMPLETED), deposit chuyen `APPLIED` tu dong (system) va chi thu them 700,000 (BALANCE).
+Quy tac huy/hoan (>=24h hoan 100%, <24h va no-show khong hoan) ap dung cho **khoan tra truoc** (coc voi PAY_AT_STORE, 100% voi ONLINE_MOCK) theo TA-30.
 
-## Multi-service appointment
-Mot Appointment: mot `serviceType`, nhieu `services[]` cung serviceType va **cung requiredStaffRole**; khac => `422 INCOMPATIBLE_STAFF_ROLES` + `suggestedGroups` de dat thanh cac lich doc lap/lien ke. GROOMING + MEDICAL khong hop le (`MIXED_SERVICE_TYPES`). Cung bookingMode. `scheduledDurationMinutes = sum(durationMinutes)`. Moi dong snapshot serviceId, name, serviceType, variant, unitPrice, durationMinutes, requiredStaffRole, bookingMode, depositConfig.
-Customer khong chon Staff cu the; he thong/Manager gan.
+## Appointment = nhieu service segment doc lap ve Staff
+Mot Appointment co mot `serviceType` (GROOMING hoac MEDICAL; GROOMING + MEDICAL => `MIXED_SERVICE_TYPES`) va cung bookingMode. Moi service trong Appointment la mot **segment** rieng: `serviceType` + `requiredStaffRole` + `durationMinutes` + `assignedStaffId` **rieng**, snapshot day du (serviceId, name, variant, unitPrice, requiredStaffRole, bookingMode, depositConfig, sequence, scheduledStart/End). Cac service **khong can trung requiredStaffRole** (Bath, Nail Trim co the do staff khac nhau; exam do Vet, tiem do Nurse).
+- Cac segment mac dinh thuc hien **noi tiep theo thu tu** (`sequence`). `scheduledDurationMinutes = sum(durationMinutes)`.
+- **Customer khong chon Staff.** Khi tao Appointment backend tu tim va reserve staff phu hop cho **tung segment**: staff co `staffSubRole` trung `requiredStaffRole` cua segment, `authorizedBranchIds` chua branch, shift phu khoang cua segment, khong trung lich khac.
+- **Toan bo Appointment chi kha dung khi tat ca segment deu tim duoc staff.** Neu khong tim duoc to hop cho ca Appointment thi slot do **khong kha dung** (availability khong tra; tao => `409 SLOT_UNAVAILABLE`).
+- **Doi staff**: Manager/Receptionist doi tung segment qua `appointmentSegmentReassign` sang staff **trung requiredStaffRole** va dang available (authorizedBranchIds, shift, khong trung). Khong duoc gan staff khac role chi vi con trong lich (`STAFF_ROLE_MISMATCH`; khong ranh `STAFF_UNAVAILABLE`). Khong doi trang thai Appointment.
+- Giua cac service trong cung Appointment khong co rang buoc ve role: moi segment tu xac dinh staff theo `requiredStaffRole` cua minh.
 
-## Dat lich: tu dat va dat ho
-- **Customer/Guest tu dat**: `appointmentsCreate`. Chi luu DB khi khach bam Dat lich cuoi. Khach chon pet khac thi luu ho so pet moi. Payment: ONLINE_MOCK hoac PAY_AT_STORE (khong COD).
-- **Dat ho (noi bo)**: `internalAppointmentsCreate`, Receptionist (authorizedBranchIds) / Manager (assignedBranchIds) / Admin (ALL). Chon **mot trong hai**: `customerId` (Customer co san) hoac `contact` phone/email (Guest). Khong tao account/mat khau cho Guest. Cho BOOKABLE va REQUEST_ONLY (da xu ly yeu cau); CONTACT_ONLY khong tao. Request schema tach rieng khoi tu dat de khong lan lon authorization; actor va source do server gan.
-- Availability: Branch opening + holiday + BranchServiceConfig + tong duration + requiredStaffRole + Staff Shift + appointments hien co + capacity. Chong double booking: tx + conditional write + unique reservation + Idempotency-Key.
+## Dat lich: tu dat va dat ho; assign staff khong phai confirm
+- **Customer/Guest tu dat**: `appointmentsCreate`. Chi luu DB khi bam Dat lich cuoi. Khach chon pet khac thi luu ho so pet moi. `paymentMethod` bat buoc: ONLINE_MOCK hoac PAY_AT_STORE (khong COD).
+- **Dat ho (noi bo)**: `internalAppointmentsCreate`, Receptionist / Manager / Admin theo branch. `customerId` **hoac** `contact` (Guest), khong ca hai; khong tao account cho Guest. Staff duoc backend tu tim, hoac chi dinh tuy chon qua `staffAssignments` (tung segment). Cho BOOKABLE va REQUEST_ONLY (da xu ly yeu cau); CONTACT_ONLY khong tao.
+- **Assign staff khong dong nghia CONFIRMED.** Sau khi tao (tu dat, dat ho, hoac duyet request), Appointment van o `PENDING_PAYMENT` hoac `PENDING_CONFIRMATION`; **phai co action `appointmentsConfirm` rieng** (Receptionist/Manager/Admin) de sang `CONFIRMED`. Viec chon staff chi la phan cong nguoi thuc hien.
+- Availability: Branch opening + holiday + BranchServiceConfig (enabled, capacity) + tong duration theo segment noi tiep + staff theo tung segment + appointments hien co. Double booking: tx + unique reservation tren staff va capacity + Idempotency-Key.
 
 ## Commerce P0: Product > Cart > Checkout > Order > Return > Refund
 - **Product/Category**: global, Admin CRUD (gom variant), Manager doc, public chi thay ACTIVE. `outOfStock` do server tinh (tong ton kha dung = 0). Khong tinh ton theo branch tren public API.
@@ -74,11 +88,11 @@ OrderReturn (hang) tach OrderRefund (tien, tao khi APPROVED; refund mock PENDING
 ## Inventory
 Nguon su that cua bien dong ton: `inventory_transactions` (append-only: RECEIPT, ISSUE, ADJUSTMENT, TRANSFER). `inventory_stocks.quantity` la projection, khong ghi truc tiep. Manager quan ly trong assignedBranchIds; Staff chi doc/consumption theo role. Pham vi chi gom bon loai giao dich tren, mot vi tri ton kho moi branch.
 
-## ServiceRecord
+## ServiceRecord (staff = bat ky staff nao duoc giao mot segment cua Appointment)
 GROOMING: Care Staff (actual materials) > finalize. MEDICAL: Nurse (work, actual materials) > submit > WAITING_VET_REVIEW > Veterinarian (diagnosis/treatment/result) > FINALIZED. Nurse khong finalize. Reopen: moi lan finalize tao revision (`recordVersion`, `previousActual`, `newActual`, `delta = newActual - previousActual`, actor, reason, at); delta>0 ISSUE -delta; delta<0 hoan +abs(delta) (ADJUSTMENT); ledger cu khong sua/xoa. Vi du 5>3: +2; 5>8: ISSUE -3.
 
 ## Tien (integer VND)
-Appointment: subtotal, voucherDiscount, finalAmount, depositAmount, balanceAmount. Order: merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount. Lam tron half up 1 VND.
+Appointment: subtotal, voucherDiscount, finalAmount, depositAmount (30%, chi PAY_AT_STORE), balanceAmount, paidAmount (ghi nhan ngay khi tra truoc thanh cong). Order: merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount. Lam tron half up 1 VND.
 
 ## Glossary (muc thay doi)
 | Term | Dinh nghia | Owner |

@@ -1,4 +1,4 @@
-# 01 Requirement Traceability Matrix v5
+# 01 Requirement Traceability Matrix v6
 
 Thu tu uu tien: Team Lead/Boss decisions > Feature > Business Rule/Flow > domain consistency > security > feasibility > legacy. Log la bang chung phu tro (thap hon sheet). FE dich: **Customer Angular + Admin Angular**. BE dich: **greenfield Node.js + Express + MongoDB**. Figma: FIGMA_ACCESS_UNVERIFIED (legacy UI).
 Tat ca module P0 co trace day du; **M05, M06, M07, M08 la critical E2E commerce, P0 day du.**
@@ -18,8 +18,8 @@ Tat ca module P0 co trace day du; **M05, M06, M07, M08 la critical E2E commerce,
 | M11 | Service catalog | servicesList/Get/Create/Update/Archive | Service (GLOBAL) | services | GLOBAL: Admin | ServiceStatus | service list/detail | service CRUD | Service |
 | M12 | Branch & BranchServiceConfig | branches*, branchServiceConfigsList/Upsert | Branch, BranchServiceConfig | branches, branch_service_configs | BranchServiceConfig.branchId; Manager assignedBranchIds | -- | -- | branch config | Authz |
 | M13 | Staff / Role / Shift | staff*, managerAssignBranches, shifts* | Staff, Shift | users, staff_profiles, shifts | shift.branchId; Manager assignedBranchIds | 9.9 shift | -- | staff, shift | Authz |
-| M15 | Appointment & slot, BF04-07 | availabilityGet, appointmentsCreate, **internalAppointmentsCreate**, appointmentRequests*, appointmentsConfirm/Reject/Reschedule/RescheduleOverride/Cancel/StoreCancel/CancelOverride/MarkNoShow/Start | Booking | appointments, slot_reservations, appointment_requests | appointment.branchId; appointment.customerId; assignedStaffId | 9.5, 9.6 | booking | appointment board, dat ho | Booking |
-| M16 | Deposit/payment/refund | bookingPaymentCreate, bookingBalancePaymentCreate, paymentRecordAtStore, bookingRefund* | Payment, Deposit | payments, booking_refunds | Payment: target APPOINTMENT > Appointment.branchId | 9.4, 9.6, 9.7 | payment | refund queue | Booking |
+| M15 | Appointment & slot, BF04-07 | availabilityGet, appointmentsCreate (tu tim staff theo segment), **internalAppointmentsCreate**, appointmentRequests*, appointmentsConfirm (action rieng)/Reject/Reschedule/RescheduleOverride/Cancel/StoreCancel/CancelOverride/MarkNoShow/Start | Booking | appointments, slot_reservations, appointment_requests | appointment.branchId; appointment.customerId; assignedStaffId | 9.5, 9.6 | booking | appointment board, dat ho | Booking |
+| M16 | Deposit/payment/refund | (payment tao trong booking tx: FULL online / DEPOSIT pay-at-store), bookingBalancePaymentCreate, paymentRecordAtStore (Appointment PAY_AT_STORE), paymentMockComplete, paymentsCancel, bookingRefund* | Payment, Deposit | payments, booking_refunds | Payment: target APPOINTMENT > Appointment.branchId | 9.4, 9.6, 9.7 | payment | refund queue | Booking |
 | M17 | Service record | serviceRecords* | ServiceRecord | service_records, service_record_revisions | serviceRecord.branchId + assigned | 9.10 | xem ket qua | record | Medical |
 Ngoai P0: M03 (adminCustomersList/Get/Pets, Block/Unblock Admin-only), M18 (reviews), M23 (dashboardSummary), notifications da co contract. M14, M24, M25: theo sheet la mockup/optional, khong thiet ke. M19: tham so q/filter/sort tren productsList/ordersList. M20, M21, M22: P1 ngoai critical path, chua co OpenAPI.
 
@@ -56,3 +56,15 @@ Ngoai P0: M03 (adminCustomersList/Get/Pets, Block/Unblock Admin-only), M18 (revi
 | returnableQty | orderedQty - alreadyReturnedQty | server | tinh tu orders + order_returns | ReturnableLine |
 | refundAmount / refundBreakdown | phan tien thuc tra sau discount cho item/qty | server | order_returns | OrderReturn |
 | payment.status / order.status | trang thai thanh toan / don hang | action | payments / orders | Payment / Order |
+
+## Booking E2E (M11 > M12 > M13 > M15 > M16 > M17)
+| Buoc | Actor | Action | Rule | State | Persistence |
+|---|---|---|---|---|---|
+| 1 | Guest/Customer | availabilityGet | slot kha dung chi khi moi segment (noi tiep) tim duoc staff dung requiredStaffRole; khong lo staff | -- | khong ghi |
+| 2 | Guest/Customer | appointmentsCreate (paymentMethod) | khong chon staff; backend reserve staff tung segment; ONLINE_MOCK 100%, PAY_AT_STORE coc 30% | PENDING_PAYMENT / PENDING_CONFIRMATION | appointments, reservations, payments |
+| 2b | Receptionist/Manager/Admin | internalAppointmentsCreate | dat ho; staffAssignments tuy chon; **khong CONFIRMED** | nt | nt |
+| 3 | system | payment PAID | ghi nhan paidAmount ngay | PENDING_CONFIRMATION | payments |
+| 4 | Receptionist/Manager/Admin | appointmentsConfirm | action rieng | CONFIRMED | appointments |
+| 4b | Receptionist/Manager | appointmentSegmentReassign | trung requiredStaffRole, available | khong doi | reservations |
+| 5 | staff duoc giao | appointmentsStart, serviceRecords*, finalize | sub-role + segment | IN_PROGRESS > COMPLETED | service_records, ledger |
+| 6 | system / Receptionist | deposit APPLIED (system); balance (PAY_AT_STORE) paymentRecordAtStore | chi thu phan con lai (vd 700,000) | COMPLETED | payments |

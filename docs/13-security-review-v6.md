@@ -1,4 +1,4 @@
-# 13 Security Review v5 (greenfield baseline, OWASP API Top 10 2023)
+# 13 Security Review v6 (greenfield baseline, OWASP API Top 10 2023)
 
 ## Authentication
 argon2id hoac bcrypt cost >= 12. **Mat khau toi thieu 8 ky tu, co chu hoa va so** (Log), validate o schema (`pattern`) va o server. Access JWT 15 phut; refresh opaque, hash, rotation, reuse detection, revoke khi BLOCKED. `lastLogin` chi khi login thanh cong. OTP CSPRNG 6 so, hash, TTL 5 phut, 5 lan, resend 30s, rate limit theo identifier + IP.
@@ -11,6 +11,8 @@ Theo 08. Policy tap trung, filter trong query. Manager xem Customer chi qua `act
 - Order: moi transition kiem tra role + scope branch + state; Guest chi xem don qua OTP lookup token; khong hard delete.
 - Payment failure: FAILED/CANCELLED/EXPIRED => compensating tx idempotent (Order CANCELLED, RECEIPT, restore voucher); callback lap lai la no-op; unique ledger + unique voucher_usages chong hoan 2 lan; khong retry/queue.
 - Return/refund: window 7 ngay, `returnableQty` va so tien hoan do server tinh; Manager/Admin khong nhap tay; Receptionist chi process/receive; Manager/Admin approve/reject; APPROVED chi sau RECEIVED; unique 1 refund / return; conditional `returnReservedQty`.
+- Staffing: Customer/Guest khong gui staff; `staffAssignments` va reassign chi cho Receptionist/Manager/Admin theo branch, staff phai trung requiredStaffRole, available (chong gan sai role). Phan cong khong doi trang thai; chi appointmentsConfirm.
+- Thanh toan lich hen: ONLINE_MOCK 100% / PAY_AT_STORE coc 30%; record-at-store chi Appointment PAY_AT_STORE; COD chi PAID khi Mark Delivered.
 - Dat ho noi bo: Receptionist/Manager/Admin theo branch; customerId XOR contact; Guest khong co account; actor/source do server.
 - Resolver: moi resource scope theo bang 08; Payment/Pet/Customer/Cart khong co truong branch.
 - Rate limit: login, OTP, guest lookup, voucher validate (chong do ma), checkout, return.

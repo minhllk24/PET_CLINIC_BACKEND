@@ -1,4 +1,4 @@
-# 09 State Machines v5
+# 09 State Machines v6
 
 Moi transition la action endpoint; audit; actor/role do server suy ra.
 
@@ -24,7 +24,7 @@ stateDiagram-v2
 | PENDING | ordersConfirm | Receptionist/Manager/Admin | ONLINE_MOCK: payment PAID; COD: khong can | CONFIRMED | notification |
 | CONFIRMED | ordersProcess | nt | -- | PROCESSING | -- |
 | PROCESSING | ordersShip | nt | -- | SHIPPED | carrier/tracking |
-| SHIPPED | ordersMarkDelivered | nt | -- | COMPLETED | `deliveredAt = now`; COD payment PAID; mo cua so tra 7 ngay |
+| SHIPPED | ordersMarkDelivered | nt | -- | COMPLETED | `deliveredAt = now`; **COD payment PENDING -> PAID chi o buoc nay** (khong qua record-at-store); mo cua so tra 7 ngay |
 | PENDING/CONFIRMED | ordersCancel | Customer/Guest | OWN | CANCELLED | compensating tx (xem duoi) |
 | PENDING/CONFIRMED/PROCESSING | ordersStaffCancel | Receptionist/Manager/Admin | reason | CANCELLED | compensating tx |
 | PENDING | (payment FAILED/CANCELLED/EXPIRED) | system | payment ONLINE_MOCK terminal | CANCELLED | compensating tx |
@@ -32,31 +32,46 @@ stateDiagram-v2
 Cam: huy khi SHIPPED/COMPLETED; hard delete; client set status. Khong co retry thanh toan, khong queue, khong doi soat.
 
 ## 9.4 Payment (mock)
-PENDING --PAID (mock complete / record-at-store / COD luc giao)--> PAID. PENDING --FAILED (mock callback)--> FAILED. PENDING --paymentsCancel--> CANCELLED. PENDING --timeout job (ONLINE_MOCK)--> EXPIRED. FAILED/CANCELLED/EXPIRED la terminal (khong tai su dung; tao thanh toan moi la luong ngoai scope hien tai). PAID --refund--> REFUND_PENDING --> REFUNDED (hoan het) hoac PAID (hoan mot phan, `refundedAmount` cong don).
-Method: Appointment: ONLINE_MOCK, PAY_AT_STORE. Order: ONLINE_MOCK, COD. Target: ORDER | APPOINTMENT. Kind: DEPOSIT, BALANCE, ORDER.
+PENDING --PAID (mock complete; record-at-store chi cho Appointment PAY_AT_STORE; Order COD chi khi Mark Delivered)--> PAID. PENDING --FAILED (mock callback)--> FAILED. PENDING --paymentsCancel--> CANCELLED. PENDING --timeout job (ONLINE_MOCK)--> EXPIRED. FAILED/CANCELLED/EXPIRED la terminal (khong tai su dung; tao thanh toan moi la luong ngoai scope hien tai). PAID --refund--> REFUND_PENDING --> REFUNDED (hoan het) hoac PAID (hoan mot phan, `refundedAmount` cong don).
+Method: Appointment: ONLINE_MOCK, PAY_AT_STORE. Order: ONLINE_MOCK, COD. Target: ORDER | APPOINTMENT. Kind: FULL (ONLINE_MOCK lich hen), DEPOSIT, BALANCE (PAY_AT_STORE), ORDER.
 Callback lap lai (failure/cancel/expire): no-op, tra trang thai hien tai, khong ghi ledger 2 lan. Timeout: thoi han la cau hinh ky thuat.
 Cam: PAID > PENDING; terminal failure > PAID.
 
 ## 9.5 Appointment
 ```mermaid
 stateDiagram-v2
-  [*] --> PENDING_PAYMENT: create (co deposit)
-  [*] --> PENDING_CONFIRMATION: create (khong deposit)
-  PENDING_PAYMENT --> PENDING_CONFIRMATION: deposit PAID
-  PENDING_PAYMENT --> CANCELLED: hold timeout / cancel / payment FAILED qua han
-  PENDING_CONFIRMATION --> CONFIRMED: confirm
+  [*] --> PENDING_PAYMENT: create (ONLINE_MOCK, hoac PAY_AT_STORE co coc)
+  [*] --> PENDING_CONFIRMATION: create (PAY_AT_STORE khong coc)
+  PENDING_PAYMENT --> PENDING_CONFIRMATION: tra truoc PAID (FULL hoac DEPOSIT)
+  PENDING_PAYMENT --> CANCELLED: hold timeout / cancel / payment cancel
+  PENDING_CONFIRMATION --> CONFIRMED: appointmentsConfirm (action rieng)
   PENDING_CONFIRMATION --> CANCELLED: reject / cancel / store-cancel
   CONFIRMED --> CONFIRMED: reschedule (count<2, >=24h) hoac override
   CONFIRMED --> CANCELLED: cancel / store-cancel / cancel-override
   CONFIRMED --> NO_SHOW: no-show
-  CONFIRMED --> IN_PROGRESS: start
+  CONFIRMED --> IN_PROGRESS: start (staff duoc giao mot segment)
   IN_PROGRESS --> COMPLETED: finalize lan dau
 ```
-Create (tu dat) chi luu DB khi khach bam "Dat lich" cuoi (Log); dat ho: internalAppointmentsCreate (Receptionist/Manager/Admin, customerId XOR contact). Tat ca service cung serviceType, cung requiredStaffRole, cung bookingMode (errors MIXED_SERVICE_TYPES, INCOMPATIBLE_STAFF_ROLES + suggestedGroups, BOOKING_MODE_NOT_ALLOWED, SERVICE_NOT_ENABLED_AT_BRANCH, SLOT_UNAVAILABLE).
-Reschedule customer: >=24h, toi da 2 lan; override Manager/Admin co reason. Cancel customer: >=24h hoan 100% coc; <24h FORFEITED (server tinh). Store-cancel: REFUNDED 100% hoac TRANSFERRED. No-show: coc FORFEITED, grace 15 phut (TA-04); khong co rule dem no-show de bat coc (xem 16). Start: assigned Care/Nurse/Vet tao service_record.
+**Phan cong staff khong phai confirm.** Tao Appointment (tu dat, dat ho, duyet request) luon vao `PENDING_PAYMENT` hoac `PENDING_CONFIRMATION`. Tu dong tim staff, `staffAssignments` luc dat ho, hoac `appointmentSegmentReassign` chi doi nguoi thuc hien, khong doi trang thai. Chi `appointmentsConfirm` (Receptionist/Manager/Admin) chuyen sang CONFIRMED.
+| From | Action | Actor | Pre | To | Errors | Side |
+|---|---|---|---|---|---|---|
+| (new) | appointmentsCreate | Customer/Guest | tat ca service BOOKABLE, cung serviceType, enabled tai branch; moi segment tim duoc staff; `paymentMethod` | PENDING_PAYMENT / PENDING_CONFIRMATION | MIXED_SERVICE_TYPES, SERVICE_NOT_ENABLED_AT_BRANCH, BOOKING_MODE_NOT_ALLOWED, SLOT_UNAVAILABLE | reserve staff + capacity tung segment; ONLINE_MOCK: Payment FULL 100%; PAY_AT_STORE co coc: Payment DEPOSIT 30% (khong coc: thang PENDING_CONFIRMATION) |
+| (new) | internalAppointmentsCreate | Receptionist/Manager/Admin | nhu tren; `customerId` XOR `contact`; `staffAssignments` tuy chon (trung requiredStaffRole, available) | PENDING_PAYMENT / PENDING_CONFIRMATION | nhu tren + STAFF_ROLE_MISMATCH, STAFF_UNAVAILABLE | **khong CONFIRMED** du da gan staff |
+| UNDER_REVIEW | appointmentRequestsApprove | Receptionist/Manager/Admin | request dang xem xet | APPROVED | nt | tao Appointment o PENDING_PAYMENT / PENDING_CONFIRMATION, khong CONFIRMED |
+| PENDING_PAYMENT | (payment PAID) | system | tra truoc thanh cong | PENDING_CONFIRMATION | -- | ghi nhan paidAmount ngay; coc: deposit HELD |
+| PENDING_CONFIRMATION | appointmentsConfirm | Receptionist/Manager/Admin | tra truoc dat (neu can); moi segment da co staff | CONFIRMED | INVALID_STATE_TRANSITION | notify |
+| CONFIRMED | appointmentsReschedule | Customer | >=24h truoc gio hen, count<2 | CONFIRMED | RESCHEDULE_TOO_LATE, RESCHEDULE_LIMIT, SLOT_UNAVAILABLE | tim lai staff tung segment o khung moi; khoan tra truoc chuyen sang lich moi |
+| CONFIRMED | appointmentsRescheduleOverride | Manager(BR)/Admin | reason | CONFIRMED | -- | audit |
+| PENDING_PAYMENT/PENDING_CONFIRMATION/CONFIRMED | appointmentsCancel | Customer | OWN | CANCELLED | -- | >=24h hoan 100% khoan tra truoc; <24h khong hoan (TA-30); giai phong reservation |
+| PENDING_PAYMENT/PENDING_CONFIRMATION/CONFIRMED | appointmentsStoreCancel | Receptionist/Manager/Admin | prepaidResolution | CANCELLED | -- | REFUND_100 hoac TRANSFER |
+| PENDING_PAYMENT/PENDING_CONFIRMATION/CONFIRMED | appointmentsCancelOverride | Manager(BR)/Admin | reason, prepaidOutcome | CANCELLED | -- | cancel.by=OVERRIDE |
+| CONFIRMED | appointmentsMarkNoShow | Receptionist/Manager/Admin | now > start + grace (TA-04) | NO_SHOW | -- | khoan tra truoc khong hoan |
+| CONFIRMED | appointmentsStart | staff duoc giao mot segment (Care/Nurse/Vet) | sub-role dung serviceType | IN_PROGRESS | ASSIGNMENT_SCOPE_ERROR | tao service_record |
+| IN_PROGRESS | (finalize) | xem 9.10 | -- | COMPLETED | -- | deposit HELD->APPLIED (system) |
+Reassign segment (`appointmentSegmentReassign`) khong doi trang thai; chi cho segment chua bat dau, staff moi cung `requiredStaffRole`.
 
-## 9.6 Deposit
-NOT_REQUIRED (service khong bat coc). PENDING > HELD (payment PAID) > APPLIED (COMPLETED, tru vao tong) | REFUNDED | FORFEITED | TRANSFERRED. Deposit = 30% finalAmount (sau voucher) cho toan Appointment khi co service bat coc. FORFEITED > REFUNDED chi qua ngoai le `bookingRefundOverride` cua Manager/Admin co reason (khong lien quan cau hinh deposit).
+## 9.6 Deposit va tra truoc
+Deposit (30%) **chi cho PAY_AT_STORE**: NOT_REQUIRED (ONLINE_MOCK, hoac khong service bat coc) | PENDING > HELD (**ghi nhan ngay khi coc thanh cong**, `paidAmount` tang ngay) > APPLIED (**tu dong khi Appointment COMPLETED**, khong doi balance payment) | REFUNDED | FORFEITED | TRANSFERRED. Vi du hoa don 1,000,000, coc 300,000: paidAmount = 300,000 ngay luc coc; khi COMPLETED chi thu BALANCE 700,000. ONLINE_MOCK: Payment FULL 100% PAID => paidAmount = finalAmount, balance 0, khong co deposit. Quy tac huy/no-show ap dung cho khoan tra truoc (TA-30). FORFEITED > REFUNDED chi qua ngoai le `bookingRefundOverride` cua Manager/Admin co reason.
 ## 9.7 Booking Refund: REQUESTED > PROCESSING (Receptionist/Manager/Admin) > APPROVED (Manager/Admin) > REFUNDED (mock) | REJECTED. Receptionist khong approve.
 
 ## 9.8 OrderReturn (M09)
