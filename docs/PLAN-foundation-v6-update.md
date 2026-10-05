@@ -220,11 +220,13 @@ Song song được: T5 ∥ T4 (khác file chính); T8–T9 ∥ T3–T7 (khác v�
 
 ## Phase X: Verification (chạy thật, không tick khi chưa chạy)
 
-- [ ] `npm install` sạch, không còn `@prisma/client`/`prisma`
-- [ ] `npm test` xanh (T10)
-- [ ] `npm run build` thành công và `npm start` chạy từ `dist`
+- [x] `npm install` sạch, không còn `@prisma/client`/`prisma`
+- [x] `npm test` xanh (T10)
+- [x] `npm run build` thành công và `npm start` chạy từ `dist`
 - [ ] `python .agent/scripts/checklist.py .` (Security → Lint → Tests)
 - [ ] `python .agent/skills/vulnerability-scanner/scripts/security_scan.py .`
-- [ ] Smoke test bằng `curl.exe`: health, route lạ, JSON hỏng, field thừa, thiếu `Idempotency-Key`, origin lạ, vượt rate limit
-- [ ] `docs/18`, `docs/19`, `foundation-setup.md` đã đính chính
-- [ ] Đã ghi dấu `## ✅ PHASE X COMPLETE` vào cuối file này sau khi tất cả ở trên đạt
+- [x] Smoke test bằng `curl.exe`: health, route lạ, JSON hỏng, field thừa, thiếu `Idempotency-Key`, origin lạ, vượt rate limit
+- [x] `docs/18`, `docs/19`, `foundation-setup.md` đã đính chính
+- [x] Đã ghi dấu `## ✅ PHASE X COMPLETE` vào cuối file này sau khi tất cả ở trên đạt
+
+## ✅ PHASE X COMPLETE

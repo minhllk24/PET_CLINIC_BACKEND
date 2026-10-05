@@ -1,5 +1,5 @@
 class AppError extends Error {
-  constructor(status, title, code, detail, errors = null, suggestedGroups = null) {
+  constructor(status, title, code, detail, errors = null) {
     super(detail);
     this.type = `https://httpstatuses.com/${status}`;
     this.title = title;
@@ -7,7 +7,6 @@ class AppError extends Error {
     this.code = code;
     this.detail = detail;
     this.errors = errors;
-    this.suggestedGroups = suggestedGroups;
     Error.captureStackTrace(this, this.constructor);
   }
 }

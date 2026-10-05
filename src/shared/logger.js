@@ -25,10 +25,14 @@ export const logger = pino({
 
 export const httpLogger = pinoHttp({
   logger,
-  genReqId: (req) => {
-    // Check if correlationId exists in header, else generate new UUID
-    const reqId = req.headers['x-correlation-id'] || uuidv4();
+  genReqId: (req, res) => {
+    // Check if correlationId exists in header and is valid length/chars, else generate new UUID
+    const incomingId = req.headers['x-correlation-id'];
+    const reqId = (incomingId && typeof incomingId === 'string' && incomingId.length <= 50 && /^[a-zA-Z0-9-]+$/.test(incomingId))
+      ? incomingId
+      : uuidv4();
     req.id = reqId; // Expose on req
+    res.setHeader('X-Correlation-Id', reqId);
     return reqId;
   },
   customProps: (req, res) => {

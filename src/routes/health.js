@@ -3,10 +3,12 @@ import mongoose from 'mongoose';
 import { sendSuccess } from '../shared/responseHelpers';
 import AppError from '../utils/AppError';
 
+import { ErrorCodes } from '../shared/errorCodes';
+
 const router = express.Router();
 
 router.get('/health', (req, res) => {
-  sendSuccess(res, { status: 'ok', timestamp: new Date().toISOString() });
+  sendSuccess(res, { status: 'UP', timestamp: new Date().toISOString() });
 });
 
 router.get('/health/ready', (req, res, next) => {
@@ -14,7 +16,7 @@ router.get('/health/ready', (req, res, next) => {
   const isDbConnected = mongoose.connection.readyState === 1;
   
   if (!isDbConnected) {
-    return next(new AppError(503, 'Service Unavailable', 'INTERNAL_ERROR', 'Database not connected'));
+    return next(new AppError(503, 'Service Unavailable', ErrorCodes.INTERNAL_ERROR, 'Database not connected'));
   }
   
   sendSuccess(res, { status: 'ready', timestamp: new Date().toISOString() });

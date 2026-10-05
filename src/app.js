@@ -9,6 +9,7 @@ import config from './shared/config';
 import { httpLogger } from './shared/logger';
 import { errorHandler, notFoundHandler } from './shared/errorHandler';
 import healthRoutes from './routes/health';
+import AppError from './utils/AppError';
 
 const app = express();
 
@@ -23,17 +24,18 @@ app.use(cors({
     
     if (config.cors.allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+      return callback(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', msg), false);
     }
     return callback(null, true);
   },
   credentials: true,
+  exposedHeaders: ['X-Correlation-Id'],
 }));
 
 // Global Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -53,14 +55,11 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 // OpenAPI Validator
-const apiSpecPath = path.join(__dirname, '../docs/07-openapi-v5.yaml');
 app.use(
   OpenApiValidator.middleware({
-    apiSpec: apiSpecPath,
-    validateRequests: {
-      removeAdditional: 'failing' // Block additional properties
-    },
-    validateResponses: false, // Turn off for production performance if needed, but useful for testing
+    apiSpec: config.openapiSpecPath,
+    validateRequests: true,
+    validateResponses: config.env !== 'production', // Turn off for production performance
     ignoreUndocumented: true, // Ignore routes not in spec (like /health)
   })
 );

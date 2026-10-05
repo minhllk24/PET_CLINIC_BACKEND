@@ -6,19 +6,11 @@
   "scripts": {
     "dev": "nodemon --exec babel-node src/server.js",
     "build-src": "babel src -d build --copy-files",
-    "build": "prisma generate && babel src --out-dir dist",
+    "build": "babel src --out-dir dist",
     "start": "node dist/server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:studio": "prisma studio",
-    "seed": "prisma db seed",
-    "services:enable-weight-surcharge": "babel-node prisma/enableWeightSurcharge.js"
-  },
-  "prisma": {
-    "seed": "babel-node prisma/seed.js"
+    "test": "jest"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
@@ -43,7 +35,9 @@
     "@babel/core": "^7.26.0",
     "@babel/node": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
+    "babel-jest": "^30.5.2",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.7",
-    "prisma": "^5.14.0"
+    "supertest": "^7.3.1"
   }
 }

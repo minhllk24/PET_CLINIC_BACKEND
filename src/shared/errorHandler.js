@@ -1,29 +1,50 @@
 import AppError from '../utils/AppError';
 import { logger } from './logger';
+import { ErrorCodes } from './errorCodes';
 
 export const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
   error.title = err.title || 'Internal Server Error';
   error.status = err.status || 500;
-  error.code = err.code || 'INTERNAL_ERROR';
+  error.code = err.code || ErrorCodes.INTERNAL_ERROR;
   error.detail = err.detail || err.message || 'Something went wrong';
   error.type = err.type || `https://httpstatuses.com/${error.status}`;
 
   // Log error using pino
   logger.error(err);
 
+  // Express Payload Too Large
+  if (err.type === 'entity.too.large') {
+    error = new AppError(
+      413,
+      'Payload Too Large',
+      ErrorCodes.VALIDATION_ERROR,
+      'Request payload exceeds limit (1mb)'
+    );
+  }
+
+  // Express JSON Parse Error
+  if (err.type === 'entity.parse.failed') {
+    error = new AppError(
+      400,
+      'Bad Request',
+      ErrorCodes.VALIDATION_ERROR,
+      'Invalid JSON payload'
+    );
+  }
+
   // OpenAPI Validator Errors
   if (err.status === 400 && err.errors) {
     error = new AppError(
       400,
       'Bad Request',
-      'VALIDATION_ERROR',
+      ErrorCodes.VALIDATION_ERROR,
       'Request validation failed',
       err.errors.map((e) => ({
         field: e.path,
         message: e.message,
-        code: e.errorCode || 'INVALID_FIELD',
+        code: e.errorCode || ErrorCodes.VALIDATION_ERROR,
       }))
     );
   }
@@ -31,13 +52,13 @@ export const errorHandler = (err, req, res, next) => {
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     const detail = `Resource not found with invalid id format: ${err.value}`;
-    error = new AppError(404, 'Not Found', 'NOT_FOUND', detail);
+    error = new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, detail);
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
     const detail = `Duplicate field value entered`;
-    error = new AppError(409, 'Conflict', 'CONFLICT', detail);
+    error = new AppError(409, 'Conflict', ErrorCodes.CONFLICT, detail);
   }
 
   // Mongoose validation error
@@ -45,27 +66,25 @@ export const errorHandler = (err, req, res, next) => {
     const errors = Object.values(err.errors).map((val) => ({
       field: val.path,
       message: val.message,
-      code: 'INVALID_FIELD'
+      code: ErrorCodes.VALIDATION_ERROR
     }));
-    error = new AppError(400, 'Validation Error', 'VALIDATION_ERROR', 'Validation failed', errors);
+    error = new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Validation failed', errors);
   }
 
-  // Response payload following RFC 9457 schema from docs
+  const isInternal = error.status === 500 || !error.status;
+  
   const problemPayload = {
     type: error.type || `https://httpstatuses.com/${error.status || 500}`,
-    title: error.title || 'Internal Server Error',
-    status: error.status || 500,
-    code: error.code || 'INTERNAL_ERROR',
+    title: isInternal ? 'Internal Server Error' : error.title,
+    status: isInternal ? 500 : error.status,
+    code: isInternal ? ErrorCodes.INTERNAL_ERROR : error.code,
     correlationId: req.id, // from pino-http
-    detail: error.detail || 'Something went wrong',
+    detail: isInternal ? 'An unexpected error occurred' : error.detail,
     instance: req.originalUrl,
   };
 
   if (error.errors && error.errors.length > 0) {
     problemPayload.errors = error.errors;
-  }
-  if (error.suggestedGroups) {
-    problemPayload.suggestedGroups = error.suggestedGroups;
   }
 
   // Set response type to application/problem+json
@@ -74,6 +93,6 @@ export const errorHandler = (err, req, res, next) => {
 };
 
 export const notFoundHandler = (req, res, next) => {
-  const error = new AppError(404, 'Not Found', 'NOT_FOUND', `Cannot find ${req.originalUrl}`);
+  const error = new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, `Cannot find ${req.originalUrl}`);
   next(error);
 };
