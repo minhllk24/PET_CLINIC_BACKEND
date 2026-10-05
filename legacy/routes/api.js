@@ -29,6 +29,11 @@ import upload from '../middleware/uploadMiddleware';
 const router = express.Router();
 
 const initAPIRoutes = (app) => {
+  // --- HEALTH CHECK ---
+  router.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // --- AUTH ROUTES ---
   router.post('/register', authController.handleRegister);
   router.post('/verify-register-otp', authController.handleVerifyRegisterOtp);

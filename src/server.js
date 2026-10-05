@@ -1,43 +1,37 @@
-require('dotenv').config();
-import express from 'express';
-import bodyParser from 'body-parser';
-import cookieParser from 'cookie-parser';
-import configViewEngine from './configs/viewEngine';
-import configCors from './configs/cors';
-import initAPIRoutes from './routes/api';
+import mongoose from 'mongoose';
+import app from './app';
+import config from './shared/config';
+import { logger } from './shared/logger';
 
-const app = express();
-const PORT = process.env.PORT || 8080;
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await mongoose.connect(config.mongoUri);
+    logger.info('MongoDB Connected successfully');
 
-// Config CORS
-configCors(app);
+    // Start Express server
+    const server = app.listen(config.port, '0.0.0.0', () => {
+      logger.info(`SERVER is running on PORT: ${config.port} in ${config.env} mode`);
+    });
 
-// Config View Engine
-configViewEngine(app);
+    // Graceful shutdown
+    const shutdown = () => {
+      logger.info('Shutting down server...');
+      server.close(() => {
+        logger.info('Server closed');
+        mongoose.connection.close(false, () => {
+          logger.info('MongoDB connection closed');
+          process.exit(0);
+        });
+      });
+    };
 
-// Config Middlewares
-app.use(cookieParser());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
-// Middleware fix BigInt JSON serialization from Prisma
-app.use((req, res, next) => {
-  const oldJson = res.json;
-  res.json = function (data) {
-    return oldJson.call(this, JSON.parse(JSON.stringify(data, (_, value) => {
-      return typeof value === 'bigint' ? value.toString() : value;
-    })));
-  };
-  next();
-});
-
-// Init API Routes
-initAPIRoutes(app);
-
-// Init Cron Jobs
-import { initCronJobs } from './services/cronService';
-initCronJobs();
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log('SERVER is running on PORT:', PORT);
-});
+startServer();
