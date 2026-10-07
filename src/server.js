@@ -15,15 +15,28 @@ const startServer = async () => {
     });
 
     // Graceful shutdown
-    const shutdown = () => {
+    let isShuttingDown = false;
+    const shutdown = async () => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
       logger.info('Shutting down server...');
-      server.close(() => {
-        logger.info('Server closed');
-        mongoose.connection.close(false, () => {
-          logger.info('MongoDB connection closed');
-          process.exit(0);
+      
+      try {
+        await new Promise((resolve, reject) => {
+          server.close((err) => {
+            if (err) return reject(err);
+            resolve();
+          });
         });
-      });
+        logger.info('Server closed');
+        
+        await mongoose.connection.close(false);
+        logger.info('MongoDB connection closed');
+        process.exit(0);
+      } catch (err) {
+        logger.error('Error during shutdown:', err);
+        process.exit(1);
+      }
     };
 
     process.on('SIGTERM', shutdown);

@@ -13,6 +13,9 @@ import AppError from './utils/AppError';
 
 const app = express();
 
+// Logging should be first to capture all requests and assign req.id
+app.use(httpLogger);
+
 // Security middlewares
 app.use(helmet()); // Sets various HTTP headers like X-Content-Type-Options
 
@@ -38,18 +41,13 @@ const limiter = rateLimit({
   max: config.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    type: 'about:blank',
-    title: 'Too Many Requests',
-    status: 429,
-    code: 'RATE_LIMIT',
-    detail: 'Too many requests from this IP, please try again later.',
+  handler: (req, res, next) => {
+    next(new AppError(429, 'Too Many Requests', 'RATE_LIMIT', 'Too many requests from this IP, please try again later.'));
   }
 });
 app.use(limiter);
 
-// Logging and payload parsers
-app.use(httpLogger);
+// Payload parsers
 // Limit payload size to 1mb (from 50mb legacy)
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));

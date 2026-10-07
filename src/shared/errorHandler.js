@@ -35,6 +35,14 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // OpenAPI Validator Errors
+  if (err.status === 401) {
+    error = new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, err.message);
+  }
+  
+  if (err.status === 403) {
+    error = new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, err.message);
+  }
+
   if (err.status === 400 && err.errors) {
     error = new AppError(
       400,
