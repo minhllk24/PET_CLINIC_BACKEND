@@ -1,12 +1,12 @@
 # 11 Enum Registry v6
 
-Sinh TU DONG tu `07-openapi-v6.yaml`. Audit: khong co hai enum cung tap gia tri duoi hai ten. Figma: FIGMA_ACCESS_UNVERIFIED.
+Sinh TU DONG tu `07-openapi-v6.yaml`. Audit: khong co hai enum cung tap gia tri duoi hai ten. Figma: FIGMA_AVAILABLE_BUT_NOT_FROZEN.
 
 | Concept | OpenAPI schema | Canonical values | DB field | Ghi chu |
 |---|---|---|---|---|
 | systemRole | SystemRole | ADMIN, MANAGER, STAFF, CUSTOMER | users.systemRole | Khong co DOCTOR |
-| staffSubRole | StaffSubRole | RECEPTIONIST, CARE_STAFF_GROOMER, VETERINARIAN, NURSE | staff_profiles.staffSubRole | Dung chung cho requiredStaffRole |
-| serviceType | ServiceType | GROOMING, MEDICAL | services.serviceType; appointments.serviceType | Nguon su that duy nhat. ServiceRecord.serviceType chi la snapshot cua serviceType luc thuc hien |
+| staffSubRole | StaffSubRole | RECEPTIONIST, CARE_STAFF_GROOMER, VETERINARIAN, NURSE | staff_profiles.staffSubRole | Role tong quat cua Staff; khong dung truc tiep cho Service.requiredStaffRole |
+| serviceType | ServiceType | GROOMING, MEDICAL | services.serviceType; appointments.serviceType | Nguon su that duy nhat. ServiceRecord.recordType chi la snapshot cua serviceType luc thuc hien |
 | bookingMode | BookingMode | BOOKABLE, REQUEST_ONLY, CONTACT_ONLY | services.bookingMode |  |
 | depositType | DepositType | NONE, PERCENTAGE | services.depositConfig.depositType | Bat coc => PERCENTAGE, gia tri 30. Khong override |
 | activationStatus | ActivationStatus | NO_ACCOUNT, PENDING_ACTIVATION, ACTIVATED | customers.activationStatus |  |
@@ -22,7 +22,7 @@ Sinh TU DONG tu `07-openapi-v6.yaml`. Audit: khong co hai enum cung tap gia tri 
 | appointmentPaymentMethod | AppointmentPaymentMethod | ONLINE_MOCK, PAY_AT_STORE | payments.method (target APPOINTMENT) | Khong co COD |
 | orderPaymentMethod (inline checkout) | CheckoutRequest.paymentMethod | ONLINE_MOCK, COD | orders.paymentMethod | ONLINE_MOCK, COD. Khong co PAY_AT_STORE |
 | paymentKind | PaymentKind | DEPOSIT, BALANCE, FULL, ORDER | payments.kind | FULL = 100% online lich hen; DEPOSIT = coc 30% PAY_AT_STORE; BALANCE = phan con lai tai cua hang; ORDER = don hang |
-| depositStatus | DepositStatus | NOT_REQUIRED, PENDING, HELD, APPLIED, REFUNDED, FORFEITED, TRANSFERRED | appointments.deposit.status | Chi PAY_AT_STORE. HELD ghi nhan ngay khi coc thanh cong; APPLIED tu dong khi COMPLETED |
+| depositStatus | DepositStatus | NOT_REQUIRED, PENDING, HELD, APPLIED, REFUNDED, FORFEITED | appointments.deposit.status | Chi PAY_AT_STORE. HELD ghi nhan ngay khi coc thanh cong; APPLIED tu dong khi COMPLETED |
 | bookingRefundStatus | BookingRefundStatus | REQUESTED, PROCESSING, APPROVED, REJECTED, REFUNDED | booking_refunds.status |  |
 | orderReturnStatus | OrderReturnStatus | REQUESTED, PROCESSING, APPROVED, REJECTED, CANCELLED, RECEIVED, COMPLETED | order_returns.status | REQUESTED > PROCESSING > RECEIVED > APPROVED > COMPLETED. REJECTED |
 | orderRefundStatus | OrderRefundStatus | PENDING, REFUNDED, FAILED | order_refunds.status |  |
@@ -43,8 +43,12 @@ Sinh TU DONG tu `07-openapi-v6.yaml`. Audit: khong co hai enum cung tap gia tri 
 | DOCTOR | thay bang STAFF + VETERINARIAN |
 | waiting_store_payment, PARTIALLY_REFUNDED | khong thuoc payment status hien hanh |
 | rescheduled, missed | rescheduleCount, NO_SHOW |
-| serviceType tren Service/Appointment | chi serviceType; serviceType chi o ServiceRecord (snapshot) |
+| ServiceRecord.recordType | ServiceRecord dùng `recordType` làm snapshot của `Service.serviceType`; Service/Appointment giữ `serviceType` canonical |
 | FIXED (depositType) | khoa cung: PERCENTAGE 30 |
 | Phuong thuc thanh toan chung cho hai target | Moi target co tap rieng: lich hen ONLINE_MOCK/PAY_AT_STORE, don hang ONLINE_MOCK/COD |
 
 Moi concept mot ten; `status` khong dung chung nhieu nghia.
+
+| serviceExecutionRole | ServiceExecutionRole | CARE_STAFF_GROOMER, NURSE, VETERINARIAN | services.requiredStaffRole / appointments.services[].requiredStaffRole | RECEPTIONIST khong phai execution role |
+| serviceSegmentExecutionStatus | ServiceSegmentExecutionStatus | NOT_STARTED, IN_PROGRESS, COMPLETED | appointments.services[].executionStatus | Khong dong Appointments.status cho den khi tat ca segment completed |
+| guestTokenType | (security scheme) | GUEST_LOOKUP, GUEST_CART | HTTP headers X-Guest-Lookup-Token / X-Guest-Cart-Token | Khong phai domain status |

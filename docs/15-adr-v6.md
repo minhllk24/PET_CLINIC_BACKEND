@@ -1,4 +1,4 @@
-# 15 ADR v6 (ADR-25..29 la moi cua V4)
+# 15 ADR v6 (current decisions through final Task 2.8 review)
 
 ADR v1, v2 giu lam lich su. ADR duoi day la hien hanh; muc "thay the" ghi ro. Research chi dung de chon ky thuat; trang thai xac minh o 16.
 
@@ -17,7 +17,7 @@ ADR v1, v2 giu lam lich su. ADR duoi day la hien hanh; muc "thay the" ghi ro. Re
 | ADR-11 | Inventory ledger append-only + stocks projection | rule 2 | transactions bat bien; mot vi tri ton kho moi branch | hoan hang khong tu dong nhap kho | them vi tri ton kho phu |
 | ADR-12 | Service record revision + inventory delta | sheet 4.4 | revision collection, delta | them collection | overwrite ledger |
 | ADR-13 | Medical: Nurse submit, Vet finalize | sheet | WAITING_VET_REVIEW | them buoc | Nurse duoc finalize |
-| ADR-14 | `serviceType` la ten chinh thuc (thay `serviceType`) | sheet freeze Service.serviceType | mot ten duy nhat; snapshot sang Appointment va ServiceRecord | doi ten so voi v2 | serviceType |
+| ADR-14 | `serviceType` la ten chinh thuc | sheet freeze Service.serviceType | mot ten duy nhat; snapshot sang Appointment va ServiceRecord | doi ten so voi v2 | serviceType |
 | ADR-15 | Tach Order Return / Order Refund / Booking Refund | M09 vs M16 | 3 model; return theo item+qty | nhieu collection | gop |
 | ADR-16 | Cong thuc hoan tien don gian (thay ADR-21 v2) | feedback 4 | `refund = round(lineNet * q / orderedQty)`, lan cuoi dung phan du; khong thue; khong shipping; server tinh | khong linh hoat | nhap tay; tinh thue |
 | ADR-17 | Block/Unblock Customer chi Admin; Manager xem theo activity | V4, M03 | Customer global, `activityBranchIds` derived | them field derived can giu dong bo | truong branch tren Customer |
@@ -33,10 +33,35 @@ Ghi chu: cac ADR cu ve cong thuc hoan tien co them thanh phan va vi tri kho phu 
 | ADR-26 | Order payment failure: compensating transaction | V5 s.22-24 | FAILED/CANCELLED/EXPIRED => Order CANCELLED, RECEIPT, restore voucher, idempotent, auto-cancel theo timeout | khong co retry | retry thanh toan, queue |
 | ADR-27 | Return: REQUESTED > PROCESSING > RECEIVED > APPROVED > COMPLETED | V5 s.25 | APPROVED la final approve sau khi nhan hang | -- | APPROVED truoc RECEIVED |
 | ADR-28 | Dat lich noi bo | V5 s.37-39 | internalAppointmentsCreate tach khoi tu dat; customerId XOR contact | them endpoint | mot schema chung |
-| ADR-29 | FulfillmentBranchResolver = priority list | review feedback, dong blocker FULFILLMENT_BRANCH_SOURCE | `system_settings.fulfillmentBranchPriority`; branch ACTIVE dau tien du ton cho toan bo cart; khong tach don; khong geolocation | khong toi uu khoang cach/ton | Customer chon, branch gan nhat, branch mac dinh, tach don |
+| ADR-29 | FulfillmentBranchResolver = priority list | review feedback, dong blocker FULFILLMENT_BRANCH_SOURCE | `system_settings.commerce.fulfillmentBranchPriority`; branch ACTIVE dau tien du ton cho toan bo cart; khong tach don; khong geolocation | khong toi uu khoang cach/ton | Customer chon, branch gan nhat, branch mac dinh, tach don |
 | ADR-30 | Mot field state canonical `x-authz.stateTransition` | review feedback (hai field lech nhau) | bo `transition`; audit so khop voi 09 | -- | giu hai field |
 | ADR-31 | Cart chi validate purchasable + ton tong quat | review feedback | validation branch o checkoutValidate/Quote/Create | khach co the them vao cart roi moi biet khong fulfill | kiem tra branch tai add item |
 | ADR-32 | Reject sau RECEIVED khong refund, khong nhap stock | review feedback, TA-24 | hang xu ly thu cong ngoai he thong | mat dau vet he thong cho hang tra lai | tu dong nhap kho/hoan tien |
 | ADR-33 | Assign staff khong phai CONFIRMED | review feedback V6 | confirm la action rieng cho moi nguon tao (tu dat, dat ho, duyet request) | them mot buoc | assign = CONFIRMED |
 | ADR-34 | Reassign theo segment | review feedback V6 | Manager/Receptionist doi staff trung requiredStaffRole va available | -- | gan staff khac role |
 | ADR-35 | COD gan voi delivery | review feedback V6 | COD chi PAID khi Mark Delivered; record-at-store chi Appointment PAY_AT_STORE | -- | dung chung flow thanh toan tai cua hang |
+| ADR-36 | TA-30 prepaid cancellation/no-show | final review | >=24h hoàn 100% khoản đã trả trước; <24h/no-show không hoàn. PAY_AT_STORE áp dụng trên cọc 30%; ONLINE_MOCK áp dụng trên 100% finalAmount | ONLINE_MOCK có thể mất toàn bộ khoản đã trả nếu hủy sát giờ | áp rule khác nhau |
+| ADR-37 | CustomerDetail `accountStatus` nullable trước khi có User | activation lifecycle | `customers` không lưu accountStatus; API trả null khi `activationStatus=NO_ACCOUNT/PENDING_ACTIVATION` | FE phải xử lý null | tạo User giả sớm |
+| ADR-38 | Service và Branch tách global/branch | scope consistency | Service global không chứa `contactInfo.branchId`; capacity chỉ ở BranchServiceConfig, bỏ `branches.slotCapacity` | lookup Branch khi cần | field branch trên Service / slotCapacity trên Branch |
+| ADR-39 | ServiceRecord encounter-level aggregate | scope/time | Một ServiceRecord cho toàn Appointment; actualMaterials aggregate; không tách record theo service segment | precision thấp hơn segment-level | thêm nhiều ServiceRecord |
+| ADR-40 | Material Catalog seed-only | scope/time | MATERIAL inventory items là seed data, không mở CRUD Material; Admin chỉ cấu hình defaultMaterials | phải seed trước môi trường demo | module Material Management |
+| ADR-41 | Appointment hold expiry | booking integrity | `PENDING_PAYMENT` và `PENDING_CONFIRMATION` đều phải có `holdExpiresAt`; hết hạn auto-cancel + release reservation; thời gian hold là config. Nếu timeout tại PENDING_CONFIRMATION mà đã có prepayment, tạo BookingRefund 100%. | cần job | giữ slot vô hạn hoặc để mất prepayment do system timeout |
+
+
+| ADR-42 | Catalog read scope | final review | Public/CUSTOMER chỉ đọc ACTIVE; MANAGER/ADMIN đọc mọi status; write chỉ ADMIN | optional bearer trên GET catalog | public nhìn thấy inactive |
+| ADR-43 | Appointment ONLINE_MOCK auto-PAID | final review | Khi create, Payment FULL = PAID ngay trong transaction; Appointment vào PENDING_CONFIRMATION | không có payment step riêng cho Appointment online | tạo PENDING_PAYMENT không cần thiết |
+| ADR-44 | Payment-target synchronization on cancellation | final review | Target CANCELLED + Payment PENDING => Payment CANCELLED cùng tx; callback sau đó không được PAID | terminal target trả PAYMENT_STATE_ERROR | target/payment lệch trạng thái |
+| ADR-45 | ServiceRecord mutation guards | final review | actualMaterials chỉ role thực hiện và state IN_PROGRESS/REOPENED; professional chỉ Veterinarian và không sửa FINALIZED trước reopen | reopen tạo revision trước khi sửa | inventory/professional data bị sửa sau finalize |
+
+
+| ADR-46 | ServiceExecutionRole tách khỏi StaffSubRole | final consistency review | Service.requiredStaffRole chi CARE_STAFF_GROOMER/NURSE/VETERINARIAN; RECEPTIONIST khong execute service | them enum ServiceExecutionRole | dung StaffSubRole tong quat |
+| ADR-47 | Segment execution state | final consistency review | Appointment.services[].executionStatus NOT_STARTED->IN_PROGRESS->COMPLETED; record/inventory chi finalize overall khi tat ca segment xong | them state field | mot finalize dong ca truoc khi segment khac xong |
+| ADR-48 | Booking timeout ap dung ca hai hold states | final consistency review | PENDING_PAYMENT va PENDING_CONFIRMATION cung co holdExpiresAt; Payment PENDING cua prepayment/Order online cung expiresAt khi ap dung; reservation HELD mirror deadline | job timeout | timeout mot phan flow lam slot treo |
+| ADR-49 | Guest token schemes | final security review | `X-Guest-Lookup-Token` cho transaction lookup; `X-Guest-Cart-Token` cho cart/checkout | them security schemes | dung bearer/anonymous mo rong |
+| ADR-50 | Reservation time units | final consistency review | slotMinutes=15 technical default; reserve moi unit de chong overlap day du | them time-unit reservations | unique chi theo segment start |
+| ADR-51 | Booking cancellation has no TRANSFER outcome | final scope cleanup | refund/forfeit only; no money transfer workflow in Web 2 | giam scope | transfer ngoai pham vi |
+| ADR-52 | OTP challenge one-time | final security review | OTP request tra challengeId; verify challengeId+OTP; success one-time | ngan replay | verify chi bang OTP |
+
+| ADR-53 | AppointmentRequest operational lifecycle | completeness | Add list/get/cancel for Customer/Guest and staff review; Guest uses lookup token | request-only flow otherwise orphaned |
+| ADR-54 | Segment execution status | data integrity | `executionStatus` per Appointment service; overall completion only after all segments + encounter finalize | first segment finalize could close appointment early |
+| ADR-55 | Guest token protected resource access | security | `X-Guest-Lookup-Token` is required for guest-owned Appointment/Payment/Request/Refund/Return lookups | guest ownership leakage |

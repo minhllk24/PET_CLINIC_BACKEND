@@ -23,3 +23,5 @@ NO DATA MIGRATION IN CURRENT IMPLEMENTATION SCOPE. Sheet va Team Lead khong yeu 
 
 ## Hanh vi legacy da loai bo
 Guest tu tao account + password; waiting_store_payment; rescheduled; no_show_count chan thanh toan; `{EM,EC,DT}`; Math.random OTP; stock ghi truc tiep; cac phan mo rong khong thuoc scope (warehouse phu, thue) khong duoc dua vao.
+
+- Migration note: map Service.requiredStaffRole to ServiceExecutionRole; RECEPTIONIST remains staffSubRole only. Material Catalog remains seed-only; do not migrate a separate Material CRUD module.

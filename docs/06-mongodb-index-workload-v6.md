@@ -24,7 +24,7 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 | Q16 | Returns by order / queue | trung | orderId; status | createdAt | cursor | strong | order_returns (orderId, status); (status, createdAt) | order_returns |
 | Q17 | Refund by return | trung | orderReturnId | -- | -- | strong | order_refunds orderReturnId unique partial | order_refunds |
 | Q18 | Staff shifts | cao | staffId, range | startAt | -- | strong | shifts (staffId, startAt) | shifts |
-| Q19 | Branch/day availability (tim staff theo tung segment) | rat cao | branchId, date, requiredStaffRole cua tung segment | -- | -- | strong | shifts (branchId, staffSubRole, status, startAt); branch_service_configs unique (branchId, serviceId); appointments (branchId, scheduledStart); slot_reservations (branchId, slotStart) | nhieu |
+| Q19 | Branch/day availability (tim staff theo tung segment) | rat cao | branchId, date, requiredStaffRole cua tung segment | -- | -- | strong | shifts (branchId, staffSubRole, status, startAt); branch_service_configs unique (branchId, serviceId); appointments (branchId, scheduledStart); slot_reservations (branchId, slotStartUnit) | nhieu |
 | Q20 | Appointments by customer | cao | customerId | scheduledStart -1 | cursor | strong | appointments (customerId, scheduledStart -1) | appointments |
 | Q21 | Appointments by branch/date | cao | branchId, range, status | scheduledStart | cursor | strong | appointments (branchId, scheduledStart) | appointments |
 | Q22 | Services by bookingMode/serviceType/role | trung | status + field | name | offset | eventual | services (status, bookingMode); (status, serviceType); (requiredStaffRole, status) | services |
@@ -33,7 +33,7 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 | Q25 | Records by pet / revisions | trung | petId; serviceRecordId | createdAt; recordVersion | cursor | strong | service_records (petId, createdAt -1); revisions unique (serviceRecordId, recordVersion) | service_records |
 | Q26 | Payment status | trung | target | -- | -- | strong | payments (target.type, target.id) | payments |
 | Q27 | Booking refund queue | trung | status, branch | createdAt | cursor | strong | booking_refunds (status, createdAt) | booking_refunds |
-| Q28b | Payment timeout job (ONLINE_MOCK) | dinh ky | payments status=PENDING, method=ONLINE_MOCK, expiresAt<now | -- | batch | strong | payments (status, expiresAt) partial PENDING | payments |
+| Q28b | Payment timeout job (pending payments with deadlines) | dinh ky | payments status=PENDING, expiresAt<now | applies to Order ONLINE_MOCK and Appointment PAY_AT_STORE DEPOSIT; no balance payment timeout | -- | batch | strong | payments (status, expiresAt) partial PENDING | payments |
 | Q28 | Hold expiry job / reminder job | dinh ky | status, holdExpiresAt; scheduledStart window | -- | batch | strong | appointments (status, holdExpiresAt) partial; (status, scheduledStart) | appointments |
 | Q29 | Notifications | cao | userId, read | createdAt -1 | cursor | strong | notifications (userId, read, createdAt -1) | notifications |
 | Q30 | Idempotency, OTP, refresh | cao | key; expiresAt | -- | -- | strong | idempotency (key, scope) unique + TTL; TTL otp/refresh | -- |
@@ -41,14 +41,14 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 ## Unique/idempotency index quan trong
 | Index | Muc dich |
 |---|---|
-| slot_reservations unique partial (staffId, slotStart) kind STAFF | chong trung lich staff (moi segment) |
-| slot_reservations unique partial (branchId, serviceId, slotStart, unitIndex) kind CAPACITY | chong vuot capacity cua BranchServiceConfig |
+| slot_reservations unique partial (staffId, slotStartUnit) kind STAFF | chong trung lich staff (moi segment) |
+| slot_reservations unique partial (branchId, serviceId, slotStartUnit, unitIndex) kind CAPACITY | chong vuot capacity cua BranchServiceConfig |
 | inventory_stocks unique (branchId, inventoryItemId) | mot dong ton moi branch/item |
 | inventory_transactions unique partial (ORDER, sourceId, inventoryItemId, transactionType) | khong tru/hoan ton don hang 2 lan |
 | inventory_transactions unique partial (SERVICE_RECORD_REVISION, sourceId, recordVersion, inventoryItemId) | khong ghi revision 2 lan |
 | voucher_usages unique (voucherId, targetType, targetId) | khong consume 2 lan |
 | order_refunds unique partial orderReturnId | 1 refund / return |
-| booking_refunds unique partial paymentId (mo) | 1 refund mo / payment |
+| booking_refunds unique partial paymentId where status in REQUESTED, PROCESSING, APPROVED, REFUNDED | 1 active/terminal refund per payment; a REJECTED request may be re-submitted |
 
 ## Concurrency
 | Race | Co che |
@@ -59,7 +59,21 @@ Tan suat la uoc luong, chua co so lieu production. Moi index phuc vu mot query t
 | Cancel/Confirm song song | conditional update `status` hien tai (CAS) |
 | Return vuot so luong | conditional `returnReservedQty + q <= quantity` trong tx |
 | Slot booking nhieu segment | tx: reserve STAFF cho tung segment + CAPACITY; duplicate key => thu staff ung vien ke tiep; het ung vien => rollback toan bo, 409 SLOT_UNAVAILABLE; Idempotency-Key |
-| Reassign staff segment | tx: giai phong STAFF cu + giu STAFF moi (unique (staffId, slotStart)); trung => 409 STAFF_UNAVAILABLE |
+| Reassign staff segment | tx: giai phong STAFF cu + giu STAFF moi (unique (staffId, slotStartUnit)); trung => 409 STAFF_UNAVAILABLE |
 | Finalize/reopen | CAS status + version + unique (record, version, item) |
 | Shift overlap | tx tim overlap roi insert |
 | Branch config / manager assignment | version optimistic |
+
+
+## Hold expiry consistency
+`slot_reservations.expiresAt` của reservation HELD phải lấy cùng deadline với `appointments.holdExpiresAt`. Job expiry xử lý idempotent: CAS Appointment -> CANCELLED rồi release STAFF/CAPACITY reservations. Không để reservation HELD tồn tại quá deadline.
+
+
+## Technical booking granularity
+- `booking.slotMinutes` = 15 (technical default, configurable). Availability/reservation chia moi segment thanh cac time units 15 phut.
+- `booking.holdDurationMinutes` = 10 (technical default, configurable). Ap dung ca `PENDING_PAYMENT` va `PENDING_CONFIRMATION`; `appointments.holdExpiresAt` va HELD reservation dung cung deadline.
+
+| OrderRefund failed retry | reuse the same order_refunds document; Payment returns PAID after failed provider call; next retry re-enters REFUND_PENDING | avoids unique-index conflict and duplicate refunds |
+
+## Slot reservation granularity
+`slotMinutes=15` is the technical default/config. Every staff/capacity reservation occupies every 15-minute unit intersecting the segment interval; unique indexes use `slotStartUnit`.

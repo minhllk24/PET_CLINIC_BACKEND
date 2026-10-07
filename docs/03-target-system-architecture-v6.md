@@ -87,11 +87,26 @@ Single-document la atomic, khong dung transaction. Multi-document dung tx (can r
 `appointmentsCreate` (Customer/Guest tu dat) va `internalAppointmentsCreate` (Receptionist/Manager/Admin dat ho Customer hoac Guest) dung chung use case domain, khac request schema va authorization. Guest khong co account/mat khau.
 
 ## Availability engine (booking, theo segment)
-Branch ACTIVE + openingHours + holidays + slotLocks + BranchServiceConfig(enabled, capacity, availability) cho moi service + cac **segment noi tiep** (moi service mot khoang `scheduledStart/End`, tong = sum duration) + **voi moi segment: tim staff** co `staffSubRole` trung `requiredStaffRole`, `authorizedBranchIds` chua branch, `Shift(branchId)` phu khoang segment, khong trung `slot_reservations`/appointments khac. Slot **chi kha dung neu tat ca segment tim duoc staff** (cac segment doc lap nhau ve staff nen greedy theo thu tu la day du). Computed, khong luu; customer khong chon staff va API public khong tra staff.
-Reservation (luu khi tao Appointment, 1 tx): moi segment 1 reservation `STAFF` (unique `(staffId, slotStart)`) + capacity `(branchId, serviceId, slotStart, unitIndex)`. Dua tranh (duplicate key): thu staff ung vien ke tiep cua segment; het ung vien => `409 SLOT_UNAVAILABLE`, rollback tat ca segment.
+Branch ACTIVE + openingHours + holidays + slotLocks + BranchServiceConfig(enabled, capacity, availability) cho moi service + cac **segment noi tiep** (moi service mot khoang `scheduledStart/End`, tong = sum duration) + **voi moi segment: tim staff** co `staffSubRole` trung `requiredStaffRole` (requiredStaffRole chi la ServiceExecutionRole; RECEPTIONIST khong duoc lam service segment), `authorizedBranchIds` chua branch, `Shift(branchId)` phu khoang segment, khong trung `slot_reservations`/appointments khac. Slot **chi kha dung neu tat ca segment tim duoc staff** (cac segment doc lap nhau ve staff nen greedy theo thu tu la day du). Computed, khong luu; customer khong chon staff va API public khong tra staff.
+Reservation (luu khi tao Appointment, 1 tx): chia segment thanh cac time unit theo `booking.slotMinutes` (technical config, default 15). Moi time unit cua segment tao 1 reservation `STAFF` (unique `(staffId, slotStartUnit)`) + capacity `(branchId, serviceId, slotStartUnit, unitIndex)`. Segment dai 60 phut se giu 4 time units; moi segment khong duoc overlap staff. Dua tranh (duplicate key): thu staff ung vien ke tiep cua segment; het ung vien => `409 SLOT_UNAVAILABLE`, rollback tat ca segment.
 Doi staff mot segment (`appointmentSegmentReassign`): kiem tra role trung segment, authorized, shift, khong trung; giai phong reservation staff cu va giu staff moi trong 1 tx.
 
 ## Providers
 `PaymentProvider{createCharge, refund}` -> `MockPaymentProvider`. Email/SMS qua outbox; nhac lich qua email + notification (chuong). OTP: CSPRNG, hash, TTL 5 phut, 5 lan, resend 30s.
 
-## Assumptions: xem 16. Khong con open decision. `FulfillmentBranchResolver` = `PriorityListResolver`: duyet `system_settings.fulfillmentBranchPriority`, chon branch ACTIVE dau tien du ton cho toan bo cart, ISSUE tai branch do (xem 04).
+## Decisions: xem 16. Khong con open decision. `FulfillmentBranchResolver` = `PriorityListResolver`: duyet `system_settings.commerce.fulfillmentBranchPriority`, chon branch ACTIVE dau tien du ton cho toan bo cart, ISSUE tai branch do (xem 04).
+
+
+## Payment/appointment consistency
+Appointment `ONLINE_MOCK` được đánh dấu Payment FULL = PAID ngay khi create (trong cùng transaction), nên đi thẳng tới `PENDING_CONFIRMATION`. Chỉ Appointment `PAY_AT_STORE` có deposit mới cần `PENDING_PAYMENT` để chờ cọc. Mọi cancellation đồng bộ Payment PENDING -> CANCELLED; target đã CANCELLED không được phép callback mock đưa Payment về PAID.
+
+
+## Segment execution consistency
+- `Appointment.services[]` la nguon su that ve execution status cua tung segment: `NOT_STARTED -> IN_PROGRESS -> COMPLETED`.
+- `appointmentsStart` nhan `serviceId`; segment thu 2+ khong lam Appointment quay lai CONFIRMED. Appointment chi doi sang `COMPLETED` khi tat ca segment da `COMPLETED` va ServiceRecord overall da finalize.
+- Nurse `submit-review` chi danh dau segment MEDICAL hoan tat; khong tao inventory ledger. Vet finalization segment cuoi moi dong overall MEDICAL encounter.
+- Grooming finalization segment cuoi moi tao revision/inventory delta. Reopen la encounter-level correction; Appointment van COMPLETED.
+- Appointment `MEDICAL` phai co it nhat mot segment `VETERINARIAN` de review/finalize.
+
+## Segment execution and encounter finalization
+Each Appointment service segment carries `executionStatus` (`NOT_STARTED|IN_PROGRESS|COMPLETED`). The next segment may start only after the previous segment is COMPLETED. One encounter-level ServiceRecord aggregates the whole Appointment. Inventory revision/delta is created only at overall finalization after all segments are COMPLETED; Appointment becomes COMPLETED at that point.

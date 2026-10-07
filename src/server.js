@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import app from './app';
 import config from './shared/config';
 import { logger } from './shared/logger';
+import { startCronJobs } from './worker/cronjobs';
 
 const startServer = async () => {
   try {
@@ -13,6 +14,9 @@ const startServer = async () => {
     const server = app.listen(config.port, '0.0.0.0', () => {
       logger.info(`SERVER is running on PORT: ${config.port} in ${config.env} mode`);
     });
+
+    // Start background cron jobs
+    startCronJobs();
 
     // Graceful shutdown
     let isShuttingDown = false;

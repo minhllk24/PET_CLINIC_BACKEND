@@ -1,6 +1,6 @@
 # 01 Requirement Traceability Matrix v6
 
-Thu tu uu tien: Team Lead/Boss decisions > Feature > Business Rule/Flow > domain consistency > security > feasibility > legacy. Log la bang chung phu tro (thap hon sheet). FE dich: **Customer Angular + Admin Angular**. BE dich: **greenfield Node.js + Express + MongoDB**. Figma: FIGMA_ACCESS_UNVERIFIED (legacy UI).
+Thu tu uu tien: Team Lead/Boss decisions > Feature > Business Rule/Flow > domain consistency > security > feasibility > legacy. Log la bang chung phu tro (thap hon sheet). FE dich: **Customer Angular + Admin Angular**. BE dich: **greenfield Node.js + Express + MongoDB**. Figma: FIGMA_AVAILABLE_BUT_NOT_FROZEN (Task 2.4 chưa freeze).
 Tat ca module P0 co trace day du; **M05, M06, M07, M08 la critical E2E commerce, P0 day du.**
 
 ## P0 trace: Feature > Rule > API > Domain > MongoDB > Authorization > State > Angular > Test
@@ -61,10 +61,35 @@ Ngoai P0: M03 (adminCustomersList/Get/Pets, Block/Unblock Admin-only), M18 (revi
 | Buoc | Actor | Action | Rule | State | Persistence |
 |---|---|---|---|---|---|
 | 1 | Guest/Customer | availabilityGet | slot kha dung chi khi moi segment (noi tiep) tim duoc staff dung requiredStaffRole; khong lo staff | -- | khong ghi |
-| 2 | Guest/Customer | appointmentsCreate (paymentMethod) | khong chon staff; backend reserve staff tung segment; ONLINE_MOCK 100%, PAY_AT_STORE coc 30% | PENDING_PAYMENT / PENDING_CONFIRMATION | appointments, reservations, payments |
+| 2 | Guest/Customer | appointmentsCreate (paymentMethod) | khong chon staff; backend reserve staff tung segment; ONLINE_MOCK 100% va PAID ngay khi tao; PAY_AT_STORE co service bat coc thi coc 30%, khong bat coc thi khong coc | PENDING_CONFIRMATION (ONLINE_MOCK / PAY_AT_STORE khong coc) / PENDING_PAYMENT (PAY_AT_STORE co coc) | appointments, reservations, payments |
 | 2b | Receptionist/Manager/Admin | internalAppointmentsCreate | dat ho; staffAssignments tuy chon; **khong CONFIRMED** | nt | nt |
-| 3 | system | payment PAID | ghi nhan paidAmount ngay | PENDING_CONFIRMATION | payments |
+| 3 | system | payment PAID | ONLINE_MOCK da PAID ngay khi create; PAY_AT_STORE co coc chi chuyen sau khi DEPOSIT PAID | PENDING_CONFIRMATION | payments |
 | 4 | Receptionist/Manager/Admin | appointmentsConfirm | action rieng | CONFIRMED | appointments |
 | 4b | Receptionist/Manager | appointmentSegmentReassign | trung requiredStaffRole, available | khong doi | reservations |
 | 5 | staff duoc giao | appointmentsStart, serviceRecords*, finalize | sub-role + segment | IN_PROGRESS > COMPLETED | service_records, ledger |
 | 6 | system / Receptionist | deposit APPLIED (system); balance (PAY_AT_STORE) paymentRecordAtStore | chi thu phan con lai (vd 700,000) | COMPLETED | payments |
+
+
+## Final Task 2.8 closure notes
+- TA-30 is closed and applies consistently to all prepayments.
+- `CustomerDetail.accountStatus` is nullable before a User exists.
+- Global Service has no branch-specific contact field; branch capacity/contact are modeled by branch resources.
+- ServiceRecord is encounter-level for the Appointment; Material Catalog is seed-only.
+- `PENDING_PAYMENT` and `PENDING_CONFIRMATION` both use `holdExpiresAt`; timeout cancels the target/payment as applicable and releases reservations. A system confirmation timeout with prepayment creates a full BookingRefund request regardless of elapsed-hour policy.
+
+
+## Final closure requirements
+| Requirement | Canonical implementation | Verification |
+|---|---|---|
+| Guest token security | X-Guest-Lookup-Token / X-Guest-Cart-Token security schemes | OpenAPI + auth tests |
+| Booking hold timeout | holdExpiresAt on PENDING_PAYMENT/PENDING_CONFIRMATION | state machine + index/workload + tests |
+| Segment execution | executionStatus on Appointment.services[] | state machine + service record tests |
+| Execution role | ServiceExecutionRole | enum registry + authz + OpenAPI |
+| Encounter aggregate | one ServiceRecord per Appointment | Mongo schema + execution flow |
+| Exact inventory delta | overall finalize only, once per recordVersion | index + concurrency tests |
+| Payment combinations | target/method/kind matrix | OpenAPI + tests |
+| Final consistency | confirmation timeout with prepayment | BookingRefund 100% system-side fault | state + refund tests |
+| Final consistency | Guest transaction/request ownership | X-Guest-Lookup-Token required after OTP; token-scoped lookup/actions | OpenAPI/Authz/Security |
+| Final consistency | Appointment multi-segment execution | executionStatus per segment; all segments complete before overall finalize | Domain/State/OpenAPI |
+| Final consistency | Payment boundaries | mock-complete only Order ONLINE_MOCK; PAY_AT_STORE at store; COD at delivery | State/OpenAPI/Test |
+| Final consistency | Reservation overlap | 15-minute time units reserved across full segment range | Architecture/DB/Index |

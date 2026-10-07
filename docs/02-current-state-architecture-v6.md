@@ -7,7 +7,7 @@
 | BE hien tai (`PET_CLINIC_BACKEND`, `dev`) | OBSOLETE | Se bi loai khoi target codebase, khong la nen tang |
 | MySQL hien tai | LEGACY persistence | Tham khao khai niem. Khong migrate (xem 12) |
 | BE dich | GREENFIELD Node.js + Express + MongoDB | Xay moi |
-| Figma | LEGACY / FIGMA_ACCESS_UNVERIFIED | figma.com tu choi truy cap tu dong. Khong bia noi dung |
+| Figma | FIGMA_AVAILABLE_BUT_NOT_FROZEN | Da truy cap de review; chua freeze/approve de FE handoff |
 | Sheet (2) + Log.docx | Nguon yeu cau cap nhat | Log thap hon sheet; mau thuan thi sheet thang |
 
 Git: khong `reset --hard`, khong force-push, khong viet lai lich su. Implement: branch moi, loai BE cu khoi target, them BE moi, PR.
@@ -23,7 +23,7 @@ Guest tu tao account + password (cung bi Log muc 2 de cap, nhung sheet M02 cam);
 | Log | Sheet | Xu ly |
 |---|---|---|
 | Guest mua hang: tai khoan tao san, doi mat khau lan dau | M02: khong tu sinh account/mat khau; activation qua OTP | Theo sheet |
-| No-show nhieu lan: yeu cau coc o lan sau; no-show sat gio tru phi giu cho | Feature: <24h/no-show khong hoan coc; khong co rule dem no-show | Khong nhan rule dem no-show (CD-11). Ghi vao 16 de Team xac nhan |
+| No-show nhieu lan: yeu cau coc o lan sau; no-show sat gio tru phi giu cho | Feature: <24h/no-show khong hoan coc; khong co rule dem no-show | Khong nhan rule dem no-show; khong mo them rule dem no-show trong scope V6 |
 | Mat khau toi thieu 8, co chu hoa va so | Khong noi | Nhan (khong mau thuan) |
 | Freeship don 500k | Sheet chi noi "tinh shipping" | Nhan 500000 (>=) lam nguong cau hinh |
 | Nhac lich qua Gmail + chuong thong bao | Khong noi | Nhan |

@@ -1,6 +1,6 @@
 # 16 Conflict and Decision Log v6 + Final Report (appointment staffing + payment flow)
 
-V6 = V5 + 7 muc feedback ve Appointment va thanh toan. Khong mo rong scope. Uu tien: Team Lead/Boss > Feature > Business Rule/Flow > domain > security > feasibility > legacy.
+V6 FINAL UPDATED = V5 + final consistency/security/concurrency fixes. Khong mo rong scope; chi lam ro contract va data-integrity rules. Uu tien: Team Lead/Boss > Feature > Business Rule/Flow > domain > security > feasibility > legacy.
 
 ## 16.1 Xu ly 7 muc feedback
 | Muc | Van de | Xu ly | Noi sua |
@@ -22,143 +22,66 @@ Cac diem da bo khoi spec: (1) "service trong Appointment phai cung requiredStaff
 ## 16.3 Gia dinh ky thuat moi/doi (can Boss biet)
 | ID | Noi dung |
 |---|---|
-| TA-30 | Quy tac huy/no-show (>=24h hoan 100%, <24h va no-show khong hoan) ap dung cho **khoan tra truoc**: coc 30% voi PAY_AT_STORE, **100% voi ONLINE_MOCK**. Sheet chi viet rule cho "deposit"; ap dung cho online la suy dien |
+| TA-30 | **Đã chốt:** quy tắc hủy/no-show áp dụng cho **khoản trả trước**: >=24h hoàn 100%; <24h và no-show không hoàn. PAY_AT_STORE áp dụng trên cọc 30%; ONLINE_MOCK áp dụng trên 100% finalAmount. |
 | TA-31 | Segment noi tiep theo thu tu `serviceIds`; chon staff ung vien theo thu tu co dinh (staffId) cho den khi het ung vien (greedy du vi cac segment noi tiep, khong chong thoi gian) |
-| TA-32 | Duyet appointment-request nhan `paymentMethod` bat buoc va `staffAssignments` tuy chon; `supportStaffIds` (phau thuat, theo sheet BF06) giu o cap Appointment, khong thuoc segment |
+| TA-32 | Duyet appointment-request nhan `paymentMethod` bat buoc va `staffAssignments` tuy chon; khong cho client gui authority fields; staff assignment theo segment |
 | TA-33 | PAY_AT_STORE ma khong service nao bat coc: khong coc, vao thang PENDING_CONFIRMATION, thu het tai cua hang |
 TA cu con hieu luc: TA-01, 02, 04, 05, 08, 09, 10, 11, 12, 19-22, 24-29 (xem v4/v5). TA-07 va CD-14 (cung requiredStaffRole) bi huy.
 
 ## 16.4 Rui ro con lai
-1. **TA-30:** huy <24h mot don ONLINE_MOCK se mat 100% khoan da tra. Dung theo rule hien co nhung co the nang; Boss nen xac nhan. 2. Nhieu role trong mot Appointment (Vet + Nurse) lam slot kho kha dung hon; khong co fallback tach lich. 3. Dat PAY_AT_STORE khong service bat coc khong can coc: rui ro no-show (khong phai rule moi). 4. Cac segment cua mot ServiceRecord co nhieu staff: quyen theo sub-role va viec duoc giao (assignedStaffIds), chua co phan quyen rieng theo segment. 5. Figma moi chua co: FE chua handoff. 6. Chua co code: test tu dong chua chay. 7. Resolver fulfillment theo thu tu uu tien (V5) khong toi uu khoang cach. 8. Sheet chua duoc sua (file 17, 18 dong).
+1. TA-30 đã đóng và áp dụng thống nhất cho mọi khoản trả trước. 2. Nhiều role trong một Appointment (Vet + Nurse) làm slot khó khả dụng hơn; đây là trade-off đã chấp nhận trong scope. 3. PAY_AT_STORE không có cọc có rủi ro no-show; không mở thêm rule đếm no-show. 4. ServiceRecord là encounter-level aggregate; phân quyền theo role + assignment của Appointment. 5. Figma đã truy cập được nhưng chưa freeze: FE chưa handoff. 6. Chưa có code: test tự động chưa chạy. 7. Resolver fulfillment theo priority list không tối ưu khoảng cách nhưng đã chấp nhận trong scope. 8. File 17 companion sync đã cập nhật các quyết định final.
 
-## 16.5 Kiem tra
-OpenAPI 3.1.1 hop le, 143 operation (bo `bookingPaymentCreate`, them `appointmentSegmentReassign`), CSV 117 dong. Audit 108/108 PASS (V6 them 25 check cho staffing, payment, confirm, COD):
-| Check | Ket qua | Chi tiet |
-|---|---|---|
-| operationId unique | PASS | 143 ops |
-| all $ref targets exist | PASS |  |
-| unused schemas | PASS |  |
-| every op has x-authz | PASS |  |
-| every op has security key | PASS |  |
-| non-public ops declare 401 | PASS |  |
-| sensitive POST ops carry Idempotency-Key | PASS |  |
-| no server-controlled fields in request schemas | PASS | [] |
-| no legacy enum values | PASS | set() |
-| no legacy tokens in spec text | PASS |  |
-| duplicate enum value-sets | PASS | [] |
-| systemRole has no staff sub-roles | PASS |  |
-| serviceType only GROOMING|MEDICAL | PASS |  |
-| no serviceId (single) in AppointmentCreate | PASS |  |
-| Appointment has services[] and no serviceId | PASS |  |
-| ServiceRecord statuses include WAITING_VET_REVIEW | PASS |  |
-| services write is ADMIN only | PASS |  |
-| branch service config write excludes global service edit | PASS |  |
-| finalize roles exclude NURSE | PASS | ['CARE_STAFF_GROOMER(GROOMING)', 'VETERINARIAN(MEDICAL)'] |
-| submit-review is NURSE only | PASS |  |
-| return error codes defined | PASS |  |
-| OrderReturn separate from OrderRefund | PASS |  |
-| no ledger update/delete endpoints | PASS |  |
-| no direct stock write endpoint | PASS |  |
-| Manager not in services write | PASS |  |
-| shipping never refunded | PASS |  |
-| no INSPECTION warehouse anywhere | PASS |  |
-| no tax in refund | PASS |  |
-| return approve has no client amount | PASS |  |
-| block/unblock ADMIN only | PASS |  |
-| customer list/detail only MANAGER/ADMIN | PASS |  |
-| no customer.branchId in Customer schemas | PASS |  |
-| critical path M05->M08 operations present | PASS | [] |
-| every op has x-audience | PASS |  |
-| both Angular audiences covered | PASS |  |
-| password policy pattern on register | PASS |  |
-| PaymentStatus has terminal failure states | PASS |  |
-| order status matches sheet BF02 | PASS |  |
-| checkout request has no server-computed price | PASS |  |
-| global catalog writes ADMIN only | PASS |  |
-| serviceType canonical on Service and Appointment | PASS |  |
-| recordType only on ServiceRecord (snapshot) | PASS |  |
-| DepositType NONE|PERCENTAGE, no FIXED | PASS |  |
-| deposit locked to 30 | PASS |  |
-| no depositOverride anywhere | PASS |  |
-| no fulfillmentBranchId selection by client | PASS |  |
-| no branchId param on product queries | PASS |  |
-| appointment payment methods exclude COD | PASS |  |
-| order payment methods exclude PAY_AT_STORE | PASS |  |
-| payment target types ORDER|APPOINTMENT | PASS |  |
-| payment cancel op present | PASS |  |
-| payment failure compensation documented | PASS |  |
-| return order PROCESSING->RECEIVED->APPROVED | PASS |  |
-| receive is RECEPTIONIST only; approve/reject MANAGER/ADMIN | PASS |  |
-| internal appointment create present and scoped | PASS |  |
-| internal create: customerId XOR contact | PASS |  |
-| public AppointmentCreate has no customerId | PASS |  |
-| every authenticated op declares resolver | PASS |  |
-| no generic resource.branchId in spec | PASS |  |
-| manager cannot write global Product/Category/Service/Voucher | PASS |  |
-| variant CRUD present | PASS |  |
-| return quote + checkout validate present | PASS |  |
-| no TA-17/TA-18/max deposit in spec | PASS |  |
-| approve/reject/cancel fields server-authority: no cancelledBy/override flags in bodies | PASS |  |
-| x-authz has no 'transition' key (single canonical stateTransition) | PASS |  |
-| x-authz keys are within canonical set | PASS |  |
-| return/order/payment stateTransition equals expected | PASS | [] |
-| stateTransition matches doc 09 tables (24 operations compared) | PASS | [] |
-| reject-after-RECEIVED disposition documented (no refund, no stock, manual/out-of-system) | PASS |  |
-| internal appointment text uses serviceType | PASS |  |
-| recordType appears only in ServiceRecord operations | PASS | [] |
-| no 'cung recordType' anywhere | PASS |  |
-| fulfillmentBranchPriority only in admin settings schema | PASS |  |
-| settings update is ADMIN under /admin/settings | PASS |  |
-| quote/validate expose fulfillable | PASS |  |
-| cart add-item checks purchasable + general stock only | PASS |  |
-| checkout documents priority-list resolver and no split | PASS |  |
-| FULFILLMENT_NOT_CONFIGURED error defined | PASS |  |
-| docs: no 'deposit override duoc' wording and no stale FULFILLMENT_BRANCH_SOURCE open decision | PASS | [] |
-| rule 'same requiredStaffRole' removed (no INCOMPATIBLE_STAFF_ROLES / suggestedGroups in spec) | PASS |  |
-| Appointment.services[] segments carry requiredStaffRole, duration, own assignedStaffId, sequence | PASS |  |
-| public AppointmentCreate has no staff field | PASS |  |
-| internal create: optional per-segment staffAssignments, no single assignedStaffId | PASS |  |
-| internal create never transitions to CONFIRMED | PASS |  |
-| request approval creates appointment not CONFIRMED | PASS |  |
-| confirm is a separate action without staff input | PASS |  |
-| reassign op: per segment, role-matched, not Customer | PASS |  |
-| error codes STAFF_ROLE_MISMATCH, STAFF_UNAVAILABLE defined | PASS |  |
-| availability: slot available only if all segments staffable | PASS |  |
-| slot response exposes no staff | PASS |  |
-| paymentMethod required for appointment create (online vs pay-at-store explicit) | PASS |  |
-| ONLINE_MOCK = 100% FULL payment; PAY_AT_STORE = 30% DEPOSIT, rest at store | PASS |  |
-| PaymentKind includes FULL (online appointment) and DEPOSIT | PASS |  |
-| deposit amount documented as PAY_AT_STORE only | PASS |  |
-| paidAmount recorded immediately (not waiting for balance) | PASS |  |
-| balance payment does not drive deposit state | PASS |  |
-| deposit APPLIED set by system on COMPLETED | PASS |  |
-| balance payment: staff only (no customer self) | PASS |  |
-| record-at-store limited to Appointment PAY_AT_STORE; COD excluded | PASS |  |
-| COD paid only on Mark Delivered | PASS |  |
-| bookingPaymentCreate removed (payment created inside booking tx) | PASS |  |
-| prepaid wording on store-cancel/cancel-override | PASS |  |
-| ServiceRecord uses assignedStaffIds (segment staff) | PASS |  |
-| appointment start scoped to any segment staff | PASS |  |
-| Order paymentMethod enum still ONLINE_MOCK|COD | PASS |  |
-| CSV API fields exist in OpenAPI schemas | PASS | [] |
-| CSV enums match OpenAPI enums | PASS | [] |
-| core fields present in schema and csv | PASS |  |
-Ghi chu: lan chay dau co 3 FAIL that (spec con ghi INCOMPATIBLE_STAFF_ROLES o mo ta 422 va availability; CSV con field suggestedGroups, enum allowedActions/kind cu); sau do 1 FAIL them tu check doi chieu bang 09: `appointmentsCancelOverride` ghi `->CANCELLED`, `appointmentsReschedule` ghi `(rescheduleCount+1)` vs bang 09 dung `PENDING*`; da sua spec va bang 09 cho khop. Chua tu dong hoa: so sanh ma tran 08 voi `x-authz.roles` tung dong.
+## 16.5 FINAL STATIC AUDIT
+This audit is generated from the current package. It validates the design/contract artifacts only; runtime correctness requires implementation tests.
 
 ## 16.6 READINESS
-| Status | Ket qua | Ly do |
-|---|---|---|
-| BUSINESS_SPEC_V6_READY | **DAT** | Moi feedback ap dung, khong open decision; TA-30 la rui ro can Boss xem |
-| BACKEND_GREENFIELD_READY | **DAT** | Domain, schema, API, authz, state, commerce, booking (segment staffing), payment, return, inventory, service record da du |
-| FE_HANDOFF_READY | **CHUA DAT** | Chua co UI moi duoc duyet; Figma cu khong truy cap duoc |
+- Business rules, authorization, state machines, MongoDB shape/index intent, OpenAPI and mapping artifacts are synchronized.
+- Guest ownership is represented by a dedicated short-lived lookup token; guest cart/checkout uses a separate cart token.
+- All business state-changing POST operations are idempotent; authentication/OTP and quote/validate operations remain separate.
 
-| Area | v5 | v6 | Status |
-|---|---|---|---|
-| Internal booking | assign staff co the = CONFIRMED | PENDING_*; confirm rieng | DAT |
-| Appointment payment | deposit 30% chung cho moi payment | ONLINE_MOCK 100% / PAY_AT_STORE coc 30% | DAT |
-| Deposit lifecycle | APPLIED gan voi balance payment | ghi nhan ngay; APPLIED tu dong khi COMPLETED | DAT |
-| COD | dung chung record-at-store | chi PAID khi Mark Delivered | DAT |
-| Staff rule | cac service cung requiredStaffRole | segment doc lap, moi segment staff rieng | DAT |
-| Staff selection | backend chon, nhung 1 role | tu tim va reserve theo segment, noi tiep, tat ca segment moi kha dung | DAT |
-| Reassign | thieu | per segment, cung role, available | DAT |
-| Sheet sync | 15 cell | 18 cell (them rule thanh toan, staffing, COD) | CHUA sua sheet |
+## 16.7 FINAL REVIEW CLOSURE
+- TA-30: customer cancellation/no-show >=24h refunds 100% prepayment; <24h/no-show no refund. System/store rejection and confirmation-hold timeout refund 100% prepayment.
+- `CustomerDetail.accountStatus`: nullable before User exists.
+- Service is global; `contactInfo.branchId` absent. Branch capacity is only BranchServiceConfig.
+- Material Catalog is seed-only.
+- One encounter-level ServiceRecord per Appointment; segment execution state lives in Appointment.services[].
+- ServiceExecutionRole excludes Receptionist.
+- `PENDING_PAYMENT` and `PENDING_CONFIRMATION` both require `holdExpiresAt`; HELD reservation expiry mirrors the same deadline.
+- Payment boundary: Appointment ONLINE_MOCK auto-PAID; PAY_AT_STORE recorded at store; Order COD paid at delivery; mock-complete only Order ONLINE_MOCK.
+- Booking cancellation has no money TRANSFER outcome.
+- AppointmentRequest has operational list/get/cancel lifecycle.
+
+## 16.8 POST-REVIEW AUDIT
+| Check | Result |
+|---|---|
+| YAML parse | PASS |
+| Ref resolution | PASS |
+| Unique operationId | PASS |
+| Every operation has x-authz/x-audience/security | PASS |
+| Guest lookup security | PASS |
+| Guest cart security | PASS |
+| Payment 4-combination constraint | PASS |
+| Appointment segment lifecycle | PASS |
+| Reservation time-unit protection | PASS |
+| ServiceExecutionRole constraint | PASS |
+| ServiceRecord expectedVersion guards | PASS |
+| Catalog read/write separation | PASS |
+| Figma status normalized | PASS |
+| Idempotency policy coverage | PASS |
+
+## 16.9 FINAL CLOSURE
+Task 2.8 is **contract/static-audit complete** for the defined Web 2 scope. No known cross-document blocker remains in the reviewed package.
+
+## 16.10 FINAL AUDIT CLOSURE
+Authoritative metrics generated from this packaged folder:
+- Files: 17
+- OpenAPI paths: 128
+- OpenAPI operations: 147
+- OpenAPI schemas: 178
+- Internal $ref occurrences checked: 1424
+- Mapping CSV data rows: 130
+- Companion sheet-sync data rows: 41
+- Unique operationIds: 147
+- Business state-changing POST operations with Idempotency-Key: PASS
+- Static structural/security/cross-document audit: PASS
+- Runtime implementation tests: pending implementation (Task 2.9+)

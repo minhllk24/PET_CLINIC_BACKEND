@@ -12,19 +12,20 @@ Moi operation trong OpenAPI co `x-authz.resolver` va `x-authz.scope` theo bang d
 | Service Catalog | NONE / GLOBAL | -- | Admin global |
 | BranchServiceConfig | `branchId` | -- | Manager: assignedBranchIds |
 | Shift | `shift.branchId` | Staff: shift cua minh | Manager: assignedBranchIds |
-| Appointment | `appointment.branchId` | `appointment.customerId` | staff duoc giao: `services[].assignedStaffId` cua it nhat mot segment |
-| ServiceRecord | `serviceRecord.branchId` | Customer qua pet/appointment cua minh | staff thuoc `assignedStaffIds` (cac segment) |
+| AppointmentRequest | `preferredBranchId` / target branch | Customer own; Guest via verified lookup token | Staff/Manager reviews by branch scope |
+| Appointment | `appointment.branchId` | Customer: `appointment.customerId`; Guest: verified `guestContactId` via `X-Guest-Lookup-Token` | staff duoc giao: `services[].assignedStaffId` cua it nhat mot segment |
+| ServiceRecord | `serviceRecord.branchId` | Customer qua pet/appointment cua minh; Guest lookup token qua Appointment | staff thuoc `assignedStaffIds` (cac segment) |
 | InventoryStock | `inventoryStock.branchId` | -- | Manager: assignedBranchIds |
 | InventoryTransaction | `inventoryTransaction.branchId` | -- | Manager/Staff theo role |
-| Order | `order.fulfillmentBranchId` | `order.customerId` | Manager/Receptionist theo branch |
-| OrderReturn | `orderId` > `Order.fulfillmentBranchId` | Customer cua Order | Manager/Receptionist theo branch |
-| OrderRefund | `orderId` > `Order.fulfillmentBranchId` | Customer cua Order | Manager/Admin |
-| Payment | target ORDER: `Order.fulfillmentBranchId`; target APPOINTMENT: `Appointment.branchId` | chu cua target | branch cua target |
-| Pet | NONE | `pet.customerId` | Staff qua Appointment/ServiceRecord; Manager qua Customer activity |
+| Order | `order.fulfillmentBranchId` | `order.customerId`; Guest: verified guestContactId via lookup token | Manager/Receptionist theo branch |
+| OrderReturn | `orderId` > `Order.fulfillmentBranchId` | Customer cua Order; Guest via lookup token -> guest order | Manager/Receptionist theo branch |
+| OrderRefund | `orderId` > `Order.fulfillmentBranchId` | Customer cua Order; Guest via lookup token -> guest order | Manager/Admin |
+| Payment | target ORDER: `Order.fulfillmentBranchId`; target APPOINTMENT: `Appointment.branchId` | owner of target; Guest via lookup token | branch cua target |
+| Pet | NONE | `pet.customerId`; Guest pet only via its appointment/request token flow | Staff qua Appointment/ServiceRecord; Manager qua Customer activity |
 | Cart | NONE (khong co branch scope) | cart owner / `cartToken` | -- |
 | Voucher | GLOBAL | -- | Admin |
 Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `fulfillmentBranchId` (khong co truong branch khac).
-`BR`: Manager = `assignedBranchIds`; Receptionist/Staff = `authorizedBranchIds`. `ACT`: Customer activity qua Order/Appointment.
+`BR`: Manager = `assignedBranchIds`; Receptionist/Staff = `authorizedBranchIds`. `ACT`: Customer activity qua Order/Appointment. `CustomerDetail.accountStatus` chỉ có giá trị ACTIVE/BLOCKED khi đã có User; chưa có User thì API trả null.
 
 | Role | Resource | R | C | U | P | A | Scope |
 |---|---|---|---|---|---|---|---|
@@ -34,7 +35,10 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 | Customer | Cart, Order | R | C (checkout) | cart edit | cancel (PENDING/CONFIRMED), cancel payment | - | OWN |
 | Customer | Order return | R | C | - | cancel (truoc RECEIVED) | - | OWN |
 | Customer | Appointment | R | C (tu dat) | reschedule | cancel | - | OWN |
+| Guest | Appointment, AppointmentRequest | R (lookup token) | C request/booking | reschedule | cancel | - | verified lookup token owns guest contact |
 | Customer | Payment, Booking refund, Review, Notification | R | C | - | - | - | OWN |
+| Customer | AppointmentRequest | R | C | - | cancel | - | OWN |
+| Guest | Payment, Booking refund, OrderReturn/OrderRefund, AppointmentRequest | R (lookup token) | - | - | cancel/review request | - | verified lookup token |
 | Receptionist | Order | R | - | - | confirm, process, ship, mark-delivered, staff-cancel (COD PAID khi mark-delivered; khong co record-at-store cho Order) | - | BR |
 | Receptionist | Order return | R | - | - | **process, receive** | **KHONG approve/reject** | BR |
 | Receptionist | Appointment, request | R | **C (dat ho Customer/Guest; co the chi dinh staff tung segment)** | U | confirm (action rieng), reject, no-show, store-cancel, approve/reject request, **reassign staff tung segment (trung requiredStaffRole, available)**, record-at-store (Appointment PAY_AT_STORE: coc, balance) | - | BR |
@@ -43,8 +47,8 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 | Receptionist | BranchServiceConfig, Inventory stock | R | - | - | - | - | BR |
 | Care Staff/Groomer | Appointment (segment duoc giao), Service record GROOMING | R | - | U actual materials | start, finalize | - | BR + assigned |
 | Care Staff/Groomer | Service record MEDICAL | KHONG | KHONG | KHONG | KHONG | - | - |
-| Nurse | Service record MEDICAL | R | - | U actual materials | start, submit-review | KHONG finalize | BR + assigned |
-| Veterinarian | Service record MEDICAL | R | - | U diagnosis/treatment/result | start, finalize | - | BR + assigned |
+| Nurse | Service record MEDICAL | R | - | U actual materials | start, submit-review segment | KHONG finalize | BR + assigned |
+| Veterinarian | Service record MEDICAL | R | - | U diagnosis/treatment/result | start, finalize segment/overall | - | BR + assigned |
 | Manager | **Customer** (list/detail/search, Pets, Orders, Appointments, Reviews) | R | - | - | **KHONG Block/Unblock** | - | **ACT** |
 | Manager | **Product, Category, Service Catalog, Voucher (global)** | **R only** | KHONG | KHONG | KHONG | - | GLOBAL |
 | Manager | BranchServiceConfig (enabled, capacity, availability) | R | C | U | - | - | BR |
@@ -80,4 +84,11 @@ Payment, Pet, Customer, Cart khong co truong branch rieng. Order dung duy nhat `
 Customer A xem Order cua B: 404. Customer vao data branch Manager: 403/404. Manager Branch A sang Branch B: 404. Manager ghi global Product/Category/Service: 403. Manager Inventory branch duoc gan: OK; branch khong gan: 404. Admin block/unblock Customer: OK. Manager block/unblock: 403.
 
 ## Ghi chu staffing
-Customer/Guest khong chon va khong thay lua chon staff. Phan cong staff (tu dong luc tao, `staffAssignments` khi dat ho, hoac `appointmentSegmentReassign`) khong doi trang thai Appointment; chuyen sang CONFIRMED chi bang `appointmentsConfirm`. Doi staff phai cung `requiredStaffRole` cua segment; khac role => `STAFF_ROLE_MISMATCH`.
+Customer/Guest khong chon va khong thay lua chon staff. Phan cong staff (tu dong luc tao, `staffAssignments` khi dat ho, hoac `appointmentSegmentReassign` khong doi trang thai Appointment; chuyen sang CONFIRMED chi bang `appointmentsConfirm`. Doi staff phai cung `requiredStaffRole` cua segment; khac role => `STAFF_ROLE_MISMATCH`.
+
+
+## Execution-role rule
+`requiredStaffRole` cua Service/Appointment segment dung `ServiceExecutionRole = CARE_STAFF_GROOMER | NURSE | VETERINARIAN`; RECEPTIONIST khong the la requiredStaffRole va khong duoc start/finalize service.
+
+## Guest token invariant
+`X-Guest-Lookup-Token` can prove ownership of the specific verified guest contact only. It never grants staff/manager/admin actions and cannot be substituted for bearer authentication on internal endpoints.

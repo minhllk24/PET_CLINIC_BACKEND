@@ -17,3 +17,26 @@ checklist,D88,Test Appointment deposit default 30% + override,Test Appointment: 
 feature,C23,"Customer/Guest: thanh toán/cọc ở mức mock, xem deposit/refund status; reschedule self-service khi ≥24h tối đa 2 lần; cancel ≥24h hoàn 100% cọc,","Bổ sung: ONLINE_MOCK = thanh toán 100% final amount sau voucher ngay khi đặt; PAY_AT_STORE = cọc 30% final amount để giữ slot, 70% thu tại cửa hàng. Deposit được ghi nhận ngay khi cọc thành công; khi hoàn thành chỉ thu phần còn lại",Them rule thanh toan lich hen,"V6: ONLINE_MOCK tra 100% finalAmount ngay khi dat; PAY_AT_STORE coc 30% giu slot, 70% thu tai cua hang. Deposit 30% chi ap dung cho PAY_AT_STORE"
 feature,C12,Customer không chọn Staff cụ thể; ...,"Bổ sung: mỗi service trong Appointment là một segment có requiredStaffRole, duration, assignedStaff riêng; backend tự tìm và reserve staff theo từng segment (nối tiếp); Appointment chỉ available khi mọi segment tìm được staff. Assign staff không đồng nghĩa CONFIRMED",Them rule segment staffing,"V6 (staffing): ONLINE_MOCK tra 100% finalAmount ngay khi dat; PAY_AT_STORE coc 30% giu slot, 70% thu tai cua hang. Deposit 30% chi ap dung cho PAY_AT_STORE"
 feature,M8,Thu/ghi nhận deposit,Thu/ghi nhận deposit hoặc phần còn lại (PAY_AT_STORE) tại quầy. Order COD không dùng flow này; COD chỉ PAID khi Mark Delivered,Lam ro COD,"V6: ONLINE_MOCK tra 100% finalAmount ngay khi dat; PAY_AT_STORE coc 30% giu slot, 70% thu tai cua hang. Deposit 30% chi ap dung cho PAY_AT_STORE"
+checklist,D89,,,Booking hold,
+checklist,D90,,,TA-30,
+feature,C10,,,Inventory scope,
+feature,C11,,,Global/Branch,
+feature,catalog-read,,,Authorization,
+feature,appointment-payment,,,Payment,
+feature,service-record,,,ServiceRecord,
+feature,payment-cancel,,,Payment synchronization,
+feature,booking-token,Guest token generic,Guest giao dich: X-Guest-Lookup-Token; Guest cart/checkout: X-Guest-Cart-Token,Security token,"Phan tach lookup token va cart token, dung security scheme rieng"
+feature,appointment-segment-execution,Appointment multi-service chi co assignedStaff,Moi segment co executionStatus NOT_STARTED|IN_PROGRESS|COMPLETED; Appointment COMPLETED khi tat ca segment COMPLETED va ServiceRecord finalized,Segment execution,Khong finalize ca truoc khi segment khac hoan tat
+checklist,booking-hold,PENDING_PAYMENT and PENDING_CONFIRMATION both have holdExpiresAt; timeout cancels and releases reservations; prepayment on system confirmation timeout is 100% refundable.,Ca PENDING_PAYMENT va PENDING_CONFIRMATION deu co holdExpiresAt; timeout cancel + release reservation,Booking hold,Booking hold must not retain slots indefinitely
+feature,service-execution-role,requiredStaffRole dung staffSubRole,requiredStaffRole dung ServiceExecutionRole: CARE_STAFF_GROOMER|NURSE|VETERINARIAN; RECEPTIONIST khong execute,Execution role,Loại role reception khỏi execution workflow
+final-review,guest-token-security,Guest transaction lookup requires X-Guest-Lookup-Token; cart/checkout requires X-Guest-Cart-Token,Security/OpenAPI,P0,PASS
+final-review,segment-execution,Appointment becomes COMPLETED only after all service segments COMPLETED and one encounter-level ServiceRecord finalized,State/OpenAPI/DB,P0,PASS
+final-review,payment-boundaries,mock-complete only ONLINE_MOCK Order; PAY_AT_STORE uses record-at-store; COD paid at delivery,Payment/OpenAPI,P1,PASS
+final-review,refund-retry,OrderRefund retries reuse one document; BookingRefund REJECTED may be re-requested; terminal refund remains unique,DB index/state,P1,PASS
+final-review,confirmation-timeout-refund,System confirmation timeout with prepayment creates 100% BookingRefund request,Business Rule,P0,PASS
+final-review,guest-resource-security,Guest Appointment/Request/Payment/Refund/Return resource access requires X-Guest-Lookup-Token after OTP,Authz/OpenAPI,P0,PASS
+final-review,appointment-request-lifecycle,"List/Get/Cancel request endpoints added; Customer/Guest own, staff review by branch",OpenAPI/Authz,P1,PASS
+final-review,segment-execution-state,Each appointment segment has executionStatus; overall completion waits for all segments,State/Domain/OpenAPI,P0,PASS
+final-review,slot-time-units,slotMinutes default 15; reservation uses slotStartUnit for full segment range,DB/Index/Architecture,P0,PASS
+final-review,service-record-cas,Materials/professional/reopen/finalize require expectedVersion,OpenAPI/State,P0,PASS
+final-review,payment-combination-matrix,Payment target/method/kind constrained to 4 valid combinations,OpenAPI/State,P1,PASS
