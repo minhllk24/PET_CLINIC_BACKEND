@@ -3,7 +3,7 @@ import Cart from './models/Cart';
 export const getCart = async (req, res, next) => {
   try {
     // Basic implementation finding cart by actor id or token (if guest)
-    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-token'] };
+    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-cart-token'] };
     let cart = await Cart.findOne(query);
     if (!cart) {
       cart = new Cart(query);
@@ -15,7 +15,7 @@ export const getCart = async (req, res, next) => {
 
 export const addItem = async (req, res, next) => {
   try {
-    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-token'] };
+    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-cart-token'] };
     const cart = await Cart.findOne(query);
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
     
@@ -28,7 +28,7 @@ export const addItem = async (req, res, next) => {
 
 export const updateItem = async (req, res, next) => {
   try {
-    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-token'] };
+    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-cart-token'] };
     const cart = await Cart.findOne(query);
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
     
@@ -43,7 +43,7 @@ export const updateItem = async (req, res, next) => {
 
 export const removeItem = async (req, res, next) => {
   try {
-    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-token'] };
+    const query = req.actor ? { customerId: req.actor.id } : { tokenHash: req.headers['x-guest-cart-token'] };
     const cart = await Cart.findOne(query);
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
     

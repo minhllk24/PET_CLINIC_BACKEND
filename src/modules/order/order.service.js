@@ -5,6 +5,7 @@ import Cart from '../cart/models/Cart';
 import Branch from '../branch/models/Branch';
 import InventoryStock from '../inventory/models/InventoryStock';
 import InventoryTransaction from '../inventory/models/InventoryTransaction';
+import SystemSetting from '../settings/models/SystemSetting';
 import AppError from '../../utils/AppError';
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
@@ -22,11 +23,22 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     }
 
     // 2. Fulfillment Branch Resolver
-    // Simplified: Find first branch that has enough stock for all items
-    const branches = await Branch.find({ status: 'ACTIVE' }).sort({ createdAt: 1 }).session(session);
+    // Uses SystemSetting priority list, falls back to chronological active branches
+    const prioritySetting = await SystemSetting.findOne({ key: 'commerce.fulfillmentBranchPriority' }).session(session);
+    let priorityBranchIds = [];
+    if (prioritySetting && Array.isArray(prioritySetting.value) && prioritySetting.value.length > 0) {
+      priorityBranchIds = prioritySetting.value;
+    } else {
+      const branches = await Branch.find({ status: 'ACTIVE' }).sort({ createdAt: 1 }).session(session);
+      priorityBranchIds = branches.map(b => b._id.toString());
+    }
+
     let fulfillmentBranchId = null;
 
-    for (const branch of branches) {
+    for (const bId of priorityBranchIds) {
+      const branch = await Branch.findOne({ _id: bId, status: 'ACTIVE' }).session(session);
+      if (!branch) continue;
+
       let canFulfill = true;
       for (const item of cart.items) {
         const stock = await InventoryStock.findOne({ branchId: branch._id, inventoryItemId: item.productId }).session(session);

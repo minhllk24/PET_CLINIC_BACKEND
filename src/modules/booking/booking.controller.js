@@ -2,7 +2,7 @@ import * as bookingService from './booking.service';
 
 export const createAppointment = async (req, res, next) => {
   try {
-    const appointment = await bookingService.createAppointment(req.body, req.actor, req.headers['x-guest-token']);
+    const appointment = await bookingService.createAppointment(req.body, req.actor, req.headers['x-guest-lookup-token']);
     res.status(201).json(appointment);
   } catch (error) { next(error); }
 };

@@ -21,9 +21,16 @@ export const createAppointment = async (data, actor, guestToken) => {
     const segments = [];
     const startTime = new Date(scheduledStart);
 
+    let appointmentServiceType = null;
     for (const s of services) {
       const service = await Service.findById(s.serviceId).session(session);
       if (!service) throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', `Service ${s.serviceId} not found`);
+
+      if (!appointmentServiceType) {
+        appointmentServiceType = service.serviceType;
+      } else if (appointmentServiceType !== service.serviceType) {
+        throw new AppError(400, 'BadRequest', 'SERVICE_TYPE_MISMATCH', 'All services in an appointment must have the same serviceType');
+      }
 
       // Mock calculation for slot duration (15 min unit)
       const durationMin = 30; // mock duration

@@ -56,6 +56,10 @@ export const finalizeRecord = async (id, data, actor) => {
     const record = await ServiceRecord.findById(id).session(session);
     if (!record) throw new AppError(404, 'NotFound', 'RECORD_NOT_FOUND', 'Record not found');
 
+    if (data.expectedVersion !== undefined && record.version !== data.expectedVersion) {
+      throw new AppError(409, 'Conflict', 'CONCURRENCY_CONFLICT', 'Service record has been updated by another user');
+    }
+
     if (data.actualMaterials) record.actualMaterials = data.actualMaterials;
     if (data.professional) Object.assign(record.professional, data.professional);
 
@@ -103,6 +107,7 @@ export const finalizeRecord = async (id, data, actor) => {
       }
     }
 
+    record.version += 1;
     record.status = 'FINALIZED';
     await record.save({ session });
 
