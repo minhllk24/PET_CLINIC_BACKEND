@@ -60,6 +60,19 @@ export const finalizeRecord = async (id, data, actor) => {
       throw new AppError(409, 'Conflict', 'CONCURRENCY_CONFLICT', 'Service record has been updated by another user');
     }
 
+    if (record.serviceType === 'MEDICAL') {
+      if (record.status !== 'WAITING_VET_REVIEW') {
+        throw new AppError(400, 'BadRequest', 'INVALID_STATE', 'Medical record must be in WAITING_VET_REVIEW');
+      }
+      if (actor.staffSubRole !== 'VETERINARIAN') {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Only Veterinarian can finalize medical records');
+      }
+      const apt = await Appointment.findById(record.appointmentId).session(session);
+      if (apt && apt.reviewerStaffId && apt.reviewerStaffId.toString() !== actor.id.toString()) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You are not the assigned reviewer for this appointment');
+      }
+    }
+
     if (data.actualMaterials) record.actualMaterials = data.actualMaterials;
     if (data.professional) Object.assign(record.professional, data.professional);
 

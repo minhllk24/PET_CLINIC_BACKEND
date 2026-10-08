@@ -49,3 +49,10 @@ export const startSegment = async (req, res, next) => {
     res.json(appointment);
   } catch (error) { next(error); }
 };
+
+export const mockCompletePayment = async (req, res, next) => {
+  try {
+    const result = await bookingService.mockCompletePayment(req.params.prepaymentId, req.actor);
+    res.json(result);
+  } catch (error) { next(error); }
+};

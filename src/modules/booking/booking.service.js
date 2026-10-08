@@ -67,26 +67,32 @@ export const createAppointment = async (data, actor, guestToken) => {
 
       totalDuration += durationMin;
       finalAmount += service.basePrice || 100000;
-      
-      if (service.depositConfig && service.depositConfig.type === 'PERCENTAGE') {
-        depositRequired += ((service.basePrice || 100000) * service.depositConfig.value) / 100;
-      }
     }
 
-    // Determine status and payment
-    let status = 'PENDING_CONFIRMATION';
-    let paymentAmount = finalAmount;
-    let paymentKind = 'FULL';
+    // V7 Payment Logic
+    let status = '';
+    let paymentAmount = 0;
+    let paymentKind = '';
+    let depositAmount = 0;
+    let balanceAmount = 0;
+    let paidAmount = 0;
 
     if (paymentMethod === 'PAY_AT_STORE') {
-      if (depositRequired > 0) {
-        status = 'PENDING_PAYMENT';
-        paymentAmount = depositRequired;
-        paymentKind = 'DEPOSIT';
-      } else {
-        paymentAmount = 0; // No payment upfront required
-      }
+      depositAmount = Math.round(finalAmount * 0.30);
+      balanceAmount = finalAmount - depositAmount;
+      paymentAmount = depositAmount;
+      paymentKind = 'DEPOSIT';
+      status = 'PENDING_PAYMENT';
+    } else if (paymentMethod === 'ONLINE_MOCK') {
+      paymentAmount = finalAmount;
+      paidAmount = finalAmount;
+      depositAmount = 0;
+      balanceAmount = 0;
+      paymentKind = 'FULL';
+      status = 'PENDING_CONFIRMATION';
     }
+
+    const holdExpiresAt = new Date(Date.now() + 10 * 60000); // 10 minutes hold
 
     const appointment = new Appointment({
       customerId: actor ? actor.id : undefined,
@@ -97,8 +103,9 @@ export const createAppointment = async (data, actor, guestToken) => {
       totalDuration,
       status,
       services: segments,
-      pricing: { finalAmount, paidAmount: 0 },
-      paymentMethod
+      pricing: { finalAmount, paidAmount, depositAmount, balanceAmount },
+      paymentMethod,
+      holdExpiresAt
     });
 
     await appointment.save({ session });
@@ -120,8 +127,8 @@ export const createAppointment = async (data, actor, guestToken) => {
       });
       await payment.save({ session });
 
-      if (paymentMethod === 'ONLINE_MOCK') {
-        appointment.pricing.paidAmount = finalAmount;
+      if (paymentMethod === 'PAY_AT_STORE') {
+        appointment.prepaymentId = payment._id;
         await appointment.save({ session });
       }
     }
@@ -155,17 +162,91 @@ export const rescheduleAppointment = async (id, data, actor) => {
 };
 
 export const cancelAppointment = async (id, actor) => {
-  const apt = await Appointment.findById(id);
-  apt.status = 'CANCELLED';
-  await apt.save();
-  return apt;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const apt = await Appointment.findById(id).session(session);
+    if (!apt) throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+    
+    const now = new Date();
+    const hoursBeforeStart = (apt.scheduledStart.getTime() - now.getTime()) / 3600000;
+    let penalty = 0;
+
+    // TA-30 Logic: penalty applies only if canceled by Customer < 24h
+    if (actor && actor.systemRole !== 'STAFF' && actor.systemRole !== 'ADMIN' && actor.systemRole !== 'MANAGER') {
+      if (hoursBeforeStart < 24) {
+        penalty = Math.round(apt.pricing.finalAmount * 0.30);
+      }
+    }
+
+    const refundAmount = Math.max(0, (apt.pricing.paidAmount || 0) - penalty);
+
+    apt.status = 'CANCELLED';
+    apt.cancel = {
+      by: actor && ['STAFF', 'ADMIN', 'MANAGER'].includes(actor.systemRole) ? 'STORE' : 'CUSTOMER',
+      at: now,
+      actorId: actor ? actor.id : null,
+      reason: 'User requested cancellation',
+      hoursBeforeStart,
+      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED'
+    };
+
+    if (refundAmount > 0) {
+      const payment = await Payment.findOne({ targetType: 'APPOINTMENT', targetId: apt._id, status: 'PAID' }).session(session);
+      if (payment) {
+        payment.status = 'REFUND_PENDING';
+        await payment.save({ session });
+      }
+    }
+
+    await apt.save({ session });
+    await session.commitTransaction();
+    session.endSession();
+    return apt;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };
 
 export const markNoShow = async (id, actor) => {
-  const apt = await Appointment.findById(id);
-  apt.status = 'NO_SHOW';
-  await apt.save();
-  return apt;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const apt = await Appointment.findById(id).session(session);
+    if (!apt) throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+
+    const penalty = Math.round(apt.pricing.finalAmount * 0.30);
+    const refundAmount = Math.max(0, (apt.pricing.paidAmount || 0) - penalty);
+
+    apt.status = 'NO_SHOW';
+    apt.cancel = {
+      by: 'SYSTEM',
+      at: new Date(),
+      actorId: actor ? actor.id : null,
+      reason: 'NO_SHOW',
+      hoursBeforeStart: 0,
+      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED'
+    };
+
+    if (refundAmount > 0) {
+      const payment = await Payment.findOne({ targetType: 'APPOINTMENT', targetId: apt._id, status: 'PAID' }).session(session);
+      if (payment) {
+        payment.status = 'REFUND_PENDING';
+        await payment.save({ session });
+      }
+    }
+
+    await apt.save({ session });
+    await session.commitTransaction();
+    session.endSession();
+    return apt;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };
 
 export const startSegment = async (id, serviceId, actor) => {
@@ -175,4 +256,40 @@ export const startSegment = async (id, serviceId, actor) => {
   if (apt.status === 'CONFIRMED') apt.status = 'IN_PROGRESS';
   await apt.save();
   return apt;
+};
+
+export const mockCompletePayment = async (prepaymentId, actor) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const payment = await Payment.findById(prepaymentId).session(session);
+    if (!payment) throw new AppError(404, 'NotFound', 'PAYMENT_NOT_FOUND', 'Payment not found');
+    if (payment.status === 'PAID') {
+      await session.abortTransaction();
+      session.endSession();
+      return { message: 'Already paid' };
+    }
+    if (payment.status !== 'PENDING') throw new AppError(400, 'BadRequest', 'INVALID_STATE', 'Payment is not PENDING');
+
+    payment.status = 'PAID';
+    payment.paidAt = new Date();
+    await payment.save({ session });
+
+    if (payment.targetType === 'APPOINTMENT') {
+      const apt = await Appointment.findById(payment.targetId).session(session);
+      if (apt && apt.status === 'PENDING_PAYMENT') {
+        apt.pricing.paidAmount += payment.amount;
+        apt.status = 'PENDING_CONFIRMATION';
+        apt.holdExpiresAt = new Date(Date.now() + 10 * 60000); 
+        await apt.save({ session });
+      }
+    }
+    await session.commitTransaction();
+    session.endSession();
+    return payment;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };

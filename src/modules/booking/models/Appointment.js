@@ -9,7 +9,6 @@ const serviceSegmentSchema = new mongoose.Schema({
   durationMinutes: Number,
   requiredStaffRole: String,
   bookingMode: String,
-  depositConfig: Object,
   sequence: Number,
   scheduledStart: Date,
   scheduledEnd: Date,
@@ -57,6 +56,8 @@ const schema = new mongoose.Schema({
     prepaidOutcome: String
   },
   holdExpiresAt: Date,
+  prepaymentId: mongoose.Schema.Types.ObjectId,
+  reviewerStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'StaffProfile' },
   source: String,
   version: { type: Number, default: 1 }
 }, { timestamps: true, optimisticConcurrency: true, versionKey: 'version' });

@@ -11,11 +11,6 @@ const schema = new mongoose.Schema({
   durationMinutes: Number,
   requiredStaffRole: { type: String, enum: ['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN'] },
   bookingMode: String,
-  depositConfig: {
-    depositRequired: Boolean,
-    depositType: { type: String, enum: ['PERCENTAGE', 'NONE'] },
-    depositValue: Number
-  },
   defaultMaterials: [{ type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem' }],
   contactInfo: Object,
   status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },

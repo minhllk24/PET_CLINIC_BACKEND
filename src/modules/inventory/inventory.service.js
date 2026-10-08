@@ -81,3 +81,101 @@ export const recordTransaction = async (data, actor) => {
 export const getStocks = async (query) => {
   return await InventoryStock.find(query);
 };
+
+export const updateThreshold = async (branchId, inventoryItemId, threshold, expectedVersion, actor) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    let stock = await InventoryStock.findOne({ branchId, inventoryItemId }).session(session);
+    if (!stock) {
+      stock = new InventoryStock({
+        branchId,
+        inventoryItemId,
+        quantity: 0,
+        threshold: 0,
+        version: 1
+      });
+      await stock.save({ session });
+    }
+
+    if (expectedVersion !== undefined && stock.version !== expectedVersion) {
+      throw new AppError(409, 'Conflict', 'CONCURRENCY_CONFLICT', 'Stock threshold updated by another user');
+    }
+
+    stock.threshold = threshold;
+    stock.version += 1;
+    await stock.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+    return stock;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
+export const createTransfer = async (data, actor) => {
+  const { sourceBranchId, destinationBranchId, inventoryItemId, quantity, notes } = data;
+  if (actor.systemRole === 'MANAGER') {
+    const hasSource = actor.assignedBranchIds && actor.assignedBranchIds.includes(sourceBranchId.toString());
+    const hasDest = actor.assignedBranchIds && actor.assignedBranchIds.includes(destinationBranchId.toString());
+    if (!hasSource || !hasDest) {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Manager must have access to both source and destination branches');
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    let sourceStock = await InventoryStock.findOne({ branchId: sourceBranchId, inventoryItemId }).session(session);
+    if (!sourceStock || sourceStock.quantity < quantity) {
+      throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Insufficient stock at source branch');
+    }
+    sourceStock.quantity -= quantity;
+    await sourceStock.save({ session });
+
+    const sourceTx = new InventoryTransaction({
+      branchId: sourceBranchId,
+      inventoryItemId,
+      transactionType: 'ISSUE',
+      quantity: quantity,
+      stockAfter: sourceStock.quantity,
+      sourceType: 'MANUAL',
+      actorId: actor.id,
+      notes: `Transfer to ${destinationBranchId}: ${notes}`,
+      postedAt: new Date()
+    });
+    await sourceTx.save({ session });
+
+    let destStock = await InventoryStock.findOne({ branchId: destinationBranchId, inventoryItemId }).session(session);
+    if (!destStock) {
+      destStock = new InventoryStock({ branchId: destinationBranchId, inventoryItemId, quantity });
+    } else {
+      destStock.quantity += quantity;
+    }
+    await destStock.save({ session });
+
+    const destTx = new InventoryTransaction({
+      branchId: destinationBranchId,
+      inventoryItemId,
+      transactionType: 'RECEIPT',
+      quantity: quantity,
+      stockAfter: destStock.quantity,
+      sourceType: 'MANUAL',
+      actorId: actor.id,
+      notes: `Transfer from ${sourceBranchId}: ${notes}`,
+      postedAt: new Date()
+    });
+    await destTx.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+    return { sourceTx, destTx };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
