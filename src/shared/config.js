@@ -23,6 +23,17 @@ const config = {
   jwt: {
     accessSecret: process.env.JWT_ACCESS_TOKEN_SECRET,
     refreshSecret: process.env.JWT_REFRESH_TOKEN_SECRET,
+    resetSecret: process.env.JWT_RESET_TOKEN_SECRET || process.env.JWT_ACCESS_TOKEN_SECRET,
+  },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  },
+  email: {
+    user: process.env.EMAIL_APP || '',
+    password: process.env.EMAIL_APP_PASSWORD || '',
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
   },
   cors: {
     // Only allow specific Angular origins as per doc 13
@@ -34,3 +45,4 @@ const config = {
 };
 
 export default config;
+
