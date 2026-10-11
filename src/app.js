@@ -1,14 +1,17 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import * as OpenApiValidator from 'express-openapi-validator';
 import path from 'path';
 
-import config from './shared/config';
-import { httpLogger } from './shared/logger';
-import { errorHandler, notFoundHandler } from './shared/errorHandler';
-import healthRoutes from './routes/health';
+import config from './shared/config.js';
+import { httpLogger } from './shared/logger.js';
+import { errorHandler, notFoundHandler } from './shared/errorHandler.js';
+import healthRoutes from './routes/health.js';
+import authRoutes from './modules/auth/auth.routes.js';
+import adminUsersRoutes from './modules/admin/users/adminUsers.routes.js';
 
 const app = express();
 
@@ -51,6 +54,7 @@ app.use(httpLogger);
 // Limit payload size to 1mb (from 50mb legacy)
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
+app.use(cookieParser());
 
 // OpenAPI Validator
 const apiSpecPath = path.join(__dirname, '../docs/07-openapi-v5.yaml');
@@ -67,6 +71,8 @@ app.use(
 
 // Routes
 app.use('/api/v1', healthRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/admin/users', adminUsersRoutes);
 
 // Catch 404
 app.use(notFoundHandler);
