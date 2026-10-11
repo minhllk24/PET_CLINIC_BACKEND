@@ -11,8 +11,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:studio": "prisma studio",
-    "seed": "babel-node src/seeds/adminSeed.js",
+    "seed": "babel-node src/seeds/demoUsersSeed.js",
     "seed:admin": "babel-node src/seeds/adminSeed.js",
+    "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
     "test": "babel-node tests/p0-security.test.js",
     "prisma:seed": "prisma db seed",
     "services:enable-weight-surcharge": "babel-node prisma/enableWeightSurcharge.js"
