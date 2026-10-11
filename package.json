@@ -11,7 +11,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:studio": "prisma studio",
-    "seed": "prisma db seed",
+    "seed": "babel-node src/seeds/adminSeed.js",
+    "seed:admin": "babel-node src/seeds/adminSeed.js",
+    "test": "babel-node tests/p0-security.test.js",
+    "prisma:seed": "prisma db seed",
     "services:enable-weight-surcharge": "babel-node prisma/enableWeightSurcharge.js"
   },
   "prisma": {
@@ -43,7 +46,9 @@
     "@babel/core": "^7.26.0",
     "@babel/node": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.7",
-    "prisma": "^5.14.0"
+    "prisma": "^5.14.0",
+    "supertest": "^7.3.1"
   }
 }
