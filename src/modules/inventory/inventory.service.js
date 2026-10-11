@@ -3,79 +3,151 @@ import InventoryTransaction from './models/InventoryTransaction';
 import InventoryStock from './models/InventoryStock';
 import AppError from '../../utils/AppError';
 
-export const recordTransaction = async (data, actor) => {
+export const executeStockMovement = async ({
+  branchId,
+  inventoryItemId,
+  transactionType,
+  quantity,
+  reason,
+  sourceType = 'MANUAL',
+  sourceId = null,
+  actor
+}) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  
   try {
-    const { 
-      branchId, 
-      inventoryItemId, 
-      transactionType, // RECEIPT, ISSUE, ADJUSTMENT, TRANSFER
-      quantity, 
-      sourceType, // MANUAL, ORDER, SERVICE_RECORD_REVISION
-      sourceId,
-      notes 
-    } = data;
+    let stock = await InventoryStock.findOne({ branchId, inventoryItemId }).session(session);
+    const beforeQty = stock ? stock.quantity : 0;
+    let changeQty = 0;
+    let afterQty = beforeQty;
 
-    if (quantity <= 0 && transactionType !== 'ADJUSTMENT') {
-      throw new AppError(400, 'ValidationError', 'INVALID_QUANTITY', 'Quantity must be positive');
+    if (transactionType === 'RECEIPT') {
+      changeQty = Math.abs(quantity);
+      afterQty = beforeQty + changeQty;
+    } else if (transactionType === 'ISSUE') {
+      changeQty = -Math.abs(quantity);
+      afterQty = beforeQty + changeQty;
+      if (afterQty < 0) {
+        throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Cannot issue more than available stock');
+      }
+    } else if (transactionType === 'ADJUSTMENT') {
+      afterQty = quantity;
+      changeQty = afterQty - beforeQty;
     }
 
-    // Determine quantity delta based on transaction type
-    let delta = quantity;
-    if (transactionType === 'ISSUE') {
-      delta = -Math.abs(quantity);
-    } else if (transactionType === 'RECEIPT') {
-      delta = Math.abs(quantity);
-    } // ADJUSTMENT can be positive or negative
-
-    // Update or create stock
-    let stock = await InventoryStock.findOne({ branchId, inventoryItemId }).session(session);
-    
     if (!stock) {
-      if (delta < 0) {
-        throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Cannot issue from empty stock');
-      }
       stock = new InventoryStock({
         branchId,
         inventoryItemId,
-        quantity: delta,
-        lastTransactionAt: new Date()
+        quantity: afterQty,
+        lowStockThreshold: 0,
+        version: 1
       });
     } else {
-      if (stock.quantity + delta < 0) {
-        throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Insufficient stock');
-      }
-      stock.quantity += delta;
-      stock.lastTransactionAt = new Date();
+      stock.quantity = afterQty;
+      stock.version += 1;
     }
     await stock.save({ session });
 
-    // Create append-only ledger record
-    const transaction = new InventoryTransaction({
+    const tx = new InventoryTransaction({
       branchId,
       inventoryItemId,
       transactionType,
-      quantity,
-      stockAfter: stock.quantity,
+      beforeQty,
+      changeQty,
+      afterQty,
+      actorId: actor ? (actor.id || actor._id) : new mongoose.Types.ObjectId(),
+      reason: reason || 'Inventory movement',
       sourceType,
       sourceId,
-      actorId: actor.id,
-      notes,
-      postedAt: new Date()
+      idempotencyKey: actor && actor.idempotencyKey ? actor.idempotencyKey : null
     });
-    await transaction.save({ session });
+    await tx.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
-    return { transaction, stock };
+    return { transaction: formatInventoryTransaction(tx), stock };
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     throw error;
   }
+};
+
+export const formatInventoryTransaction = (tx) => {
+  if (!tx) return null;
+  const obj = typeof tx.toObject === 'function' ? tx.toObject() : { ...tx };
+  return {
+    id: (obj._id || obj.id).toString(),
+    branchId: (obj.branchId._id || obj.branchId).toString(),
+    inventoryItemId: (obj.inventoryItemId._id || obj.inventoryItemId).toString(),
+    transactionType: obj.transactionType,
+    beforeQty: obj.beforeQty,
+    changeQty: obj.changeQty,
+    afterQty: obj.afterQty,
+    actorId: (obj.actorId._id || obj.actorId).toString(),
+    reason: obj.reason,
+    createdAt: obj.createdAt ? new Date(obj.createdAt).toISOString() : new Date().toISOString(),
+    sourceType: obj.sourceType || 'MANUAL',
+    sourceId: obj.sourceId ? obj.sourceId.toString() : null,
+    recordVersion: obj.recordVersion !== undefined ? obj.recordVersion : null
+  };
+};
+
+export const receiveStock = async (data, actor) => {
+  const { branchId, inventoryItemId, quantity, reason } = data;
+  if (!quantity || quantity <= 0) {
+    throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'Quantity must be positive');
+  }
+  if (!reason || reason.trim().length < 3) {
+    throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'Reason is required and must have at least 3 characters');
+  }
+
+  if (actor && actor.systemRole === 'MANAGER') {
+    const isAuthorized = actor.assignedBranchIds && actor.assignedBranchIds.includes(branchId.toString());
+    if (!isAuthorized) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'Manager cannot receive stock for unassigned branch');
+    }
+  }
+
+  const { transaction } = await executeStockMovement({
+    branchId,
+    inventoryItemId,
+    transactionType: 'RECEIPT',
+    quantity,
+    reason: reason.trim(),
+    sourceType: 'MANUAL',
+    actor
+  });
+
+  return transaction;
+};
+
+export const recordTransaction = async (data, actor) => {
+  const { 
+    branchId, 
+    inventoryItemId, 
+    transactionType, // RECEIPT, ISSUE, ADJUSTMENT, TRANSFER
+    quantity, 
+    sourceType, // MANUAL, ORDER, SERVICE_RECORD_REVISION
+    sourceId,
+    notes,
+    reason 
+  } = data;
+
+  const res = await executeStockMovement({
+    branchId,
+    inventoryItemId,
+    transactionType,
+    quantity,
+    reason: reason || notes || 'Transaction recorded',
+    sourceType: sourceType || 'MANUAL',
+    sourceId,
+    actor
+  });
+
+  return { transaction: res.transaction, stock: res.stock };
 };
 
 export const getStocks = async (query) => {

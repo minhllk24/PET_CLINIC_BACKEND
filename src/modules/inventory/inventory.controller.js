@@ -9,6 +9,15 @@ export const createTransaction = async (req, res, next) => {
   }
 };
 
+export const receiveStock = async (req, res, next) => {
+  try {
+    const result = await inventoryService.receiveStock(req.body, req.actor);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getStocks = async (req, res, next) => {
   try {
     const { branchId, productId } = req.query;

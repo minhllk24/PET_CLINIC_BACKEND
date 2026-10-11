@@ -22,7 +22,11 @@ const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '8080', 10),
   mongoUri: process.env.MONGODB_URI,
-  openapiSpecPath: process.env.OPENAPI_SPEC_PATH || path.join(__dirname, '../../docs/07-openapi-v6.yaml'),
+  openapiSpecPath: process.env.OPENAPI_SPEC_PATH || (
+    fs.existsSync(path.join(__dirname, '../../docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml'))
+      ? path.join(__dirname, '../../docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml')
+      : path.join(__dirname, '../../docs/07-openapi-v6.yaml')
+  ),
   jwt: {
     accessSecret: process.env.JWT_ACCESS_TOKEN_SECRET,
     refreshSecret: process.env.JWT_REFRESH_TOKEN_SECRET,

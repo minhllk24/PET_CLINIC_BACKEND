@@ -6,6 +6,7 @@ import Branch from '../branch/models/Branch';
 import InventoryStock from '../inventory/models/InventoryStock';
 import InventoryTransaction from '../inventory/models/InventoryTransaction';
 import SystemSetting from '../settings/models/SystemSetting';
+import Product from '../catalog/models/Product';
 import AppError from '../../utils/AppError';
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
@@ -20,6 +21,22 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     const cart = await Cart.findOne(query).session(session);
     if (!cart || cart.items.length === 0) {
       throw new AppError(400, 'ValidationError', 'EMPTY_CART', 'Cart is empty or not found');
+    }
+
+    // Resolve inventoryItemIds for cart items
+    for (const item of cart.items) {
+      let resolvedInvId = item.productId;
+      let resolvedName = 'Product';
+      const prod = await Product.findById(item.productId).session(session);
+      if (prod) {
+        resolvedName = prod.name;
+        if (prod.variants && item.variantId) {
+          const v = prod.variants.id ? prod.variants.id(item.variantId) : prod.variants.find(varItem => varItem._id.toString() === item.variantId.toString());
+          if (v && v.inventoryItemId) resolvedInvId = v.inventoryItemId;
+        }
+      }
+      item._resolvedInvId = resolvedInvId;
+      item._resolvedName = resolvedName;
     }
 
     // 2. Fulfillment Branch Resolver
@@ -41,7 +58,7 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
 
       let canFulfill = true;
       for (const item of cart.items) {
-        const stock = await InventoryStock.findOne({ branchId: branch._id, inventoryItemId: item.productId }).session(session);
+        const stock = await InventoryStock.findOne({ branchId: branch._id, inventoryItemId: item._resolvedInvId }).session(session);
         if (!stock || stock.quantity < item.quantity) {
           canFulfill = false;
           break;
@@ -57,21 +74,28 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'No branch has sufficient inventory for all items');
     }
 
-    // 3. Issue Inventory (Decrement)
+    // 3. Issue Inventory (Atomic Decrement)
     for (const item of cart.items) {
-      const stock = await InventoryStock.findOne({ branchId: fulfillmentBranchId, inventoryItemId: item.productId }).session(session);
-      stock.quantity -= item.quantity;
-      await stock.save({ session });
+      const stock = await InventoryStock.findOneAndUpdate(
+        { branchId: fulfillmentBranchId, inventoryItemId: item._resolvedInvId, quantity: { $gte: item.quantity } },
+        { $inc: { quantity: -item.quantity } },
+        { session, new: true }
+      );
+      if (!stock) {
+        throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Stock changed during checkout');
+      }
 
       const tx = new InventoryTransaction({
         branchId: fulfillmentBranchId,
-        inventoryItemId: item.productId,
+        inventoryItemId: item._resolvedInvId,
         transactionType: 'ISSUE',
-        quantity: item.quantity,
-        stockAfter: stock.quantity,
+        beforeQty: stock.quantity + item.quantity,
+        changeQty: -item.quantity,
+        afterQty: stock.quantity,
         sourceType: 'ORDER',
         actorId: actor ? actor.id : null,
-        postedAt: new Date()
+        reason: `Order checkout for product ${item._resolvedName}`,
+        createdAt: new Date()
       });
       // sourceId will be updated after Order is created
       await tx.save({ session });
@@ -187,21 +211,44 @@ export const cancelOrder = async (orderId, actor, reason, isCustomer = false) =>
 
     // Compensating transaction: RECEIPT for each item
     for (const item of order.items) {
-      const stock = await InventoryStock.findOne({ branchId: order.fulfillmentBranchId, inventoryItemId: item.productId }).session(session);
-      stock.quantity += item.quantity;
+      let invItemId = item.productId;
+      const prod = await Product.findById(item.productId).session(session);
+      if (prod && prod.variants && item.variantId) {
+        const v = prod.variants.id ? prod.variants.id(item.variantId) : prod.variants.find(varItem => varItem._id.toString() === item.variantId.toString());
+        if (v && v.inventoryItemId) invItemId = v.inventoryItemId;
+      }
+
+      let stock = await InventoryStock.findOne({ branchId: order.fulfillmentBranchId, inventoryItemId: invItemId }).session(session);
+      const beforeQty = stock ? stock.quantity : 0;
+      const changeQty = item.quantity;
+      const afterQty = beforeQty + changeQty;
+
+      if (!stock) {
+        stock = new InventoryStock({
+          branchId: order.fulfillmentBranchId,
+          inventoryItemId: invItemId,
+          quantity: afterQty,
+          lowStockThreshold: 0,
+          version: 1
+        });
+      } else {
+        stock.quantity = afterQty;
+        stock.version += 1;
+      }
       await stock.save({ session });
 
       const tx = new InventoryTransaction({
         branchId: order.fulfillmentBranchId,
-        inventoryItemId: item.productId,
+        inventoryItemId: invItemId,
         transactionType: 'RECEIPT',
-        quantity: item.quantity,
-        stockAfter: stock.quantity,
+        beforeQty,
+        changeQty,
+        afterQty,
         sourceType: 'ORDER',
         sourceId: order._id,
-        actorId: actor ? actor.id : null,
-        postedAt: new Date(),
-        notes: 'Order Cancellation Compensation'
+        actorId: actor ? (actor.id || actor._id) : null,
+        reason: 'Order Cancellation Compensation',
+        createdAt: new Date()
       });
       await tx.save({ session });
     }

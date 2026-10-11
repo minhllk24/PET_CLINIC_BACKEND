@@ -1,20 +1,22 @@
 import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
-  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem' },
-  transactionType: { type: String, enum: ['RECEIPT', 'ISSUE', 'ADJUSTMENT', 'TRANSFER'] },
-  beforeQty: Number,
-  changeQty: Number,
-  afterQty: Number,
-  actorId: mongoose.Schema.Types.ObjectId,
-  reason: String,
-  sourceType: { type: String, enum: ['MANUAL', 'SERVICE_RECORD_REVISION', 'ORDER', 'TRANSFER'] },
-  sourceId: mongoose.Schema.Types.ObjectId,
-  recordVersion: Number,
-  transferId: mongoose.Schema.Types.ObjectId,
-  transferLeg: String,
-  idempotencyKey: String
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
+  inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem', required: true, index: true },
+  transactionType: { type: String, enum: ['RECEIPT', 'ISSUE', 'ADJUSTMENT', 'TRANSFER'], required: true },
+  beforeQty: { type: Number, required: true },
+  changeQty: { type: Number, required: true },
+  afterQty: { type: Number, required: true, min: 0 },
+  actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  reason: { type: String, required: true, trim: true },
+  sourceType: { type: String, enum: ['MANUAL', 'SERVICE_RECORD_REVISION', 'ORDER', 'TRANSFER'], default: 'MANUAL', required: true },
+  sourceId: { type: mongoose.Schema.Types.Mixed, default: null },
+  recordVersion: { type: Number, default: null },
+  transferId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  transferLeg: { type: String, default: null },
+  idempotencyKey: { type: String, default: null }
 }, { timestamps: true });
 
-export default mongoose.model('InventoryTransaction', schema);
+schema.index({ branchId: 1, inventoryItemId: 1, createdAt: -1 });
+
+export default mongoose.models.InventoryTransaction || mongoose.model('InventoryTransaction', schema);
