@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
-import AppError from '../utils/AppError';
-import config from './config';
+import AppError from '../utils/AppError.js';
+import config from './config.js';
+import User from '../models/User.js';
 
 const extractToken = (req) => {
   if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
@@ -9,7 +10,10 @@ const extractToken = (req) => {
   return null;
 };
 
-export const authenticate = (req, res, next) => {
+/**
+ * Authenticate request using Bearer JWT and verify actor against database
+ */
+export const authenticate = async (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
@@ -18,44 +22,93 @@ export const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, config.jwt.accessSecret);
-    
-    // According to docs, actor fields are resolved by server token+DB.
-    // For skeleton, we just set decoded info onto req.actor
+
+    // Defense-in-depth: lookup user in DB to ensure account is still active and claims are fresh
+    const user = await User.findById(decoded.id).select(
+      'phone fullName email systemRole staffSubRole assignedBranchIds accountStatus lockedUntil'
+    );
+
+    if (!user) {
+      return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Account not found or deleted'));
+    }
+
+    if (user.accountStatus !== 'ACTIVE') {
+      return next(new AppError(403, 'Forbidden', 'ACCOUNT_INACTIVE', `Account status is ${user.accountStatus}`));
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      return next(new AppError(423, 'Locked', 'ACCOUNT_LOCKED', 'Account is temporarily locked'));
+    }
+
+    const assignedBranches = (user.assignedBranchIds || []).map((id) => id.toString());
+
     req.actor = {
-      id: decoded.id,
-      systemRole: decoded.systemRole,
-      staffSubRole: decoded.staffSubRole,
-      assignedBranchIds: decoded.assignedBranchIds || [],
-      authorizedBranchIds: decoded.authorizedBranchIds || [],
+      id: user._id.toString(),
+      phone: user.phone,
+      fullName: user.fullName,
+      email: user.email,
+      systemRole: user.systemRole,
+      staffSubRole: user.staffSubRole,
+      assignedBranchIds: assignedBranches,
+      authorizedBranchIds: assignedBranches,
+      accountStatus: user.accountStatus,
     };
-    
+    req.user = user;
+
     next();
   } catch (error) {
-    return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Token is invalid or expired'));
+    if (error.name === 'TokenExpiredError') {
+      return next(new AppError(401, 'Unauthenticated', 'TOKEN_EXPIRED', 'Token has expired'));
+    }
+    return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Token is invalid or malformed'));
   }
 };
 
-export const optionalAuth = (req, res, next) => {
+/**
+ * Optional authentication: attaches req.actor if valid Bearer token provided, otherwise req.actor = null
+ */
+export const optionalAuth = async (req, res, next) => {
   const token = extractToken(req);
   if (!token) {
     req.actor = null;
     return next();
   }
+
   try {
     const decoded = jwt.verify(token, config.jwt.accessSecret);
-    req.actor = {
-      id: decoded.id,
-      systemRole: decoded.systemRole,
-      staffSubRole: decoded.staffSubRole,
-      assignedBranchIds: decoded.assignedBranchIds || [],
-      authorizedBranchIds: decoded.authorizedBranchIds || [],
-    };
+    const user = await User.findById(decoded.id).select(
+      'phone fullName email systemRole staffSubRole assignedBranchIds accountStatus lockedUntil'
+    );
+
+    if (user && user.accountStatus === 'ACTIVE' && (!user.lockedUntil || user.lockedUntil <= new Date())) {
+      const assignedBranches = (user.assignedBranchIds || []).map((id) => id.toString());
+      req.actor = {
+        id: user._id.toString(),
+        phone: user.phone,
+        fullName: user.fullName,
+        email: user.email,
+        systemRole: user.systemRole,
+        staffSubRole: user.staffSubRole,
+        assignedBranchIds: assignedBranches,
+        authorizedBranchIds: assignedBranches,
+        accountStatus: user.accountStatus,
+      };
+      req.user = user;
+    } else {
+      req.actor = null;
+    }
   } catch (error) {
     req.actor = null;
   }
+
   next();
 };
 
+/**
+ * Enforce role & staff sub-role authorization
+ * @param {Array<string>} allowedSystemRoles
+ * @param {Array<string>} [allowedStaffSubRoles=[]]
+ */
 export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
   return (req, res, next) => {
     if (!req.actor) {
@@ -63,7 +116,7 @@ export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
     }
 
     const hasSystemRole = allowedSystemRoles.includes(req.actor.systemRole);
-    
+
     let hasStaffSubRole = true;
     if (allowedStaffSubRoles.length > 0 && req.actor.systemRole === 'STAFF') {
       hasStaffSubRole = allowedStaffSubRoles.includes(req.actor.staffSubRole);
@@ -75,4 +128,10 @@ export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
 
     next();
   };
+};
+
+export default {
+  authenticate,
+  optionalAuth,
+  requireRole,
 };
