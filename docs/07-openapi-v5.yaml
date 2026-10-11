@@ -80,7 +80,7 @@ paths:
       - Auth
       security: []
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -6902,12 +6902,17 @@ components:
         identifier:
           type: string
           description: email hoac phone
+        phone:
+          type: string
+          description: So dien thoai dang nhap
         password:
           type: string
           minLength: 8
+        rememberMe:
+          type: boolean
+          default: false
       additionalProperties: false
       required:
-      - identifier
       - password
     RefreshRequest:
       type: object
@@ -6915,8 +6920,6 @@ components:
         refreshToken:
           type: string
       additionalProperties: false
-      required:
-      - refreshToken
     RegisterRequest:
       type: object
       properties:
@@ -6935,9 +6938,11 @@ components:
           minLength: 8
           pattern: ^(?=.*[A-Z])(?=.*[0-9]).{8,}$
           description: Toi thieu 8 ky tu, co chu hoa va so
+        confirmPassword:
+          type: string
+          minLength: 8
         acceptTerms:
           type: boolean
-          const: true
         otp:
           type: string
       additionalProperties: false
@@ -6945,7 +6950,6 @@ components:
       - fullName
       - phone
       - password
-      - acceptTerms
     ForgotPasswordRequest:
       type: object
       properties:
