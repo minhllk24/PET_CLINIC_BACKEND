@@ -19,12 +19,17 @@ const app = express();
 app.use(helmet()); // Sets various HTTP headers like X-Content-Type-Options
 
 // CORS Configuration (Allowlist from env)
+const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
+
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (config.cors.allowedOrigins.indexOf(origin) === -1) {
+    const incoming = normalizeOrigin(origin);
+    const isAllowed = config.cors.allowedOrigins.some((allowed) => normalizeOrigin(allowed) === incoming);
+
+    if (!isAllowed) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }

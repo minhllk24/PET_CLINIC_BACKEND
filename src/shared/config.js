@@ -36,10 +36,11 @@ const config = {
     port: parseInt(process.env.EMAIL_PORT || '587', 10),
   },
   cors: {
-    // Only allow specific Angular origins as per doc 13
+    // Only allow specific Angular / Frontend origins as per doc 13
     allowedOrigins: [
       process.env.CUSTOMER_APP_URL || 'http://localhost:3000',
       process.env.ADMIN_APP_URL || 'http://localhost:3001',
+      'http://localhost:4200',
     ],
   },
 };
