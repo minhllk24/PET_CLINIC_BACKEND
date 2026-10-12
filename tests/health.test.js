@@ -73,6 +73,17 @@ describe('Foundation Verification Tests', () => {
     expect(res.body).toHaveProperty('code', 'AUTHORIZATION_ERROR');
   });
 
+  it('Should allow CORS requests from any *.vercel.app domain', async () => {
+    const res = await request(app).get('/api/v1/health').set('Origin', 'https://pet-clinic-admin.vercel.app');
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('https://pet-clinic-admin.vercel.app');
+  });
+
+  it('Should allow CORS requests with trailing slash in origin from vercel', async () => {
+    const res = await request(app).get('/api/v1/health').set('Origin', 'https://pet-clinic-preview.vercel.app/');
+    expect(res.status).toBe(200);
+  });
+
   it('Should return 413 VALIDATION_ERROR for payload > 1MB', async () => {
     // Generate a 1.5MB payload
     const largeString = 'a'.repeat(1.5 * 1024 * 1024);

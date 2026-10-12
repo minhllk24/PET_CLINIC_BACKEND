@@ -30,13 +30,38 @@ app.use(httpLogger);
 // Security middlewares
 app.use(helmet()); // Sets various HTTP headers like X-Content-Type-Options
 
-// CORS Configuration (Allowlist from env)
+// CORS Configuration (Allowlist from env + all *.vercel.app deployments)
+const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const cleanOrigin = normalizeOrigin(origin);
+
+  // Allow localhost & explicitly configured origins in config
+  const isExplicitlyAllowed = config.cors.allowedOrigins.some(
+    (allowed) => normalizeOrigin(allowed) === cleanOrigin
+  );
+  if (isExplicitlyAllowed) return true;
+
+  // Allow any Vercel domain (production & preview branches: e.g. *.vercel.app)
+  try {
+    const parsed = new URL(cleanOrigin);
+    if (parsed.hostname.endsWith('.vercel.app') || parsed.hostname === 'vercel.app') {
+      return true;
+    }
+  } catch (e) {
+    return false;
+  }
+
+  return false;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (config.cors.allowedOrigins.indexOf(origin) === -1) {
+    if (!isOriginAllowed(origin)) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', msg), false);
     }

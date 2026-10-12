@@ -32,10 +32,11 @@ const config = {
     refreshSecret: process.env.JWT_REFRESH_TOKEN_SECRET,
   },
   cors: {
-    // Only allow specific Angular origins as per doc 13
+    // Only allow specific Angular / React origins as per doc 13
     allowedOrigins: [
       process.env.CUSTOMER_APP_URL || 'http://localhost:3000',
       process.env.ADMIN_APP_URL || 'http://localhost:3001',
+      'http://localhost:4200',
     ],
   },
   rateLimit: {
