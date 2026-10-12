@@ -104,6 +104,17 @@ app.use(
 app.use(authorizeRequest);
 
 // Routes
+// Root health/welcome route for Render / monitoring probes
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    message: 'Pet Clinic API Backend is running',
+    version: '1.0.0',
+    documentation: '/docs',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', identityRoutes);
 app.use('/api/v1/branches', branchRoutes);

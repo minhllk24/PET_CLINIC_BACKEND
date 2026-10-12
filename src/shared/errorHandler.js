@@ -11,9 +11,6 @@ export const errorHandler = (err, req, res, next) => {
   error.detail = err.detail || err.message || 'Something went wrong';
   error.type = err.type || `https://httpstatuses.com/${error.status}`;
 
-  // Log error using pino
-  logger.error(err);
-
   // Express Payload Too Large
   if (err.type === 'entity.too.large') {
     error = new AppError(
@@ -80,6 +77,19 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   const isInternal = error.status === 500 || !error.status;
+  
+  // Log error using pino: full stack trace for 5xx, concise warning for 4xx
+  if (isInternal) {
+    logger.error(err);
+  } else {
+    logger.warn({
+      status: error.status,
+      code: error.code,
+      url: req.originalUrl,
+      correlationId: req.id,
+      detail: error.detail,
+    });
+  }
   
   const problemPayload = {
     type: error.type || `https://httpstatuses.com/${error.status || 500}`,

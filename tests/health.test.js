@@ -3,6 +3,14 @@ import app from '../src/app';
 import mongoose from 'mongoose';
 
 describe('Foundation Verification Tests', () => {
+  it('GET / should return 200 OK and UP status', async () => {
+    const res = await request(app).get('/');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('status', 'UP');
+    expect(res.body).toHaveProperty('message');
+    expect(res.body).toHaveProperty('timestamp');
+  });
+
   it('GET /api/v1/health should return 200 OK and UP', async () => {
     const res = await request(app).get('/api/v1/health');
     expect(res.status).toBe(200);
