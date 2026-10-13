@@ -13,6 +13,7 @@ import InventoryStock from '../src/modules/inventory/models/InventoryStock';
 import InventoryTransaction from '../src/modules/inventory/models/InventoryTransaction';
 import AppError from '../src/utils/AppError';
 import { ErrorCodes } from '../src/shared/errorCodes';
+import IdempotencyKey from '../src/modules/audit/models/IdempotencyKey';
 
 const adminId = '507f1f77bcf86cd799439001';
 const customerId = '507f1f77bcf86cd799439002';
@@ -256,6 +257,28 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
 
       const prodRes = await request(app).get('/api/v1/products');
       expect([200, 400]).toContain(prodRes.status);
+    });
+
+    it('POST /api/v1/products returns 409 Conflict when SKU already exists', async () => {
+      jest.spyOn(IdempotencyKey, 'findOne').mockResolvedValue(null);
+      jest.spyOn(IdempotencyKey, 'findOneAndUpdate').mockResolvedValue({});
+      jest.spyOn(catalogService, 'createProduct').mockRejectedValueOnce(
+        new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'SKU "hat-royal" đã tồn tại ở sản phẩm "Hạt Royal"')
+      );
+
+      const res = await request(app)
+        .post('/api/v1/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Idempotency-Key', 'idemp-prod-create-dup-sku')
+        .send({
+          name: 'Hạt Royal Canin Mới',
+          categoryId: categoryId,
+          variants: [{ sku: 'hat-royal', label: '1kg', price: 180000 }]
+        });
+
+      expect(res.status).toBe(409);
+      expect(res.body).toHaveProperty('code', 'CONFLICT');
+      expect(res.body.detail).toContain('hat-royal');
     });
   });
 

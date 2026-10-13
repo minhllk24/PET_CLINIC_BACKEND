@@ -344,12 +344,24 @@ export const createProduct = async (data, actor) => {
 
   // Đăng ký InventoryItem cho từng variant
   const preparedVariants = [];
+  const skuSet = new Set();
   for (const v of variants) {
     if (!v.sku || !v.label || v.price === undefined) {
       throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Variant must have sku, label and price');
     }
 
     const trimmedSku = v.sku.trim();
+    if (skuSet.has(trimmedSku)) {
+      throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" bị trùng lặp giữa các biến thể của sản phẩm`);
+    }
+    skuSet.add(trimmedSku);
+
+    // Kiểm tra SKU đã tồn tại ở sản phẩm khác chưa
+    const existingProductWithSku = await Product.findOne({ 'variants.sku': trimmedSku });
+    if (existingProductWithSku) {
+      throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" đã tồn tại ở sản phẩm "${existingProductWithSku.name}"`);
+    }
+
     // Tìm hoặc tạo InventoryItem loại PRODUCT
     let item = await InventoryItem.findOne({ sku: trimmedSku });
     if (!item) {
@@ -415,11 +427,23 @@ export const updateProduct = async (id, data, actor) => {
 
   if (data.variants && Array.isArray(data.variants)) {
     const updatedVariants = [];
+    const skuSet = new Set();
     for (const v of data.variants) {
-      let item = await InventoryItem.findOne({ sku: v.sku.trim() });
+      const trimmedSku = v.sku.trim();
+      if (skuSet.has(trimmedSku)) {
+        throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" bị trùng lặp giữa các biến thể của sản phẩm`);
+      }
+      skuSet.add(trimmedSku);
+
+      const existingProduct = await Product.findOne({ 'variants.sku': trimmedSku, _id: { $ne: id } });
+      if (existingProduct) {
+        throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" đã tồn tại ở sản phẩm "${existingProduct.name}"`);
+      }
+
+      let item = await InventoryItem.findOne({ sku: trimmedSku });
       if (!item) {
         item = new InventoryItem({
-          sku: v.sku.trim(),
+          sku: trimmedSku,
           name: `${product.name} - ${v.label.trim()}`,
           kind: 'PRODUCT',
           unit: 'cái',
@@ -430,7 +454,7 @@ export const updateProduct = async (id, data, actor) => {
 
       updatedVariants.push({
         _id: v.id ? new mongoose.Types.ObjectId(v.id) : new mongoose.Types.ObjectId(),
-        sku: v.sku.trim(),
+        sku: trimmedSku,
         label: v.label.trim(),
         price: parseInt(v.price, 10),
         status: v.status || 'ACTIVE',
@@ -467,6 +491,12 @@ export const addVariant = async (productId, data, actor) => {
 
   const { sku, label, price, status } = data;
   const trimmedSku = sku.trim();
+
+  // Check if SKU already exists in this product or another product
+  const existingProduct = await Product.findOne({ 'variants.sku': trimmedSku });
+  if (existingProduct) {
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" đã tồn tại ở sản phẩm "${existingProduct.name}"`);
+  }
 
   let item = await InventoryItem.findOne({ sku: trimmedSku });
   if (!item) {

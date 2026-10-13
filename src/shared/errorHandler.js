@@ -62,7 +62,23 @@ export const errorHandler = (err, req, res, next) => {
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const detail = `Duplicate field value entered`;
+    let detail = 'Dữ liệu đã tồn tại trên hệ thống';
+    if (err.keyValue) {
+      const keys = Object.keys(err.keyValue);
+      if (keys.length > 0) {
+        const key = keys[0];
+        const val = err.keyValue[key];
+        if (key.includes('sku') || key === 'variants.sku') {
+          detail = `SKU "${val}" đã tồn tại trên hệ thống`;
+        } else if (key === 'name') {
+          detail = `Tên "${val}" đã tồn tại trên hệ thống`;
+        } else if (key === 'slug') {
+          detail = `Slug "${val}" đã tồn tại trên hệ thống`;
+        } else {
+          detail = `Trường "${key}" với giá trị "${val}" đã tồn tại trên hệ thống`;
+        }
+      }
+    }
     error = new AppError(409, 'Conflict', ErrorCodes.CONFLICT, detail);
   }
 
