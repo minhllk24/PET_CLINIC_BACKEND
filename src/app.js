@@ -90,13 +90,22 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 app.use(cookieParser());
 
-// Bridge: If refresh token is provided via HttpOnly Cookie, auto-populate body for OpenAPI validator
+// Bridge & Sanitizer for OpenAPI validation compatibility
 app.use((req, res, next) => {
+  // Bridge: If refresh token is provided via HttpOnly Cookie, auto-populate body for OpenAPI validator
   if (req.path.endsWith('/auth/refresh') && req.cookies && req.cookies.refreshToken && (!req.body || !req.body.refreshToken)) {
     req.body = req.body || {};
     req.body.refreshToken = req.cookies.refreshToken;
     req.headers['content-type'] = req.headers['content-type'] || 'application/json';
   }
+
+  // Sanitizer: Remove client-side UI flags (e.g. rememberMe) from /auth/login so strict OpenAPI additionalProperties: false doesn't reject
+  if (req.path.endsWith('/auth/login') && req.body && typeof req.body === 'object') {
+    if ('rememberMe' in req.body) {
+      delete req.body.rememberMe;
+    }
+  }
+
   next();
 });
 

@@ -124,6 +124,26 @@ describe('Auth & RBAC Comprehensive Tests (OpenAPI v7 & FE Compatibility)', () =
       expect(res.status).toBe(200);
       expect(res.body.user.email).toBe('admin@petclinic.com');
     });
+
+    it('POST /api/v1/auth/login ignores client rememberMe flag without triggering additionalProperties error', async () => {
+      jest.spyOn(authService, 'login').mockResolvedValueOnce({
+        accessToken: 'mock_jwt_access_token',
+        refreshToken: 'mock_opaque_refresh_token',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        user: mockAdminUser,
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          identifier: '0900000000',
+          password: testPassword,
+          rememberMe: true,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('accessToken', 'mock_jwt_access_token');
+    });
   });
 
   describe('3. Token Refresh & HttpOnly Cookie', () => {
