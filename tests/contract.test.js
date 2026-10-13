@@ -2,9 +2,19 @@ import request from 'supertest';
 import app from '../src/app';
 
 // Mock all services
-jest.mock('../src/modules/identity/identity.service', () => ({
-  login: jest.fn().mockResolvedValue({ accessToken: 'mockToken', refreshToken: 'mockRefresh' }),
-  register: jest.fn().mockResolvedValue({ accessToken: 'mockToken', refreshToken: 'mockRefresh' })
+jest.mock('../src/modules/auth/auth.service', () => ({
+  login: jest.fn().mockResolvedValue({
+    accessToken: 'mockToken',
+    refreshToken: 'mockRefresh',
+    expiresAt: new Date(Date.now() + 86400000),
+    user: { id: '507f1f77bcf86cd799439001', systemRole: 'CUSTOMER', accountStatus: 'ACTIVE' },
+  }),
+  register: jest.fn().mockResolvedValue({
+    accessToken: 'mockToken',
+    refreshToken: 'mockRefresh',
+    expiresAt: new Date(Date.now() + 86400000),
+    user: { id: '507f1f77bcf86cd799439001', systemRole: 'CUSTOMER', accountStatus: 'ACTIVE' },
+  }),
 }));
 
 jest.mock('../src/modules/inventory/inventory.service', () => ({

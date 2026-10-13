@@ -59,8 +59,8 @@ describe('Foundation Verification Tests', () => {
 
   it('POST /api/v1/auth/login should return 400 VALIDATION_ERROR on extra fields', async () => {
     const res = await request(app).post('/api/v1/auth/login').send({
-      email: 'admin@petclinic.com',
-      password: 'password',
+      identifier: 'admin@petclinic.com',
+      password: 'StrongP@ssword123',
       extraField: 'should not be here'
     });
     expect(res.status).toBe(400);
@@ -90,8 +90,8 @@ describe('Foundation Verification Tests', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({
-      email: 'admin@petclinic.com',
-      password: 'password',
+      identifier: 'admin@petclinic.com',
+      password: 'StrongP@ssword123',
       largeString
     });
     expect(res.status).toBe(413);

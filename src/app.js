@@ -5,12 +5,13 @@ import rateLimit from 'express-rate-limit';
 import * as OpenApiValidator from 'express-openapi-validator';
 import path from 'path';
 
+import cookieParser from 'cookie-parser';
 import config from './shared/config';
 import { httpLogger } from './shared/logger';
 import { errorHandler, notFoundHandler } from './shared/errorHandler';
 import { authorizeRequest } from './shared/authorizeRequest';
 import healthRoutes from './routes/health';
-import identityRoutes from './modules/identity/identity.routes';
+import authRoutes from './modules/auth/auth.routes.js';
 import branchRoutes from './modules/branch/branch.routes';
 import staffRoutes from './modules/staff/staff.routes';
 import catalogRoutes from './modules/catalog/catalog.routes';
@@ -87,6 +88,17 @@ app.use(limiter);
 // Limit payload size to 1mb (from 50mb legacy)
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
+app.use(cookieParser());
+
+// Bridge: If refresh token is provided via HttpOnly Cookie, auto-populate body for OpenAPI validator
+app.use((req, res, next) => {
+  if (req.path.endsWith('/auth/refresh') && req.cookies && req.cookies.refreshToken && (!req.body || !req.body.refreshToken)) {
+    req.body = req.body || {};
+    req.body.refreshToken = req.cookies.refreshToken;
+    req.headers['content-type'] = req.headers['content-type'] || 'application/json';
+  }
+  next();
+});
 
 // OpenAPI Validator
 app.use(
@@ -141,7 +153,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1', healthRoutes);
-app.use('/api/v1/auth', identityRoutes);
+app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/branches', branchRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1', catalogRoutes);

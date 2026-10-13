@@ -8,6 +8,7 @@
     "build-src": "babel src -d build --copy-files",
     "build": "babel src --out-dir dist",
     "start": "node dist/server.js",
+    "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
     "test": "jest"
   },
   "dependencies": {

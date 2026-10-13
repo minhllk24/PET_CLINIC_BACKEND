@@ -30,6 +30,7 @@ const config = {
   jwt: {
     accessSecret: process.env.JWT_ACCESS_TOKEN_SECRET,
     refreshSecret: process.env.JWT_REFRESH_TOKEN_SECRET,
+    resetSecret: process.env.JWT_RESET_TOKEN_SECRET || process.env.JWT_ACCESS_TOKEN_SECRET,
   },
   cors: {
     // Only allow specific Angular / React origins as per doc 13
