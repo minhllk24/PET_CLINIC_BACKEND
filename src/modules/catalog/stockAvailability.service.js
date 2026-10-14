@@ -125,6 +125,15 @@ export const checkVariantPurchasable = async (productId, variantId, requestedQua
     );
   }
 
+  if (product.usageType === 'SERVICE_SUPPLY') {
+    throw new AppError(
+      422,
+      'Unprocessable Entity',
+      ErrorCodes.PRODUCT_NOT_PURCHASABLE,
+      'Sản phẩm phục vụ dịch vụ không thể bán lẻ cho khách hàng'
+    );
+  }
+
   const variant = product.variants.id ? product.variants.id(variantId) : product.variants.find(v => v._id.toString() === variantId.toString());
   if (!variant || variant.status !== 'ACTIVE') {
     throw new AppError(

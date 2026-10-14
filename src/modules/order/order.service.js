@@ -23,20 +23,26 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       throw new AppError(400, 'ValidationError', 'EMPTY_CART', 'Cart is empty or not found');
     }
 
-    // Resolve inventoryItemIds for cart items
+    // Resolve inventoryItemIds and snapshots for cart items
     for (const item of cart.items) {
       let resolvedInvId = item.productId;
       let resolvedName = 'Product';
+      let resolvedSku = '';
       const prod = await Product.findById(item.productId).session(session);
       if (prod) {
         resolvedName = prod.name;
         if (prod.variants && item.variantId) {
           const v = prod.variants.id ? prod.variants.id(item.variantId) : prod.variants.find(varItem => varItem._id.toString() === item.variantId.toString());
-          if (v && v.inventoryItemId) resolvedInvId = v.inventoryItemId;
+          if (v) {
+            if (v.inventoryItemId) resolvedInvId = v.inventoryItemId;
+            if (v.sku) resolvedSku = v.sku;
+            resolvedName = `${prod.name} - ${v.label}`;
+          }
         }
       }
       item._resolvedInvId = resolvedInvId;
       item._resolvedName = resolvedName;
+      item._resolvedSku = resolvedSku;
     }
 
     // 2. Fulfillment Branch Resolver
@@ -117,7 +123,8 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       items: cart.items.map(item => ({
         productId: item.productId,
         variantId: item.variantId,
-        productName: 'Snapshot Name', // Mock snapshot
+        nameSnapshot: item._resolvedName,
+        skuSnapshot: item._resolvedSku,
         quantity: item.quantity,
         unitPrice: item.price
       })),

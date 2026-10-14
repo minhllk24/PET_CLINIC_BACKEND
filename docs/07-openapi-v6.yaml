@@ -10148,6 +10148,12 @@ components:
           type:
           - string
           - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
       additionalProperties: false
       required:
       - id
@@ -10449,6 +10455,8 @@ components:
           $ref: '#/components/schemas/ObjectId'
         variantId:
           $ref: '#/components/schemas/ObjectId'
+        skuSnapshot:
+          type: string
         name:
           type: string
         unitPrice:

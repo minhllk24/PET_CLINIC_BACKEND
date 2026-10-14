@@ -33,14 +33,20 @@ const schema = new mongoose.Schema({
     default: [],
     set: (imgs) => {
       if (!Array.isArray(imgs)) return [];
+      const explicitPrimaryIdx = imgs.findIndex(
+        (img) => typeof img === 'object' && img !== null && Boolean(img.isPrimary)
+      );
+      const chosenPrimaryIdx = explicitPrimaryIdx !== -1 ? explicitPrimaryIdx : 0;
+
       return imgs.map((img, idx) => {
+        const isPrimary = idx === chosenPrimaryIdx;
         if (typeof img === 'string') {
-          return { id: `img-${idx + 1}`, url: img, isPrimary: idx === 0, sortOrder: idx };
+          return { id: `img-${idx + 1}`, url: img, isPrimary, sortOrder: idx };
         }
         return {
           id: img.id || `img-${idx + 1}`,
           url: img.url,
-          isPrimary: Boolean(img.isPrimary || idx === 0),
+          isPrimary,
           sortOrder: typeof img.sortOrder === 'number' ? img.sortOrder : idx,
         };
       });

@@ -3,12 +3,18 @@ import app from './app';
 import config from './shared/config';
 import { logger } from './shared/logger';
 import { startCronJobs } from './worker/cronjobs';
+import { migrateMissingProductCodes } from './modules/catalog/catalog.service';
 
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(config.mongoUri);
     logger.info('MongoDB Connected successfully');
+
+    // Migrate missing product codes if any
+    migrateMissingProductCodes().catch((err) => {
+      logger.warn('Product code migration warning:', err.message);
+    });
 
     // Start Express server
     const server = app.listen(config.port, '0.0.0.0', () => {

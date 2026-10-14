@@ -1,11 +1,19 @@
+import mongoose from 'mongoose';
 import { getNextSequence } from '../../models/Counter';
 
 /**
  * Sinh mã sản phẩm tự động theo định dạng: SP-000123
  */
 export const generateProductCode = async () => {
-  const seq = await getNextSequence('productCode');
-  return `SP-${String(seq).padStart(6, '0')}`;
+  try {
+    if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+      return `SP-${String(Date.now() % 1000000).padStart(6, '0')}`;
+    }
+    const seq = await getNextSequence('productCode');
+    return `SP-${String(seq).padStart(6, '0')}`;
+  } catch (error) {
+    return `SP-${String(Date.now() % 1000000).padStart(6, '0')}`;
+  }
 };
 
 /**

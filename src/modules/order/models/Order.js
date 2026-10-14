@@ -5,6 +5,7 @@ const orderItemSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   variantId: mongoose.Schema.Types.ObjectId,
   nameSnapshot: String,
+  skuSnapshot: { type: String, trim: true, default: '' },
   unitPrice: Number,
   quantity: Number,
   lineSubtotal: Number,

@@ -32,15 +32,17 @@ export const addItem = async (req, res, next) => {
 
     // Chặn nếu sản phẩm hết hàng hoặc vượt tồn khả dụng
     const { product, variant } = await checkVariantPurchasable(productId, variantId, totalQty);
+    const itemPrice = (variant.finalPrice !== undefined && variant.finalPrice !== null) ? variant.finalPrice : variant.price;
 
     if (existing) {
       existing.quantity = totalQty;
+      existing.price = itemPrice;
     } else {
       cart.items.push({
         productId,
         variantId,
         quantity,
-        price: variant.price
+        price: itemPrice
       });
     }
 

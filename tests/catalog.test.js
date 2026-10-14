@@ -437,5 +437,154 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
     });
   });
 
+  describe('Feedback Round 1 Resolution Tests', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('Product images setter enforces exactly one isPrimary: true', () => {
+      const prod = new Product({
+        name: 'Thức ăn cho mèo',
+        categoryId: new mongoose.Types.ObjectId(categoryId),
+        images: [
+          { url: 'https://example.com/img1.png', isPrimary: true },
+          { url: 'https://example.com/img2.png', isPrimary: true },
+          { url: 'https://example.com/img3.png', isPrimary: false }
+        ],
+        variants: [
+          {
+            sku: 'SP-000001-001',
+            label: 'Mặc định',
+            price: 50000,
+            status: 'ACTIVE'
+          }
+        ]
+      });
+
+      const primaryImages = prod.images.filter((img) => img.isPrimary === true);
+      expect(primaryImages.length).toBe(1);
+      // Ảnh primary phải là ảnh đầu tiên được đánh dấu primary
+      expect(primaryImages[0].url).toBe('https://example.com/img1.png');
+    });
+
+    it('checkVariantPurchasable throws 422 when purchasing SERVICE_SUPPLY product', async () => {
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(productId),
+        status: 'ACTIVE',
+        usageType: 'SERVICE_SUPPLY',
+        variants: [
+          {
+            _id: new mongoose.Types.ObjectId(variantId),
+            status: 'ACTIVE',
+            inventoryItemId: new mongoose.Types.ObjectId(inventoryItemId)
+          }
+        ]
+      });
+
+      await expect(
+        stockAvailabilityService.checkVariantPurchasable(productId, variantId, 1)
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.PRODUCT_NOT_PURCHASABLE || 'PRODUCT_NOT_PURCHASABLE'
+      });
+    });
+
+    it('updateProduct preserves old variants when payload sends subset of variants', async () => {
+      const v1Id = new mongoose.Types.ObjectId();
+      const v2Id = new mongoose.Types.ObjectId();
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000888',
+        name: 'Áo cho chó',
+        productType: 'VARIANT',
+        variants: [
+          {
+            _id: v1Id,
+            sku: 'SP-000888-001',
+            label: 'Size S',
+            price: 100000,
+            discountPercent: 0,
+            finalPrice: 100000,
+            status: 'ACTIVE'
+          },
+          {
+            _id: v2Id,
+            sku: 'SP-000888-002',
+            label: 'Size M',
+            price: 150000,
+            discountPercent: 10,
+            finalPrice: 135000,
+            status: 'ACTIVE'
+          }
+        ],
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+      jest.spyOn(stockAvailabilityService, 'attachOutOfStockFlag').mockImplementation(async (p) => p);
+
+      // FE chỉ gửi cập nhật giá cho biến thể 1, không gửi biến thể 2
+      await catalogService.updateProduct(
+        productId,
+        {
+          variants: [
+            { id: v1Id.toString(), price: 120000 }
+          ]
+        },
+        { systemRole: 'ADMIN' }
+      );
+
+      // Cả 2 biến thể vẫn phải còn trong mảng
+      expect(mockProduct.variants.length).toBe(2);
+      expect(mockProduct.variants[0].price).toBe(120000);
+      // Biến thể 2 vẫn được bảo toàn nguyên vẹn
+      expect(mockProduct.variants[1].sku).toBe('SP-000888-002');
+      expect(mockProduct.variants[1].price).toBe(150000);
+      expect(mockProduct.save).toHaveBeenCalled();
+    });
+
+    it('addVariant atomically increments nextSkuSeq and generates standardized SKU', async () => {
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000555',
+        name: 'Vòng cổ thú cưng',
+        productType: 'VARIANT',
+        variants: []
+      };
+
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+      jest.spyOn(Product, 'findOneAndUpdate').mockResolvedValue({ nextSkuSeq: 3 });
+      jest.spyOn(Product, 'findOne').mockResolvedValue(null);
+      jest.spyOn(Product, 'updateOne').mockResolvedValue({ modifiedCount: 1 });
+      jest.spyOn(InventoryItem, 'findOne').mockResolvedValue({ _id: new mongoose.Types.ObjectId(inventoryItemId) });
+      jest.spyOn(stockAvailabilityService, 'attachOutOfStockFlag').mockResolvedValue(mockProduct);
+
+      await catalogService.addVariant(
+        productId,
+        { label: 'Màu Đỏ', price: 80000 },
+        { systemRole: 'ADMIN' }
+      );
+
+      expect(Product.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: productId },
+        { $inc: { nextSkuSeq: 1 } },
+        { new: false }
+      );
+      expect(Product.updateOne).toHaveBeenCalledWith(
+        { _id: productId },
+        expect.objectContaining({
+          $push: {
+            variants: expect.objectContaining({
+              sku: 'SP-000555-003',
+              label: 'Màu Đỏ',
+              price: 80000
+            })
+          }
+        })
+      );
+    });
+  });
+
 });
+
 
