@@ -21,6 +21,7 @@ import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes from './modules/order/order.routes';
 import bookingRoutes from './modules/booking/booking.routes';
 import executionRoutes from './modules/execution/execution.routes';
+import uploadRoutes from './modules/upload/upload.routes';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -29,7 +30,9 @@ const app = express();
 app.use(httpLogger);
 
 // Security middlewares
-app.use(helmet()); // Sets various HTTP headers like X-Content-Type-Options
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+})); // Sets various HTTP headers like X-Content-Type-Options
 
 // CORS Configuration (Allowlist from env + all *.vercel.app deployments)
 const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
@@ -174,6 +177,10 @@ app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/appointments', bookingRoutes);
 app.use('/api/v1/execution', executionRoutes);
+app.use('/api/v1/uploads', uploadRoutes);
+
+// Serve static uploads
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Catch 404
 app.use(notFoundHandler);

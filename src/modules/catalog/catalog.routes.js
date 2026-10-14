@@ -21,11 +21,13 @@ router.post('/products', requireRole(['ADMIN']), idempotency('productsCreate'), 
 router.get('/products/:id', optionalAuth, catalogController.getProductById);
 router.patch('/products/:id', requireRole(['ADMIN']), catalogController.updateProduct);
 router.post('/products/:id/archive', requireRole(['ADMIN']), idempotency('productsArchive'), catalogController.archiveProduct);
+router.post('/products/:id/restore', requireRole(['ADMIN']), idempotency('productsRestore'), catalogController.restoreProduct);
 
 // Variants
 router.post('/products/:id/variants', requireRole(['ADMIN']), idempotency('productVariantsCreate'), catalogController.addVariant);
 router.patch('/products/:id/variants/:variantId', requireRole(['ADMIN']), catalogController.updateVariant);
 router.post('/products/:id/variants/:variantId/deactivate', requireRole(['ADMIN']), idempotency('productVariantsDeactivate'), catalogController.deactivateVariant);
+router.post('/products/:id/variants/:variantId/activate', requireRole(['ADMIN']), idempotency('productVariantsActivate'), catalogController.activateVariant);
 
 // ================= SERVICES (Existing) =================
 router.get('/services', async (req, res, next) => {

@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
 import Category from './models/Category';
 import Product from './models/Product';
+import Order from '../order/models/Order';
 import InventoryItem from '../inventory/models/InventoryItem';
 import { attachOutOfStockFlag } from './stockAvailability.service';
+import { generateProductCode, formatVariantSku, calculateFinalPrice } from './skuGenerator.service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 
@@ -43,30 +45,55 @@ const formatCategory = (cat) => {
 const formatProductVariant = (v) => {
   if (!v) return null;
   const vObj = typeof v.toObject === 'function' ? v.toObject() : { ...v };
-  return {
+  const basePrice = parseInt(vObj.price, 10) || 0;
+  const discountPercent = Number(vObj.discountPercent) || 0;
+  const finalPrice = vObj.finalPrice !== undefined && vObj.finalPrice !== null
+    ? parseInt(vObj.finalPrice, 10)
+    : calculateFinalPrice(basePrice, discountPercent);
+
+  const formatted = {
     id: (vObj._id || vObj.id).toString(),
     sku: vObj.sku,
     label: vObj.label,
-    price: parseInt(vObj.price, 10),
+    price: basePrice,
+    discountPercent,
+    finalPrice,
+    image: vObj.image || null,
     status: vObj.status || 'ACTIVE'
   };
+
+  if (vObj.availableStock !== undefined) {
+    formatted.availableStock = vObj.availableStock;
+  }
+  return formatted;
 };
 
 const formatProduct = (prod) => {
   if (!prod) return null;
   const obj = typeof prod.toObject === 'function' ? prod.toObject() : { ...prod };
-  return {
+  const formatted = {
     id: (obj._id || obj.id).toString(),
+    productCode: obj.productCode || null,
     name: obj.name,
     description: obj.description || '',
     categoryId: (obj.categoryId ? (obj.categoryId._id || obj.categoryId) : '').toString(),
     origin: obj.origin || null,
     expiryInfo: obj.expiryInfo || null,
     images: Array.isArray(obj.images) ? obj.images : [],
+    productType: obj.productType || 'SIMPLE',
+    usageType: obj.usageType || 'SALE',
     variants: Array.isArray(obj.variants) ? obj.variants.map(formatProductVariant) : [],
     status: obj.status || 'ACTIVE',
     outOfStock: Boolean(obj.outOfStock)
   };
+
+  if (obj.totalStock !== undefined) {
+    formatted.totalStock = obj.totalStock;
+  }
+  if (obj.archivedAt) {
+    formatted.archivedAt = obj.archivedAt instanceof Date ? obj.archivedAt.toISOString() : obj.archivedAt;
+  }
+  return formatted;
 };
 
 // ================= CATEGORY SERVICE =================
@@ -222,12 +249,14 @@ export const archiveCategory = async (id, actor) => {
 
 export const listProducts = async (params, actor) => {
   if (mongoose.connection.readyState !== 1) {
-    return { items: [], nextCursor: null };
+    return { items: [], totalItems: 0, nextCursor: null };
   }
   const {
     q,
     categoryId,
     status,
+    usageType,
+    createdWithinDays,
     minPrice,
     maxPrice,
     inStockOnly,
@@ -239,22 +268,44 @@ export const listProducts = async (params, actor) => {
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
   const query = {};
 
-  // Phân quyền: public/CUSTOMER chỉ thấy ACTIVE
+  // Phân quyền: public/CUSTOMER chỉ thấy ACTIVE và usageType in ['SALE', 'SHARED']
   const isInternal = actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole);
   if (!isInternal) {
     query.status = 'ACTIVE';
-  } else if (status) {
-    query.status = status;
+    query.usageType = { $in: ['SALE', 'SHARED'] };
+  } else {
+    if (status) query.status = status;
+    if (usageType) query.usageType = usageType;
   }
 
+  // Filter categoryId (hỗ trợ nhiều category ngăn cách bằng dấu phẩy)
   if (categoryId) {
-    if (mongoose.isValidObjectId(categoryId)) {
-      query.categoryId = new mongoose.Types.ObjectId(categoryId);
+    const rawIds = categoryId.split(',').map((id) => id.trim()).filter((id) => mongoose.isValidObjectId(id));
+    if (rawIds.length === 1) {
+      query.categoryId = new mongoose.Types.ObjectId(rawIds[0]);
+    } else if (rawIds.length > 1) {
+      query.categoryId = { $in: rawIds.map((id) => new mongoose.Types.ObjectId(id)) };
     }
   }
 
-  if (q) {
-    query.$text = { $search: q.trim() };
+  // Filter createdWithinDays (ví dụ 7, 30, 90 ngày)
+  if (createdWithinDays) {
+    const days = parseInt(createdWithinDays, 10);
+    if (!isNaN(days) && days > 0) {
+      const pastDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      query.createdAt = { $gte: pastDate };
+    }
+  }
+
+  // Search q (hỗ trợ name, productCode, variants.sku, description)
+  if (q && q.trim()) {
+    const trimmed = q.trim();
+    query.$or = [
+      { name: { $regex: trimmed, $options: 'i' } },
+      { productCode: { $regex: trimmed, $options: 'i' } },
+      { 'variants.sku': { $regex: trimmed, $options: 'i' } },
+      { description: { $regex: trimmed, $options: 'i' } }
+    ];
   }
 
   // Price range
@@ -273,6 +324,9 @@ export const listProducts = async (params, actor) => {
   else if (sort === 'PRICE_ASC') sortCriteria = { 'variants.price': 1, _id: 1 };
   else if (sort === 'PRICE_DESC') sortCriteria = { 'variants.price': -1, _id: -1 };
 
+  // Tổng số bản ghi thỏa mãn điều kiện
+  const totalItems = await Product.countDocuments(query);
+
   if (cursor) {
     const decodedId = decodeCursor(cursor);
     if (decodedId && mongoose.isValidObjectId(decodedId)) {
@@ -285,7 +339,7 @@ export const listProducts = async (params, actor) => {
     .sort(sortCriteria)
     .limit(parsedLimit + 1);
 
-  // Gắn cờ outOfStock tính từ InventoryStock
+  // Gắn cờ outOfStock & tồn kho tính từ InventoryStock
   let enriched = await attachOutOfStockFlag(products);
 
   // Nếu người dùng chọn inStockOnly -> loại bỏ các item outOfStock
@@ -304,7 +358,7 @@ export const listProducts = async (params, actor) => {
   // Chuẩn hóa response theo contract OpenAPI v7 (ProductPage)
   const items = enriched.map(formatProduct);
 
-  return { items, nextCursor };
+  return { items, totalItems, nextCursor };
 };
 
 export const getProductById = async (id, actor) => {
@@ -318,7 +372,7 @@ export const getProductById = async (id, actor) => {
   }
 
   const isInternal = actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole);
-  if (!isInternal && product.status !== 'ACTIVE') {
+  if (!isInternal && (product.status !== 'ACTIVE' || product.usageType === 'SERVICE_SUPPLY')) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
   }
 
@@ -327,10 +381,25 @@ export const getProductById = async (id, actor) => {
 };
 
 export const createProduct = async (data, actor) => {
-  const { name, description, categoryId, origin, expiryInfo, images, variants, status } = data;
+  const {
+    name,
+    description,
+    categoryId,
+    productType = 'SIMPLE',
+    usageType = 'SALE',
+    origin,
+    expiryInfo,
+    images,
+    variants,
+    status
+  } = data;
 
   if (!name || !categoryId || !variants || !Array.isArray(variants) || variants.length === 0) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'name, categoryId and variants are required');
+  }
+
+  if (productType === 'SIMPLE' && variants.length > 1) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm đơn giản (SIMPLE) chỉ được có tối đa 1 biến thể');
   }
 
   if (!mongoose.isValidObjectId(categoryId)) {
@@ -342,15 +411,42 @@ export const createProduct = async (data, actor) => {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Category does not exist or is inactive');
   }
 
-  // Đăng ký InventoryItem cho từng variant
+  // Tự sinh productCode nếu FE không gửi
+  let productCode = data.productCode ? data.productCode.trim() : '';
+  if (!productCode) {
+    productCode = await generateProductCode();
+  } else {
+    const existingCode = await Product.findOne({ productCode });
+    if (existingCode) {
+      throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `Mã sản phẩm "${productCode}" đã tồn tại`);
+    }
+  }
+
+  // Đăng ký InventoryItem và xử lý SKU cho từng variant
   const preparedVariants = [];
   const skuSet = new Set();
-  for (const v of variants) {
-    if (!v.sku || !v.label || v.price === undefined) {
-      throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Variant must have sku, label and price');
+  let nextSkuSeq = 1;
+
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    if (v.price === undefined || isNaN(parseInt(v.price, 10))) {
+      throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Variant must have a valid price');
     }
 
-    const trimmedSku = v.sku.trim();
+    const price = parseInt(v.price, 10);
+    const discountPercent = Number(v.discountPercent) || 0;
+    const finalPrice = calculateFinalPrice(price, discountPercent);
+    const label = v.label ? v.label.trim() : (productType === 'SIMPLE' ? 'Mặc định' : `Biến thể ${i + 1}`);
+
+    // Tự sinh SKU nếu không có (theo chuẩn SKU-01: SP-000123-001)
+    let trimmedSku = v.sku ? v.sku.trim() : '';
+    if (!trimmedSku) {
+      trimmedSku = formatVariantSku(productCode, nextSkuSeq);
+      nextSkuSeq++;
+    } else {
+      nextSkuSeq++;
+    }
+
     if (skuSet.has(trimmedSku)) {
       throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" bị trùng lặp giữa các biến thể của sản phẩm`);
     }
@@ -367,7 +463,7 @@ export const createProduct = async (data, actor) => {
     if (!item) {
       item = new InventoryItem({
         sku: trimmedSku,
-        name: `${name.trim()} - ${v.label.trim()}`,
+        name: `${name.trim()} - ${label}`,
         kind: 'PRODUCT',
         unit: 'cái',
         status: v.status || 'ACTIVE'
@@ -378,8 +474,11 @@ export const createProduct = async (data, actor) => {
     preparedVariants.push({
       _id: new mongoose.Types.ObjectId(),
       sku: trimmedSku,
-      label: v.label.trim(),
-      price: parseInt(v.price, 10),
+      label,
+      price,
+      discountPercent,
+      finalPrice,
+      image: v.image || null,
       status: v.status || 'ACTIVE',
       inventoryItemId: item._id
     });
@@ -387,13 +486,17 @@ export const createProduct = async (data, actor) => {
 
   // Lưu Product master global (TUYỆT ĐỐI KHÔNG LƯU STOCK TRÊN PRODUCT)
   const product = new Product({
+    productCode,
     name: name.trim(),
     description: description || '',
     categoryId,
+    productType,
+    usageType,
     origin: origin || null,
     expiryInfo: expiryInfo || null,
     images: images || [],
     variants: preparedVariants,
+    nextSkuSeq,
     status: status || 'ACTIVE'
   });
 
@@ -413,6 +516,11 @@ export const updateProduct = async (id, data, actor) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
   }
 
+  // Ràng buộc bất biến: Không cho phép đổi productType sau khi đã tạo
+  if (data.productType && data.productType !== product.productType) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Không thể chuyển đổi loại sản phẩm (productType) sau khi đã tạo');
+  }
+
   if (data.name) product.name = data.name.trim();
   if (data.description !== undefined) product.description = data.description;
   if (data.categoryId) {
@@ -420,16 +528,35 @@ export const updateProduct = async (id, data, actor) => {
     if (!category) throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Category not found');
     product.categoryId = data.categoryId;
   }
+  if (data.usageType) product.usageType = data.usageType;
   if (data.origin !== undefined) product.origin = data.origin;
   if (data.expiryInfo !== undefined) product.expiryInfo = data.expiryInfo;
   if (data.images !== undefined) product.images = data.images;
   if (data.status) product.status = data.status;
 
   if (data.variants && Array.isArray(data.variants)) {
+    if (product.productType === 'SIMPLE' && data.variants.length > 1) {
+      throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm đơn giản (SIMPLE) chỉ được có tối đa 1 biến thể');
+    }
+
     const updatedVariants = [];
     const skuSet = new Set();
+
     for (const v of data.variants) {
-      const trimmedSku = v.sku.trim();
+      const vId = v.id || v._id;
+      let existingVariant = vId ? product.variants.id(vId) : null;
+
+      // Rule SKU-05: Không cho phép sửa SKU của variant đã tạo
+      if (existingVariant && v.sku && v.sku.trim() !== existingVariant.sku) {
+        throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Không được phép chỉnh sửa mã SKU của biến thể "${existingVariant.sku}" đã tạo`);
+      }
+
+      let trimmedSku = v.sku ? v.sku.trim() : (existingVariant ? existingVariant.sku : '');
+      if (!trimmedSku) {
+        trimmedSku = formatVariantSku(product.productCode, product.nextSkuSeq || 1);
+        product.nextSkuSeq = (product.nextSkuSeq || 1) + 1;
+      }
+
       if (skuSet.has(trimmedSku)) {
         throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, `SKU "${trimmedSku}" bị trùng lặp giữa các biến thể của sản phẩm`);
       }
@@ -444,7 +571,7 @@ export const updateProduct = async (id, data, actor) => {
       if (!item) {
         item = new InventoryItem({
           sku: trimmedSku,
-          name: `${product.name} - ${v.label.trim()}`,
+          name: `${product.name} - ${(v.label || 'Mặc định').trim()}`,
           kind: 'PRODUCT',
           unit: 'cái',
           status: v.status || 'ACTIVE'
@@ -452,13 +579,21 @@ export const updateProduct = async (id, data, actor) => {
         await item.save();
       }
 
+      const price = v.price !== undefined ? parseInt(v.price, 10) : (existingVariant ? existingVariant.price : 0);
+      const discountPercent = v.discountPercent !== undefined ? Number(v.discountPercent) : (existingVariant ? existingVariant.discountPercent : 0);
+      const finalPrice = calculateFinalPrice(price, discountPercent);
+
       updatedVariants.push({
-        _id: v.id ? new mongoose.Types.ObjectId(v.id) : new mongoose.Types.ObjectId(),
+        _id: vId ? new mongoose.Types.ObjectId(vId) : new mongoose.Types.ObjectId(),
         sku: trimmedSku,
-        label: v.label.trim(),
-        price: parseInt(v.price, 10),
-        status: v.status || 'ACTIVE',
-        inventoryItemId: item._id
+        label: (v.label || (existingVariant ? existingVariant.label : 'Mặc định')).trim(),
+        price,
+        discountPercent,
+        finalPrice,
+        image: v.image !== undefined ? v.image : (existingVariant ? existingVariant.image : null),
+        status: v.status || (existingVariant ? existingVariant.status : 'ACTIVE'),
+        inventoryItemId: item._id,
+        deactivatedAt: existingVariant ? existingVariant.deactivatedAt : null
       });
     }
     product.variants = updatedVariants;
@@ -479,6 +614,27 @@ export const archiveProduct = async (id, actor) => {
   }
 
   product.status = 'ARCHIVED';
+  product.archivedAt = new Date();
+  await product.save();
+  return getProductById(product._id, actor);
+};
+
+export const restoreProduct = async (id, actor) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  }
+
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  }
+
+  if (product.status !== 'ARCHIVED') {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Chỉ có thể khôi phục sản phẩm đang ở trạng thái ARCHIVED');
+  }
+
+  product.status = 'INACTIVE';
+  product.archivedAt = null;
   await product.save();
   return getProductById(product._id, actor);
 };
@@ -489,8 +645,27 @@ export const addVariant = async (productId, data, actor) => {
   const product = await Product.findById(productId);
   if (!product) throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
 
-  const { sku, label, price, status } = data;
-  const trimmedSku = sku.trim();
+  if (product.productType === 'SIMPLE') {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Không thể thêm biến thể cho sản phẩm đơn giản (SIMPLE). Hãy tạo sản phẩm loại VARIANT');
+  }
+
+  const { label, price, discountPercent = 0, image, status } = data;
+  if (price === undefined || isNaN(parseInt(price, 10))) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Price is required');
+  }
+
+  const parsedPrice = parseInt(price, 10);
+  const parsedDiscount = Number(discountPercent) || 0;
+  const finalPrice = calculateFinalPrice(parsedPrice, parsedDiscount);
+
+  // Sinh SKU tự động nếu không gửi (Rule SKU-01)
+  let trimmedSku = data.sku ? data.sku.trim() : '';
+  if (!trimmedSku) {
+    trimmedSku = formatVariantSku(product.productCode, product.nextSkuSeq || 1);
+    product.nextSkuSeq = (product.nextSkuSeq || 1) + 1;
+  } else {
+    product.nextSkuSeq = (product.nextSkuSeq || 1) + 1;
+  }
 
   // Check if SKU already exists in this product or another product
   const existingProduct = await Product.findOne({ 'variants.sku': trimmedSku });
@@ -502,7 +677,7 @@ export const addVariant = async (productId, data, actor) => {
   if (!item) {
     item = new InventoryItem({
       sku: trimmedSku,
-      name: `${product.name} - ${label.trim()}`,
+      name: `${product.name} - ${(label || 'Biến thể').trim()}`,
       kind: 'PRODUCT',
       unit: 'cái',
       status: status || 'ACTIVE'
@@ -513,8 +688,11 @@ export const addVariant = async (productId, data, actor) => {
   product.variants.push({
     _id: new mongoose.Types.ObjectId(),
     sku: trimmedSku,
-    label: label.trim(),
-    price: parseInt(price, 10),
+    label: (label || `Biến thể ${product.variants.length + 1}`).trim(),
+    price: parsedPrice,
+    discountPercent: parsedDiscount,
+    finalPrice,
+    image: image || null,
     status: status || 'ACTIVE',
     inventoryItemId: item._id
   });
@@ -530,9 +708,17 @@ export const updateVariant = async (productId, variantId, data, actor) => {
   const variant = product.variants.id(variantId);
   if (!variant) throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Variant not found');
 
-  if (data.sku) variant.sku = data.sku.trim();
+  // Rule SKU-05: Bất biến SKU
+  if (data.sku && data.sku.trim() !== variant.sku) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Không được phép chỉnh sửa mã SKU của biến thể "${variant.sku}" đã tạo`);
+  }
+
   if (data.label) variant.label = data.label.trim();
   if (data.price !== undefined) variant.price = parseInt(data.price, 10);
+  if (data.discountPercent !== undefined) variant.discountPercent = Number(data.discountPercent) || 0;
+  variant.finalPrice = calculateFinalPrice(variant.price, variant.discountPercent);
+
+  if (data.image !== undefined) variant.image = data.image;
   if (data.status) variant.status = data.status;
 
   await product.save();
@@ -546,7 +732,30 @@ export const deactivateVariant = async (productId, variantId, actor) => {
   const variant = product.variants.id(variantId);
   if (!variant) throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Variant not found');
 
+  // Chặn nếu có Order đang xử lý liên quan đến biến thể đó (Task 6.1)
+  const activeOrder = await Order.findOne({
+    'items.variantId': new mongoose.Types.ObjectId(variantId),
+    status: { $in: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'] }
+  });
+  if (activeOrder) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Không thể vô hiệu hóa biến thể vì đang có đơn hàng "${activeOrder.code}" trong quá trình xử lý`);
+  }
+
   variant.status = 'INACTIVE';
+  variant.deactivatedAt = new Date();
+  await product.save();
+  return getProductById(productId, actor);
+};
+
+export const activateVariant = async (productId, variantId, actor) => {
+  const product = await Product.findById(productId);
+  if (!product) throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+
+  const variant = product.variants.id(variantId);
+  if (!variant) throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Variant not found');
+
+  variant.status = 'ACTIVE';
+  variant.deactivatedAt = null;
   await product.save();
   return getProductById(productId, actor);
 };

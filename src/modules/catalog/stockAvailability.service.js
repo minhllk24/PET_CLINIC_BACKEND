@@ -90,6 +90,7 @@ export const attachOutOfStockFlag = async (products) => {
         const vObj = { ...v };
         if (vObj._id && !vObj.id) vObj.id = vObj._id.toString();
         const vQty = vObj.inventoryItemId ? (stockMap.get(vObj.inventoryItemId.toString()) || 0) : 0;
+        vObj.availableStock = vQty;
         if (vObj.status === 'ACTIVE') {
           totalProductStock += vQty;
         }
@@ -97,6 +98,7 @@ export const attachOutOfStockFlag = async (products) => {
       });
     }
 
+    obj.totalStock = totalProductStock;
     // outOfStock: true khi tổng tồn khả dụng trên các active branch = 0
     obj.outOfStock = totalProductStock <= 0;
     return obj;

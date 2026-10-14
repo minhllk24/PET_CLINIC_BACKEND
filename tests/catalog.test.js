@@ -282,4 +282,160 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
     });
   });
 
+  describe('4. Task 3.6 — Full Product Management Business Rules & Integration Tests', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('calculateFinalPrice correctly calculates price with discount percent', () => {
+      const { calculateFinalPrice } = require('../src/modules/catalog/skuGenerator.service');
+      expect(calculateFinalPrice(100000, 10)).toBe(90000);
+      expect(calculateFinalPrice(150000, 0)).toBe(150000);
+      expect(calculateFinalPrice(200000, 25)).toBe(150000);
+      expect(calculateFinalPrice(99999, 15)).toBe(84999);
+    });
+
+    it('formatVariantSku generates valid standardized SKU format', () => {
+      const { formatVariantSku } = require('../src/modules/catalog/skuGenerator.service');
+      expect(formatVariantSku('SP-000123', 1)).toBe('SP-000123-001');
+      expect(formatVariantSku('SP-000123', 15)).toBe('SP-000123-015');
+    });
+
+    it('updateProduct throws 422 if productType mutation is attempted', async () => {
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(productId),
+        productType: 'SIMPLE',
+        name: 'Sản phẩm mẫu',
+        variants: []
+      });
+
+      await expect(
+        catalogService.updateProduct(productId, { productType: 'VARIANT' }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('productType')
+      });
+    });
+
+    it('updateProduct throws 422 if existing variant SKU is edited (Rule SKU-05)', async () => {
+      const mockVariant = {
+        _id: new mongoose.Types.ObjectId(variantId),
+        sku: 'SP-000123-001',
+        label: 'Gói 1kg',
+        price: 100000
+      };
+      const mockProd = {
+        _id: new mongoose.Types.ObjectId(productId),
+        name: 'Hạt Royal',
+        productType: 'VARIANT',
+        variants: {
+          id: (vId) => (vId.toString() === variantId ? mockVariant : null)
+        }
+      };
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProd);
+
+      await expect(
+        catalogService.updateProduct(
+          productId,
+          { variants: [{ id: variantId, sku: 'SP-000123-999', label: 'Gói 1kg', price: 100000 }] },
+          { systemRole: 'ADMIN' }
+        )
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('SKU')
+      });
+    });
+
+    it('addVariant throws 422 if product is of type SIMPLE', async () => {
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(productId),
+        productType: 'SIMPLE',
+        variants: []
+      });
+
+      await expect(
+        catalogService.addVariant(productId, { label: 'Size XL', price: 200000 }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR
+      });
+    });
+
+    it('deactivateVariant throws 422 if there is an active order with this variant', async () => {
+      const Order = require('../src/modules/order/models/Order').default;
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(productId),
+        variants: {
+          id: () => ({ _id: new mongoose.Types.ObjectId(variantId), status: 'ACTIVE' })
+        }
+      });
+      jest.spyOn(Order, 'findOne').mockResolvedValue({
+        code: 'ORD-999',
+        status: 'PROCESSING'
+      });
+
+      await expect(
+        catalogService.deactivateVariant(productId, variantId, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('ORD-999')
+      });
+    });
+
+    it('restoreProduct restores ARCHIVED product to INACTIVE', async () => {
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        status: 'ARCHIVED',
+        archivedAt: new Date(),
+        save: jest.fn().mockResolvedValue(true),
+        toObject: () => ({
+          _id: productId,
+          name: 'Sản phẩm cũ',
+          categoryId: categoryId,
+          status: 'INACTIVE',
+          archivedAt: null,
+          variants: []
+        })
+      };
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+      jest.spyOn(stockAvailabilityService, 'attachOutOfStockFlag').mockResolvedValue(mockProduct);
+
+      const result = await catalogService.restoreProduct(productId, { systemRole: 'ADMIN' });
+      expect(mockProduct.status).toBe('INACTIVE');
+      expect(mockProduct.archivedAt).toBeNull();
+      expect(mockProduct.save).toHaveBeenCalled();
+      expect(result.status).toBe('INACTIVE');
+    });
+
+    it('POST /api/v1/uploads/products rejects Customer with 403', async () => {
+      const res = await request(app)
+        .post('/api/v1/uploads/products')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .attach('files', Buffer.from('test-image'), {
+          filename: 'test.png',
+          contentType: 'image/png'
+        });
+      expect(res.status).toBe(403);
+    });
+
+    it('POST /api/v1/uploads/products accepts multipart image upload for Admin', async () => {
+      const res = await request(app)
+        .post('/api/v1/uploads/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('files', Buffer.from('fake-image-content-for-test'), {
+          filename: 'test-product.png',
+          contentType: 'image/png'
+        });
+
+      expect([201, 200]).toContain(res.status);
+      expect(res.body).toHaveProperty('items');
+      expect(res.body.items.length).toBeGreaterThan(0);
+      expect(res.body.items[0]).toHaveProperty('url');
+    });
+  });
+
 });
+

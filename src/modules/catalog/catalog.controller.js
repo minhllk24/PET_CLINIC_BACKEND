@@ -94,6 +94,15 @@ export const archiveProduct = async (req, res, next) => {
   }
 };
 
+export const restoreProduct = async (req, res, next) => {
+  try {
+    const result = await catalogService.restoreProduct(req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ================= VARIANT CONTROLLER =================
 
 export const addVariant = async (req, res, next) => {
@@ -117,6 +126,15 @@ export const updateVariant = async (req, res, next) => {
 export const deactivateVariant = async (req, res, next) => {
   try {
     const result = await catalogService.deactivateVariant(req.params.id, req.params.variantId, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const activateVariant = async (req, res, next) => {
+  try {
+    const result = await catalogService.activateVariant(req.params.id, req.params.variantId, req.actor);
     res.json(result);
   } catch (error) {
     next(error);

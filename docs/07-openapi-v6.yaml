@@ -5184,6 +5184,18 @@ paths:
           - NAME_DESC
           - PRICE_ASC
           - PRICE_DESC
+      - name: usageType
+        in: query
+        schema:
+          type: string
+          enum:
+          - SALE
+          - SHARED
+          - SERVICE_SUPPLY
+      - name: createdWithinDays
+        in: query
+        schema:
+          type: integer
       - name: limit
         in: query
         schema:
@@ -5381,6 +5393,49 @@ paths:
         - ADMIN
         scope: GLOBAL, khong branch scope. ADMIN ghi; MANAGER chi doc; public chi thay ACTIVE
         audit: product.archive
+        resolver: Product
+        idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 
+          409 IDEMPOTENCY_KEY_REUSED
+      x-audience:
+      - admin
+  /products/{id}/restore:
+    post:
+      operationId: productsRestore
+      summary: Khoi phuc san pham tu ARCHIVED ve INACTIVE
+      tags:
+      - Catalog
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+      x-authz:
+        auth: bearer
+        roles:
+        - ADMIN
+        scope: GLOBAL, khong branch scope. ADMIN ghi; MANAGER chi doc; public chi thay ACTIVE
+        audit: product.restore
         resolver: Product
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 
           409 IDEMPOTENCY_KEY_REUSED
@@ -6748,6 +6803,98 @@ paths:
         resolver: Product
         idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 
           409 IDEMPOTENCY_KEY_REUSED
+      x-audience:
+      - admin
+  /products/{id}/variants/{variantId}/activate:
+    post:
+      operationId: productVariantsActivate
+      summary: Kick hoat lai variant
+      tags:
+      - Catalog
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - ADMIN
+        scope: GLOBAL, khong branch scope. ADMIN ghi; MANAGER chi doc; public chi thay ACTIVE
+        audit: product.variant.activate
+        resolver: Product
+        idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 
+          409 IDEMPOTENCY_KEY_REUSED
+      x-audience:
+      - admin
+  /uploads/products:
+    post:
+      operationId: uploadProductImages
+      summary: Upload anh san pham (Cloudinary hoac Local disk)
+      tags:
+      - Catalog
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  anyOf:
+                  - type: array
+                    items:
+                      type: string
+                      format: binary
+                  - type: string
+                    format: binary
+      responses:
+        '201':
+          description: Upload thanh cong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-authz:
+        auth: bearer
+        roles:
+        - ADMIN
+        - MANAGER
+        scope: GLOBAL
+        audit: upload.product.images
+        resolver: None
       x-audience:
       - admin
   /checkout/validate:
@@ -9847,6 +9994,51 @@ components:
       additionalProperties: false
       required:
       - items
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        isPrimary:
+          type: boolean
+        sortOrder:
+          type: integer
+      additionalProperties: false
+      required:
+      - url
+    UploadResultItem:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        size:
+          type: integer
+        mimeType:
+          type: string
+        originalName:
+          type: string
+        isPrimary:
+          type: boolean
+        sortOrder:
+          type: integer
+      additionalProperties: false
+    UploadResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadResultItem'
+        total:
+          type: integer
+      additionalProperties: false
+      required:
+      - items
+      - total
     ProductVariant:
       type: object
       properties:
@@ -9858,6 +10050,16 @@ components:
           type: string
         price:
           $ref: '#/components/schemas/Money'
+        discountPercent:
+          type: number
+        finalPrice:
+          $ref: '#/components/schemas/Money'
+        image:
+          type:
+          - string
+          - 'null'
+        availableStock:
+          type: integer
         status:
           $ref: '#/components/schemas/ActiveStatus'
       additionalProperties: false
@@ -9878,11 +10080,16 @@ components:
           type: string
         price:
           $ref: '#/components/schemas/Money'
+        discountPercent:
+          type: number
+        image:
+          type:
+          - string
+          - 'null'
         status:
           $ref: '#/components/schemas/ActiveStatus'
       additionalProperties: false
       required:
-      - sku
       - label
       - price
     Product:
@@ -9890,12 +10097,27 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/ObjectId'
+        productCode:
+          type:
+          - string
+          - 'null'
         name:
           type: string
         description:
           type: string
         categoryId:
           $ref: '#/components/schemas/ObjectId'
+        productType:
+          type: string
+          enum:
+          - SIMPLE
+          - VARIANT
+        usageType:
+          type: string
+          enum:
+          - SALE
+          - SHARED
+          - SERVICE_SUPPLY
         origin:
           type:
           - string
@@ -9907,7 +10129,9 @@ components:
         images:
           type: array
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/ProductImage'
         variants:
           type: array
           minItems: 1
@@ -9918,6 +10142,12 @@ components:
         outOfStock:
           type: boolean
           description: 'Server tinh: tong ton kha dung tren cac branch = 0 (hien thi). Khong chon branch'
+        totalStock:
+          type: integer
+        archivedAt:
+          type:
+          - string
+          - 'null'
       additionalProperties: false
       required:
       - id
@@ -9929,12 +10159,25 @@ components:
       type: object
       additionalProperties: false
       properties:
+        productCode:
+          type: string
         name:
           type: string
         description:
           type: string
         categoryId:
           $ref: '#/components/schemas/ObjectId'
+        productType:
+          type: string
+          enum:
+          - SIMPLE
+          - VARIANT
+        usageType:
+          type: string
+          enum:
+          - SALE
+          - SHARED
+          - SERVICE_SUPPLY
         origin:
           type: string
         expiryInfo:
@@ -9942,7 +10185,9 @@ components:
         images:
           type: array
           items:
-            type: string
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/ProductImage'
         variants:
           type: array
           minItems: 1
@@ -9961,6 +10206,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Product'
+        totalItems:
+          type: integer
         nextCursor:
           type:
           - string
