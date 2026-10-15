@@ -196,6 +196,14 @@ app.get('/', (req, res) => {
   });
 });
 
+// Universal Health Check endpoints for Render / Uptime monitors / Cloud probers
+app.get(['/health', '/healthz'], (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/branches', branchRoutes);

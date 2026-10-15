@@ -11,6 +11,16 @@ describe('Foundation Verification Tests', () => {
     expect(res.body).toHaveProperty('timestamp');
   });
 
+  it('GET /health and GET /healthz should return 200 OK and UP for Render health probes', async () => {
+    const res1 = await request(app).get('/health');
+    expect(res1.status).toBe(200);
+    expect(res1.body).toHaveProperty('status', 'UP');
+
+    const res2 = await request(app).get('/healthz');
+    expect(res2.status).toBe(200);
+    expect(res2.body).toHaveProperty('status', 'UP');
+  });
+
   it('GET /api/v1/health should return 200 OK and UP', async () => {
     const res = await request(app).get('/api/v1/health');
     expect(res.status).toBe(200);
