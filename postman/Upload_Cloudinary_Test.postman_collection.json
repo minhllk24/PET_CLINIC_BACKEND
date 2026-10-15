@@ -25,15 +25,17 @@
           "listen": "test",
           "script": {
             "exec": [
-              "var jsonData = pm.response.json();",
-              "var token = jsonData.accessToken || (jsonData.data && jsonData.data.tokens && jsonData.data.tokens.accessToken);",
-              "if (token) {",
+              "pm.test('Đăng nhập thành công (HTTP 200)', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Lấy được accessToken hợp lệ', function () {",
+              "    var jsonData = pm.response.json();",
+              "    var token = jsonData.accessToken || (jsonData.data && jsonData.data.tokens && jsonData.data.tokens.accessToken);",
+              "    pm.expect(token).to.be.a('string').and.not.empty;",
               "    pm.collectionVariables.set('accessToken', token);",
               "    pm.environment.set('accessToken', token);",
-              "    console.log('Đã lưu accessToken thành công:', token);",
-              "} else {",
-              "    console.error('Không tìm thấy token trong response');",
-              "}"
+              "    console.log('Đã lưu accessToken:', token.substring(0, 20) + '...');",
+              "});"
             ],
             "type": "text/javascript"
           }
