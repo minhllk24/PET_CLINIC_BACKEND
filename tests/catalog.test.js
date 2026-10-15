@@ -585,6 +585,84 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
     });
   });
 
+  describe('7. Team Leader Feedback Validations (Price > 0 and Page Pagination)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('createProduct rejects variants with price <= 0 (throws 422)', async () => {
+      jest.spyOn(Category, 'findById').mockResolvedValue({ _id: new mongoose.Types.ObjectId(categoryId), status: 'ACTIVE' });
+
+      await expect(
+        catalogService.createProduct({
+          name: 'Sản phẩm giá 0đ',
+          categoryId,
+          variants: [{ label: 'Bản 0đ', price: 0 }]
+        }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('lớn hơn 0')
+      });
+
+      await expect(
+        catalogService.createProduct({
+          name: 'Sản phẩm giá âm',
+          categoryId,
+          variants: [{ label: 'Bản âm', price: -50000 }]
+        }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('lớn hơn 0')
+      });
+    });
+
+    it('addVariant rejects variant with price <= 0 (throws 422)', async () => {
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000555',
+        name: 'Vòng cổ thú cưng',
+        productType: 'VARIANT',
+        variants: []
+      };
+
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+
+      await expect(
+        catalogService.addVariant(productId, { label: 'Size XS', price: 0 }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('lớn hơn 0')
+      });
+    });
+
+    it('listProducts calculates offset pagination correctly and returns total, totalPages, page, and limit', async () => {
+      const mockQueryChain = {
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([
+          { _id: new mongoose.Types.ObjectId(), name: 'Sản phẩm 1', variants: [] }
+        ])
+      };
+
+      jest.spyOn(Product, 'countDocuments').mockResolvedValue(25);
+      jest.spyOn(Product, 'find').mockReturnValue(mockQueryChain);
+      jest.spyOn(stockAvailabilityService, 'attachOutOfStockFlag').mockImplementation(async (items) => items);
+
+      const result = await catalogService.listProducts({ page: 2, limit: 10 }, { systemRole: 'ADMIN' });
+
+      expect(mockQueryChain.skip).toHaveBeenCalledWith(10);
+      expect(mockQueryChain.limit).toHaveBeenCalledWith(11);
+      expect(result.total).toBe(25);
+      expect(result.totalItems).toBe(25);
+      expect(result.page).toBe(2);
+      expect(result.totalPages).toBe(3);
+      expect(result.limit).toBe(10);
+    });
+  });
+
 });
 
 

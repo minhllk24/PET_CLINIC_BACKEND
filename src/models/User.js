@@ -15,10 +15,17 @@ const addressSchema = new mongoose.Schema({
 }, { _id: true });
 
 const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true,
+  },
   phone: {
     type: String,
     required: function () {
-      return !this.googleId;
+      return !this.googleId && !this.username;
     },
     unique: true,
     sparse: true,

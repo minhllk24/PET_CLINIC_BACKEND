@@ -107,14 +107,18 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
 /**
  * Authenticate customer or staff user
  */
-export const login = async ({ identifier, phone, password, rememberMe = false }, meta = {}) => {
-  const loginId = (identifier || phone || '').trim();
+export const login = async ({ identifier, phone, username, password, rememberMe = false }, meta = {}) => {
+  const loginId = (identifier || username || phone || '').trim();
   if (!loginId || !password) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and password are required');
   }
 
   const user = await User.findOne({
-    $or: [{ phone: loginId }, { email: loginId.toLowerCase() }],
+    $or: [
+      { username: loginId.toLowerCase() },
+      { email: loginId.toLowerCase() },
+      { phone: loginId },
+    ],
   });
 
   // Generic 401 response for non-existent users (prevents enumeration)

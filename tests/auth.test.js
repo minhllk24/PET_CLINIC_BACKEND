@@ -125,6 +125,47 @@ describe('Auth & RBAC Comprehensive Tests (OpenAPI v7 & FE Compatibility)', () =
       expect(res.body.user.email).toBe('admin@petclinic.com');
     });
 
+    it('POST /api/v1/auth/login allows identifier as plain text username admin', async () => {
+      jest.spyOn(authService, 'login').mockResolvedValueOnce({
+        accessToken: 'mock_jwt_access_token',
+        refreshToken: 'mock_opaque_refresh_token',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        user: { ...mockAdminUser, username: 'admin' },
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          identifier: 'admin',
+          password: testPassword,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user).toHaveProperty('systemRole', 'ADMIN');
+      expect(res.body.user).toHaveProperty('phone', '0900000000');
+    });
+
+    it('POST /api/v1/auth/login allows username field directly in request body', async () => {
+      jest.spyOn(authService, 'login').mockResolvedValueOnce({
+        accessToken: 'mock_jwt_access_token',
+        refreshToken: 'mock_opaque_refresh_token',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        user: { ...mockAdminUser, username: 'admin' },
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          username: 'admin',
+          password: testPassword,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('accessToken', 'mock_jwt_access_token');
+      expect(res.body.user).toHaveProperty('systemRole', 'ADMIN');
+      expect(res.body.user).toHaveProperty('phone', '0900000000');
+    });
+
     it('POST /api/v1/auth/login ignores client rememberMe flag without triggering additionalProperties error', async () => {
       jest.spyOn(authService, 'login').mockResolvedValueOnce({
         accessToken: 'mock_jwt_access_token',

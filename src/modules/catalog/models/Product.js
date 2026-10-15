@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const variantSchema = new mongoose.Schema({
   sku: { type: String, required: true, trim: true },
   label: { type: String, required: true, trim: true },
-  price: { type: Number, required: true, min: 0 },
+  price: { type: Number, required: [true, 'Giá bán là bắt buộc'], min: [1, 'Giá bán phải lớn hơn 0'] },
   discountPercent: { type: Number, min: 0, max: 100, default: 0 },
   finalPrice: { type: Number, min: 0, default: 0 },
   image: { type: String, default: null },

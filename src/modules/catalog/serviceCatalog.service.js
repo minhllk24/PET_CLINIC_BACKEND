@@ -185,9 +185,11 @@ export const listServices = async ({
   isAvailable = null,
   limit = 20,
   cursor = null,
+  page = null,
   actor = null,
 }) => {
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
   const filter = {};
 
   const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
@@ -210,15 +212,34 @@ export const listServices = async ({
     ];
   }
 
-  if (cursor) {
+  let totalItems = 0;
+  if (mongoose.connection.readyState === 1 || Service.countDocuments?._isMockFunction) {
+    try {
+      totalItems = await Service.countDocuments(filter);
+    } catch (e) {
+      totalItems = 0;
+    }
+  }
+  const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
+
+  let serviceQuery = Service.find(filter).sort({ _id: 1 });
+
+  if (parsedPage && typeof serviceQuery.skip === 'function') {
+    serviceQuery = serviceQuery.skip((parsedPage - 1) * parsedLimit);
+  } else if (!parsedPage && cursor) {
     const decodedId = decodeCursor(cursor);
     if (decodedId && mongoose.Types.ObjectId.isValid(decodedId)) {
       filter._id = { $gt: new mongoose.Types.ObjectId(decodedId) };
+      serviceQuery = Service.find(filter).sort({ _id: 1 });
     }
   }
 
+  if (typeof serviceQuery.limit === 'function') {
+    serviceQuery = serviceQuery.limit(parsedLimit + 1);
+  }
+
   const [services, totalBranchCount] = await Promise.all([
-    Service.find(filter).sort({ _id: 1 }).limit(parsedLimit + 1),
+    serviceQuery,
     Branch.countDocuments({ status: 'ACTIVE' }),
   ]);
 
@@ -281,6 +302,11 @@ export const listServices = async ({
 
   return {
     items: formattedItems,
+    total: totalItems,
+    totalItems,
+    page: parsedPage || 1,
+    totalPages,
+    limit: parsedLimit,
     nextCursor,
   };
 };

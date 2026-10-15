@@ -1094,6 +1094,13 @@ paths:
           minimum: 1
           maximum: 100
           default: 20
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: So thu tu trang (1-indexed) ho tro phan trang offset
       - name: cursor
         in: query
         schema:
@@ -5056,6 +5063,13 @@ paths:
           minimum: 1
           maximum: 100
           default: 20
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: So thu tu trang (1-indexed) ho tro phan trang offset
       - name: cursor
         in: query
         schema:
@@ -5313,6 +5327,13 @@ paths:
           minimum: 1
           maximum: 100
           default: 20
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+        description: So thu tu trang (1-indexed) ho tro phan trang offset
       - name: cursor
         in: query
         schema:
@@ -7806,13 +7827,18 @@ components:
       properties:
         identifier:
           type: string
-          description: email hoac phone
+          description: username, email hoac phone
+        username:
+          type: string
+          description: Ten dang nhap text (tuy chon)
+        phone:
+          type: string
+          description: So dien thoai (tuy chon)
         password:
           type: string
           minLength: 8
       additionalProperties: false
       required:
-      - identifier
       - password
     RefreshRequest:
       type: object
@@ -8509,6 +8535,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Service'
+        totalItems:
+          type: integer
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+        limit:
+          type: integer
         nextCursor:
           type:
           - string
@@ -10240,6 +10276,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Category'
+        totalItems:
+          type: integer
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+        limit:
+          type: integer
         nextCursor:
           type:
           - string
@@ -10332,7 +10378,10 @@ components:
         label:
           type: string
         price:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          - minimum: 1
+          description: Gia ban (VND), bat buoc lon hon 0 (min 1)
         discountPercent:
           type: number
         image:
@@ -10466,6 +10515,14 @@ components:
           items:
             $ref: '#/components/schemas/Product'
         totalItems:
+          type: integer
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+        limit:
           type: integer
         nextCursor:
           type:

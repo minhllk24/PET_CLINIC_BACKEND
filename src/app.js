@@ -136,6 +136,9 @@ app.use((req, res, next) => {
     if ('rememberMe' in req.body) {
       delete req.body.rememberMe;
     }
+    if (!req.body.identifier) {
+      req.body.identifier = req.body.username || req.body.phone;
+    }
   }
 
   next();

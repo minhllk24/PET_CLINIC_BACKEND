@@ -44,6 +44,7 @@ describe('Priority P0 – Service Catalog & Branch Management Suite', () => {
   beforeEach(() => {
     jest.spyOn(IdempotencyKey, 'findOne').mockResolvedValue(null);
     jest.spyOn(IdempotencyKey, 'findOneAndUpdate').mockResolvedValue({});
+    jest.spyOn(Service, 'countDocuments').mockResolvedValue(0);
   });
 
   afterEach(() => {

@@ -6,6 +6,7 @@ import User from '../models/User.js';
 
 const DEMO_ACCOUNTS = [
   {
+    username: 'admin',
     phone: '0900000000',
     fullName: 'System Administrator',
     email: 'admin@petclinic.com',
@@ -79,12 +80,19 @@ const seedDemoUsers = async () => {
     for (const acc of DEMO_ACCOUNTS) {
       const existing = await User.findOne({ phone: acc.phone });
       if (existing) {
-        console.log(`[EXISTS] User phone: ${acc.phone} (${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''})`);
+        if (acc.username && existing.username !== acc.username) {
+          existing.username = acc.username;
+          await existing.save();
+          console.log(`[UPDATED] User ${acc.email} set username: ${acc.username}`);
+        } else {
+          console.log(`[EXISTS] User phone: ${acc.phone} (${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''})`);
+        }
         continue;
       }
 
       const passwordHash = await bcrypt.hash(acc.password, salt);
       await User.create({
+        username: acc.username || undefined,
         phone: acc.phone,
         fullName: acc.fullName,
         email: acc.email,
