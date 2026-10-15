@@ -1,4 +1,5 @@
 import * as catalogService from './catalog.service';
+import * as serviceCatalogService from './serviceCatalog.service';
 
 // ================= CATEGORY CONTROLLER =================
 
@@ -135,6 +136,65 @@ export const deactivateVariant = async (req, res, next) => {
 export const activateVariant = async (req, res, next) => {
   try {
     const result = await catalogService.activateVariant(req.params.id, req.params.variantId, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ================= SERVICE CONTROLLER =================
+
+export const listServices = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.listServices({
+      ...req.query,
+      actor: req.actor,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createService = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.createService(req.body, req.actor);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getServiceById = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.getServiceById(req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateService = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.updateService(req.params.id, req.body, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const archiveService = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.archiveService(req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getServiceBranches = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.getServiceBranches(req.params.id, req.actor);
     res.json(result);
   } catch (error) {
     next(error);

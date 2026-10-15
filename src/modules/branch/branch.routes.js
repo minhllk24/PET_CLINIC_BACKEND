@@ -1,37 +1,56 @@
 import express from 'express';
-import Branch from './models/Branch';
+import * as branchController from './branch.controller';
+import * as branchServiceConfigController from './branchServiceConfig.controller';
+import { authenticate, optionalAuth, requireRole } from '../../shared/authMiddleware';
+import { idempotency } from '../../middleware/idempotencyMiddleware';
 
 const router = express.Router();
 
-router.get('/', async (req, res, next) => {
-  try {
-    const branches = await Branch.find({ status: 'ACTIVE' });
-    res.json(branches);
-  } catch (error) { next(error); }
-});
+// ================= BRANCH CRUD =================
+router.get('/', optionalAuth, branchController.listBranches);
+router.post(
+  '/',
+  authenticate,
+  requireRole(['ADMIN']),
+  idempotency('branchesCreate'),
+  branchController.createBranch
+);
 
-router.post('/', async (req, res, next) => {
-  try {
-    const branch = new Branch(req.body);
-    await branch.save();
-    res.status(201).json(branch);
-  } catch (error) { next(error); }
-});
+router.get('/:id', optionalAuth, branchController.getBranchById);
+router.patch(
+  '/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchController.updateBranch
+);
+router.post(
+  '/:id/deactivate',
+  authenticate,
+  requireRole(['ADMIN']),
+  idempotency('branchesDeactivate'),
+  branchController.deactivateBranch
+);
+router.post(
+  '/:id/activate',
+  authenticate,
+  requireRole(['ADMIN']),
+  idempotency('branchesActivate'),
+  branchController.activateBranch
+);
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const branch = await Branch.findById(req.params.id);
-    if (!branch) return res.status(404).json({ error: 'Not found' });
-    res.json(branch);
-  } catch (error) { next(error); }
-});
+// ================= BRANCH SERVICE CONFIG (BRANCH CONTEXT) =================
+router.get(
+  '/:branchId/service-configs',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  branchServiceConfigController.listBranchServiceConfigs
+);
 
-router.patch('/:id', async (req, res, next) => {
-  try {
-    const branch = await Branch.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!branch) return res.status(404).json({ error: 'Not found' });
-    res.json(branch);
-  } catch (error) { next(error); }
-});
+router.put(
+  '/:branchId/service-configs/:serviceId',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchServiceConfigController.upsertBranchServiceConfig
+);
 
 export default router;

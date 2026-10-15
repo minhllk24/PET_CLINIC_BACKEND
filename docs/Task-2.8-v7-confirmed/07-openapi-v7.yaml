@@ -960,6 +960,40 @@ paths:
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
   /branches/{id}:
+    get:
+      operationId: branchesGet
+      summary: Chi tiet chi nhanh
+      tags:
+      - Branches
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Branch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Branch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: none
+        roles:
+        - public
+        scope: public fields
+        resolver: Branch
+      x-audience:
+      - customer
+      - admin
     patch:
       operationId: branchesUpdate
       summary: Sua chi nhanh (gio mo, holiday, capacity)
@@ -8322,6 +8356,10 @@ components:
           additionalProperties: false
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        enabledBranchCount:
+          type: integer
+          minimum: 0
+          description: So luong chi nhanh dang bat service nay
       additionalProperties: false
       required:
       - id

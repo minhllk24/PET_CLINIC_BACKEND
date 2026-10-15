@@ -1,4 +1,19 @@
 import * as bookingService from './booking.service';
+import * as availabilityService from './availability.service';
+
+export const getAvailability = async (req, res, next) => {
+  try {
+    const { serviceIds, branchId, date } = req.query;
+    const result = await availabilityService.getAvailability({
+      serviceIds,
+      branchId,
+      date,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const createAppointment = async (req, res, next) => {
   try {
