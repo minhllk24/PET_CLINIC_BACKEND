@@ -84,6 +84,33 @@ describe('Foundation Verification Tests', () => {
     expect(res.status).toBe(200);
   });
 
+  it('Should allow CORS requests from https://drpetshouse.lat', async () => {
+    const res = await request(app).get('/api/v1/health').set('Origin', 'https://drpetshouse.lat');
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('https://drpetshouse.lat');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('Should allow CORS requests from https://www.drpetshouse.lat', async () => {
+    const res = await request(app).get('/api/v1/health').set('Origin', 'https://www.drpetshouse.lat');
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('https://www.drpetshouse.lat');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('Should respond with 204 to OPTIONS preflight for /api/v1/auth/login with proper CORS headers', async () => {
+    const res = await request(app)
+      .options('/api/v1/auth/login')
+      .set('Origin', 'https://www.drpetshouse.lat')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'Content-Type,Authorization');
+
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe('https://www.drpetshouse.lat');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+    expect(res.headers['access-control-allow-methods']).toContain('POST');
+  });
+
   it('Should return 413 VALIDATION_ERROR for payload > 1MB', async () => {
     // Generate a 1.5MB payload
     const largeString = 'a'.repeat(1.5 * 1024 * 1024);

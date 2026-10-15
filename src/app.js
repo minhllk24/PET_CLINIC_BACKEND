@@ -20,11 +20,15 @@ import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes from './modules/order/order.routes';
 import bookingRoutes from './modules/booking/booking.routes';
+import availabilityRoutes from './modules/booking/availability.routes';
 import executionRoutes from './modules/execution/execution.routes';
 import uploadRoutes from './modules/upload/upload.routes';
 import AppError from './utils/AppError';
 
 const app = express();
+
+// Trust reverse proxy (Render, Cloudflare, load balancers)
+app.set('trust proxy', 1);
 
 // Logging should be first to capture all requests and assign req.id
 app.use(httpLogger);
@@ -34,7 +38,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 })); // Sets various HTTP headers like X-Content-Type-Options
 
-// CORS Configuration (Allowlist from env + all *.vercel.app deployments)
+// CORS Configuration (Allowlist from env, custom domains drpetshouse.lat, + all *.vercel.app deployments)
 const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
 
 const isOriginAllowed = (origin) => {
@@ -47,10 +51,18 @@ const isOriginAllowed = (origin) => {
   );
   if (isExplicitlyAllowed) return true;
 
-  // Allow any Vercel domain (production & preview branches: e.g. *.vercel.app)
   try {
     const parsed = new URL(cleanOrigin);
+    // Allow any Vercel domain (production & preview branches: e.g. *.vercel.app)
     if (parsed.hostname.endsWith('.vercel.app') || parsed.hostname === 'vercel.app') {
+      return true;
+    }
+    // Allow production custom domain drpetshouse.lat and any subdomains (e.g. www.drpetshouse.lat)
+    if (parsed.hostname === 'drpetshouse.lat' || parsed.hostname.endsWith('.drpetshouse.lat')) {
+      return true;
+    }
+    // Allow local development hostnames
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
       return true;
     }
   } catch (e) {
@@ -60,11 +72,11 @@ const isOriginAllowed = (origin) => {
   return false;
 };
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (!isOriginAllowed(origin)) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', msg), false);
@@ -72,8 +84,25 @@ app.use(cors({
     return callback(null, true);
   },
   credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Idempotency-Key',
+    'X-Correlation-Id',
+    'X-Guest-Lookup-Token',
+    'X-Guest-Cart-Token',
+    'Accept',
+    'Origin',
+    'X-Requested-With',
+  ],
   exposedHeaders: ['X-Correlation-Id'],
-}));
+  optionsSuccessStatus: 204,
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Global Rate limiting
 const limiter = rateLimit({
@@ -176,6 +205,7 @@ app.use('/api/v1/carts', cartRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/appointments', bookingRoutes);
+app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/execution', executionRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 

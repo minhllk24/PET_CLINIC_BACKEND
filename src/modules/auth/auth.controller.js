@@ -10,11 +10,13 @@ const getMeta = (req) => ({
   correlationId: req.id || req.headers['x-correlation-id'] || null,
 });
 
+const isSecureCookie = config.env === 'production' || process.env.COOKIE_SECURE === 'true';
+
 const setRefreshCookie = (res, token, expiresAt) => {
   res.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: config.env === 'production',
-    sameSite: 'strict',
+    secure: isSecureCookie,
+    sameSite: isSecureCookie ? 'none' : 'lax',
     path: REFRESH_COOKIE_PATH,
     expires: expiresAt,
   });
@@ -23,8 +25,8 @@ const setRefreshCookie = (res, token, expiresAt) => {
 const clearRefreshCookie = (res) => {
   res.clearCookie(REFRESH_COOKIE_NAME, {
     httpOnly: true,
-    secure: config.env === 'production',
-    sameSite: 'strict',
+    secure: isSecureCookie,
+    sameSite: isSecureCookie ? 'none' : 'lax',
     path: REFRESH_COOKIE_PATH,
   });
 };

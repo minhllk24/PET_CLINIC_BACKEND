@@ -33,11 +33,16 @@ const config = {
     resetSecret: process.env.JWT_RESET_TOKEN_SECRET || process.env.JWT_ACCESS_TOKEN_SECRET,
   },
   cors: {
-    // Only allow specific Angular / React origins as per doc 13
+    // Allowed origins: Localhost, Vercel deployments, custom production domains
     allowedOrigins: [
       process.env.CUSTOMER_APP_URL || 'http://localhost:3000',
       process.env.ADMIN_APP_URL || 'http://localhost:3001',
       'http://localhost:4200',
+      'https://drpetshouse.lat',
+      'https://www.drpetshouse.lat',
+      ...(process.env.CORS_ALLOWED_ORIGINS
+        ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+        : []),
     ],
   },
   rateLimit: {
