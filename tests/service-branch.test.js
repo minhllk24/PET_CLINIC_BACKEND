@@ -571,4 +571,135 @@ describe('Priority P0 – Service Catalog & Branch Management Suite', () => {
       expect(res.body.serviceType).toBe('GROOMING');
     });
   });
+
+  describe('6. Service Catalog "Khả dụng" (Availability) & Frontend Table Enhancements', () => {
+    it('GET /api/v1/services returns code, totalBranchCount, isAvailable, availabilityStatus, availabilityText', async () => {
+      const mockServices = [
+        {
+          _id: new mongoose.Types.ObjectId(serviceGroomingId),
+          code: 'GRM01',
+          name: 'Tắm & Sấy khô',
+          serviceType: 'GROOMING',
+          basePrice: 70000,
+          durationMinutes: 60,
+          requiredStaffRole: 'CARE_STAFF_GROOMER',
+          bookingMode: 'BOOKABLE',
+          status: 'ACTIVE',
+        },
+        {
+          _id: new mongoose.Types.ObjectId(serviceMedicalId),
+          code: 'MED06',
+          name: 'Phẫu thuật / Triệt sản',
+          serviceType: 'MEDICAL',
+          basePrice: 800000,
+          durationMinutes: 120,
+          requiredStaffRole: 'VETERINARIAN',
+          bookingMode: 'REQUEST_ONLY',
+          status: 'ACTIVE',
+        },
+      ];
+
+      jest.spyOn(Service, 'find').mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue(mockServices),
+        }),
+      });
+
+      jest.spyOn(Branch, 'countDocuments').mockResolvedValue(3);
+
+      jest.spyOn(BranchServiceConfig, 'aggregate').mockResolvedValue([
+        { _id: new mongoose.Types.ObjectId(serviceGroomingId), count: 2 },
+        // serviceMedicalId has 0 enabled branches
+      ]);
+
+      const res = await request(app).get('/api/v1/services');
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(2);
+
+      const grm01 = res.body.items.find((i) => i.code === 'GRM01');
+      expect(grm01).toBeDefined();
+      expect(grm01.code).toBe('GRM01');
+      expect(grm01.enabledBranchCount).toBe(2);
+      expect(grm01.totalBranchCount).toBe(3);
+      expect(grm01.isAvailable).toBe(true);
+      expect(grm01.availabilityStatus).toBe('AVAILABLE');
+      expect(grm01.availabilityText).toBe('Khả dụng');
+
+      const med06 = res.body.items.find((i) => i.code === 'MED06');
+      expect(med06).toBeDefined();
+      expect(med06.code).toBe('MED06');
+      expect(med06.enabledBranchCount).toBe(0);
+      expect(med06.totalBranchCount).toBe(3);
+      expect(med06.isAvailable).toBe(false);
+      expect(med06.availabilityStatus).toBe('UNAVAILABLE');
+      expect(med06.availabilityText).toBe('Chưa có CN bật');
+    });
+
+    it('GET /api/v1/services?branchId=... calculates branch-specific availability and branchConfig', async () => {
+      const mockService = {
+        _id: new mongoose.Types.ObjectId(serviceGroomingId),
+        code: 'GRM01',
+        name: 'Tắm & Sấy khô',
+        serviceType: 'GROOMING',
+        basePrice: 70000,
+        durationMinutes: 60,
+        requiredStaffRole: 'CARE_STAFF_GROOMER',
+        bookingMode: 'BOOKABLE',
+        status: 'ACTIVE',
+      };
+
+      jest.spyOn(Service, 'find').mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue([mockService]),
+        }),
+      });
+
+      jest.spyOn(Branch, 'countDocuments').mockResolvedValue(3);
+
+      jest.spyOn(BranchServiceConfig, 'aggregate').mockResolvedValue([
+        { _id: new mongoose.Types.ObjectId(serviceGroomingId), count: 2 },
+      ]);
+
+      jest.spyOn(BranchServiceConfig, 'find').mockResolvedValue([
+        {
+          branchId: new mongoose.Types.ObjectId(branch1Id),
+          serviceId: new mongoose.Types.ObjectId(serviceGroomingId),
+          enabled: true,
+          capacity: 3,
+        },
+      ]);
+
+      const res = await request(app).get(`/api/v1/services?branchId=${branch1Id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      const item = res.body.items[0];
+      expect(item.isAvailable).toBe(true);
+      expect(item.availabilityStatus).toBe('AVAILABLE');
+      expect(item.branchConfig).toEqual({ enabled: true, capacity: 3 });
+    });
+
+    it('GET /api/v1/services?search=GRM01 searches by service code as well as name', async () => {
+      const findSpy = jest.spyOn(Service, 'find').mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue([]),
+        }),
+      });
+
+      jest.spyOn(Branch, 'countDocuments').mockResolvedValue(3);
+      jest.spyOn(BranchServiceConfig, 'aggregate').mockResolvedValue([]);
+
+      await request(app).get('/api/v1/services?search=GRM01');
+
+      expect(findSpy).toHaveBeenCalled();
+      const queryArg = findSpy.mock.calls[0][0];
+      expect(queryArg.$or).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: expect.any(Object) }),
+          expect.objectContaining({ name: expect.any(Object) }),
+        ])
+      );
+    });
+  });
 });

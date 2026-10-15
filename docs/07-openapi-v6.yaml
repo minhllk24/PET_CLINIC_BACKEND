@@ -1076,6 +1076,14 @@ paths:
         in: query
         schema:
           type: string
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      - name: isAvailable
+        in: query
+        schema:
+          type: boolean
       - name: limit
         in: query
         schema:
@@ -8211,10 +8219,39 @@ components:
           additionalProperties: false
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        code:
+          type: string
+          description: Ma dich vu (e.g. GRM01, MED01)
         enabledBranchCount:
           type: integer
           minimum: 0
           description: So luong chi nhanh dang bat service nay
+        totalBranchCount:
+          type: integer
+          minimum: 0
+          description: Tong so chi nhanh trong he thong
+        isAvailable:
+          type: boolean
+          description: Trang thai kha dung tong the hoac tai chi nhanh duoc loc
+        availabilityStatus:
+          type: string
+          enum:
+          - AVAILABLE
+          - UNAVAILABLE
+          - INACTIVE
+          - BRANCH_DISABLED
+          description: Ma trang thai kha dung
+        availabilityText:
+          type: string
+          description: Mo ta trang thai kha dung hien thi bang tieng Viet
+        branchConfig:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            capacity:
+              type: integer
+          additionalProperties: false
       additionalProperties: false
       required:
       - id
@@ -8244,6 +8281,9 @@ components:
     ServiceWrite:
       type: object
       properties:
+        code:
+          type: string
+          description: Ma dich vu tuy chon (GRM01, MED01)
         name:
           type: string
         serviceType:

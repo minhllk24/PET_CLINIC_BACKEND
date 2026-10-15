@@ -14,8 +14,22 @@ const decodeCursor = (cursor) => {
   }
 };
 
-export const formatServiceResponse = (service, enabledBranchCount = undefined) => {
+export const formatServiceResponse = (service, branchOpts = {}) => {
+  let opts = {};
+  if (typeof branchOpts === 'number' || typeof branchOpts === 'undefined') {
+    opts = { enabledBranchCount: branchOpts };
+  } else {
+    opts = branchOpts;
+  }
+  const {
+    enabledBranchCount = undefined,
+    totalBranchCount = undefined,
+    branchConfig = undefined,
+    branchId = undefined,
+  } = opts;
+
   const obj = service.toObject ? service.toObject() : service;
+  const status = obj.status || 'ACTIVE';
   const res = {
     id: (obj._id || obj.id).toString(),
     name: obj.name,
@@ -24,9 +38,10 @@ export const formatServiceResponse = (service, enabledBranchCount = undefined) =
     durationMinutes: Number(obj.durationMinutes),
     requiredStaffRole: obj.requiredStaffRole,
     bookingMode: obj.bookingMode,
-    status: obj.status || 'ACTIVE',
+    status,
   };
 
+  if (obj.code) res.code = obj.code;
   if (obj.category) res.category = obj.category;
   if (obj.description) res.description = obj.description;
 
@@ -56,6 +71,50 @@ export const formatServiceResponse = (service, enabledBranchCount = undefined) =
 
   if (enabledBranchCount !== undefined) {
     res.enabledBranchCount = Number(enabledBranchCount);
+  }
+  if (totalBranchCount !== undefined) {
+    res.totalBranchCount = Number(totalBranchCount);
+  }
+
+  // Calculate "Khả dụng" (Availability)
+  if (branchId) {
+    // Specific branch context
+    if (status !== 'ACTIVE') {
+      res.isAvailable = false;
+      res.availabilityStatus = 'INACTIVE';
+      res.availabilityText = 'Tạm ngưng';
+    } else if (branchConfig && branchConfig.enabled) {
+      res.isAvailable = true;
+      res.availabilityStatus = 'AVAILABLE';
+      res.availabilityText = 'Khả dụng';
+      res.branchConfig = {
+        enabled: true,
+        capacity: Number(branchConfig.capacity) || 1,
+      };
+    } else {
+      res.isAvailable = false;
+      res.availabilityStatus = 'BRANCH_DISABLED';
+      res.availabilityText = 'Tắt tại chi nhánh';
+      res.branchConfig = {
+        enabled: false,
+        capacity: branchConfig ? Number(branchConfig.capacity) || 1 : 1,
+      };
+    }
+  } else {
+    // Global context
+    if (status !== 'ACTIVE') {
+      res.isAvailable = false;
+      res.availabilityStatus = 'INACTIVE';
+      res.availabilityText = 'Tạm ngưng';
+    } else if (enabledBranchCount !== undefined && enabledBranchCount > 0) {
+      res.isAvailable = true;
+      res.availabilityStatus = 'AVAILABLE';
+      res.availabilityText = 'Khả dụng';
+    } else {
+      res.isAvailable = false;
+      res.availabilityStatus = 'UNAVAILABLE';
+      res.availabilityText = 'Chưa có CN bật';
+    }
   }
 
   return res;
@@ -122,6 +181,8 @@ export const listServices = async ({
   category,
   status,
   search,
+  branchId = null,
+  isAvailable = null,
   limit = 20,
   cursor = null,
   actor = null,
@@ -144,6 +205,7 @@ export const listServices = async ({
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     filter.$or = [
       { name: { $regex: escaped, $options: 'i' } },
+      { code: { $regex: escaped, $options: 'i' } },
       { description: { $regex: escaped, $options: 'i' } },
     ];
   }
@@ -155,9 +217,10 @@ export const listServices = async ({
     }
   }
 
-  const services = await Service.find(filter)
-    .sort({ _id: 1 })
-    .limit(parsedLimit + 1);
+  const [services, totalBranchCount] = await Promise.all([
+    Service.find(filter).sort({ _id: 1 }).limit(parsedLimit + 1),
+    Branch.countDocuments({ status: 'ACTIVE' }),
+  ]);
 
   let nextCursor = null;
   let items = services;
@@ -186,13 +249,43 @@ export const listServices = async ({
   const countMap = new Map();
   branchCounts.forEach((bc) => countMap.set(bc._id.toString(), bc.count));
 
+  // If branchId is specified, fetch branch-specific configurations
+  const branchConfigMap = new Map();
+  let validBranchId = null;
+  if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+    validBranchId = branchId;
+    const branchConfigs = await BranchServiceConfig.find({
+      branchId,
+      serviceId: { $in: serviceIds },
+    });
+    branchConfigs.forEach((cfg) => branchConfigMap.set(cfg.serviceId.toString(), cfg));
+  }
+
+  let formattedItems = items.map((s) => {
+    const sIdStr = s._id.toString();
+    const enabledBranchCount = countMap.get(sIdStr) || 0;
+    const branchConfig = validBranchId ? branchConfigMap.get(sIdStr) : undefined;
+    return formatServiceResponse(s, {
+      enabledBranchCount,
+      totalBranchCount,
+      branchConfig,
+      branchId: validBranchId,
+    });
+  });
+
+  // Filter by isAvailable if requested
+  if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
+    const targetAvailable = isAvailable === true || isAvailable === 'true';
+    formattedItems = formattedItems.filter((item) => item.isAvailable === targetAvailable);
+  }
+
   return {
-    items: items.map((s) => formatServiceResponse(s, countMap.get(s._id.toString()) || 0)),
+    items: formattedItems,
     nextCursor,
   };
 };
 
-export const getServiceById = async (id, actor = null) => {
+export const getServiceById = async (id, actor = null, branchId = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
   }
@@ -207,12 +300,27 @@ export const getServiceById = async (id, actor = null) => {
     throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
   }
 
-  const enabledBranchCount = await BranchServiceConfig.countDocuments({
-    serviceId: service._id,
-    enabled: true,
-  });
+  const [enabledBranchCount, totalBranchCount] = await Promise.all([
+    BranchServiceConfig.countDocuments({
+      serviceId: service._id,
+      enabled: true,
+    }),
+    Branch.countDocuments({ status: 'ACTIVE' }),
+  ]);
 
-  return formatServiceResponse(service, enabledBranchCount);
+  let branchConfig = null;
+  let validBranchId = null;
+  if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+    validBranchId = branchId;
+    branchConfig = await BranchServiceConfig.findOne({ branchId, serviceId: service._id });
+  }
+
+  return formatServiceResponse(service, {
+    enabledBranchCount,
+    totalBranchCount,
+    branchConfig,
+    branchId: validBranchId,
+  });
 };
 
 export const createService = async (data, actor = null) => {
