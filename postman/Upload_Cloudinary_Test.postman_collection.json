@@ -1,0 +1,138 @@
+{
+  "info": {
+    "_postman_id": "pet-clinic-cloudinary-upload-test",
+    "name": "Pet Clinic - Test Upload Cloudinary",
+    "description": "Collection test upload ảnh sản phẩm lên Cloudinary qua API Pet Clinic Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://pet-clinic-backend-a4lj.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Đăng nhập Admin (Lấy Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "var token = jsonData.accessToken || (jsonData.data && jsonData.data.tokens && jsonData.data.tokens.accessToken);",
+              "if (token) {",
+              "    pm.collectionVariables.set('accessToken', token);",
+              "    pm.environment.set('accessToken', token);",
+              "    console.log('Đã lưu accessToken thành công:', token);",
+              "} else {",
+              "    console.error('Không tìm thấy token trong response');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"admin@petclinic.com\",\n  \"password\": \"Admin@1234\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Upload Ảnh Sản Phẩm Lên Cloudinary",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Upload thành công lên Cloudinary và trả về URL CDN', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.items).to.be.an('array');",
+              "    pm.expect(jsonData.items.length).to.be.above(0);",
+              "    var img = jsonData.items[0];",
+              "    pm.expect(img.url).to.include('res.cloudinary.com');",
+              "    pm.expect(img.id).to.include('pet_clinic/products');",
+              "    console.log('URL Cloudinary đã upload thành công:', img.url);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/uploads/products",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "uploads",
+            "products"
+          ]
+        }
+      }
+    }
+  ]
+}
