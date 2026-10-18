@@ -15,6 +15,7 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'manager',
     phone: '0901234567',
     fullName: 'Quản Lý Chi Nhánh 1',
     email: 'manager.q1@petclinic.com',
@@ -24,6 +25,7 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'doctor',
     phone: '0903333333',
     fullName: 'Bác Sĩ Thú Y Nguyễn Văn A',
     email: 'vet.nguyena@petclinic.com',
@@ -34,6 +36,7 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'receptionist',
     phone: '0904444444',
     fullName: 'Lễ Tân Tiếp Đón Trần Thị B',
     email: 'reception.tranb@petclinic.com',
@@ -44,6 +47,29 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'groomer',
+    phone: '0908888888',
+    fullName: 'Nhân Viên Grooming Phạm Văn D',
+    email: 'groomer.phamd@petclinic.com',
+    password: 'Staff@1234',
+    systemRole: 'STAFF',
+    staffSubRole: 'CARE_STAFF_GROOMER',
+    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
+    accountStatus: 'ACTIVE',
+  },
+  {
+    username: 'nurse',
+    phone: '0909999999',
+    fullName: 'Y Tá Thú Y Hoàng Thị E',
+    email: 'nurse.hoange@petclinic.com',
+    password: 'Staff@1234',
+    systemRole: 'STAFF',
+    staffSubRole: 'NURSE',
+    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
+    accountStatus: 'ACTIVE',
+  },
+  {
+    username: 'customer',
     phone: '0905555555',
     fullName: 'Khách Hàng Lê Văn C',
     email: 'customer.levanc@gmail.com',
@@ -52,6 +78,7 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'pending_user',
     phone: '0907777777',
     fullName: 'Khách Hàng Chưa Kích Hoạt',
     email: 'pending.user@gmail.com',
@@ -60,6 +87,7 @@ const DEMO_ACCOUNTS = [
     accountStatus: 'PENDING_ACTIVATION',
   },
   {
+    username: 'blocked_user',
     phone: '0906666666',
     fullName: 'Khách Hàng Bị Khóa',
     email: 'blocked.user@gmail.com',
@@ -78,14 +106,28 @@ const seedDemoUsers = async () => {
     const salt = await bcrypt.genSalt(12);
 
     for (const acc of DEMO_ACCOUNTS) {
-      const existing = await User.findOne({ phone: acc.phone });
+      const existing = await User.findOne({
+        $or: [
+          { phone: acc.phone },
+          ...(acc.username ? [{ username: acc.username }] : []),
+          ...(acc.email ? [{ email: acc.email }] : []),
+        ],
+      });
       if (existing) {
+        let isUpdated = false;
         if (acc.username && existing.username !== acc.username) {
           existing.username = acc.username;
+          isUpdated = true;
+        }
+        if (acc.staffSubRole && existing.staffSubRole !== acc.staffSubRole) {
+          existing.staffSubRole = acc.staffSubRole;
+          isUpdated = true;
+        }
+        if (isUpdated) {
           await existing.save();
-          console.log(`[UPDATED] User ${acc.email} set username: ${acc.username}`);
+          console.log(`[UPDATED] User ${acc.email || acc.phone} -> set username: '${acc.username}', role: ${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''}`);
         } else {
-          console.log(`[EXISTS] User phone: ${acc.phone} (${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''})`);
+          console.log(`[EXISTS] User: ${(existing.username || '-').padEnd(12)} | Phone: ${acc.phone} (${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''})`);
         }
         continue;
       }
@@ -104,7 +146,7 @@ const seedDemoUsers = async () => {
         activatedAt: acc.accountStatus === 'ACTIVE' ? new Date() : null,
       });
 
-      console.log(`[CREATED] ${acc.systemRole.padEnd(8)} | Phone: ${acc.phone} | Pass: ${acc.password.padEnd(14)} | ${acc.fullName}`);
+      console.log(`[CREATED] ${acc.systemRole.padEnd(8)} | User: ${(acc.username || '-').padEnd(12)} | Phone: ${acc.phone} | Pass: ${acc.password.padEnd(14)} | ${acc.fullName}`);
     }
 
     console.log('\n✅ Demo users seeded successfully!');

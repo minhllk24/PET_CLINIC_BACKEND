@@ -55,18 +55,21 @@
 
 ## 2. Danh sách tài khoản Demo đã tạo sẵn để Test
 
-Sau khi khởi động MongoDB và chạy lệnh `npm run seed:demo` trong thư mục `BE/`, bạn có sẵn các tài khoản sau:
+Sau khi khởi động MongoDB và chạy lệnh `npm run seed:demo` trong thư mục `BE/`, bạn có sẵn các tài khoản sau (hỗ trợ đăng nhập linh hoạt bằng **Username**, **Số điện thoại** hoặc **Email** qua trường `identifier`):
 
-| Cấp bậc / Quyền | Vai trò (`systemRole`) | Vai trò phụ (`staffSubRole`) | Số điện thoại (Identifier) | Mật khẩu | Trạng thái (`accountStatus`) | Mục đích test |
-|---|---|---|---|---|---|---|
-| **Quản trị viên** | `ADMIN` | — | `0900000000` | `Admin@1234` | `ACTIVE` | Toàn quyền hệ thống, quản lý tài khoản nội bộ |
-| **Quản lý chi nhánh** | `MANAGER` | — | `0901234567` | `Manager@1234` | `ACTIVE` | Xem dữ liệu trong chi nhánh được gán |
-| **Bác sĩ thú y** | `STAFF` | `VETERINARIAN` | `0903333333` | `Doctor@1234` | `ACTIVE` | Khám chữa bệnh, bệnh án |
-| **Lễ tân** | `STAFF` | `RECEPTIONIST` | `0904444444` | `Staff@1234` | `ACTIVE` | Đặt lịch hẹn, tiếp đón |
-| **Khách hàng** | `CUSTOMER` | — | `0905555555` | `Customer@1234` | `ACTIVE` | Mua hàng, đặt lịch cho thú cưng |
-| **Chưa kích hoạt** | `CUSTOMER` | — | `0907777777` | `Customer@1234` | `PENDING_ACTIVATION` | Test thông báo cần xác thực OTP (403) |
-| **Bị khóa** | `CUSTOMER` | — | `0906666666` | `Customer@1234` | `BLOCKED` | Test thông báo tài khoản bị khóa (403) |
+| Cấp bậc / Quyền | Vai trò (`systemRole`) | Vai trò phụ (`staffSubRole`) | Username (Text) | Số điện thoại | Mật khẩu | Trạng thái (`accountStatus`) | Mục đích & Nhiệm vụ khi phân quyền |
+|---|---|---|---|---|---|---|---|
+| **Quản trị viên** | `ADMIN` | — | `admin` | `0900000000` | `Admin@1234` | `ACTIVE` | Toàn quyền hệ thống, quản lý tài khoản nội bộ, phân quyền |
+| **Quản lý chi nhánh** | `MANAGER` | — | `manager` | `0901234567` | `Manager@1234` | `ACTIVE` | Quản lý chi nhánh được gán, duyệt lịch, xem doanh thu chi nhánh |
+| **Bác sĩ thú y** | `STAFF` | `VETERINARIAN` | `doctor` | `0903333333` | `Doctor@1234` | `ACTIVE` | Khám chữa bệnh, kê đơn thuốc, tạo và cập nhật hồ sơ bệnh án |
+| **Lễ tân** | `STAFF` | `RECEPTIONIST` | `receptionist` | `0904444444` | `Staff@1234` | `ACTIVE` | Tiếp đón khách hàng, check-in/check-out, xếp lịch hẹn |
+| **Nhân viên Spa/Grooming** | `STAFF` | `CARE_STAFF_GROOMER` | `groomer` | `0908888888` | `Staff@1234` | `ACTIVE` | Dịch vụ tắm spa, cắt tỉa lông móng, chăm sóc ngoại hình thú cưng |
+| **Y tá thú y** | `STAFF` | `NURSE` | `nurse` | `0909999999` | `Staff@1234` | `ACTIVE` | Hỗ trợ bác sĩ tiêm truyền, theo dõi thú cưng lưu chuồng điều trị |
+| **Khách hàng** | `CUSTOMER` | — | `customer` | `0905555555` | `Customer@1234` | `ACTIVE` | Mua sắm sản phẩm, đặt lịch khám/spa, quản lý hồ sơ thú cưng |
+| **Chưa kích hoạt** | `CUSTOMER` | — | `pending_user` | `0907777777` | `Customer@1234` | `PENDING_ACTIVATION` | Test chặn đăng nhập khi chưa xác thực OTP (403 ACCOUNT_NOT_ACTIVATED) |
+| **Bị khóa** | `CUSTOMER` | — | `blocked_user` | `0906666666` | `Customer@1234` | `BLOCKED` | Test chặn đăng nhập tài khoản bị khóa vi phạm chính sách (403 ACCOUNT_BLOCKED) |
 
+> 💡 **Mẹo đăng nhập:** FE có thể gửi request `{ "identifier": "admin", "password": "Admin@1234" }` hoặc `{ "username": "admin", ... }` hoặc `{ "identifier": "manager", ... }`, `{ "identifier": "doctor", ... }` cực kỳ thuận tiện cho việc dev/test thay vì phải nhớ số điện thoại.  
 > 💡 **Quy tắc mật khẩu:** Tối thiểu 8 ký tự, có ít nhất 1 chữ in hoa và 1 chữ số (`^(?=.*[A-Z])(?=.*\d).{8,}$`).
 
 ---

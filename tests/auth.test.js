@@ -166,6 +166,44 @@ describe('Auth & RBAC Comprehensive Tests (OpenAPI v7 & FE Compatibility)', () =
       expect(res.body.user).toHaveProperty('phone', '0900000000');
     });
 
+    it('POST /api/v1/auth/login allows role-based text usernames for staff and manager accounts', async () => {
+      const demoAccounts = [
+        { username: 'manager', systemRole: 'MANAGER', staffSubRole: null },
+        { username: 'doctor', systemRole: 'STAFF', staffSubRole: 'VETERINARIAN' },
+        { username: 'receptionist', systemRole: 'STAFF', staffSubRole: 'RECEPTIONIST' },
+        { username: 'groomer', systemRole: 'STAFF', staffSubRole: 'CARE_STAFF_GROOMER' },
+        { username: 'nurse', systemRole: 'STAFF', staffSubRole: 'NURSE' },
+        { username: 'customer', systemRole: 'CUSTOMER', staffSubRole: null },
+      ];
+
+      for (const account of demoAccounts) {
+        jest.spyOn(authService, 'login').mockResolvedValueOnce({
+          accessToken: 'mock_jwt_access_token',
+          refreshToken: 'mock_opaque_refresh_token',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          user: {
+            ...mockAdminUser,
+            username: account.username,
+            systemRole: account.systemRole,
+            staffSubRole: account.staffSubRole,
+          },
+        });
+
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .send({
+            identifier: account.username,
+            password: testPassword,
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body.user).toHaveProperty('systemRole', account.systemRole);
+        if (account.staffSubRole) {
+          expect(res.body.user).toHaveProperty('staffSubRole', account.staffSubRole);
+        }
+      }
+    });
+
     it('POST /api/v1/auth/login ignores client rememberMe flag without triggering additionalProperties error', async () => {
       jest.spyOn(authService, 'login').mockResolvedValueOnce({
         accessToken: 'mock_jwt_access_token',
