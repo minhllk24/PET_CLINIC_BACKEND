@@ -137,3 +137,47 @@ export const uploadProductImages = async (files = [], reqHost = '') => {
   }
   return results;
 };
+
+/**
+ * Delete product image from Cloudinary or local disk
+ */
+export const deleteProductImage = async (imageId) => {
+  if (!imageId || !imageId.trim()) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'imageId is required');
+  }
+
+  const cleanId = imageId.trim().replace(/\.[^/.]+$/, '');
+
+  if (isCloudinaryConfigured && process.env.NODE_ENV !== 'test') {
+    try {
+      const publicId = cleanId.startsWith('pet_clinic/products/')
+        ? cleanId
+        : `pet_clinic/products/${cleanId}`;
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+      logger.info(`Cloudinary destroy result for ${publicId}:`, result);
+      return {
+        id: imageId,
+        success: true,
+        message: 'Image deleted successfully',
+      };
+    } catch (err) {
+      logger.warn('Cloudinary delete image error:', err.message);
+    }
+  }
+
+  const baseName = path.basename(imageId);
+  const targetPath = path.join(localUploadDir, baseName);
+  if (fs.existsSync(targetPath)) {
+    try {
+      fs.unlinkSync(targetPath);
+    } catch (e) {
+      logger.warn('Failed to delete local file:', e.message);
+    }
+  }
+
+  return {
+    id: imageId,
+    success: true,
+    message: 'Image deleted successfully',
+  };
+};

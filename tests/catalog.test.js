@@ -663,6 +663,164 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
     });
   });
 
+  describe('8. FE Feedback Round 2 Enhancements (Duplicate Variant Labels, Archive Guard, CategoryName & Pricing, and Delete Upload)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('createProduct rejects duplicate variant labels with 422', async () => {
+      jest.spyOn(Category, 'findById').mockResolvedValue({ _id: new mongoose.Types.ObjectId(categoryId), status: 'ACTIVE' });
+
+      await expect(
+        catalogService.createProduct({
+          name: 'Sản phẩm trùng biến thể',
+          categoryId,
+          productType: 'VARIANT',
+          variants: [
+            { label: 'Hộp 500g', price: 100000 },
+            { label: '  hộp 500G ', price: 120000 }
+          ]
+        }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('bị trùng lặp')
+      });
+    });
+
+    it('addVariant rejects variant label already existing in product with 422', async () => {
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000555',
+        name: 'Vòng cổ thú cưng',
+        productType: 'VARIANT',
+        variants: [
+          { label: 'Size S', price: 50000 }
+        ]
+      };
+
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+
+      await expect(
+        catalogService.addVariant(productId, { label: '  size s ', price: 60000 }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('bị trùng lặp')
+      });
+    });
+
+    it('archiveProduct rejects with 422 when there is an active order containing this product', async () => {
+      const Order = require('../src/modules/order/models/Order').default;
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(productId),
+        name: 'Sản phẩm có đơn hàng active',
+        variants: [{ _id: new mongoose.Types.ObjectId(variantId), label: 'Mặc định', price: 50000 }]
+      });
+      jest.spyOn(Order, 'findOne').mockResolvedValue({
+        code: 'ORD-ACTIVE-001',
+        status: 'CONFIRMED'
+      });
+
+      await expect(
+        catalogService.archiveProduct(productId, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('ORD-ACTIVE-001')
+      });
+    });
+
+    it('formatProduct populates categoryName and calculates min/max prices properly', () => {
+      const populatedCategory = {
+        _id: new mongoose.Types.ObjectId(categoryId),
+        name: 'Thức ăn hạt cho mèo'
+      };
+
+      const rawProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000888',
+        name: 'Hạt dinh dưỡng cao cấp',
+        categoryId: populatedCategory,
+        productType: 'VARIANT',
+        status: 'ACTIVE',
+        variants: [
+          {
+            _id: new mongoose.Types.ObjectId(),
+            label: 'Túi 1kg',
+            price: 100000,
+            discountPercent: 10,
+            finalPrice: 90000,
+            status: 'ACTIVE'
+          },
+          {
+            _id: new mongoose.Types.ObjectId(),
+            label: 'Túi 5kg',
+            price: 450000,
+            discountPercent: 20,
+            finalPrice: 360000,
+            status: 'ACTIVE'
+          }
+        ]
+      };
+
+      const formatted = catalogService.formatProduct(rawProduct);
+
+      expect(formatted.categoryName).toBe('Thức ăn hạt cho mèo');
+      expect(formatted.minPrice).toBe(100000);
+      expect(formatted.maxPrice).toBe(450000);
+      expect(formatted.minFinalPrice).toBe(90000);
+      expect(formatted.maxFinalPrice).toBe(360000);
+      expect(formatted).not.toHaveProperty('price');
+    });
+
+    it('formatProduct includes price and finalPrice for SIMPLE products', () => {
+      const rawSimpleProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000999',
+        name: 'Bát ăn inox',
+        categoryId: new mongoose.Types.ObjectId(categoryId),
+        productType: 'SIMPLE',
+        status: 'ACTIVE',
+        variants: [
+          {
+            _id: new mongoose.Types.ObjectId(),
+            label: 'Tiêu chuẩn',
+            price: 65000,
+            discountPercent: 10,
+            finalPrice: 58500,
+            status: 'ACTIVE'
+          }
+        ]
+      };
+
+      const formatted = catalogService.formatProduct(rawSimpleProduct);
+
+      expect(formatted.price).toBe(65000);
+      expect(formatted.finalPrice).toBe(58500);
+      expect(formatted.minPrice).toBe(65000);
+      expect(formatted.maxPrice).toBe(65000);
+    });
+
+    it('DELETE /api/v1/uploads/products/:imageId rejects Customer with 403', async () => {
+      const res = await request(app)
+        .delete('/api/v1/uploads/products/pet_clinic/products/test-image-123')
+        .set('Authorization', `Bearer ${customerToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('DELETE /api/v1/uploads/products/:imageId succeeds for Admin', async () => {
+      const res = await request(app)
+        .delete('/api/v1/uploads/products/pet_clinic/products/test-image-123')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.id).toBe('pet_clinic/products/test-image-123');
+    });
+  });
+
 });
 
 

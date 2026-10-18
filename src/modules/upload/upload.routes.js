@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import * as uploadController from './upload.controller';
-import { requireRole } from '../../shared/authMiddleware';
+import { authenticate, requireRole } from '../../shared/authMiddleware';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,9 +26,21 @@ const conditionalMulter = (req, res, next) => {
  */
 router.post(
   '/products',
+  authenticate,
   requireRole(['ADMIN', 'MANAGER']),
   conditionalMulter,
   uploadController.uploadProductImages
+);
+
+/**
+ * DELETE /api/v1/uploads/products/:imageId(*)
+ * Xóa ảnh sản phẩm khỏi Cloudinary hoặc local disk
+ */
+router.delete(
+  '/products/:imageId(*)',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  uploadController.deleteProductImage
 );
 
 export default router;

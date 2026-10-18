@@ -6960,6 +6960,53 @@ paths:
         resolver: None
       x-audience:
       - admin
+  /uploads/products/{imageId}:
+    delete:
+      operationId: deleteProductImage
+      summary: Xoa anh san pham khoi Cloudinary hoac local storage
+      tags:
+      - Catalog
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: imageId
+        in: path
+        required: true
+        description: ID hoac publicId cua anh can xoa
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Xoa anh thanh cong
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - ADMIN
+        - MANAGER
+        scope: GLOBAL
+        audit: upload.product.delete
+        resolver: None
+      x-audience:
+      - admin
   /checkout/validate:
     post:
       operationId: checkoutValidate
@@ -10234,6 +10281,10 @@ components:
           type: string
         categoryId:
           $ref: '#/components/schemas/ObjectId'
+        categoryName:
+          type:
+          - string
+          - 'null'
         productType:
           type: string
           enum:
@@ -10270,6 +10321,20 @@ components:
           type: boolean
           description: 'Server tinh: tong ton kha dung tren cac branch = 0 (hien thi). Khong chon branch'
         totalStock:
+          type: integer
+        price:
+          type: integer
+          description: 'Gia ban cho san pham SIMPLE'
+        finalPrice:
+          type: integer
+          description: 'Gia sau giam cho san pham SIMPLE'
+        minPrice:
+          type: integer
+        maxPrice:
+          type: integer
+        minFinalPrice:
+          type: integer
+        maxFinalPrice:
           type: integer
         archivedAt:
           type:

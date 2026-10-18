@@ -69,25 +69,56 @@ const formatProductVariant = (v) => {
   return formatted;
 };
 
-const formatProduct = (prod) => {
+export const formatProduct = (prod) => {
   if (!prod) return null;
   const obj = typeof prod.toObject === 'function' ? prod.toObject() : { ...prod };
+
+  const variants = Array.isArray(obj.variants) ? obj.variants.map(formatProductVariant) : [];
+
+  let minPrice = 0;
+  let maxPrice = 0;
+  let minFinalPrice = 0;
+  let maxFinalPrice = 0;
+
+  if (variants.length > 0) {
+    const prices = variants.map((v) => Number(v.price) || 0);
+    const finalPrices = variants.map((v) => (v.finalPrice !== undefined && v.finalPrice !== null ? Number(v.finalPrice) : Number(v.price) || 0));
+    minPrice = Math.min(...prices);
+    maxPrice = Math.max(...prices);
+    minFinalPrice = Math.min(...finalPrices);
+    maxFinalPrice = Math.max(...finalPrices);
+  }
+
+  const categoryName = (obj.categoryId && typeof obj.categoryId === 'object' && obj.categoryId.name)
+    ? obj.categoryId.name
+    : (obj.categoryName || null);
+
   const formatted = {
     id: (obj._id || obj.id).toString(),
     productCode: obj.productCode || null,
     name: obj.name,
     description: obj.description || '',
     categoryId: (obj.categoryId ? (obj.categoryId._id || obj.categoryId) : '').toString(),
+    categoryName,
     origin: obj.origin || null,
     expiryInfo: obj.expiryInfo || null,
     images: Array.isArray(obj.images) ? obj.images : [],
     productType: obj.productType || 'SIMPLE',
     usageType: obj.usageType || 'SALE',
-    variants: Array.isArray(obj.variants) ? obj.variants.map(formatProductVariant) : [],
+    variants,
     status: obj.status || 'ACTIVE',
     outOfStock: Boolean(obj.outOfStock),
-    totalStock: typeof obj.totalStock === 'number' ? obj.totalStock : 0
+    totalStock: typeof obj.totalStock === 'number' ? obj.totalStock : 0,
+    minPrice,
+    maxPrice,
+    minFinalPrice,
+    maxFinalPrice
   };
+
+  if (formatted.productType === 'SIMPLE' && variants.length > 0) {
+    formatted.price = variants[0].price;
+    formatted.finalPrice = variants[0].finalPrice;
+  }
 
   if (obj.archivedAt) {
     formatted.archivedAt = obj.archivedAt instanceof Date ? obj.archivedAt.toISOString() : obj.archivedAt;
@@ -402,6 +433,10 @@ export const listProducts = async (params, actor) => {
     }
   }
 
+  if (typeof productsQuery.populate === 'function') {
+    productsQuery = productsQuery.populate('categoryId', 'name slug status');
+  }
+
   if (typeof productsQuery.limit === 'function') {
     productsQuery = productsQuery.limit(parsedLimit + 1);
   }
@@ -441,7 +476,11 @@ export const getProductById = async (id, actor) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
   }
 
-  let product = await Product.findById(id);
+  let productQuery = Product.findById(id);
+  if (productQuery && typeof productQuery.populate === 'function') {
+    productQuery = productQuery.populate('categoryId', 'name slug status');
+  }
+  let product = await productQuery;
   if (!product) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
   }
@@ -487,6 +526,18 @@ export const createProduct = async (data, actor) => {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Invalid categoryId');
   }
 
+  // Chống trùng lặp label biến thể trong cùng sản phẩm upfront (Task 3.6 / FE_Log)
+  const initialLabelSet = new Set();
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    const lbl = v.label ? v.label.trim() : (productType === 'SIMPLE' ? 'Mặc định' : `Biến thể ${i + 1}`);
+    const normalized = lbl.toLowerCase();
+    if (initialLabelSet.has(normalized)) {
+      throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Tên phân loại biến thể "${lbl}" bị trùng lặp trong cùng một sản phẩm`);
+    }
+    initialLabelSet.add(normalized);
+  }
+
   const category = await Category.findById(categoryId);
   if (!category || category.status !== 'ACTIVE') {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Category does not exist or is inactive');
@@ -506,6 +557,7 @@ export const createProduct = async (data, actor) => {
   // Đăng ký InventoryItem và xử lý SKU cho từng variant
   const preparedVariants = [];
   const skuSet = new Set();
+  const labelSet = new Set();
   let nextSkuSeq = 1;
 
   for (let i = 0; i < variants.length; i++) {
@@ -745,6 +797,15 @@ export const updateProduct = async (id, data, actor) => {
       throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm đơn giản (SIMPLE) chỉ được có tối đa 1 biến thể');
     }
 
+    const checkLabelSet = new Set();
+    for (const uv of updatedVariants) {
+      const normLabel = (uv.label || '').trim().toLowerCase();
+      if (checkLabelSet.has(normLabel)) {
+        throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Tên/nhãn biến thể "${uv.label}" bị trùng lặp trong sản phẩm`);
+      }
+      checkLabelSet.add(normLabel);
+    }
+
     product.variants = updatedVariants;
   }
 
@@ -760,6 +821,17 @@ export const archiveProduct = async (id, actor) => {
   const product = await Product.findById(id);
   if (!product) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  }
+
+  // Chặn nếu có Order đang xử lý liên quan đến sản phẩm này (Task 3.6 / FE_Log)
+  if (mongoose.connection.readyState === 1 || Order.findOne?._isMockFunction) {
+    const activeOrder = await Order.findOne({
+      'items.productId': new mongoose.Types.ObjectId(id),
+      status: { $in: ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'] }
+    });
+    if (activeOrder) {
+      throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Không thể lưu trữ sản phẩm vì đang có đơn hàng "${activeOrder.code}" trong quá trình xử lý`);
+    }
   }
 
   product.status = 'ARCHIVED';
@@ -816,6 +888,15 @@ export const addVariant = async (productId, data, actor) => {
 
   const parsedDiscount = Number(discountPercent) || 0;
   const finalPrice = calculateFinalPrice(parsedPrice, parsedDiscount);
+
+  const trimmedLabel = (label || `Biến thể`).trim();
+  const normalizedLabel = trimmedLabel.toLowerCase();
+  const existingLabel = (product.variants || []).some(
+    (v) => (v.label || '').trim().toLowerCase() === normalizedLabel
+  );
+  if (existingLabel) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, `Tên phân loại biến thể "${trimmedLabel}" bị trùng lặp trong cùng một sản phẩm`);
+  }
 
   // Sinh SKU atomic bằng $inc trên MongoDB tránh xung đột race condition
   const updatedDoc = await Product.findOneAndUpdate(

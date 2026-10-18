@@ -19,3 +19,13 @@ export const uploadProductImages = async (req, res, next) => {
     next(err);
   }
 };
+
+export const deleteProductImage = async (req, res, next) => {
+  try {
+    const { imageId } = req.params;
+    const result = await uploadService.deleteProductImage(decodeURIComponent(imageId));
+    return sendSuccess(res, result);
+  } catch (err) {
+    next(err);
+  }
+};

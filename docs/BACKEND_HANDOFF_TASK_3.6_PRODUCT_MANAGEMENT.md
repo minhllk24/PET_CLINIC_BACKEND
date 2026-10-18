@@ -26,16 +26,24 @@
 
 4. **Quản lý Hình ảnh (Cloudinary & Local Disk Fallback):**
    - Đã có API upload multipart: `POST /api/v1/uploads/products`.
+   - Đã có API xóa ảnh trực tiếp: `DELETE /api/v1/uploads/products/:imageId` (hỗ trợ xóa ảnh trên Cloudinary hoặc local disk khi người dùng xóa ảnh trong form).
    - Hỗ trợ lưu cấu trúc ảnh object chuẩn: `[{ id, url, isPrimary, sortOrder }]`, đồng thời vẫn tương thích nếu Frontend gửi mảng chuỗi URL `['https://...']`.
    - Hỗ trợ trường `image` riêng cho từng biến thể variant.
 
-5. **Danh sách, Phân trang & Tồn kho:**
+5. **Danh mục & Thông tin Giá cấp Sản phẩm (Product-Level Summary):**
+   - Backend tự động populate `categoryName` từ bảng Category (Frontend không cần map thủ công ID sang Tên danh mục).
+   - Với sản phẩm `SIMPLE`: Trả thêm trường `price` và `finalPrice`.
+   - Toàn bộ sản phẩm: Trả thêm dải giá `minPrice`, `maxPrice`, `minFinalPrice`, `maxFinalPrice` để Frontend hiển thị dải giá trực tiếp ở bảng danh sách / thẻ sản phẩm mà không cần duyệt mảng `variants`.
+
+6. **Danh sách, Phân trang & Tồn kho:**
    - API `GET /api/v1/products` trả thêm trường `totalItems` (tổng số bản ghi) để FE dễ dàng hiển thị số trang.
    - Trả `totalStock` (tổng tồn kho toàn hệ thống tính từ kho) và `availableStock` cho từng variant.
    - Hỗ trợ lọc theo `usageType`, `categoryId` (hỗ trợ nhiều ID ngăn cách bằng dấu phẩy), `createdWithinDays` (ví dụ: `7`, `30`, `90`), và tìm kiếm `q` mở rộng theo Tên sản phẩm, Mã sản phẩm (`SP-xxxxxx`) và SKU.
 
-6. **Vòng đời Biến thể & Khôi phục Sản phẩm:**
-   - Soft-delete variant có điều kiện: Khi gọi `POST /products/:id/variants/:variantId/deactivate`, Backend sẽ kiểm tra nếu có Đơn hàng đang xử lý (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`) có chứa variant đó thì sẽ chặn lại và trả `422 Unprocessable Entity`.
+7. **Vòng đời Biến thể & Khôi phục Sản phẩm:**
+   - **Chống trùng lặp nhãn biến thể:** Trong cùng 1 sản phẩm, không được phép có 2 variant trùng tên nhãn `label` (không phân biệt hoa thường và khoảng trắng). Trả lỗi `422 Unprocessable Entity` nếu trùng.
+   - **Bảo vệ lưu trữ sản phẩm:** Khi gọi `POST /api/v1/products/:id/archive`, Backend kiểm tra nếu sản phẩm có đơn hàng đang xử lý (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`) thì sẽ từ chối lưu trữ và trả lỗi `422 Unprocessable Entity`.
+   - **Bảo vệ biến thể:** Khi gọi `POST /products/:id/variants/:variantId/deactivate`, Backend sẽ kiểm tra nếu có Đơn hàng đang xử lý có chứa variant đó thì sẽ chặn lại và trả `422 Unprocessable Entity`.
    - Endpoint kích hoạt lại biến thể: `POST /api/v1/products/:id/variants/:variantId/activate`.
    - Endpoint khôi phục sản phẩm: `POST /api/v1/products/:id/restore` (chuyển từ `ARCHIVED` về `INACTIVE`).
 
@@ -67,7 +75,22 @@
 
 ---
 
-### 2. Tạo sản phẩm mới
+### 2. Xóa ảnh sản phẩm (Cloudinary / Local storage)
+- **Endpoint:** `DELETE /api/v1/uploads/products/:imageId`
+  - *Ví dụ imageId:* `pet_clinic/products/1791960666137_sp_test` hoặc `local-1791960666137.jpg`. URL encode nếu cần: `DELETE /api/v1/uploads/products/pet_clinic%2Fproducts%2F1791960666137_sp_test` (Backend hỗ trợ wildcard path param).
+- **Headers:** `Authorization: Bearer <ADMIN_OR_MANAGER_TOKEN>`
+- **Response 200 OK:**
+```json
+{
+  "success": true,
+  "message": "Ảnh đã được xóa thành công",
+  "deletedId": "pet_clinic/products/1791960666137_sp_test"
+}
+```
+
+---
+
+### 3. Tạo sản phẩm mới
 - **Endpoint:** `POST /api/v1/products`
 - **Headers:** `Authorization: Bearer <ADMIN_TOKEN>`, `Idempotency-Key: <UUID>`
 - **Request Body (Không cần gửi `sku` và `productCode`):**
@@ -112,6 +135,7 @@
   "name": "Thức ăn hạt cho mèo trưởng thành Royal Canin Fit 32",
   "description": "Dinh dưỡng cân bằng cho mèo từ 1 đến 7 tuổi",
   "categoryId": "651f1f77bcf86cd799439001",
+  "categoryName": "Thức ăn cho mèo",
   "productType": "VARIANT",
   "usageType": "SALE",
   "origin": "Pháp",
@@ -150,13 +174,17 @@
   ],
   "status": "ACTIVE",
   "totalStock": 0,
-  "outOfStock": true
+  "outOfStock": true,
+  "minPrice": 95000,
+  "maxPrice": 380000,
+  "minFinalPrice": 85500,
+  "maxFinalPrice": 380000
 }
 ```
 
 ---
 
-### 3. Danh sách & Lọc sản phẩm
+### 4. Danh sách & Lọc sản phẩm
 - **Endpoint:** `GET /api/v1/products`
 - **Query Params hỗ trợ:**
   - `q`: Tìm kiếm theo tên sản phẩm, mã sản phẩm (`SP-xxxxxx`) hoặc SKU biến thể.
@@ -180,13 +208,13 @@
 
 ---
 
-### 4. Cập nhật sản phẩm
+### 5. Cập nhật sản phẩm
 - **Endpoint:** `PATCH /api/v1/products/:id`
-- **Lưu ý:** Không thể thay đổi `productType`. Không được sửa mã `sku` của các biến thể đã tồn tại.
+- **Lưu ý:** Không thể thay đổi `productType`. Không được sửa mã `sku` của các biến thể đã tồn tại. Nhãn biến thể `label` không được trùng lặp nhau.
 
 ---
 
-### 5. Thêm biến thể cho sản phẩm
+### 6. Thêm biến thể cho sản phẩm
 - **Endpoint:** `POST /api/v1/products/:id/variants`
 - **Request Body (Không bắt buộc gửi `sku`):**
 ```json
@@ -198,10 +226,11 @@
 }
 ```
 - Backend sẽ tự động sinh `sku: "SP-000001-003"` và tính `finalPrice: 684000`.
+- **Ràng buộc:** Nếu nhãn `label` (không phân biệt hoa/thường) đã tồn tại trong sản phẩm, API trả lỗi `422 Unprocessable Entity`.
 
 ---
 
-### 6. Vô hiệu hóa biến thể (Ngưng kinh doanh)
+### 7. Vô hiệu hóa biến thể (Ngưng kinh doanh)
 - **Endpoint:** `POST /api/v1/products/:id/variants/:variantId/deactivate`
 - **Ràng buộc:** Nếu có Đơn hàng đang xử lý liên quan đến biến thể này, API sẽ trả lỗi `422 Unprocessable Entity`:
 ```json
@@ -216,13 +245,29 @@
 
 ---
 
-### 7. Kích hoạt lại biến thể
+### 8. Kích hoạt lại biến thể
 - **Endpoint:** `POST /api/v1/products/:id/variants/:variantId/activate`
 - Chuyển `status` biến thể từ `INACTIVE` về lại `ACTIVE`.
 
 ---
 
-### 8. Khôi phục sản phẩm đã lưu trữ
+### 9. Lưu trữ sản phẩm (Archive)
+- **Endpoint:** `POST /api/v1/products/:id/archive`
+- Chuyển `status` của sản phẩm sang `ARCHIVED` và gán thời gian `archivedAt`.
+- **Ràng buộc bảo vệ:** Nếu sản phẩm có bất kỳ biến thể nào đang nằm trong Đơn hàng đang xử lý (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`), Backend sẽ từ chối lưu trữ và trả lỗi `422 Unprocessable Entity`:
+```json
+{
+  "type": "https://httpstatuses.com/422",
+  "title": "Unprocessable Entity",
+  "status": 422,
+  "code": "VALIDATION_ERROR",
+  "detail": "Không thể lưu trữ sản phẩm vì đang có đơn hàng \"ORD-000123\" trong quá trình xử lý"
+}
+```
+
+---
+
+### 10. Khôi phục sản phẩm đã lưu trữ
 - **Endpoint:** `POST /api/v1/products/:id/restore`
 - Chuyển `status` của sản phẩm từ `ARCHIVED` về `INACTIVE` (sau đó Admin có thể kiểm tra và chuyển về `ACTIVE` khi sẵn sàng mở bán).
 
@@ -235,4 +280,4 @@
 | **400** | `VALIDATION_ERROR` | Thiếu trường bắt buộc (`name`, `categoryId`, `price`...) | Hiển thị thông báo form lỗi tại trường tương ứng |
 | **403** | `AUTHORIZATION_ERROR` | Role CUSTOMER gọi API quản trị | Chuyển hướng về trang đăng nhập hoặc báo không có quyền |
 | **409** | `CONFLICT` | Trùng mã sản phẩm hoặc trùng SKU biến thể | Báo đỏ trường SKU / Mã sản phẩm với nội dung `detail` trả về từ BE |
-| **422** | `VALIDATION_ERROR` | Cố ý sửa `productType`, sửa `sku` variant cũ, hoặc ngưng bán variant khi đang có đơn hàng xử lý | Hiển thị Toast / Popup cảnh báo với thông điệp chi tiết từ Backend |
+| **422** | `VALIDATION_ERROR` | 1. Cố ý sửa `productType`<br>2. Sửa `sku` variant cũ<br>3. Trùng nhãn biến thể `label` trong cùng sản phẩm<br>4. Ngưng bán variant / Lưu trữ sản phẩm khi có đơn hàng xử lý | Hiển thị Toast / Popup cảnh báo với thông điệp chi tiết từ Backend (`error.detail`) |
