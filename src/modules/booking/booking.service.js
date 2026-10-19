@@ -5,13 +5,14 @@ import Payment from '../payment/models/Payment';
 import Service from '../catalog/models/Service';
 import StaffProfile from '../staff/models/StaffProfile';
 import AppError from '../../utils/AppError';
+import { validateVoucherEligibility, consumeQuotaInSession, restoreQuotaInSession } from '../order/voucher.service';
 
 export const createAppointment = async (data, actor, guestToken) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { branchId, services, scheduledStart, petId, paymentMethod } = data; // services is array of { serviceId }
+    const { branchId, services, scheduledStart, petId, paymentMethod, voucherCode } = data; // services is array of { serviceId }
     
     // 1. Fetch Service Details to determine duration, role, pricing
     let totalDuration = 0;
@@ -66,8 +67,29 @@ export const createAppointment = async (data, actor, guestToken) => {
       });
 
       totalDuration += durationMin;
-      finalAmount += service.basePrice || 100000;
     }
+
+    const subtotal = segments.reduce((sum, seg) => sum + (seg.price || 0), 0);
+    let voucherDiscount = 0;
+    let appliedVoucher = null;
+
+    if (voucherCode && typeof voucherCode === 'string' && voucherCode.trim().length > 0) {
+      const check = await validateVoucherEligibility({
+        code: voucherCode.trim(),
+        scope: 'SERVICE',
+        subtotal,
+        serviceIds: services.map((s) => s.serviceId),
+        branchId,
+        customerId: actor ? actor.id : undefined
+      });
+      if (!check.valid) {
+        throw new AppError(422, `Voucher is invalid: ${check.reason}`, 'VOUCHER_INVALID', check.reason);
+      }
+      appliedVoucher = check.voucher;
+      voucherDiscount = check.discount;
+    }
+
+    finalAmount = Math.max(0, subtotal - voucherDiscount);
 
     // V7 Payment Logic
     let status = '';
@@ -79,7 +101,7 @@ export const createAppointment = async (data, actor, guestToken) => {
 
     if (paymentMethod === 'PAY_AT_STORE') {
       depositAmount = Math.round(finalAmount * 0.30);
-      balanceAmount = finalAmount - depositAmount;
+      balanceAmount = finalAmount - depositAmount; // Guarantees depositAmount + balanceAmount === finalAmount
       paymentAmount = depositAmount;
       paymentKind = 'DEPOSIT';
       status = 'PENDING_PAYMENT';
@@ -103,12 +125,30 @@ export const createAppointment = async (data, actor, guestToken) => {
       totalDuration,
       status,
       services: segments,
-      pricing: { finalAmount, paidAmount, depositAmount, balanceAmount },
+      pricing: {
+        subtotal,
+        voucherId: appliedVoucher ? appliedVoucher._id : undefined,
+        voucherDiscount,
+        finalAmount,
+        paidAmount,
+        depositAmount,
+        balanceAmount
+      },
       paymentMethod,
       holdExpiresAt
     });
 
     await appointment.save({ session });
+
+    if (appliedVoucher) {
+      await consumeQuotaInSession({
+        voucherId: appliedVoucher._id,
+        targetType: 'APPOINTMENT',
+        targetId: appointment._id,
+        discountApplied: voucherDiscount,
+        session
+      });
+    }
 
     // Update reservation with appointmentId
     for (const s of services) {
@@ -197,6 +237,17 @@ export const cancelAppointment = async (id, actor) => {
         payment.status = 'REFUND_PENDING';
         await payment.save({ session });
       }
+    }
+
+    // Option A: Restore voucher quota if cancelled >= 24h or by store
+    const isStoreActor = actor && ['STAFF', 'ADMIN', 'MANAGER'].includes(actor.systemRole);
+    if ((hoursBeforeStart >= 24 || isStoreActor) && apt.pricing && apt.pricing.voucherId) {
+      await restoreQuotaInSession({
+        voucherId: apt.pricing.voucherId,
+        targetType: 'APPOINTMENT',
+        targetId: apt._id,
+        session
+      });
     }
 
     await apt.save({ session });

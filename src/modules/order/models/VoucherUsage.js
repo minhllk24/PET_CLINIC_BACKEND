@@ -1,7 +1,38 @@
 import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
-  // TODO: Implement fields for VoucherUsage as per 05-mongodb-schema-v6.md
-}, { timestamps: true });
+  voucherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Voucher',
+    required: true,
+    index: true
+  },
+  targetType: {
+    type: String,
+    enum: ['ORDER', 'APPOINTMENT'],
+    required: true
+  },
+  targetId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    index: true
+  },
+  discountApplied: {
+    type: Number,
+    default: 0
+  },
+  consumedAt: {
+    type: Date,
+    default: Date.now
+  },
+  restoredAt: {
+    type: Date,
+    default: null
+  }
+}, {
+  timestamps: true
+});
+
+schema.index({ voucherId: 1, targetType: 1, targetId: 1 }, { unique: true });
 
 export default mongoose.model('VoucherUsage', schema);

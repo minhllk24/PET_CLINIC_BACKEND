@@ -8,14 +8,22 @@ export const authorizeRequest = (req, res, next) => {
 
   const authz = req.openapi.schema['x-authz'];
   
-  // If it's public, allow
-  if (authz.roles && (authz.roles.includes('public') || authz.roles.includes('any authenticated'))) {
+  // If it's public, allow anyone (authenticated or guest)
+  if (
+    authz.scope === 'public' ||
+    (authz.roles && (authz.roles.includes('public') || authz.roles.includes('guest(public)')))
+  ) {
     return next();
   }
 
-  // If requires a specific role, verify the actor
+  // If requires authentication, verify the actor exists
   if (!req.actor) {
     return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'You must be logged in to access this resource'));
+  }
+
+  // If route allows any authenticated user, allow immediately
+  if (authz.roles && authz.roles.includes('any authenticated')) {
+    return next();
   }
 
   const actorRole = req.actor.systemRole;

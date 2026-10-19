@@ -24,6 +24,7 @@ import bookingRoutes from './modules/booking/booking.routes';
 import availabilityRoutes from './modules/booking/availability.routes';
 import executionRoutes from './modules/execution/execution.routes';
 import uploadRoutes from './modules/upload/upload.routes';
+import voucherRoutes from './modules/order/voucher.routes';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -225,6 +226,7 @@ app.use('/api/v1/appointments', bookingRoutes);
 app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/execution', executionRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
+app.use('/api/v1/vouchers', voucherRoutes);
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));

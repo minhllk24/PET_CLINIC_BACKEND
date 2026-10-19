@@ -10,6 +10,7 @@ import Product from '../catalog/models/Product';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
+import { validateVoucherEligibility, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
 
 const aggregateMovements = (items) => {
   const totals = new Map();
@@ -23,7 +24,7 @@ const aggregateMovements = (items) => {
 const makeOrderCode = () => `ORD-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`;
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
-  const { cartId, paymentMethod, shippingAddress, contact } = data;
+  const { cartId, paymentMethod, shippingAddress, contact, voucherCode, note } = data;
   if (!['ONLINE_MOCK', 'COD'].includes(paymentMethod)) {
     throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Order paymentMethod must be ONLINE_MOCK or COD');
   }
@@ -55,6 +56,26 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       quantity: item.quantity,
       unitPrice: variant.finalPrice || variant.price
     });
+  }
+
+  const merchandiseSubtotal = resolvedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  // Validate voucher if provided (before acquiring inventory & locks)
+  let appliedVoucher = null;
+  let voucherDiscount = 0;
+  if (voucherCode && typeof voucherCode === 'string' && voucherCode.trim().length > 0) {
+    const check = await validateVoucherEligibility({
+      code: voucherCode.trim(),
+      scope: 'ORDER',
+      subtotal: merchandiseSubtotal,
+      cartId,
+      customerId: actor ? actor.id : undefined
+    });
+    if (!check.valid) {
+      throw new AppError(422, `Voucher is invalid: ${check.reason}`, ErrorCodes.VOUCHER_INVALID, check.reason);
+    }
+    appliedVoucher = check.voucher;
+    voucherDiscount = check.discount;
   }
 
   const setting = await SystemSetting.findOne({ key: 'commerce' }).lean();
@@ -96,10 +117,46 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           reason: 'Order checkout'
         });
 
-        const merchandiseSubtotal = resolvedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-        const voucherDiscount = 0;
-        const shippingFee = 30000;
-        const totalAmount = merchandiseSubtotal - voucherDiscount + shippingFee;
+        if (appliedVoucher) {
+          await consumeQuotaInSession({
+            voucherId: appliedVoucher._id,
+            targetType: 'ORDER',
+            targetId: orderId,
+            discountApplied: voucherDiscount,
+            session
+          });
+        }
+
+        const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
+        const shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
+        const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
+
+        let allocatedSum = 0;
+        const orderItems = resolvedItems.map((item, idx) => {
+          const lineSubtotal = item.unitPrice * item.quantity;
+          let allocatedDiscount = 0;
+          if (voucherDiscount > 0 && merchandiseSubtotal > 0) {
+            if (idx === resolvedItems.length - 1) {
+              allocatedDiscount = voucherDiscount - allocatedSum;
+            } else {
+              allocatedDiscount = Math.round((lineSubtotal / merchandiseSubtotal) * voucherDiscount);
+              allocatedSum += allocatedDiscount;
+            }
+          }
+          const lineNet = Math.max(0, lineSubtotal - allocatedDiscount);
+          return {
+            orderItemId: new mongoose.Types.ObjectId().toString(),
+            productId: item.productId,
+            variantId: item.variantId,
+            nameSnapshot: item.nameSnapshot,
+            skuSnapshot: item.skuSnapshot,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineSubtotal,
+            allocatedDiscount,
+            lineNet
+          };
+        });
 
         createdOrder = new Order({
           _id: orderId,
@@ -108,19 +165,9 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           fulfillmentBranchId: branch._id,
           status: 'PENDING',
           paymentMethod,
-          items: resolvedItems.map((item) => ({
-            orderItemId: new mongoose.Types.ObjectId().toString(),
-            productId: item.productId,
-            variantId: item.variantId,
-            nameSnapshot: item.nameSnapshot,
-            skuSnapshot: item.skuSnapshot,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            lineSubtotal: item.unitPrice * item.quantity,
-            allocatedDiscount: 0,
-            lineNet: item.unitPrice * item.quantity
-          })),
+          items: orderItems,
           pricing: { merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount },
+          voucher: appliedVoucher ? { voucherId: appliedVoucher._id, code: appliedVoucher.code } : undefined,
           shippingAddress,
           contactSnapshot: contact ? { email: contact.email, phone: contact.phone } : {},
           statusHistory: [{ status: 'PENDING', at: new Date(), actorId: actor ? actor.id : undefined }]
@@ -274,6 +321,16 @@ export const cancelOrder = async (orderId, actor, reason, isCustomer = false) =>
         payment.status = 'CANCELLED';
       }
       await payment.save({ session });
+    }
+
+    // Restore voucher quota idempotently if voucher was applied to this order
+    if (order.voucher && order.voucher.voucherId) {
+      await restoreQuotaInSession({
+        voucherId: order.voucher.voucherId,
+        targetType: 'ORDER',
+        targetId: order._id,
+        session
+      });
     }
 
     await session.commitTransaction();
