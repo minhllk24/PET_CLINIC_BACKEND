@@ -15,6 +15,7 @@ const AUDIT_ACTIONS = [
   'TOKEN_REFRESHED',
   'TOKEN_REVOKED',
   'GOOGLE_LOGIN',
+  'INVENTORY_THRESHOLD_UPDATED',
 ];
 
 const auditLogSchema = new mongoose.Schema({

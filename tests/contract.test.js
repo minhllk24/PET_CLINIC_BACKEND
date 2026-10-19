@@ -18,7 +18,7 @@ jest.mock('../src/modules/auth/auth.service', () => ({
 }));
 
 jest.mock('../src/modules/inventory/inventory.service', () => ({
-  recordTransaction: jest.fn().mockResolvedValue({ transaction: { _id: 'tx1' }, stock: { quantity: 10 } })
+  receiveStock: jest.fn().mockResolvedValue({ id: '507f1f77bcf86cd799439099' })
 }));
 
 describe('API Contract Tests', () => {
@@ -46,17 +46,34 @@ describe('API Contract Tests', () => {
     expect([200, 400]).toContain(res.status);
   });
 
-  it('should reject inventory transaction without auth', async () => {
-    const res = await request(app).post('/api/v1/inventory/transactions').send({
+  it('should reject inventory receipt without auth', async () => {
+    const res = await request(app).post('/api/v1/inventory/receive').send({
       branchId: '507f1f77bcf86cd799439011',
       inventoryItemId: '507f1f77bcf86cd799439012',
-      transactionType: 'RECEIPT',
       quantity: 10,
-      sourceType: 'MANUAL',
-      sourceId: '507f1f77bcf86cd799439013'
+      reason: 'INITIAL_STOCK'
     });
     // Because no token is provided, it should fail OpenAPI or authorizeRequest
     // According to OpenAPI it expects bearerAuth
     expect(res.status).toBe(401);
+  });
+
+  it('requires an idempotency key on the canonical checkout route', async () => {
+    const res = await request(app)
+      .post('/api/v1/checkout')
+      .set('X-Guest-Cart-Token', 'guest-cart-token')
+      .send({
+        cartId: '507f1f77bcf86cd799439012',
+        shippingAddress: {
+          recipientName: 'Guest Customer',
+          phone: '0912345678',
+          line1: '1 Nguyen Hue',
+          city: 'Ho Chi Minh City'
+        },
+        paymentMethod: 'COD'
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
   });
 });

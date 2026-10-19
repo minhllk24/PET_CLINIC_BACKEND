@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
-  // TODO: Implement fields for SystemSetting as per 05-mongodb-schema-v6.md
+  key: { type: String, required: true, unique: true, trim: true },
+  value: { type: mongoose.Schema.Types.Mixed, required: true },
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 }, { timestamps: true });
 
-export default mongoose.model('SystemSetting', schema);
+export default mongoose.models.SystemSetting || mongoose.model('SystemSetting', schema);

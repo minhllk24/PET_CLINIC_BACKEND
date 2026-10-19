@@ -19,6 +19,7 @@ import customerRoutes from './modules/customer/customer.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes from './modules/order/order.routes';
+import checkoutRoutes from './modules/order/checkout.routes';
 import bookingRoutes from './modules/booking/booking.routes';
 import availabilityRoutes from './modules/booking/availability.routes';
 import executionRoutes from './modules/execution/execution.routes';
@@ -175,6 +176,10 @@ app.use(
         guestLookupToken: (req, scopes, schema) => {
           // TODO: Implement actual guest token verification logic
           return true;
+        },
+        guestCartToken: (req) => {
+          const token = req.headers['x-guest-cart-token'];
+          return typeof token === 'string' && token.trim().length > 0;
         }
       }
     }
@@ -215,6 +220,7 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/carts', cartRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1', checkoutRoutes);
 app.use('/api/v1/appointments', bookingRoutes);
 app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/execution', executionRoutes);

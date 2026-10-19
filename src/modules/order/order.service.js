@@ -8,162 +8,192 @@ import InventoryTransaction from '../inventory/models/InventoryTransaction';
 import SystemSetting from '../settings/models/SystemSetting';
 import Product from '../catalog/models/Product';
 import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
+import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
+
+const aggregateMovements = (items) => {
+  const totals = new Map();
+  for (const item of items) {
+    const key = item.inventoryItemId.toString();
+    totals.set(key, (totals.get(key) || 0) + item.quantity);
+  }
+  return [...totals.entries()].map(([inventoryItemId, quantity]) => ({ inventoryItemId, quantity }));
+};
+
+const makeOrderCode = () => `ORD-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`;
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const { cartId, paymentMethod, shippingAddress, contactEmail, contactPhone } = data;
-    
-    // 1. Fetch Cart
-    const query = actor ? { _id: cartId, customerId: actor.id } : { _id: cartId, tokenHash: guestToken };
-    const cart = await Cart.findOne(query).session(session);
-    if (!cart || cart.items.length === 0) {
-      throw new AppError(400, 'ValidationError', 'EMPTY_CART', 'Cart is empty or not found');
-    }
-
-    // Resolve inventoryItemIds and snapshots for cart items
-    for (const item of cart.items) {
-      let resolvedInvId = item.productId;
-      let resolvedName = 'Product';
-      let resolvedSku = '';
-      const prod = await Product.findById(item.productId).session(session);
-      if (prod) {
-        resolvedName = prod.name;
-        if (prod.variants && item.variantId) {
-          const v = prod.variants.id ? prod.variants.id(item.variantId) : prod.variants.find(varItem => varItem._id.toString() === item.variantId.toString());
-          if (v) {
-            if (v.inventoryItemId) resolvedInvId = v.inventoryItemId;
-            if (v.sku) resolvedSku = v.sku;
-            resolvedName = `${prod.name} - ${v.label}`;
-          }
-        }
-      }
-      item._resolvedInvId = resolvedInvId;
-      item._resolvedName = resolvedName;
-      item._resolvedSku = resolvedSku;
-    }
-
-    // 2. Fulfillment Branch Resolver
-    // Uses SystemSetting priority list, falls back to chronological active branches
-    const prioritySetting = await SystemSetting.findOne({ key: 'commerce.fulfillmentBranchPriority' }).session(session);
-    let priorityBranchIds = [];
-    if (prioritySetting && Array.isArray(prioritySetting.value) && prioritySetting.value.length > 0) {
-      priorityBranchIds = prioritySetting.value;
-    } else {
-      const branches = await Branch.find({ status: 'ACTIVE' }).sort({ createdAt: 1 }).session(session);
-      priorityBranchIds = branches.map(b => b._id.toString());
-    }
-
-    let fulfillmentBranchId = null;
-
-    for (const bId of priorityBranchIds) {
-      const branch = await Branch.findOne({ _id: bId, status: 'ACTIVE' }).session(session);
-      if (!branch) continue;
-
-      let canFulfill = true;
-      for (const item of cart.items) {
-        const stock = await InventoryStock.findOne({ branchId: branch._id, inventoryItemId: item._resolvedInvId }).session(session);
-        if (!stock || stock.quantity < item.quantity) {
-          canFulfill = false;
-          break;
-        }
-      }
-      if (canFulfill) {
-        fulfillmentBranchId = branch._id;
-        break;
-      }
-    }
-
-    if (!fulfillmentBranchId) {
-      throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'No branch has sufficient inventory for all items');
-    }
-
-    // 3. Issue Inventory (Atomic Decrement)
-    for (const item of cart.items) {
-      const stock = await InventoryStock.findOneAndUpdate(
-        { branchId: fulfillmentBranchId, inventoryItemId: item._resolvedInvId, quantity: { $gte: item.quantity } },
-        { $inc: { quantity: -item.quantity } },
-        { session, new: true }
-      );
-      if (!stock) {
-        throw new AppError(422, 'UnprocessableEntity', 'INSUFFICIENT_INVENTORY', 'Stock changed during checkout');
-      }
-
-      const tx = new InventoryTransaction({
-        branchId: fulfillmentBranchId,
-        inventoryItemId: item._resolvedInvId,
-        transactionType: 'ISSUE',
-        beforeQty: stock.quantity + item.quantity,
-        changeQty: -item.quantity,
-        afterQty: stock.quantity,
-        sourceType: 'ORDER',
-        actorId: actor ? actor.id : null,
-        reason: `Order checkout for product ${item._resolvedName}`,
-        createdAt: new Date()
-      });
-      // sourceId will be updated after Order is created
-      await tx.save({ session });
-      item._txId = tx._id;
-    }
-
-    // 4. Create Order
-    // Calculate totals
-    const lineNet = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    // TODO: voucher discount calculation here
-    const totalDiscount = 0; 
-    const shippingFee = 30000; // Mock shipping fee
-    const finalAmount = lineNet - totalDiscount + shippingFee;
-
-    const order = new Order({
-      customerId: actor ? actor.id : undefined,
-      fulfillmentBranchId,
-      status: 'PENDING',
-      items: cart.items.map(item => ({
-        productId: item.productId,
-        variantId: item.variantId,
-        nameSnapshot: item._resolvedName,
-        skuSnapshot: item._resolvedSku,
-        quantity: item.quantity,
-        unitPrice: item.price
-      })),
-      pricing: { lineNet, totalDiscount, shippingFee, finalAmount },
-      shippingAddress,
-      contactEmail,
-      contactPhone
-    });
-    
-    await order.save({ session });
-
-    // Update tx sourceId
-    for (const item of cart.items) {
-      await InventoryTransaction.findByIdAndUpdate(item._txId, { sourceId: order._id }, { session });
-    }
-
-    // 5. Create Payment
-    const payment = new Payment({
-      targetType: 'ORDER',
-      targetId: order._id,
-      method: paymentMethod, // ONLINE_MOCK or COD
-      status: 'PENDING',
-      amount: finalAmount
-    });
-    await payment.save({ session });
-
-    // 6. Clear cart
-    cart.items = [];
-    await cart.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return order;
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
+  const { cartId, paymentMethod, shippingAddress, contact } = data;
+  if (!['ONLINE_MOCK', 'COD'].includes(paymentMethod)) {
+    throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Order paymentMethod must be ONLINE_MOCK or COD');
   }
+
+  const query = actor ? { _id: cartId, customerId: actor.id } : { _id: cartId, tokenHash: guestToken };
+  const cart = await Cart.findOne(query);
+  if (!cart || cart.items.length === 0) {
+    throw new AppError(400, 'Validation Error', 'EMPTY_CART', 'Cart is empty or not found');
+  }
+
+  const resolvedItems = [];
+  for (const item of cart.items) {
+    const product = await Product.findById(item.productId);
+    if (!product || product.status !== 'ACTIVE') {
+      throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product is not purchasable');
+    }
+    const variant = product.variants && item.variantId
+      ? (product.variants.id ? product.variants.id(item.variantId) : product.variants.find((entry) => entry._id.toString() === item.variantId.toString()))
+      : null;
+    if (!variant || variant.status !== 'ACTIVE' || !variant.inventoryItemId) {
+      throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product variant is not purchasable');
+    }
+    resolvedItems.push({
+      productId: item.productId,
+      variantId: item.variantId,
+      inventoryItemId: variant.inventoryItemId,
+      nameSnapshot: `${product.name} - ${variant.label}`,
+      skuSnapshot: variant.sku,
+      quantity: item.quantity,
+      unitPrice: variant.finalPrice || variant.price
+    });
+  }
+
+  const setting = await SystemSetting.findOne({ key: 'commerce' }).lean();
+  const priorityBranchIds = setting && setting.value && Array.isArray(setting.value.fulfillmentBranchPriority)
+    ? setting.value.fulfillmentBranchPriority
+    : [];
+  if (priorityBranchIds.length === 0) {
+    throw new AppError(422, 'Unprocessable Entity', ErrorCodes.FULFILLMENT_NOT_CONFIGURED, 'Fulfillment branch priority is not configured');
+  }
+
+  const movements = aggregateMovements(resolvedItems);
+  let lastInventoryError = null;
+  for (const candidateId of priorityBranchIds) {
+    const branch = await Branch.findOne({ _id: candidateId, status: 'ACTIVE' }).select('_id').lean();
+    if (!branch) continue;
+    const stocks = await InventoryStock.find({
+      branchId: branch._id,
+      inventoryItemId: { $in: movements.map((movement) => movement.inventoryItemId) }
+    }).lean();
+    const quantities = new Map(stocks.map((stock) => [stock.inventoryItemId.toString(), stock.quantity]));
+    if (!movements.every((movement) => (quantities.get(movement.inventoryItemId.toString()) || 0) >= movement.quantity)) continue;
+
+    const session = await mongoose.startSession();
+    let createdOrder;
+    try {
+      await session.withTransaction(async () => {
+        const currentCart = await Cart.findOne(query).session(session);
+        if (!currentCart || currentCart.items.length === 0) {
+          throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Cart has already been checked out');
+        }
+
+        const orderId = new mongoose.Types.ObjectId();
+        await issueForOrder({
+          session,
+          orderId,
+          branchId: branch._id,
+          movements,
+          actorId: actor && actor.id ? actor.id : SYSTEM_ACTOR_ID,
+          reason: 'Order checkout'
+        });
+
+        const merchandiseSubtotal = resolvedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+        const voucherDiscount = 0;
+        const shippingFee = 30000;
+        const totalAmount = merchandiseSubtotal - voucherDiscount + shippingFee;
+
+        createdOrder = new Order({
+          _id: orderId,
+          code: makeOrderCode(),
+          customerId: actor ? actor.id : undefined,
+          fulfillmentBranchId: branch._id,
+          status: 'PENDING',
+          paymentMethod,
+          items: resolvedItems.map((item) => ({
+            orderItemId: new mongoose.Types.ObjectId().toString(),
+            productId: item.productId,
+            variantId: item.variantId,
+            nameSnapshot: item.nameSnapshot,
+            skuSnapshot: item.skuSnapshot,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineSubtotal: item.unitPrice * item.quantity,
+            allocatedDiscount: 0,
+            lineNet: item.unitPrice * item.quantity
+          })),
+          pricing: { merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount },
+          shippingAddress,
+          contactSnapshot: contact ? { email: contact.email, phone: contact.phone } : {},
+          statusHistory: [{ status: 'PENDING', at: new Date(), actorId: actor ? actor.id : undefined }]
+        });
+        await createdOrder.save({ session });
+
+        const payment = new Payment({
+          code: `PAY-${new mongoose.Types.ObjectId().toString().slice(-10).toUpperCase()}`,
+          target: { type: 'ORDER', id: createdOrder._id },
+          kind: 'ORDER',
+          method: paymentMethod,
+          status: 'PENDING',
+          amount: totalAmount,
+          provider: 'MOCK'
+        });
+        await payment.save({ session });
+        createdOrder.payment = { paymentId: payment._id, status: payment.status };
+        await createdOrder.save({ session });
+
+        currentCart.items = [];
+        await currentCart.save({ session });
+      });
+      return createdOrder;
+    } catch (error) {
+      if (![ErrorCodes.INSUFFICIENT_INVENTORY, ErrorCodes.CONCURRENCY_CONFLICT].includes(error.code)) throw error;
+      lastInventoryError = error;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  throw lastInventoryError || new AppError(
+    422,
+    'Unprocessable Entity',
+    ErrorCodes.INSUFFICIENT_INVENTORY,
+    'No active branch can fulfill the entire cart'
+  );
+};
+
+export const formatOrder = (order) => {
+  const obj = typeof order.toObject === 'function' ? order.toObject() : order;
+  const result = {
+    id: obj._id.toString(),
+    code: obj.code,
+    customerId: obj.customerId ? obj.customerId.toString() : null,
+    fulfillmentBranchId: obj.fulfillmentBranchId.toString(),
+    status: obj.status,
+    items: (obj.items || []).map((item) => ({
+      orderItemId: item.orderItemId.toString(),
+      productId: item.productId.toString(),
+      ...(item.variantId ? { variantId: item.variantId.toString() } : {}),
+      ...(item.skuSnapshot ? { skuSnapshot: item.skuSnapshot } : {}),
+      name: item.nameSnapshot,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      lineSubtotal: item.lineSubtotal,
+      allocatedDiscount: item.allocatedDiscount,
+      lineNet: item.lineNet,
+      returnedQty: item.returnedQty || 0
+    })),
+    pricing: obj.pricing,
+    shippingAddress: obj.shippingAddress,
+    contactSnapshot: obj.contactSnapshot || {},
+    paymentMethod: obj.paymentMethod,
+    payment: obj.payment && obj.payment.paymentId ? {
+      paymentId: obj.payment.paymentId.toString(),
+      status: obj.payment.status
+    } : undefined,
+    deliveredAt: obj.deliveredAt ? new Date(obj.deliveredAt).toISOString() : null,
+    createdAt: obj.createdAt ? new Date(obj.createdAt).toISOString() : undefined
+  };
+  if (obj.voucher && obj.voucher.code) result.voucherCode = obj.voucher.code;
+  return Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
 };
 
 export const getOrders = async (query, actor) => {
@@ -216,51 +246,27 @@ export const cancelOrder = async (orderId, actor, reason, isCustomer = false) =>
     order.cancellationReason = reason;
     await order.save({ session });
 
-    // Compensating transaction: RECEIPT for each item
-    for (const item of order.items) {
-      let invItemId = item.productId;
-      const prod = await Product.findById(item.productId).session(session);
-      if (prod && prod.variants && item.variantId) {
-        const v = prod.variants.id ? prod.variants.id(item.variantId) : prod.variants.find(varItem => varItem._id.toString() === item.variantId.toString());
-        if (v && v.inventoryItemId) invItemId = v.inventoryItemId;
-      }
-
-      let stock = await InventoryStock.findOne({ branchId: order.fulfillmentBranchId, inventoryItemId: invItemId }).session(session);
-      const beforeQty = stock ? stock.quantity : 0;
-      const changeQty = item.quantity;
-      const afterQty = beforeQty + changeQty;
-
-      if (!stock) {
-        stock = new InventoryStock({
-          branchId: order.fulfillmentBranchId,
-          inventoryItemId: invItemId,
-          quantity: afterQty,
-          lowStockThreshold: 0,
-          version: 1
-        });
-      } else {
-        stock.quantity = afterQty;
-        stock.version += 1;
-      }
-      await stock.save({ session });
-
-      const tx = new InventoryTransaction({
+    // Compensating transaction: append one idempotent RECEIPT per item.
+    const originalIssues = await InventoryTransaction.find({
+      sourceType: 'ORDER',
+      sourceId: order._id,
+      transactionType: 'ISSUE'
+    }).session(session).lean();
+    if (originalIssues.length > 0) {
+      await receiveForOrder({
+        session,
+        orderId: order._id,
         branchId: order.fulfillmentBranchId,
-        inventoryItemId: invItemId,
-        transactionType: 'RECEIPT',
-        beforeQty,
-        changeQty,
-        afterQty,
-        sourceType: 'ORDER',
-        sourceId: order._id,
-        actorId: actor ? (actor.id || actor._id) : null,
-        reason: 'Order Cancellation Compensation',
-        createdAt: new Date()
+        movements: originalIssues.map((tx) => ({
+          inventoryItemId: tx.inventoryItemId,
+          quantity: Math.abs(tx.changeQty)
+        })),
+        actorId: actor && (actor.id || actor._id),
+        reason: 'Order cancellation compensation'
       });
-      await tx.save({ session });
     }
 
-    const payment = await Payment.findOne({ targetType: 'ORDER', targetId: order._id }).session(session);
+    const payment = await Payment.findOne({ 'target.type': 'ORDER', 'target.id': order._id }).session(session);
     if (payment) {
       if (payment.status === 'PAID') {
         payment.status = 'REFUND_PENDING'; // Simplified

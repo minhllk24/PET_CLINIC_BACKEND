@@ -3,7 +3,7 @@ import * as orderService from './order.service';
 export const checkoutCreateOrder = async (req, res, next) => {
   try {
     const order = await orderService.checkoutCreateOrder(req.body, req.actor, req.headers['x-guest-cart-token']);
-    res.status(201).json(order);
+    res.status(201).json(orderService.formatOrder(order));
   } catch (error) {
     next(error);
   }

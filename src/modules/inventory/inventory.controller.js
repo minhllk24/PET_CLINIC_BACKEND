@@ -1,18 +1,37 @@
 import * as inventoryService from './inventory.service';
 
-export const createTransaction = async (req, res, next) => {
+const actorWithRequestContext = (req) => ({
+  ...req.actor,
+  idempotencyKey: req.headers['idempotency-key'] || null
+});
+
+export const receiveStock = async (req, res, next) => {
   try {
-    const result = await inventoryService.recordTransaction(req.body, req.actor);
-    res.status(201).json(result);
+    res.status(201).json(await inventoryService.receiveStock(req.body, actorWithRequestContext(req)));
   } catch (error) {
     next(error);
   }
 };
 
-export const receiveStock = async (req, res, next) => {
+export const issueStock = async (req, res, next) => {
   try {
-    const result = await inventoryService.receiveStock(req.body, req.actor);
-    res.status(201).json(result);
+    res.status(201).json(await inventoryService.issueStock(req.body, actorWithRequestContext(req)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adjustStock = async (req, res, next) => {
+  try {
+    res.status(201).json(await inventoryService.adjustStock(req.body, actorWithRequestContext(req)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const transferStock = async (req, res, next) => {
+  try {
+    res.status(201).json(await inventoryService.createTransfer(req.body, actorWithRequestContext(req)));
   } catch (error) {
     next(error);
   }
@@ -20,13 +39,37 @@ export const receiveStock = async (req, res, next) => {
 
 export const getStocks = async (req, res, next) => {
   try {
-    const { branchId, productId } = req.query;
-    const query = {};
-    if (branchId) query.branchId = branchId;
-    if (productId) query.inventoryItemId = productId;
-    
-    const stocks = await inventoryService.getStocks(query);
-    res.json(stocks);
+    res.json(await inventoryService.listStocks(req.query, req.actor));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTransactions = async (req, res, next) => {
+  try {
+    res.json(await inventoryService.listTransactions(req.query, req.actor));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getItems = async (req, res, next) => {
+  try {
+    res.json(await inventoryService.listInventoryItems(req.query, req.actor));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateThreshold = async (req, res, next) => {
+  try {
+    const { branchId, inventoryItemId } = req.params;
+    res.json(await inventoryService.updateThreshold(
+      branchId,
+      inventoryItemId,
+      req.body,
+      actorWithRequestContext(req)
+    ));
   } catch (error) {
     next(error);
   }
