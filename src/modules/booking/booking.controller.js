@@ -17,57 +17,179 @@ export const getAvailability = async (req, res, next) => {
 
 export const createAppointment = async (req, res, next) => {
   try {
-    const appointment = await bookingService.createAppointment(req.body, req.actor, req.headers['x-guest-lookup-token']);
+    const appointment = await bookingService.createAppointment(
+      req.body,
+      req.actor,
+      req.headers['x-guest-lookup-token']
+    );
     res.status(201).json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createInternalAppointment = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.createInternalAppointment(req.body, req.actor);
+    res.status(201).json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const listAppointments = async (req, res, next) => {
   try {
-    // simplified
-    const appointments = await bookingService.getAppointments();
-    res.json(appointments);
-  } catch (error) { next(error); }
+    const result = await bookingService.getAppointments(req.query, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAppointmentById = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.getAppointmentById(
+      req.params.id,
+      req.actor,
+      req.headers['x-guest-lookup-token']
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const confirmAppointment = async (req, res, next) => {
   try {
     const appointment = await bookingService.confirmAppointment(req.params.id, req.actor);
     res.json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectAppointment = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.rejectAppointment(
+      req.params.id,
+      req.body?.reason,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const rescheduleAppointment = async (req, res, next) => {
   try {
-    const appointment = await bookingService.rescheduleAppointment(req.params.id, req.body, req.actor);
+    const appointment = await bookingService.rescheduleAppointment(
+      req.params.id,
+      req.body,
+      req.actor
+    );
     res.json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rescheduleOverride = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.rescheduleOverride(
+      req.params.id,
+      req.body,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const cancelAppointment = async (req, res, next) => {
   try {
-    const appointment = await bookingService.cancelAppointment(req.params.id, req.actor);
+    const appointment = await bookingService.cancelAppointment(
+      req.params.id,
+      req.body?.reason,
+      req.actor
+    );
     res.json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const storeCancelAppointment = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.storeCancelAppointment(
+      req.params.id,
+      req.body?.reason,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelOverride = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.cancelOverride(
+      req.params.id,
+      req.body,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const markNoShow = async (req, res, next) => {
   try {
     const appointment = await bookingService.markNoShow(req.params.id, req.actor);
     res.json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const startSegment = async (req, res, next) => {
   try {
-    const appointment = await bookingService.startSegment(req.params.id, req.body.serviceId, req.actor);
+    const appointment = await bookingService.startSegment(
+      req.params.id,
+      req.body.serviceId,
+      req.actor
+    );
     res.json(appointment);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reassignSegmentStaff = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.reassignSegmentStaff(
+      req.params.id,
+      req.params.serviceId,
+      req.body.staffId,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const mockCompletePayment = async (req, res, next) => {
   try {
-    const result = await bookingService.mockCompletePayment(req.params.prepaymentId, req.actor);
+    const result = await bookingService.mockCompletePayment(
+      req.params.prepaymentId,
+      req.actor
+    );
     res.json(result);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 };

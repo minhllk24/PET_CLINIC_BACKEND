@@ -62,14 +62,21 @@ export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
       return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Not logged in'));
     }
 
-    const hasSystemRole = allowedSystemRoles.includes(req.actor.systemRole);
-    
-    let hasStaffSubRole = true;
-    if (allowedStaffSubRoles.length > 0 && req.actor.systemRole === 'STAFF') {
-      hasStaffSubRole = allowedStaffSubRoles.includes(req.actor.staffSubRole);
+    const actorSystemRole = req.actor.systemRole;
+    const actorStaffSubRole = req.actor.staffSubRole;
+
+    let hasRole = false;
+    if (allowedSystemRoles.includes(actorSystemRole)) {
+      hasRole = true;
+    }
+    if (actorSystemRole === 'STAFF' && actorStaffSubRole && allowedSystemRoles.includes(actorStaffSubRole)) {
+      hasRole = true;
+    }
+    if (allowedStaffSubRoles.length > 0 && actorSystemRole === 'STAFF' && allowedStaffSubRoles.includes(actorStaffSubRole)) {
+      hasRole = true;
     }
 
-    if (!hasSystemRole || !hasStaffSubRole) {
+    if (!hasRole) {
       return next(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'You do not have the required permissions'));
     }
 

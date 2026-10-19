@@ -5,20 +5,22 @@ import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import Shift from '../staff/models/Shift';
 import StaffProfile from '../staff/models/StaffProfile';
 import Appointment from './models/Appointment';
+import SlotReservation from './models/SlotReservation';
 import AppError from '../../utils/AppError';
 
 /**
- * Helper to parse "HH:mm" into minutes from start of day
+ * Helper to parse "HH:mm" into minutes from start of day (UTC)
  */
-const timeToMinutes = (timeStr) => {
+export const timeToMinutes = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return 0;
   const [hours, mins] = timeStr.split(':').map(Number);
-  return hours * 60 + mins;
+  return (hours || 0) * 60 + (mins || 0);
 };
 
 /**
  * Helper to format minutes from start of day into "HH:mm"
  */
-const minutesToTime = (minutes) => {
+export const minutesToTime = (minutes) => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
@@ -27,12 +29,15 @@ const minutesToTime = (minutes) => {
 /**
  * Creates an ISO date-time string given a date "YYYY-MM-DD" and "HH:mm"
  */
-const createDateTimeISO = (dateStr, timeStr) => {
+export const createDateTimeISO = (dateStr, timeStr) => {
   return new Date(`${dateStr}T${timeStr}:00.000Z`).toISOString();
 };
 
+/**
+ * Core Dynamic Availability Slot Engine (Zero manual slot creation)
+ */
 export const getAvailability = async ({ serviceIds, branchId, date }) => {
-  // 1. Normalize serviceIds (handle single string, comma-separated, or array)
+  // 1. Normalize serviceIds (support array, comma-separated string, or single string)
   let normalizedServiceIds = [];
   if (Array.isArray(serviceIds)) {
     normalizedServiceIds = serviceIds.flatMap((id) =>
@@ -89,7 +94,7 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
   }
 
   // Determine dayOfWeek (0: Sunday, 1: Monday, ..., 6: Saturday)
-  const targetDateObj = new Date(`${date}T00:00:00Z`);
+  const targetDateObj = new Date(`${date}T00:00:00.000Z`);
   const dayOfWeek = targetDateObj.getUTCDay();
 
   // Find opening hours for this dayOfWeek
@@ -150,7 +155,7 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
     orderedServices.push(s);
   }
 
-  // All services must share the same serviceType
+  // All services must share the exact same serviceType
   const primaryServiceType = orderedServices[0].serviceType;
   const isConsistentType = orderedServices.every((s) => s.serviceType === primaryServiceType);
   if (!isConsistentType) {
@@ -228,7 +233,7 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
   const now = new Date();
   const existingAppointments = await Appointment.find({
     branchId: new mongoose.Types.ObjectId(branchId),
-    status: { $in: ['CONFIRMED', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
+    status: { $in: ['CONFIRMED', 'IN_PROGRESS', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
     scheduledStart: { $lt: endOfDay },
     scheduledEnd: { $gt: startOfDay },
   });
