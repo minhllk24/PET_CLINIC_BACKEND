@@ -16,6 +16,16 @@ export const authorizeRequest = (req, res, next) => {
     return next();
   }
 
+  // If route allows guest lookup token and header is present
+  if (
+    !req.actor &&
+    req.headers['x-guest-lookup-token'] &&
+    authz.roles &&
+    authz.roles.includes('guest(lookup token)')
+  ) {
+    return next();
+  }
+
   // If requires authentication, verify the actor exists
   if (!req.actor) {
     return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'You must be logged in to access this resource'));
