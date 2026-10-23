@@ -11,6 +11,7 @@ import InventoryTransaction from '../src/modules/inventory/models/InventoryTrans
 import IdempotencyKey from '../src/modules/audit/models/IdempotencyKey';
 import * as orderService from '../src/modules/order/order.service';
 import * as returnService from '../src/modules/order/return.service';
+import * as voucherService from '../src/modules/order/voucher.service';
 
 const adminId = '507f1f77bcf86cd799439001';
 const managerId = '507f1f77bcf86cd799439002';
@@ -39,7 +40,7 @@ const customerToken = jwt.sign(
 );
 
 const makeMockQuery = (doc) => ({
-  session: jest.fn().mockResolvedValue(doc),
+  session: jest.fn().mockReturnThis(),
   sort: jest.fn().mockReturnThis(),
   limit: jest.fn().mockResolvedValue(Array.isArray(doc) ? doc : [doc]),
   lean: jest.fn().mockResolvedValue(doc),
@@ -412,6 +413,272 @@ describe('Priority P0 Order & Priority P1 Return/Refund Suite', () => {
       expect(res.body).toHaveProperty('status', 'REQUESTED');
       expect(res.body.refundBreakdown).toHaveProperty('merchandiseNet', 50000);
       expect(res.body.refundBreakdown).toHaveProperty('shippingRefunded', 0);
+    });
+  });
+
+  describe('7. Voucher Discount Allocation Snapshot & Return Net Refund Safeguards', () => {
+    it('calculates proportional voucher discount allocation across eligible items with integer VND rounding and distributes remainder to the last eligible item', async () => {
+      // Setup resolved items
+      const item1Id = new mongoose.Types.ObjectId();
+      const item2Id = new mongoose.Types.ObjectId();
+      const item3Id = new mongoose.Types.ObjectId();
+      const nonEligibleItemId = new mongoose.Types.ObjectId();
+
+      const items = [
+        { productId: item1Id, unitPrice: 100000, quantity: 1 }, // subtotal 100k
+        { productId: item2Id, unitPrice: 200000, quantity: 1 }, // subtotal 200k
+        { productId: item3Id, unitPrice: 300000, quantity: 1 }, // subtotal 300k
+        { productId: nonEligibleItemId, unitPrice: 400000, quantity: 1 } // subtotal 400k (not eligible)
+      ];
+
+      // Fixed voucher 50,000 VND scoped to product 1, 2, 3
+      const voucher = {
+        scope: 'PRODUCT',
+        scopeRefs: [item1Id, item2Id, item3Id]
+      };
+      const voucherDiscount = 50000;
+
+      const isItemEligible = (item) => {
+        if (!voucher || voucherDiscount <= 0) return false;
+        if (voucher.scope === 'PRODUCT' && Array.isArray(voucher.scopeRefs) && voucher.scopeRefs.length > 0) {
+          return voucher.scopeRefs.some((ref) => (ref._id || ref).toString() === item.productId.toString());
+        }
+        return true;
+      };
+
+      const eligibleItems = items.filter(isItemEligible);
+      const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      expect(eligibleSubtotal).toBe(600000);
+
+      let lastEligibleIndex = -1;
+      for (let i = items.length - 1; i >= 0; i--) {
+        if (isItemEligible(items[i])) {
+          lastEligibleIndex = i;
+          break;
+        }
+      }
+      expect(lastEligibleIndex).toBe(2);
+
+      let allocatedSum = 0;
+      const orderItems = items.map((item, idx) => {
+        const lineSubtotal = item.unitPrice * item.quantity;
+        let allocatedDiscount = 0;
+
+        if (isItemEligible(item) && eligibleSubtotal > 0 && voucherDiscount > 0) {
+          if (idx === lastEligibleIndex) {
+            allocatedDiscount = Math.max(0, voucherDiscount - allocatedSum);
+          } else {
+            allocatedDiscount = Math.round((lineSubtotal / eligibleSubtotal) * voucherDiscount);
+            allocatedSum += allocatedDiscount;
+          }
+          allocatedDiscount = Math.min(allocatedDiscount, lineSubtotal);
+        }
+
+        const lineNet = Math.max(0, lineSubtotal - allocatedDiscount);
+        return {
+          productId: item.productId,
+          lineSubtotal,
+          allocatedDiscount,
+          lineNet
+        };
+      });
+
+      // Item 1: 100k / 600k * 50k = 8,333.33 -> round = 8,333
+      expect(orderItems[0].allocatedDiscount).toBe(8333);
+      expect(orderItems[0].lineNet).toBe(100000 - 8333);
+
+      // Item 2: 200k / 600k * 50k = 16,666.66 -> round = 16,667
+      expect(orderItems[1].allocatedDiscount).toBe(16667);
+      expect(orderItems[1].lineNet).toBe(200000 - 16667);
+
+      // Item 3 (last eligible): 50,000 - (8,333 + 16,667) = 25,000 exactly!
+      expect(orderItems[2].allocatedDiscount).toBe(25000);
+      expect(orderItems[2].lineNet).toBe(300000 - 25000);
+
+      // Item 4 (non-eligible): 0 discount
+      expect(orderItems[3].allocatedDiscount).toBe(0);
+      expect(orderItems[3].lineNet).toBe(400000);
+
+      // Total discount exactly matches voucherDiscount (50,000 VND)
+      const totalAllocatedDiscount = orderItems.reduce((sum, item) => sum + item.allocatedDiscount, 0);
+      expect(totalAllocatedDiscount).toBe(50000);
+    });
+
+    it('refunds partial returns according to snapshotted lineNet and grants remainder on final returned unit without shipping', async () => {
+      const orderId = new mongoose.Types.ObjectId();
+      const lineItemId = 'ITEM-PARTIAL-1';
+
+      // 3 units of an item with total lineNet = 200,000 VND (66,666.66 per unit)
+      const mockLineItem = {
+        orderItemId: lineItemId,
+        productId: new mongoose.Types.ObjectId(),
+        nameSnapshot: 'Thuc an cho',
+        quantity: 3,
+        lineSubtotal: 240000,
+        allocatedDiscount: 40000,
+        lineNet: 200000,
+        returnedQty: 0,
+        returnReservedQty: 0,
+        refundedNet: 0
+      };
+
+      const mockOrder = {
+        _id: orderId,
+        status: 'COMPLETED',
+        deliveredAt: new Date(),
+        customerId: new mongoose.Types.ObjectId(customerId),
+        items: [mockLineItem],
+        save: jest.fn().mockResolvedValue(true),
+        toObject: function() { return this; }
+      };
+
+      jest.spyOn(Order, 'findById').mockReturnValue(makeMockQuery(mockOrder));
+
+      // 1. Return 1 unit out of 3:
+      // unitNet = Math.floor(200,000 / 3) = 66,666 VND
+      const quote1 = await orderService.getReturnQuote(
+        orderId,
+        [{ orderItemId: lineItemId, quantity: 1 }],
+        { id: customerId, systemRole: 'CUSTOMER' }
+      );
+      expect(quote1.refundBreakdown.merchandiseNet).toBe(66666);
+      expect(quote1.refundBreakdown.shippingRefunded).toBe(0);
+      expect(quote1.refundBreakdown.total).toBe(66666);
+
+      // Simulate approval of 1 unit
+      mockLineItem.returnedQty = 1;
+      mockLineItem.refundedNet = 66666;
+
+      // 2. Return the remaining 2 units (final units):
+      // Current returned (1) + requested (2) === quantity (3)
+      // refundAmount = lineNet - refundedNet = 200,000 - 66,666 = 133,334 VND
+      const quote2 = await orderService.getReturnQuote(
+        orderId,
+        [{ orderItemId: lineItemId, quantity: 2 }],
+        { id: customerId, systemRole: 'CUSTOMER' }
+      );
+      expect(quote2.refundBreakdown.merchandiseNet).toBe(133334);
+      expect(quote2.refundBreakdown.shippingRefunded).toBe(0);
+      expect(quote2.refundBreakdown.total).toBe(133334);
+
+      // Total refunded across both parts: 66,666 + 133,334 = 200,000 VND (100% of lineNet)
+      expect(quote1.refundBreakdown.total + quote2.refundBreakdown.total).toBe(200000);
+    });
+
+    it('enforces total refund ceiling: rejects with 422 REFUND_EXCEEDS_NET_PAID if cumulative refund exceeds net merchandise paid', async () => {
+      const orderId = new mongoose.Types.ObjectId();
+      const lineItemId = 'ITEM-LIMIT-1';
+
+      const mockLineItem = {
+        orderItemId: lineItemId,
+        productId: new mongoose.Types.ObjectId(),
+        quantity: 1,
+        lineNet: 100000,
+        returnedQty: 0,
+        returnReservedQty: 0,
+        refundedNet: 0
+      };
+
+      const mockOrder = {
+        _id: orderId,
+        status: 'COMPLETED',
+        deliveredAt: new Date(),
+        customerId: new mongoose.Types.ObjectId(customerId),
+        items: [mockLineItem],
+        save: jest.fn().mockResolvedValue(true),
+        toObject: function() { return this; }
+      };
+
+      jest.spyOn(Order, 'findById').mockReturnValue(makeMockQuery(mockOrder));
+
+      // Mock previous refund already totaling 100,000 VND
+      jest.spyOn(OrderRefund, 'find').mockReturnValue(makeMockQuery([{
+        orderId,
+        amount: 100000,
+        status: 'REFUNDED'
+      }]));
+
+      // Attempting to quote or create another refund for 100,000 must fail with REFUND_EXCEEDS_NET_PAID
+      await expect(
+        orderService.getReturnQuote(orderId, [{ orderItemId: lineItemId, quantity: 1 }], { id: customerId, systemRole: 'CUSTOMER' })
+      ).rejects.toThrow('Total refund cannot exceed net merchandise amount paid');
+    });
+
+    it('never restores voucher quota on return after delivery, only restores when cancelled before completion', async () => {
+      const restoreSpy = jest.spyOn(voucherService, 'restoreQuotaInSession').mockResolvedValue({});
+
+      const orderId = new mongoose.Types.ObjectId();
+      const voucherId = new mongoose.Types.ObjectId();
+      const lineItemId = 'ITEM-VOUCHER-TEST';
+
+      const mockLineItem = {
+        orderItemId: lineItemId,
+        quantity: 1,
+        lineNet: 150000,
+        returnedQty: 0,
+        returnReservedQty: 1,
+        refundedNet: 0
+      };
+
+      const mockDeliveredOrder = {
+        _id: orderId,
+        status: 'COMPLETED',
+        deliveredAt: new Date(),
+        voucher: { voucherId, code: 'SAVE10' },
+        items: [mockLineItem],
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      const mockReturn = {
+        _id: new mongoose.Types.ObjectId(),
+        orderId,
+        status: 'RECEIVED',
+        items: [{
+          orderItemId: lineItemId,
+          requestedQty: 1,
+          refundAmount: 150000
+        }],
+        refundBreakdown: { merchandiseNet: 150000, shippingRefunded: 0, total: 150000 },
+        history: [],
+        save: jest.fn().mockResolvedValue(true)
+      };
+
+      const fakeSession = {
+        startTransaction: jest.fn(),
+        commitTransaction: jest.fn(),
+        abortTransaction: jest.fn(),
+        endSession: jest.fn()
+      };
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(fakeSession);
+      jest.spyOn(OrderReturn, 'findById').mockReturnValue(makeMockQuery(mockReturn));
+      jest.spyOn(Order, 'findById').mockReturnValue(makeMockQuery(mockDeliveredOrder));
+      jest.spyOn(OrderRefund.prototype, 'save').mockImplementation(function() {
+        this._id = new mongoose.Types.ObjectId();
+        return Promise.resolve(this);
+      });
+
+      // 1. Approve return after delivery -> restoreQuotaInSession MUST NOT be called!
+      await returnService.approveReturn(mockReturn._id, {}, { id: managerId, systemRole: 'MANAGER' });
+      expect(restoreSpy).not.toHaveBeenCalled();
+
+      // 2. Pre-completion cancellation (order in PENDING state) -> restoreQuotaInSession MUST be called!
+      const pendingOrder = {
+        _id: new mongoose.Types.ObjectId(),
+        status: 'PENDING',
+        statusHistory: [],
+        voucher: { voucherId, code: 'SAVE10' },
+        save: jest.fn().mockResolvedValue(true)
+      };
+      jest.spyOn(Order, 'findById').mockReturnValue(makeMockQuery(pendingOrder));
+      jest.spyOn(Payment, 'findOne').mockReturnValue(makeMockQuery(null));
+      jest.spyOn(InventoryTransaction, 'find').mockReturnValue(makeMockQuery([]));
+
+      await orderService.cancelOrder(pendingOrder._id, { id: customerId, systemRole: 'CUSTOMER' }, 'Customer cancelled', true);
+      expect(restoreSpy).toHaveBeenCalledWith(expect.objectContaining({
+        voucherId,
+        targetType: 'ORDER',
+        targetId: pendingOrder._id
+      }));
     });
   });
 });

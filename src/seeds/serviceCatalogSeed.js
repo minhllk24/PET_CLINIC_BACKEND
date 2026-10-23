@@ -15,7 +15,7 @@ export const seedServiceCatalog = async () => {
   const branchesData = [
     {
       code: 'BR-000001',
-      name: 'Chi nhánh Quận 1 - Pet Care Center',
+      name: 'Chi nhánh Quận 1',
       address: '123 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP.HCM',
       phone: '02812345678',
       status: 'ACTIVE',
@@ -24,7 +24,7 @@ export const seedServiceCatalog = async () => {
     },
     {
       code: 'BR-000002',
-      name: 'Chi nhánh Quận 3 - Pet Care Clinic',
+      name: 'Chi nhánh Quận 3',
       address: '456 Lê Văn Sỹ, Phường 14, Quận 3, TP.HCM',
       phone: '02887654321',
       status: 'ACTIVE',
@@ -33,7 +33,7 @@ export const seedServiceCatalog = async () => {
     },
     {
       code: 'BR-000003',
-      name: 'Chi nhánh Bình Thạnh - Pet Care Hospital',
+      name: 'Chi nhánh Bình Thạnh',
       address: '789 Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP.HCM',
       phone: '02899998888',
       status: 'ACTIVE',

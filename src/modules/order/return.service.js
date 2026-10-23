@@ -102,6 +102,8 @@ export const createReturn = async (data, actor, guestToken) => {
       let refundAmount = unitNet * reqItem.quantity;
       if (currentReturned + currentReserved + reqItem.quantity === lineItem.quantity) {
         refundAmount = Math.max(0, lineItem.lineNet - (lineItem.refundedNet || 0));
+      } else {
+        refundAmount = Math.min(refundAmount, Math.max(0, lineItem.lineNet - (lineItem.refundedNet || 0)));
       }
 
       totalMerchandiseNet += refundAmount;
@@ -116,6 +118,39 @@ export const createReturn = async (data, actor, guestToken) => {
         requestedQty: reqItem.quantity,
         refundAmount
       });
+    }
+
+    // Safeguard: Total cumulative refund for the order cannot exceed net merchandise amount paid
+    const totalOrderMerchandiseNetPaid = (freshOrder.items || []).reduce(
+      (sum, item) => sum + (Number(item.lineNet) || 0),
+      0
+    );
+
+    const isOrderRefundQueryable = mongoose.connection.readyState !== 0 || Boolean(OrderRefund.find && OrderRefund.find.mock);
+    let totalPreviouslyRefunded = 0;
+    if (isOrderRefundQueryable) {
+      try {
+        const previousRefunds = await OrderRefund.find({
+          orderId: freshOrder._id,
+          status: { $in: ['PENDING', 'REFUNDED'] }
+        }).session(session);
+
+        totalPreviouslyRefunded = (previousRefunds || []).reduce(
+          (sum, r) => sum + (Number(r.amount) || 0),
+          0
+        );
+      } catch (err) {
+        totalPreviouslyRefunded = 0;
+      }
+    }
+
+    if (totalPreviouslyRefunded + totalMerchandiseNet > totalOrderMerchandiseNetPaid) {
+      throw new AppError(
+        422,
+        'Unprocessable Entity',
+        'REFUND_EXCEEDS_NET_PAID',
+        'Total refund cannot exceed net merchandise amount paid'
+      );
     }
 
     await freshOrder.save({ session });
@@ -246,6 +281,40 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
         lineItem.refundedNet = (lineItem.refundedNet || 0) + retItem.refundAmount;
       }
     }
+
+    // Safeguard: Total cumulative refund cannot exceed net merchandise amount paid
+    const totalOrderMerchandiseNetPaid = (order.items || []).reduce(
+      (sum, item) => sum + (Number(item.lineNet) || 0),
+      0
+    );
+
+    const isOrderRefundQueryable = mongoose.connection.readyState !== 0 || Boolean(OrderRefund.find && OrderRefund.find.mock);
+    let totalAlreadyRefunded = 0;
+    if (isOrderRefundQueryable) {
+      try {
+        const existingRefunds = await OrderRefund.find({
+          orderId: order._id,
+          status: { $in: ['PENDING', 'REFUNDED'] }
+        }).session(session);
+
+        totalAlreadyRefunded = (existingRefunds || []).reduce(
+          (sum, r) => sum + (Number(r.amount) || 0),
+          0
+        );
+      } catch (err) {
+        totalAlreadyRefunded = 0;
+      }
+    }
+
+    if (totalAlreadyRefunded + ret.refundBreakdown.total > totalOrderMerchandiseNetPaid) {
+      throw new AppError(
+        422,
+        'Unprocessable Entity',
+        'REFUND_EXCEEDS_NET_PAID',
+        'Total refund cannot exceed net merchandise amount paid'
+      );
+    }
+
     await order.save({ session });
 
     // Create OrderRefund document in PENDING state

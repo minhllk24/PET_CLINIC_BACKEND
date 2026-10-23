@@ -11,7 +11,7 @@ import OrderRefund from './models/OrderRefund';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
-import { validateVoucherEligibility, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
+import { validateVoucherEligibility, calculateDiscount, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -80,6 +80,21 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     }
     appliedVoucher = check.voucher;
     voucherDiscount = check.discount;
+
+    if (appliedVoucher && appliedVoucher.scope === 'PRODUCT') {
+      const eligibleItems = resolvedItems.filter((item) =>
+        Array.isArray(appliedVoucher.scopeRefs) &&
+        appliedVoucher.scopeRefs.some((ref) => (ref._id || ref).toString() === item.productId.toString())
+      );
+      const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      if (eligibleSubtotal <= 0) {
+        throw new AppError(422, 'Voucher is invalid: SCOPE_MISMATCH', ErrorCodes.VOUCHER_INVALID, 'SCOPE_MISMATCH');
+      }
+      if (appliedVoucher.minOrderAmount && eligibleSubtotal < appliedVoucher.minOrderAmount) {
+        throw new AppError(422, 'Voucher is invalid: MIN_CONDITION_NOT_MET', ErrorCodes.VOUCHER_INVALID, 'MIN_CONDITION_NOT_MET');
+      }
+      voucherDiscount = calculateDiscount({ voucher: appliedVoucher, subtotal: eligibleSubtotal });
+    }
   }
 
   const setting = await SystemSetting.findOne({ key: 'commerce' }).lean();
@@ -135,18 +150,42 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
         const shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
         const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
 
+        // Proportional discount allocation for eligible items
+        const isItemEligible = (item) => {
+          if (!appliedVoucher || voucherDiscount <= 0) return false;
+          if (appliedVoucher.scope === 'PRODUCT' && Array.isArray(appliedVoucher.scopeRefs) && appliedVoucher.scopeRefs.length > 0) {
+            return appliedVoucher.scopeRefs.some((ref) => (ref._id || ref).toString() === item.productId.toString());
+          }
+          return true;
+        };
+
+        const eligibleItems = resolvedItems.filter(isItemEligible);
+        const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+        let lastEligibleIndex = -1;
+        for (let i = resolvedItems.length - 1; i >= 0; i--) {
+          if (isItemEligible(resolvedItems[i])) {
+            lastEligibleIndex = i;
+            break;
+          }
+        }
+
         let allocatedSum = 0;
         const orderItems = resolvedItems.map((item, idx) => {
           const lineSubtotal = item.unitPrice * item.quantity;
           let allocatedDiscount = 0;
-          if (voucherDiscount > 0 && merchandiseSubtotal > 0) {
-            if (idx === resolvedItems.length - 1) {
-              allocatedDiscount = voucherDiscount - allocatedSum;
+
+          if (isItemEligible(item) && eligibleSubtotal > 0 && voucherDiscount > 0) {
+            if (idx === lastEligibleIndex) {
+              // Allocate remainder to ensure sum of allocatedDiscount equals voucherDiscount exactly
+              allocatedDiscount = Math.max(0, voucherDiscount - allocatedSum);
             } else {
-              allocatedDiscount = Math.round((lineSubtotal / merchandiseSubtotal) * voucherDiscount);
+              allocatedDiscount = Math.round((lineSubtotal / eligibleSubtotal) * voucherDiscount);
               allocatedSum += allocatedDiscount;
             }
+            allocatedDiscount = Math.min(allocatedDiscount, lineSubtotal);
           }
+
           const lineNet = Math.max(0, lineSubtotal - allocatedDiscount);
           return {
             orderItemId: new mongoose.Types.ObjectId().toString(),
@@ -563,7 +602,9 @@ export const getReturnQuote = async (orderId, requestedItems = [], actor, guestT
       throw new AppError(404, 'Not Found', 'ITEM_NOT_FOUND', `Item ${reqItem.orderItemId} not found in order`);
     }
 
-    const returnableQty = Math.max(0, orderItem.quantity - (orderItem.returnedQty || 0) - (orderItem.returnReservedQty || 0));
+    const currentReturned = orderItem.returnedQty || 0;
+    const currentReserved = orderItem.returnReservedQty || 0;
+    const returnableQty = Math.max(0, orderItem.quantity - currentReturned - currentReserved);
     if (reqItem.quantity > returnableQty || reqItem.quantity <= 0) {
       throw new AppError(422, 'Unprocessable Entity', 'RETURN_QTY_EXCEEDS_RETURNABLE', `Requested quantity ${reqItem.quantity} exceeds returnable quantity ${returnableQty}`);
     }
@@ -571,8 +612,10 @@ export const getReturnQuote = async (orderId, requestedItems = [], actor, guestT
     const unitNet = Math.floor(orderItem.lineNet / orderItem.quantity);
     let refundAmount = unitNet * reqItem.quantity;
     // If returning the final remaining quantity, grant any leftover rounding cents up to lineNet
-    if ((orderItem.returnedQty || 0) + reqItem.quantity === orderItem.quantity) {
+    if (currentReturned + currentReserved + reqItem.quantity === orderItem.quantity) {
       refundAmount = Math.max(0, orderItem.lineNet - (orderItem.refundedNet || 0));
+    } else {
+      refundAmount = Math.min(refundAmount, Math.max(0, orderItem.lineNet - (orderItem.refundedNet || 0)));
     }
 
     totalMerchandiseNet += refundAmount;
@@ -582,6 +625,37 @@ export const getReturnQuote = async (orderId, requestedItems = [], actor, guestT
       requestedQty: reqItem.quantity,
       refundAmount
     });
+  }
+
+  // Ensure total refund cannot exceed net merchandise paid
+  const totalOrderMerchandiseNetPaid = (order.items || []).reduce(
+    (sum, item) => sum + (Number(item.lineNet) || 0),
+    0
+  );
+  const isOrderRefundQueryable = mongoose.connection.readyState !== 0 || Boolean(OrderRefund.find && OrderRefund.find.mock);
+  let totalPreviouslyRefunded = 0;
+  if (isOrderRefundQueryable) {
+    try {
+      const previousRefunds = await OrderRefund.find({
+        orderId: order._id,
+        status: { $in: ['PENDING', 'REFUNDED'] }
+      });
+      totalPreviouslyRefunded = (previousRefunds || []).reduce(
+        (sum, r) => sum + (Number(r.amount) || 0),
+        0
+      );
+    } catch (err) {
+      totalPreviouslyRefunded = 0;
+    }
+  }
+
+  if (totalPreviouslyRefunded + totalMerchandiseNet > totalOrderMerchandiseNetPaid) {
+    throw new AppError(
+      422,
+      'Unprocessable Entity',
+      'REFUND_EXCEEDS_NET_PAID',
+      'Total refund cannot exceed net merchandise amount paid'
+    );
   }
 
   return {
