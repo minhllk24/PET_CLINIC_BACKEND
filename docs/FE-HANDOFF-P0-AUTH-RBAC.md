@@ -74,6 +74,19 @@ Sau khi khởi động MongoDB và chạy lệnh `npm run seed:demo` trong thư 
 > 🔒 **Khi Admin tạo tài khoản nhân viên mới (`POST /api/v1/staff`):** Nếu Admin nhập Email và SĐT thì nhân viên đó có thể đăng nhập bằng cả 3 cách. Nếu Admin bỏ trống, tài khoản sẽ hoạt động ở chế độ Only-Text an toàn.  
 > 🔒 **Quy tắc mật khẩu:** Mật khẩu ngẫu nhiên độ bảo mật cao (16 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt) theo đúng quy chuẩn thực tế và yêu cầu từ PM.
 
+### 2.1. Hướng dẫn Kích hoạt Mock Data Nhân viên & Ca trực cho Frontend (Vercel Test)
+- **Tệp kịch bản seed:** `src/seeds/demoUsersSeed.js`
+- **Cách kích hoạt:** Chạy lệnh sau tại thư mục Backend để nạp toàn bộ mock data vào database MongoDB chung:
+  ```bash
+  npm run seed:demo
+  ```
+- **Kết quả tự động sinh:**
+  1. Tạo User cho tất cả vai trò: `admin`, `manager`, `doctor`, `receptionist`, `groomer`, `nurse`.
+  2. Tự động sinh `StaffProfile` (Hồ sơ nhân sự) cho từng nhân viên gắn vào chi nhánh 1 (`60c72b2f9b1d8b2bad000001`).
+  3. Tự động sinh **7 ca làm việc mẫu (`Shift`)** từ 08:00 – 17:00 trong 7 ngày tới cho mỗi nhân viên.
+  4. Frontend trên Vercel có thể ngay lập tức gọi các API `GET /api/v1/staff`, `GET /api/v1/shifts`, và `GET /api/v1/availability` để test giao diện đặt lịch, xếp lịch và phân công nhân sự.
+- **Tạo thêm nhân viên tùy chỉnh:** Đăng nhập tài khoản `admin`, sử dụng API hoặc giao diện gọi `POST /api/v1/staff` (chỉ cần nhập Tên + Vai trò + Chi nhánh, không bắt buộc email/SĐT).
+
 ---
 
 ## 3. Danh sách Endpoints Xác thực (`/api/v1/auth`)

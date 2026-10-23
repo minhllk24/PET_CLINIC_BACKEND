@@ -55,6 +55,10 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 6. ✅ Automated Tests:
    - Bổ sung test case trong `tests/staff.test.js` kiểm tra tạo staff only-text không cần email/sđt.
    - Chạy toàn bộ test suites: **164/164 PASS (12/12 suites, 100%)**.
+7. ✅ Tích hợp và Hướng dẫn Mock Data Nhân sự & Ca trực phục vụ Test trên Vercel:
+   - Toàn bộ mock data nhân viên (`doctor`, `receptionist`, `groomer`, `nurse`, `manager`) đã được chuẩn bị sẵn sàng trong `src/seeds/demoUsersSeed.js`.
+   - Khi chạy `npm run seed:demo`, hệ thống tự động sinh hồ sơ `StaffProfile` và **7 ca làm việc mẫu (`Shift`)** từ 08:00 – 17:00 trong 7 ngày liên tục gắn vào chi nhánh 1 (`60c72b2f9b1d8b2bad000001`).
+   - Để hiển thị dữ liệu này trên Vercel/Render, chỉ cần chạy lệnh `npm run seed:demo` một lần vào cơ sở dữ liệu MongoDB chung. Ngoài ra, Admin có thể tự thêm nhân viên mới trực tiếp qua giao diện hoặc API `POST /api/v1/staff`.
 
 **Files thay đổi:**
 - `src/worker/cronjobs.js` – Bổ sung Render Keep-Alive cron job
