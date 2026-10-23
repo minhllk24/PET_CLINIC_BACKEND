@@ -57,20 +57,22 @@
 
 Sau khi khởi động MongoDB và chạy lệnh `npm run seed:demo` trong thư mục `BE/`, bạn có sẵn các tài khoản sau (hỗ trợ đăng nhập linh hoạt bằng **Username**, **Số điện thoại** hoặc **Email** qua trường `identifier`):
 
-| Cấp bậc / Quyền | Vai trò (`systemRole`) | Vai trò phụ (`staffSubRole`) | Username (Text) | Số điện thoại | Mật khẩu | Trạng thái (`accountStatus`) | Mục đích & Nhiệm vụ khi phân quyền |
+| Cấp bậc / Quyền | Vai trò (`systemRole`) | Vai trò phụ (`staffSubRole`) | Username (Text) | Số điện thoại | Mật khẩu (Password) | Trạng thái (`accountStatus`) | Mục đích & Nhiệm vụ khi phân quyền |
 |---|---|---|---|---|---|---|---|
-| **Quản trị viên** | `ADMIN` | — | `admin` | `0900000000` | `Admin@1234` | `ACTIVE` | Toàn quyền hệ thống, quản lý tài khoản nội bộ, phân quyền |
-| **Quản lý chi nhánh** | `MANAGER` | — | `manager` | `0901234567` | `Manager@1234` | `ACTIVE` | Quản lý chi nhánh được gán, duyệt lịch, xem doanh thu chi nhánh |
-| **Bác sĩ thú y** | `STAFF` | `VETERINARIAN` | `doctor` | `0903333333` | `Doctor@1234` | `ACTIVE` | Khám chữa bệnh, kê đơn thuốc, tạo và cập nhật hồ sơ bệnh án |
-| **Lễ tân** | `STAFF` | `RECEPTIONIST` | `receptionist` | `0904444444` | `Staff@1234` | `ACTIVE` | Tiếp đón khách hàng, check-in/check-out, xếp lịch hẹn |
-| **Nhân viên Spa/Grooming** | `STAFF` | `CARE_STAFF_GROOMER` | `groomer` | `0908888888` | `Staff@1234` | `ACTIVE` | Dịch vụ tắm spa, cắt tỉa lông móng, chăm sóc ngoại hình thú cưng |
-| **Y tá thú y** | `STAFF` | `NURSE` | `nurse` | `0909999999` | `Staff@1234` | `ACTIVE` | Hỗ trợ bác sĩ tiêm truyền, theo dõi thú cưng lưu chuồng điều trị |
-| **Khách hàng** | `CUSTOMER` | — | `customer` | `0905555555` | `Customer@1234` | `ACTIVE` | Mua sắm sản phẩm, đặt lịch khám/spa, quản lý hồ sơ thú cưng |
-| **Chưa kích hoạt** | `CUSTOMER` | — | `pending_user` | `0907777777` | `Customer@1234` | `PENDING_ACTIVATION` | Test chặn đăng nhập khi chưa xác thực OTP (403 ACCOUNT_NOT_ACTIVATED) |
-| **Bị khóa** | `CUSTOMER` | — | `blocked_user` | `0906666666` | `Customer@1234` | `BLOCKED` | Test chặn đăng nhập tài khoản bị khóa vi phạm chính sách (403 ACCOUNT_BLOCKED) |
+| **Quản trị viên** | `ADMIN` | — | `admin` | *Không có (Only Text)* | `K9#mQ$8xL!2vW*7z` | `ACTIVE` | Toàn quyền hệ thống, quản trị tài khoản nội bộ (Only-text để bàn giao chuyển nhượng an toàn) |
+| **Quản lý chi nhánh** | `MANAGER` | — | `manager` | `0901234567` | `tR5*bY9#fP2!sM7&` | `ACTIVE` | Quản lý chi nhánh được gán, duyệt lịch, xem doanh thu chi nhánh (hỗ trợ Username/SĐT/Email) |
+| **Bác sĩ thú y** | `STAFF` | `VETERINARIAN` | `doctor` | `0903333333` | `vE8$dK2#zL6!pQ9@` | `ACTIVE` | Khám chữa bệnh, kê đơn thuốc, tạo và cập nhật hồ sơ bệnh án (hỗ trợ Username/SĐT/Email) |
+| **Lễ tân** | `STAFF` | `RECEPTIONIST` | `receptionist` | `0904444444` | `rC4!mZ7#bX9$vT2&` | `ACTIVE` | Tiếp đón khách hàng, check-in/check-out, xếp lịch hẹn (hỗ trợ Username/SĐT/Email) |
+| **Nhân viên Spa/Grooming** | `STAFF` | `CARE_STAFF_GROOMER` | `groomer` | `0908888888` | `gM9$kL3@sY7!bN2#` | `ACTIVE` | Dịch vụ tắm spa, cắt tỉa lông móng, chăm sóc ngoại hình thú cưng (hỗ trợ Username/SĐT/Email) |
+| **Y tá thú y** | `STAFF` | `NURSE` | `nurse` | `0909999999` | `nS4#yP8!vQ2$kM7@` | `ACTIVE` | Hỗ trợ bác sĩ tiêm truyền, theo dõi thú cưng lưu chuồng điều trị (hỗ trợ Username/SĐT/Email) |
+| **Khách hàng** | `CUSTOMER` | — | `customer` | `0905555555` | `cT6$vM2!pL9#zR8&` | `ACTIVE` | Mua sắm sản phẩm, đặt lịch khám/spa, quản lý hồ sơ thú cưng (hỗ trợ Username/SĐT/Email) |
+| **Chưa kích hoạt** | `CUSTOMER` | — | `pending_user` | `0907777777` | `pU3#zK8!vQ5$mY2@` | `PENDING_ACTIVATION` | Test chặn đăng nhập khi chưa xác thực OTP (403 ACCOUNT_NOT_ACTIVATED) |
+| **Bị khóa** | `CUSTOMER` | — | `blocked_user` | `0906666666` | `bL9$rM2#vK4!zQ7@` | `BLOCKED` | Test chặn đăng nhập tài khoản bị khóa vi phạm chính sách (403 ACCOUNT_BLOCKED) |
 
-> 💡 **Mẹo đăng nhập:** FE có thể gửi request `{ "identifier": "admin", "password": "Admin@1234" }` hoặc `{ "username": "admin", ... }` hoặc `{ "identifier": "manager", ... }`, `{ "identifier": "doctor", ... }` cực kỳ thuận tiện cho việc dev/test thay vì phải nhớ số điện thoại.  
-> 💡 **Quy tắc mật khẩu:** Tối thiểu 8 ký tự, có ít nhất 1 chữ in hoa và 1 chữ số (`^(?=.*[A-Z])(?=.*\d).{8,}$`).
+> 🔒 **Cơ chế tài khoản Admin (Only Text):** Tài khoản `admin` độc lập hoàn toàn với số điện thoại và email cá nhân (tránh kẹt mã OTP khi bàn giao hệ thống). Khi đăng nhập chỉ cần nhập `{ "identifier": "admin", "password": "K9#mQ$8xL!2vW*7z" }`.  
+> 🔒 **Cơ chế tài khoản Staff/Khác (Linh hoạt 3 cách):** Có thể đăng nhập bằng bất kỳ hình thức nào: Username text, Số điện thoại hoặc Email qua cùng trường `identifier`.  
+> 🔒 **Khi Admin tạo tài khoản nhân viên mới (`POST /api/v1/staff`):** Nếu Admin nhập Email và SĐT thì nhân viên đó có thể đăng nhập bằng cả 3 cách. Nếu Admin bỏ trống, tài khoản sẽ hoạt động ở chế độ Only-Text an toàn.  
+> 🔒 **Quy tắc mật khẩu:** Mật khẩu ngẫu nhiên độ bảo mật cao (16 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt) theo đúng quy chuẩn thực tế và yêu cầu từ PM.
 
 ---
 

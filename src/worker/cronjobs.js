@@ -51,6 +51,27 @@ export const startCronJobs = () => {
       console.error('Appointment timeout job error', e);
     }
   });
-  
-  console.log('Cron jobs started');
+
+  // Keep-alive self-ping for Render Web Service (Free tier spin-down prevention)
+  const renderUrl =
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.BACKEND_PUBLIC_URL ||
+    'https://pet-clinic-backend-a4lj.onrender.com';
+
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_KEEP_ALIVE === 'true') {
+        const pingTarget = `${renderUrl.replace(/\/$/, '')}/healthz`;
+        const res = await fetch(pingTarget, {
+          method: 'GET',
+          headers: { 'User-Agent': 'PetClinic-KeepAlive/1.0' },
+        });
+        console.log(`[KEEP-ALIVE] Pinged ${pingTarget} -> HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn(`[KEEP-ALIVE] Self-ping warning (non-fatal):`, err.message);
+    }
+  });
+
+  console.log('Cron jobs started (including Render keep-alive)');
 };

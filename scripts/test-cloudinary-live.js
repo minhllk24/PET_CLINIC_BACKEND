@@ -11,8 +11,8 @@ const BACKEND_URL = process.env.TEST_BACKEND_URL || 'https://pet-clinic-backend-
 function login(client, urlObj) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({
-      identifier: 'admin@petclinic.com',
-      password: 'Admin@1234'
+      identifier: 'admin',
+      password: 'K9#mQ$8xL!2vW*7z'
     });
 
     const req = client.request({

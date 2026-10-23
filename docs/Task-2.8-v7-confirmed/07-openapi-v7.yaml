@@ -8621,6 +8621,13 @@ components:
           minItems: 1
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        credentials:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
       additionalProperties: false
       required:
       - id
@@ -8648,7 +8655,6 @@ components:
       additionalProperties: false
       required:
       - fullName
-      - email
       - staffSubRole
       - authorizedBranchIds
     StaffUpdate:

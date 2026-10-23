@@ -134,6 +134,41 @@ describe('Staff Management Suite (BE-05 & T10, T17)', () => {
       expect(res.body.authorizedBranchIds).toContain(branchId);
     });
 
+    it('POST /api/v1/staff allows creating only-text staff without email and phone', async () => {
+      const mockResult = {
+        id: '507f1f77bcf86cd799439070',
+        userId: '507f1f77bcf86cd799439071',
+        fullName: 'Y tá E',
+        staffSubRole: 'NURSE',
+        status: 'ACTIVE',
+        authorizedBranchIds: [branchId],
+        homeBranchId: branchId,
+        credentials: {
+          username: 'nur_ytae102',
+          password: 'mock_strong_password',
+        },
+      };
+
+      jest.spyOn(staffService, 'createStaff').mockResolvedValue(mockResult);
+
+      const res = await request(app)
+        .post('/api/v1/staff')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Idempotency-Key', 'test-staff-create-no-email')
+        .send({
+          fullName: 'Y tá E',
+          staffSubRole: 'NURSE',
+          homeBranchId: branchId,
+          authorizedBranchIds: [branchId],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.fullName).toBe('Y tá E');
+      expect(res.body.staffSubRole).toBe('NURSE');
+      expect(res.body).toHaveProperty('credentials');
+      expect(res.body.credentials).toHaveProperty('username');
+    });
+
     it('POST /api/v1/staff rejects Manager assigning branch outside managed branches', async () => {
       await expect(
         staffService.createStaff(

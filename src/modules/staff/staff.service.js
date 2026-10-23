@@ -151,8 +151,8 @@ export const createStaff = async (data, actor = null) => {
     homeBranchId,
   } = data;
 
-  if (!fullName || !email || !staffSubRole || !authorizedBranchIds || authorizedBranchIds.length === 0) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'fullName, email, staffSubRole, and authorizedBranchIds are required');
+  if (!fullName || !staffSubRole || !authorizedBranchIds || authorizedBranchIds.length === 0) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'fullName, staffSubRole, and authorizedBranchIds are required');
   }
 
   const validRoles = ['RECEPTIONIST', 'CARE_STAFF_GROOMER', 'VETERINARIAN', 'NURSE'];
@@ -178,22 +178,50 @@ export const createStaff = async (data, actor = null) => {
     normalizedAuthorized.push(homeBranchId.toString());
   }
 
-  // Check unique email / phone
-  const orConditions = [{ email }];
-  if (phone) orConditions.push({ phone });
+  // Check unique email / phone (if provided)
+  const cleanEmail = email && typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : null;
+  const cleanPhone = phone && typeof phone === 'string' && phone.trim() ? phone.trim() : null;
 
-  const existingUser = await User.findOne({ $or: orConditions });
-  if (existingUser) {
-    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'User with this phone or email already exists');
+  if (cleanEmail || cleanPhone) {
+    const orConditions = [];
+    if (cleanEmail) orConditions.push({ email: cleanEmail });
+    if (cleanPhone) orConditions.push({ phone: cleanPhone });
+    const existingUser = await User.findOne({ $or: orConditions });
+    if (existingUser) {
+      throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'User with this phone or email already exists');
+    }
   }
 
-  const defaultPassword = 'DefaultStaffPassword@123';
-  const passwordHash = await hashPassword(defaultPassword);
+  // Generate unique username & strong random password (16+ chars)
+  const prefixMap = {
+    RECEPTIONIST: 'rec',
+    CARE_STAFF_GROOMER: 'gro',
+    VETERINARIAN: 'vet',
+    NURSE: 'nur',
+  };
+  const prefix = prefixMap[staffSubRole] || 'stf';
+  const normalizedName = (fullName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 15);
+  const suffix = Math.floor(100 + Math.random() * 900);
+  const username = `${prefix}_${normalizedName}${suffix}`;
+
+  // Strong random password with uppercase, lowercase, numbers, special characters (16 chars)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+  let generatedPassword = '';
+  for (let i = 0; i < 16; i++) {
+    generatedPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const passwordHash = await hashPassword(generatedPassword);
 
   const user = new User({
+    username,
     fullName,
-    email,
-    phone: phone || undefined,
+    email: cleanEmail || undefined,
+    phone: cleanPhone || undefined,
     passwordHash,
     systemRole: 'STAFF',
     staffSubRole,
@@ -213,7 +241,12 @@ export const createStaff = async (data, actor = null) => {
 
   await profile.save();
 
-  return formatStaff(profile, user);
+  const formatted = formatStaff(profile, user);
+  formatted.credentials = {
+    username,
+    password: generatedPassword,
+  };
+  return formatted;
 };
 
 /**
