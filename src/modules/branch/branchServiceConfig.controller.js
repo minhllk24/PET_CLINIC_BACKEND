@@ -37,3 +37,33 @@ export const upsertBranchServiceConfig = async (req, res, next) => {
     next(error);
   }
 };
+
+export const listBlockedWindows = async (req, res, next) => {
+  try {
+    const { branchId, serviceId } = req.params;
+    const result = await branchServiceConfigService.listBlockedWindows(branchId, serviceId, req.query, req.actor);
+    return sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createBlockedWindow = async (req, res, next) => {
+  try {
+    const { branchId, serviceId } = req.params;
+    const result = await branchServiceConfigService.createBlockedWindow(branchId, serviceId, req.body, req.actor);
+    return sendSuccess(res, result, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteBlockedWindow = async (req, res, next) => {
+  try {
+    const { branchId, serviceId, blockId } = req.params;
+    const result = await branchServiceConfigService.deleteBlockedWindow(branchId, serviceId, blockId, req.actor);
+    return sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};

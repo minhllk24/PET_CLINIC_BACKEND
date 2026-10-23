@@ -9,6 +9,7 @@ const inventoryReaders = requireRole(['STAFF', 'MANAGER', 'ADMIN']);
 
 router.get('/items', inventoryReaders, inventoryController.getItems);
 router.get('/stocks', inventoryReaders, inventoryController.getStocks);
+router.get('/summary/:branchId', inventoryReaders, inventoryController.getBranchInventorySummary);
 router.get('/transactions', operatorOnly, inventoryController.getTransactions);
 
 router.post('/receive', operatorOnly, idempotency('inventoryReceive', { required: true }), inventoryController.receiveStock);

@@ -1,39 +1,67 @@
 import express from 'express';
-import StaffProfile from './models/StaffProfile';
-import Shift from './models/Shift';
+import * as staffController from './staff.controller';
+import * as shiftController from './shift.controller';
+import { authenticate, requireRole } from '../../shared/authMiddleware';
+import { idempotency } from '../../middleware/idempotencyMiddleware';
 
 const router = express.Router();
 
-// Staff profiles
-router.get('/', async (req, res, next) => {
-  try {
-    const staff = await StaffProfile.find();
-    res.json(staff);
-  } catch (error) { next(error); }
-});
+// ================= STAFF PROFILES =================
+router.get(
+  '/',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  staffController.listStaff
+);
 
-router.post('/', async (req, res, next) => {
-  try {
-    const staff = new StaffProfile(req.body);
-    await staff.save();
-    res.status(201).json(staff);
-  } catch (error) { next(error); }
-});
+router.post(
+  '/',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  idempotency('staffCreate'),
+  staffController.createStaff
+);
 
-// Shifts
-router.get('/:staffId/shifts', async (req, res, next) => {
-  try {
-    const shifts = await Shift.find({ staffId: req.params.staffId });
-    res.json(shifts);
-  } catch (error) { next(error); }
-});
+router.get(
+  '/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  staffController.getStaffById
+);
 
-router.post('/:staffId/shifts', async (req, res, next) => {
-  try {
-    const shift = new Shift({ ...req.body, staffId: req.params.staffId });
-    await shift.save();
-    res.status(201).json(shift);
-  } catch (error) { next(error); }
-});
+router.patch(
+  '/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  staffController.updateStaff
+);
+
+router.put(
+  '/:id/branches',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  staffController.updateStaffBranches
+);
+
+// ================= SHIFTS FOR STAFF (NESTED) =================
+router.get(
+  '/:staffId/shifts',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  (req, res, next) => {
+    req.query.staffId = req.params.staffId;
+    shiftController.listShifts(req, res, next);
+  }
+);
+
+router.post(
+  '/:staffId/shifts',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  (req, res, next) => {
+    req.body.staffId = req.params.staffId;
+    shiftController.createShift(req, res, next);
+  }
+);
 
 export default router;

@@ -5,6 +5,7 @@ const schema = new mongoose.Schema({
   inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem', required: true, index: true },
   quantity: { type: Number, required: true, default: 0, min: 0 },
   lowStockThreshold: { type: Number, required: true, default: 0, min: 0 },
+  thresholdConfigured: { type: Boolean, default: false },
   version: { type: Number, required: true, default: 1, min: 1 }
 }, { timestamps: true });
 

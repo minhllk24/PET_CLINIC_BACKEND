@@ -1,0 +1,308 @@
+import mongoose from 'mongoose';
+import StaffProfile from './models/StaffProfile';
+import User from '../../models/User';
+import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
+import { hashPassword } from '../../utils/passwordHelpers';
+
+/**
+ * Format pure DTO for Staff Response (strictly adhering to OpenAPI StaffProfile schema)
+ */
+export const formatStaff = (profile, user = null) => {
+  const u = user || profile.userId;
+  const dto = {
+    id: profile._id.toString(),
+    staffSubRole: profile.staffSubRole,
+    authorizedBranchIds: (profile.authorizedBranchIds || []).map((b) => (b?._id || b).toString()),
+    status: profile.status || 'ACTIVE',
+  };
+
+  const userIdStr = (u?._id || u || '').toString();
+  if (userIdStr && mongoose.Types.ObjectId.isValid(userIdStr)) {
+    dto.userId = userIdStr;
+  }
+  if (u?.fullName) {
+    dto.fullName = u.fullName;
+  }
+  if (profile.homeBranchId) {
+    dto.homeBranchId = (profile.homeBranchId?._id || profile.homeBranchId).toString();
+  } else {
+    dto.homeBranchId = null;
+  }
+
+  return dto;
+};
+
+/**
+ * List Staff with server-side filtering, cursor/pagination, and RBAC (OpenAPI StaffPage)
+ */
+export const listStaff = async (query = {}, actor = null) => {
+  const { branchId, staffSubRole, role, limit = 20, cursor } = query;
+  const effectiveRole = staffSubRole || role;
+  const filter = {};
+
+  if (actor) {
+    if (actor.systemRole === 'STAFF') {
+      filter.userId = new mongoose.Types.ObjectId(actor.id);
+    } else if (actor.systemRole === 'MANAGER') {
+      const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+      if (branchId) {
+        if (!assignedIds.includes(branchId.toString())) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have access to staff of this branch');
+        }
+        filter.$or = [
+          { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
+          { homeBranchId: new mongoose.Types.ObjectId(branchId) },
+        ];
+      } else {
+        const assignedObjIds = assignedIds.map((id) => new mongoose.Types.ObjectId(id));
+        filter.$or = [
+          { authorizedBranchIds: { $in: assignedObjIds } },
+          { homeBranchId: { $in: assignedObjIds } },
+        ];
+      }
+    }
+  }
+
+  if (branchId && !filter.$or) {
+    filter.$or = [
+      { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
+      { homeBranchId: new mongoose.Types.ObjectId(branchId) },
+    ];
+  }
+
+  if (effectiveRole) {
+    filter.staffSubRole = effectiveRole;
+  }
+
+  if (cursor && mongoose.Types.ObjectId.isValid(cursor)) {
+    filter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+  }
+
+  const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+
+  const profiles = await StaffProfile.find(filter)
+    .populate('userId')
+    .sort({ _id: -1 })
+    .limit(parsedLimit + 1);
+
+  let nextCursor = null;
+  if (profiles.length > parsedLimit) {
+    const nextItem = profiles.pop();
+    nextCursor = nextItem._id.toString();
+  }
+
+  return {
+    items: profiles.map((item) => formatStaff(item, item.userId)),
+    nextCursor,
+  };
+};
+
+/**
+ * Get Staff Profile by ID
+ */
+export const getStaffById = async (id, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Invalid staff ID');
+  }
+
+  let profile = await StaffProfile.findById(id).populate('userId');
+  if (!profile) {
+    profile = await StaffProfile.findOne({ userId: id }).populate('userId');
+  }
+
+  if (!profile) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
+  }
+
+  if (actor) {
+    if (actor.systemRole === 'STAFF') {
+      const uId = (profile.userId?._id || profile.userId).toString();
+      if (uId !== actor.id) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Access denied');
+      }
+    } else if (actor.systemRole === 'MANAGER') {
+      const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+      const staffBranchIds = [
+        ...(profile.authorizedBranchIds || []).map((b) => (b._id || b).toString()),
+        profile.homeBranchId ? (profile.homeBranchId._id || profile.homeBranchId).toString() : null,
+      ].filter(Boolean);
+
+      const hasSharedBranch = staffBranchIds.some((bId) => assignedIds.includes(bId));
+      if (!hasSharedBranch) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Staff is not assigned to your managed branch');
+      }
+    }
+  }
+
+  return formatStaff(profile, profile.userId);
+};
+
+/**
+ * Create Staff User + Profile Atomically (conforming to OpenAPI StaffCreate)
+ */
+export const createStaff = async (data, actor = null) => {
+  const {
+    fullName,
+    email,
+    phone,
+    staffSubRole,
+    authorizedBranchIds = [],
+    homeBranchId,
+  } = data;
+
+  if (!fullName || !email || !staffSubRole || !authorizedBranchIds || authorizedBranchIds.length === 0) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'fullName, email, staffSubRole, and authorizedBranchIds are required');
+  }
+
+  const validRoles = ['RECEPTIONIST', 'CARE_STAFF_GROOMER', 'VETERINARIAN', 'NURSE'];
+  if (!validRoles.includes(staffSubRole)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, `Invalid staffSubRole: ${staffSubRole}`);
+  }
+
+  // Manager scope check
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (homeBranchId && !assignedIds.includes(homeBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Cannot assign staff home branch outside managed branches');
+    }
+    for (const bId of authorizedBranchIds) {
+      if (!assignedIds.includes(bId.toString())) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Cannot authorize staff to branches outside managed branches');
+      }
+    }
+  }
+
+  const normalizedAuthorized = authorizedBranchIds.map((id) => (typeof id === 'string' ? id.trim() : id)).filter(Boolean);
+  if (homeBranchId && !normalizedAuthorized.includes(homeBranchId.toString())) {
+    normalizedAuthorized.push(homeBranchId.toString());
+  }
+
+  // Check unique email / phone
+  const orConditions = [{ email }];
+  if (phone) orConditions.push({ phone });
+
+  const existingUser = await User.findOne({ $or: orConditions });
+  if (existingUser) {
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'User with this phone or email already exists');
+  }
+
+  const defaultPassword = 'DefaultStaffPassword@123';
+  const passwordHash = await hashPassword(defaultPassword);
+
+  const user = new User({
+    fullName,
+    email,
+    phone: phone || undefined,
+    passwordHash,
+    systemRole: 'STAFF',
+    staffSubRole,
+    assignedBranchIds: normalizedAuthorized.map((id) => new mongoose.Types.ObjectId(id)),
+    accountStatus: 'ACTIVE',
+  });
+
+  await user.save();
+
+  const profile = new StaffProfile({
+    userId: user._id,
+    staffSubRole,
+    homeBranchId: homeBranchId ? new mongoose.Types.ObjectId(homeBranchId) : undefined,
+    authorizedBranchIds: normalizedAuthorized.map((id) => new mongoose.Types.ObjectId(id)),
+    status: 'ACTIVE',
+  });
+
+  await profile.save();
+
+  return formatStaff(profile, user);
+};
+
+/**
+ * Update Staff Details (conforming to OpenAPI StaffUpdate)
+ */
+export const updateStaff = async (id, data, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Invalid staff ID');
+  }
+
+  const profile = await StaffProfile.findById(id).populate('userId');
+  if (!profile) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
+  }
+
+  const user = profile.userId;
+
+  // Manager scope check
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    const staffBranchIds = [
+      ...(profile.authorizedBranchIds || []).map((b) => (b._id || b).toString()),
+      profile.homeBranchId ? (profile.homeBranchId._id || profile.homeBranchId).toString() : null,
+    ].filter(Boolean);
+
+    if (!staffBranchIds.some((bId) => assignedIds.includes(bId))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Cannot manage staff outside your branches');
+    }
+  }
+
+  if (data.staffSubRole) {
+    profile.staffSubRole = data.staffSubRole;
+    if (user) user.staffSubRole = data.staffSubRole;
+  }
+  if (data.status) {
+    profile.status = data.status;
+  }
+
+  if (user) await user.save();
+  await profile.save();
+
+  return formatStaff(profile, user);
+};
+
+/**
+ * Update Staff Branch assignments (conforming to OpenAPI StaffBranchesWrite)
+ */
+export const updateStaffBranches = async (id, { homeBranchId, authorizedBranchIds = [] }, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Invalid staff ID');
+  }
+
+  if (!authorizedBranchIds || authorizedBranchIds.length === 0) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'authorizedBranchIds must contain at least 1 branch');
+  }
+
+  const profile = await StaffProfile.findById(id).populate('userId');
+  if (!profile) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
+  }
+
+  const user = profile.userId;
+
+  // Manager scope check
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (homeBranchId && !assignedIds.includes(homeBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Cannot assign home branch outside managed branches');
+    }
+    for (const bId of authorizedBranchIds) {
+      if (!assignedIds.includes(bId.toString())) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Cannot authorize branch outside managed branches');
+      }
+    }
+  }
+
+  const normalizedAuthorized = authorizedBranchIds.map((b) => new mongoose.Types.ObjectId(b));
+  profile.authorizedBranchIds = normalizedAuthorized;
+  profile.homeBranchId = homeBranchId ? new mongoose.Types.ObjectId(homeBranchId) : null;
+
+  if (profile.homeBranchId && !profile.authorizedBranchIds.some((b) => b.toString() === profile.homeBranchId.toString())) {
+    profile.authorizedBranchIds.push(profile.homeBranchId);
+  }
+
+  if (user) {
+    user.assignedBranchIds = profile.authorizedBranchIds;
+    await user.save();
+  }
+  await profile.save();
+
+  return formatStaff(profile, user);
+};

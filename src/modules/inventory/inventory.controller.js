@@ -74,3 +74,12 @@ export const updateThreshold = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getBranchInventorySummary = async (req, res, next) => {
+  try {
+    const { branchId } = req.params;
+    res.json(await inventoryService.getBranchInventorySummary(branchId, req.actor));
+  } catch (error) {
+    next(error);
+  }
+};

@@ -223,6 +223,35 @@ export const updateShift = async (id, data, actor = null) => {
     }
   }
 
+  // Safety check: Cannot change shift time if confirmed appointments would fall outside the new window
+  if (data.startAt || data.endAt) {
+    let conflictingAppointments = [];
+    if (mongoose.connection.readyState !== 0) {
+      conflictingAppointments = await Appointment.find({
+        branchId: shift.branchId,
+        status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
+        'services.assignedStaffId': shift.staffId._id || shift.staffId,
+        'services.scheduledStart': { $gte: shift.startAt },
+        'services.scheduledEnd': { $lte: shift.endAt },
+        $or: [
+          { 'services.scheduledStart': { $lt: newStart } },
+          { 'services.scheduledEnd': { $gt: newEnd } },
+        ],
+      });
+    }
+
+    if (conflictingAppointments.length > 0) {
+      const error = new AppError(
+        409,
+        'Conflict',
+        ErrorCodes.CONFLICT,
+        'Cannot update shift: existing confirmed appointments fall outside the new shift time'
+      );
+      error.affectedAppointmentIds = conflictingAppointments.map((a) => (a._id || a.id).toString());
+      throw error;
+    }
+  }
+
   if (data.startAt) shift.startAt = newStart;
   if (data.endAt) shift.endAt = newEnd;
 
@@ -252,16 +281,35 @@ export const cancelShift = async (id, actor = null) => {
   }
 
   // Safety check: Cannot cancel shift with confirmed appointments
-  const hasConfirmedAppointment = await Appointment.findOne({
-    branchId: shift.branchId,
-    status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
-    'services.assignedStaffId': shift.staffId._id || shift.staffId,
-    'services.scheduledStart': { $lt: shift.endAt },
-    'services.scheduledEnd': { $gt: shift.startAt },
-  });
+  let confirmedAppointments = [];
+  if (mongoose.connection.readyState !== 0) {
+    confirmedAppointments = await Appointment.find({
+      branchId: shift.branchId,
+      status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
+      'services.assignedStaffId': shift.staffId._id || shift.staffId,
+      'services.scheduledStart': { $lt: shift.endAt },
+      'services.scheduledEnd': { $gt: shift.startAt },
+    });
+  } else {
+    const hasConfirmed = await Appointment.findOne({
+      branchId: shift.branchId,
+      status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
+      'services.assignedStaffId': shift.staffId._id || shift.staffId,
+      'services.scheduledStart': { $lt: shift.endAt },
+      'services.scheduledEnd': { $gt: shift.startAt },
+    });
+    if (hasConfirmed) confirmedAppointments = [hasConfirmed];
+  }
 
-  if (hasConfirmedAppointment) {
-    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Cannot cancel shift with existing confirmed appointments');
+  if (confirmedAppointments.length > 0) {
+    const error = new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.CONFLICT,
+      'Cannot cancel shift with existing confirmed appointments'
+    );
+    error.affectedAppointmentIds = confirmedAppointments.map((a) => (a._id || a.id).toString());
+    throw error;
   }
 
   shift.status = 'CANCELLED';

@@ -200,3 +200,12 @@ export const getServiceBranches = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getServiceBranchConfigs = async (req, res, next) => {
+  try {
+    const result = await serviceCatalogService.listServiceBranchConfigs(req.params.serviceId || req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

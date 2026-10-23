@@ -1,10 +1,17 @@
 import mongoose from 'mongoose';
 
 const priceVariantSchema = new mongoose.Schema({
+  tier: { type: String, trim: true, default: null },
   label: { type: String, required: true },
+  mode: { type: String, enum: ['FIXED', 'QUOTE'], default: 'FIXED' },
   minWeightKg: { type: Number },
   maxWeightKg: { type: Number },
-  price: { type: Number, required: true, min: 0 }
+  price: {
+    type: Number,
+    required: function() { return this.mode === 'FIXED'; },
+    min: 0,
+    default: null
+  }
 }, { _id: false });
 
 const defaultMaterialSchema = new mongoose.Schema({

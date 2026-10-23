@@ -1,6 +1,8 @@
 import express from 'express';
 import * as branchController from './branch.controller';
 import * as branchServiceConfigController from './branchServiceConfig.controller';
+import * as inventoryController from '../inventory/inventory.controller';
+import * as bookingController from '../booking/booking.controller';
 import { authenticate, optionalAuth, requireRole } from '../../shared/authMiddleware';
 import { idempotency } from '../../middleware/idempotencyMiddleware';
 
@@ -51,6 +53,48 @@ router.put(
   authenticate,
   requireRole(['ADMIN', 'MANAGER']),
   branchServiceConfigController.upsertBranchServiceConfig
+);
+
+// Blocked windows
+router.get(
+  '/:branchId/service-configs/:serviceId/blocks',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  branchServiceConfigController.listBlockedWindows
+);
+router.post(
+  '/:branchId/service-configs/:serviceId/blocks',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchServiceConfigController.createBlockedWindow
+);
+router.delete(
+  '/:branchId/service-configs/:serviceId/blocks/:blockId',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchServiceConfigController.deleteBlockedWindow
+);
+
+// Branch Inventory Summary
+router.get(
+  '/:branchId/inventory-summary',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  inventoryController.getBranchInventorySummary
+);
+
+// Branch Operation Slots & Service Occupancy (BE-01, BE-03)
+router.get(
+  '/:branchId/operation-slots',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  bookingController.getBranchOperationSlots
+);
+
+router.get(
+  '/:branchId/services/:serviceId/occupancy',
+  optionalAuth,
+  bookingController.getServiceOccupancy
 );
 
 export default router;

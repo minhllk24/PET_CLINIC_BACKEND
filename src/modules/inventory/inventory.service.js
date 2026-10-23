@@ -3,6 +3,8 @@ import InventoryTransaction from './models/InventoryTransaction';
 import InventoryStock from './models/InventoryStock';
 import InventoryItem from './models/InventoryItem';
 import Branch from '../branch/models/Branch';
+import User from '../../models/User';
+import Product from '../catalog/models/Product';
 import AuditLog from '../../models/AuditLog';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
@@ -79,23 +81,65 @@ const duplicateMovementFilter = ({ sourceType, sourceId, recordVersion, inventor
   return filter;
 };
 
+export const resolveBranchMeta = async (branchId, session = null) => {
+  if (!branchId || mongoose.connection.readyState === 0) return { branchName: null, branchCode: null };
+  try {
+    const branch = await Branch.findById(branchId).select('name code').session(session).lean();
+    return {
+      branchName: branch ? branch.name : 'Chi nhánh không xác định',
+      branchCode: branch ? (branch.code || '') : ''
+    };
+  } catch {
+    return { branchName: null, branchCode: null };
+  }
+};
+
+export const resolveActorMeta = async (actorId, session = null) => {
+  if (!actorId || actorId.toString() === SYSTEM_ACTOR_ID.toString()) {
+    return { actorName: 'Hệ thống', actorRole: 'SYSTEM', isSystemActor: true };
+  }
+  if (mongoose.connection.readyState === 0) {
+    return { actorName: 'Người dùng không xác định', actorRole: 'UNKNOWN', isSystemActor: false };
+  }
+  try {
+    const user = await User.findById(actorId).select('fullName systemRole').session(session).lean();
+    if (!user) {
+      return { actorName: 'Người dùng không xác định', actorRole: 'UNKNOWN', isSystemActor: false };
+    }
+    return { actorName: user.fullName, actorRole: user.systemRole, isSystemActor: false };
+  } catch {
+    return { actorName: 'Người dùng không xác định', actorRole: 'UNKNOWN', isSystemActor: false };
+  }
+};
+
 export const formatInventoryTransaction = (tx) => {
   if (!tx) return null;
   const obj = typeof tx.toObject === 'function' ? tx.toObject() : { ...tx };
   return {
     id: normalizeId(obj._id || obj.id),
     branchId: normalizeId(obj.branchId),
+    branchName: obj.branchName || null,
+    branchCode: obj.branchCode || null,
     inventoryItemId: normalizeId(obj.inventoryItemId),
     transactionType: obj.transactionType,
     beforeQty: obj.beforeQty,
     changeQty: obj.changeQty,
     afterQty: obj.afterQty,
     actorId: normalizeId(obj.actorId),
+    actorName: obj.actorName || null,
+    actorRole: obj.actorRole || null,
+    isSystemActor: Boolean(obj.isSystemActor),
     reason: obj.reason,
     createdAt: new Date(obj.createdAt).toISOString(),
     sourceType: obj.sourceType,
     sourceId: obj.sourceId ? normalizeId(obj.sourceId) : null,
-    recordVersion: obj.recordVersion === undefined ? null : obj.recordVersion
+    recordVersion: obj.recordVersion === undefined ? null : obj.recordVersion,
+    transferId: obj.transferId ? normalizeId(obj.transferId) : null,
+    transferLeg: obj.transferLeg || null,
+    fromBranchId: obj.fromBranchId ? normalizeId(obj.fromBranchId) : null,
+    toBranchId: obj.toBranchId ? normalizeId(obj.toBranchId) : null,
+    fromBranchName: obj.fromBranchName || null,
+    toBranchName: obj.toBranchName || null
   };
 };
 
@@ -109,6 +153,7 @@ export const formatInventoryStock = (stock, fallback = {}) => {
     quantity,
     lowStock: quantity <= lowStockThreshold,
     lowStockThreshold,
+    thresholdConfigured: obj.thresholdConfigured === undefined ? false : Boolean(obj.thresholdConfigured),
     version: obj.version === undefined ? 0 : obj.version
   };
 };
@@ -126,7 +171,15 @@ export const applyMovementInSession = async ({
   recordVersion = null,
   transferId = null,
   transferLeg = null,
+  fromBranchId = null,
+  toBranchId = null,
+  fromBranchName = null,
+  toBranchName = null,
+  lowStockThreshold = undefined,
   actorId = SYSTEM_ACTOR_ID,
+  actorName = null,
+  actorRole = null,
+  isSystemActor = null,
   idempotencyKey = null
 }) => {
   const dedupeFilter = duplicateMovementFilter({ sourceType, sourceId, recordVersion, inventoryItemId, transactionType });
@@ -166,19 +219,27 @@ export const applyMovementInSession = async ({
     throw new AppError(422, 'Unprocessable Entity', ErrorCodes.INSUFFICIENT_INVENTORY, 'Inventory cannot become negative');
   }
 
+  const hasNewThreshold = Number.isFinite(lowStockThreshold) && lowStockThreshold >= 0;
+
   let updatedStock;
   if (!stock) {
     [updatedStock] = await InventoryStock.create([{
       branchId,
       inventoryItemId,
       quantity: afterQty,
-      lowStockThreshold: 0,
+      lowStockThreshold: hasNewThreshold ? lowStockThreshold : 0,
+      thresholdConfigured: hasNewThreshold,
       version: 1
     }], { session });
   } else {
+    const updateSet = { quantity: afterQty };
+    if (hasNewThreshold) {
+      updateSet.lowStockThreshold = lowStockThreshold;
+      updateSet.thresholdConfigured = true;
+    }
     updatedStock = await InventoryStock.findOneAndUpdate(
       { _id: stock._id, version: stock.version },
-      { $set: { quantity: afterQty }, $inc: { version: 1 } },
+      { $set: updateSet, $inc: { version: 1 } },
       { new: true, session, runValidators: true }
     );
     if (!updatedStock) {
@@ -186,20 +247,34 @@ export const applyMovementInSession = async ({
     }
   }
 
+  const branchMeta = await resolveBranchMeta(branchId, session);
+  const actorMeta = (actorName && actorRole)
+    ? { actorName, actorRole, isSystemActor: Boolean(isSystemActor) }
+    : await resolveActorMeta(actorId, session);
+
   const [transaction] = await InventoryTransaction.create([{
     branchId,
+    branchName: branchMeta.branchName,
+    branchCode: branchMeta.branchCode,
     inventoryItemId,
     transactionType,
     beforeQty,
     changeQty,
     afterQty,
     actorId,
+    actorName: actorMeta.actorName,
+    actorRole: actorMeta.actorRole,
+    isSystemActor: actorMeta.isSystemActor,
     reason: validateReason(reason),
     sourceType,
     sourceId,
     recordVersion,
     transferId,
     transferLeg,
+    fromBranchId,
+    toBranchId,
+    fromBranchName,
+    toBranchName,
     idempotencyKey
   }], { session });
 
@@ -212,6 +287,14 @@ const manualMovement = async (data, actor, transactionType) => {
   const inventoryItemId = requireObjectId(data.inventoryItemId, 'inventoryItemId');
   const reason = validateReason(data.reason);
 
+  let lowStockThreshold;
+  if (data.lowStockThreshold !== undefined) {
+    if (!Number.isFinite(data.lowStockThreshold) || data.lowStockThreshold < 0) {
+      throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'lowStockThreshold must be 0 or greater');
+    }
+    lowStockThreshold = data.lowStockThreshold;
+  }
+
   return runInTransaction(async (session) => {
     await ensureReferences([branchId], inventoryItemId, session);
     const result = await applyMovementInSession({
@@ -223,6 +306,7 @@ const manualMovement = async (data, actor, transactionType) => {
       reason,
       sourceType: 'MANUAL',
       actorId: resolvedActor.id,
+      lowStockThreshold,
       idempotencyKey: actor.idempotencyKey || null
     });
     return formatInventoryTransaction(result.transaction);
@@ -241,8 +325,21 @@ export const createTransfer = async (data, actor) => {
   const reason = validateReason(data.reason);
   const transferId = new mongoose.Types.ObjectId();
 
+  let destinationLowStockThreshold;
+  if (data.destinationLowStockThreshold !== undefined) {
+    if (!Number.isFinite(data.destinationLowStockThreshold) || data.destinationLowStockThreshold < 0) {
+      throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'destinationLowStockThreshold must be 0 or greater');
+    }
+    destinationLowStockThreshold = data.destinationLowStockThreshold;
+  }
+
   return runInTransaction(async (session) => {
     await ensureReferences([fromBranchId, toBranchId], inventoryItemId, session);
+    const [fromBranchMeta, toBranchMeta] = await Promise.all([
+      resolveBranchMeta(fromBranchId, session),
+      resolveBranchMeta(toBranchId, session)
+    ]);
+
     const out = await applyMovementInSession({
       session,
       branchId: fromBranchId,
@@ -254,6 +351,10 @@ export const createTransfer = async (data, actor) => {
       sourceId: transferId,
       transferId,
       transferLeg: 'OUT',
+      fromBranchId,
+      toBranchId,
+      fromBranchName: fromBranchMeta.branchName,
+      toBranchName: toBranchMeta.branchName,
       actorId: resolvedActor.id,
       idempotencyKey: actor.idempotencyKey || null
     });
@@ -268,6 +369,11 @@ export const createTransfer = async (data, actor) => {
       sourceId: transferId,
       transferId,
       transferLeg: 'IN',
+      fromBranchId,
+      toBranchId,
+      fromBranchName: fromBranchMeta.branchName,
+      toBranchName: toBranchMeta.branchName,
+      lowStockThreshold: destinationLowStockThreshold,
       actorId: resolvedActor.id,
       idempotencyKey: actor.idempotencyKey || null
     });
@@ -304,12 +410,13 @@ export const updateThreshold = async (branchIdValue, inventoryItemIdValue, data,
         inventoryItemId,
         quantity: 0,
         lowStockThreshold,
+        thresholdConfigured: true,
         version: 1
       }], { session });
     } else {
       stock = await InventoryStock.findOneAndUpdate(
         { _id: current._id, version: expectedVersion },
-        { $set: { lowStockThreshold }, $inc: { version: 1 } },
+        { $set: { lowStockThreshold, thresholdConfigured: true }, $inc: { version: 1 } },
         { new: true, session, runValidators: true }
       );
       if (!stock) {
@@ -338,16 +445,54 @@ export const listInventoryItems = async (query, actor) => {
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
   const filter = {};
   if (query.cursor) filter._id = { $gt: requireObjectId(query.cursor, 'cursor') };
+  if (query.kind) filter.kind = query.kind;
+  if (query.status) filter.status = query.status;
+  if (query.search) {
+    const pattern = new RegExp(escapeRegex(query.search.trim()), 'i');
+    filter.$or = [{ sku: pattern }, { name: pattern }];
+  }
+
   const rows = await InventoryItem.find(filter).sort({ _id: 1 }).limit(limit + 1).lean();
   const hasMore = rows.length > limit;
-  const items = rows.slice(0, limit).map((item) => ({
-    id: item._id.toString(),
-    sku: item.sku,
-    name: item.name,
-    kind: item.kind,
-    unit: item.unit,
-    status: item.status
-  }));
+  const sliced = rows.slice(0, limit);
+  const itemIds = sliced.map((item) => item._id);
+
+  // Link with Product Master variants
+  const products = await Product.find({ 'variants.inventoryItemId': { $in: itemIds } })
+    .select('_id name productType variants')
+    .lean();
+
+  const productMap = new Map();
+  for (const product of products) {
+    for (const variant of product.variants || []) {
+      if (variant.inventoryItemId) {
+        productMap.set(variant.inventoryItemId.toString(), {
+          productId: product._id.toString(),
+          productName: product.name,
+          productType: product.productType || 'SIMPLE',
+          variantId: variant._id.toString(),
+          variantName: product.productType === 'SIMPLE' ? '-' : (variant.label || '-')
+        });
+      }
+    }
+  }
+
+  const items = sliced.map((item) => {
+    const matched = productMap.get(item._id.toString());
+    return {
+      id: item._id.toString(),
+      sku: item.sku,
+      name: item.name,
+      kind: item.kind,
+      unit: item.unit,
+      status: item.status,
+      productId: matched ? matched.productId : null,
+      productName: matched ? matched.productName : null,
+      productType: matched ? matched.productType : null,
+      variantId: matched ? matched.variantId : null,
+      variantName: matched ? matched.variantName : null
+    };
+  });
   return { items, nextCursor: hasMore ? rows[limit - 1]._id.toString() : null };
 };
 
@@ -405,6 +550,22 @@ export const listTransactions = async (query, actor) => {
   }
   if (query.inventoryItemId) filter.inventoryItemId = requireObjectId(query.inventoryItemId, 'inventoryItemId');
   if (query.transactionType) filter.transactionType = query.transactionType;
+
+  if (query.fromDate || query.toDate) {
+    filter.createdAt = {};
+    if (query.fromDate) filter.createdAt.$gte = new Date(query.fromDate);
+    if (query.toDate) filter.createdAt.$lte = new Date(query.toDate);
+  }
+
+  if (query.search) {
+    const searchPattern = new RegExp(escapeRegex(query.search.trim()), 'i');
+    filter.$or = [
+      { reason: searchPattern },
+      { branchName: searchPattern },
+      { actorName: searchPattern }
+    ];
+  }
+
   if (query.cursor) filter._id = { $lt: requireObjectId(query.cursor, 'cursor') };
 
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
@@ -413,6 +574,33 @@ export const listTransactions = async (query, actor) => {
   return {
     items: rows.slice(0, limit).map(formatInventoryTransaction),
     nextCursor: hasMore ? rows[limit - 1]._id.toString() : null
+  };
+};
+
+export const getBranchInventorySummary = async (branchIdValue, actor) => {
+  const resolvedActor = (actor && actor.systemRole && (actor.assignedBranchIds || actor.authorizedBranchIds || actor.systemRole === 'ADMIN'))
+    ? actor
+    : await resolveInventoryActor(actor, ['ADMIN', 'MANAGER', 'STAFF']);
+  const branchId = assertInventoryBranchScope(resolvedActor, branchIdValue, { hideExistence: false });
+
+  const stocks = await InventoryStock.find({ branchId }).lean();
+  let totalItems = stocks.length;
+  let lowStockItems = 0;
+  let outOfStockItems = 0;
+
+  for (const stock of stocks) {
+    if (stock.quantity === 0) {
+      outOfStockItems += 1;
+    } else if (stock.thresholdConfigured && stock.quantity <= stock.lowStockThreshold) {
+      lowStockItems += 1;
+    }
+  }
+
+  return {
+    branchId: branchId.toString(),
+    totalItems,
+    lowStockItems,
+    outOfStockItems
   };
 };
 

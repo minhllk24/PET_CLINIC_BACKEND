@@ -36,7 +36,7 @@ export const createDateTimeISO = (dateStr, timeStr) => {
 /**
  * Core Dynamic Availability Slot Engine (Zero manual slot creation)
  */
-export const getAvailability = async ({ serviceIds, branchId, date }) => {
+export const getAvailability = async ({ serviceIds, branchId, date, includeFull = false }) => {
   // 1. Normalize serviceIds (support array, comma-separated string, or single string)
   let normalizedServiceIds = [];
   if (Array.isArray(serviceIds)) {
@@ -248,9 +248,10 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
     return true;
   });
 
-  // Extract occupied segments: serviceId, startMins, endMins, assignedStaffId
+  // Extract occupied segments: serviceId, startMins, endMins, assignedStaffId, isHold
   const occupiedSegments = [];
   for (const apt of activeBookings) {
+    const isHold = ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(apt.status);
     if (apt.services && Array.isArray(apt.services)) {
       for (const seg of apt.services) {
         if (seg.scheduledStart && seg.scheduledEnd) {
@@ -261,17 +262,40 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
             (new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000
           );
           occupiedSegments.push({
+            appointmentId: apt._id ? apt._id.toString() : null,
             serviceId: (seg.serviceId?._id || seg.serviceId)?.toString(),
             assignedStaffId: seg.assignedStaffId ? seg.assignedStaffId.toString() : null,
             startMins: segStartMins,
             endMins: segEndMins,
+            isHold,
           });
         }
       }
     }
   }
 
-  // 7. Generate Slots
+  // 7. Extract Blocked Windows from configs
+  const blockedWindowsList = [];
+  for (const config of configs) {
+    if (config.blockedWindows && Array.isArray(config.blockedWindows)) {
+      for (const bw of config.blockedWindows) {
+        const bwStart = new Date(bw.startAt);
+        const bwEnd = new Date(bw.endAt);
+        if (bwStart < endOfDay && bwEnd > startOfDay) {
+          const bwStartMins = Math.max(0, Math.floor((bwStart.getTime() - startOfDay.getTime()) / 60000));
+          const bwEndMins = Math.min(1440, Math.floor((bwEnd.getTime() - startOfDay.getTime()) / 60000));
+          blockedWindowsList.push({
+            serviceId: config.serviceId.toString(),
+            startMins: bwStartMins,
+            endMins: bwEndMins,
+            reason: bw.reason,
+          });
+        }
+      }
+    }
+  }
+
+  // 8. Generate Slots
   // Slot step is 15 minutes
   const SLOT_STEP = 15;
   const availableSlots = [];
@@ -281,10 +305,15 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
     slotStart + scheduledDurationMinutes <= branchCloseMinutes;
     slotStart += SLOT_STEP
   ) {
+    const slotEnd = slotStart + scheduledDurationMinutes;
     let currentStart = slotStart;
-    let slotValid = true;
     let slotSegments = [];
     let minRemainingCapacity = Infinity;
+    let isBlocked = false;
+    let totalSlotCapacity = 1;
+    let totalBookedCount = 0;
+    let totalHeldCount = 0;
+    let staffUnavailable = false;
 
     // Track staff used across the sequential segments in this candidate slot
     for (const service of orderedServices) {
@@ -294,10 +323,19 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
 
       const sId = service._id.toString();
       const config = configMap.get(sId);
-      const capacity = Number(config.capacity) || 1;
+      const capacity = Number(config?.capacity) || 1;
+      totalSlotCapacity = Math.max(totalSlotCapacity, capacity);
+
+      // Check if blocked by blockedWindows
+      const hasBlockedWindow = blockedWindowsList.some((bw) => {
+        return bw.serviceId === sId && Math.max(bw.startMins, segStart) < Math.min(bw.endMins, segEnd);
+      });
+      if (hasBlockedWindow) {
+        isBlocked = true;
+      }
 
       // Check if service has specific availability window on this day
-      if (config.availability && config.availability.length > 0) {
+      if (config?.availability && config.availability.length > 0) {
         const dayAvail = config.availability.filter((a) => a.dayOfWeek === dayOfWeek);
         if (dayAvail.length > 0) {
           const withinAvail = dayAvail.some((w) => {
@@ -306,8 +344,7 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
             return segStart >= wOpen && segEnd <= wClose;
           });
           if (!withinAvail) {
-            slotValid = false;
-            break;
+            isBlocked = true;
           }
         }
       }
@@ -317,18 +354,18 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
         return occ.serviceId === sId && Math.max(occ.startMins, segStart) < Math.min(occ.endMins, segEnd);
       });
 
-      if (concurrentSegments.length >= capacity) {
-        slotValid = false;
-        break;
-      }
+      const bookedSegments = concurrentSegments.filter((s) => !s.isHold);
+      const heldSegments = concurrentSegments.filter((s) => s.isHold);
 
-      const remainingForSegment = capacity - concurrentSegments.length;
+      totalBookedCount = Math.max(totalBookedCount, bookedSegments.length);
+      totalHeldCount = Math.max(totalHeldCount, heldSegments.length);
+
+      const remainingForSegment = Math.max(0, capacity - concurrentSegments.length);
       if (remainingForSegment < minRemainingCapacity) {
         minRemainingCapacity = remainingForSegment;
       }
 
       // Check staff availability:
-      // Find active staff with matching requiredStaffRole whose shift covers [segStart, segEnd]
       const occupiedStaffIds = new Set(
         occupiedSegments
           .filter(
@@ -349,8 +386,7 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
       });
 
       if (availableStaff.length === 0) {
-        slotValid = false;
-        break;
+        staffUnavailable = true;
       }
 
       slotSegments.push({
@@ -362,13 +398,39 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
       currentStart = segEnd;
     }
 
-    if (slotValid) {
-      availableSlots.push({
-        start: createDateTimeISO(date, minutesToTime(slotStart)),
-        end: createDateTimeISO(date, minutesToTime(slotStart + scheduledDurationMinutes)),
-        remaining: Math.max(1, minRemainingCapacity === Infinity ? 1 : minRemainingCapacity),
-        segments: slotSegments,
-      });
+    const occupiedCount = totalBookedCount + totalHeldCount;
+    let remaining = minRemainingCapacity === Infinity ? Math.max(0, totalSlotCapacity - occupiedCount) : minRemainingCapacity;
+
+    if (staffUnavailable) {
+      remaining = 0;
+    }
+
+    let status = 'AVAILABLE';
+    if (isBlocked) {
+      status = 'BLOCKED';
+      remaining = 0;
+    } else if (remaining <= 0 || staffUnavailable) {
+      status = 'FULL';
+      remaining = 0;
+    }
+
+    const slotData = {
+      start: createDateTimeISO(date, minutesToTime(slotStart)),
+      end: createDateTimeISO(date, minutesToTime(slotEnd)),
+      bookedCount: totalBookedCount,
+      heldCount: totalHeldCount,
+      occupiedCount,
+      totalCount: totalSlotCapacity,
+      remaining: status === 'AVAILABLE' ? Math.max(1, remaining) : 0,
+      status,
+      timezone: 'Asia/Ho_Chi_Minh',
+      segments: slotSegments,
+    };
+
+    if (status === 'AVAILABLE') {
+      availableSlots.push(slotData);
+    } else if (includeFull) {
+      availableSlots.push(slotData);
     }
   }
 
@@ -379,5 +441,42 @@ export const getAvailability = async ({ serviceIds, branchId, date }) => {
     serviceType: primaryServiceType,
     scheduledDurationMinutes,
     slots: availableSlots,
+  };
+};
+
+/**
+ * Branch Operation Slots Engine (for Manager / Staff / Occupancy View)
+ */
+export const getBranchOperationSlots = async ({ branchId, date, serviceId, includeFull = true }, actor) => {
+  if (serviceId) {
+    return getAvailability({ serviceIds: [serviceId], branchId, date, includeFull: true });
+  }
+
+  const configs = await BranchServiceConfig.find({
+    branchId: new mongoose.Types.ObjectId(branchId),
+    enabled: true,
+  });
+
+  const serviceIds = configs.map((c) => c.serviceId.toString());
+  if (serviceIds.length === 0) {
+    return {
+      branchId,
+      date,
+      servicesCount: 0,
+      servicesAvailability: [],
+    };
+  }
+
+  const results = await Promise.all(
+    serviceIds.map((sId) =>
+      getAvailability({ serviceIds: [sId], branchId, date, includeFull: true }).catch(() => null)
+    )
+  );
+
+  return {
+    branchId,
+    date,
+    servicesCount: results.filter(Boolean).length,
+    servicesAvailability: results.filter(Boolean),
   };
 };

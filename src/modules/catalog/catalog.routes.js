@@ -36,5 +36,6 @@ router.get('/services/:id', optionalAuth, catalogController.getServiceById);
 router.patch('/services/:id', authenticate, requireRole(['ADMIN']), catalogController.updateService);
 router.post('/services/:id/archive', authenticate, requireRole(['ADMIN']), idempotency('servicesArchive'), catalogController.archiveService);
 router.get('/services/:id/branches', optionalAuth, catalogController.getServiceBranches);
+router.get('/services/:id/branch-configs', optionalAuth, catalogController.getServiceBranchConfigs);
 
 export default router;

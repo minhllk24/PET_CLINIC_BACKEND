@@ -47,7 +47,13 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
 
   if (obj.priceVariants && Array.isArray(obj.priceVariants) && obj.priceVariants.length > 0) {
     res.priceVariants = obj.priceVariants.map((v) => {
-      const variant = { label: v.label, price: Number(v.price) };
+      const mode = v.mode || 'FIXED';
+      const variant = {
+        label: v.label,
+        mode,
+        price: mode === 'QUOTE' ? null : (v.price !== null && v.price !== undefined ? Number(v.price) : null)
+      };
+      if (v.tier) variant.tier = v.tier;
       if (v.minWeightKg !== undefined && v.minWeightKg !== null) variant.minWeightKg = Number(v.minWeightKg);
       if (v.maxWeightKg !== undefined && v.maxWeightKg !== null) variant.maxWeightKg = Number(v.maxWeightKg);
       return variant;
@@ -359,14 +365,137 @@ export const createService = async (data, actor = null) => {
     code = `${prefix}-${String(seq).padStart(6, '0')}`;
   }
 
+  const { autoEnableActiveBranches = true, branchConfigs = [], ...servicePayload } = data;
+
   const service = new Service({
-    ...data,
+    ...servicePayload,
     code,
     status: data.status || 'ACTIVE',
   });
 
-  await service.save();
-  return formatServiceResponse(service, 0);
+  const runWork = async (session) => {
+    if (session) {
+      await service.save({ session });
+    } else {
+      await service.save();
+    }
+
+    let enabledBranchCount = 0;
+    const shouldAutoEnable = service.status === 'ACTIVE' && autoEnableActiveBranches !== false;
+
+    if (shouldAutoEnable || (Array.isArray(branchConfigs) && branchConfigs.length > 0)) {
+      const activeBranches = await Branch.find({ status: 'ACTIVE' }).select('_id').session(session).lean();
+      const overrideMap = new Map();
+      if (Array.isArray(branchConfigs)) {
+        for (const cfg of branchConfigs) {
+          if (cfg && cfg.branchId) {
+            overrideMap.set(cfg.branchId.toString(), cfg);
+          }
+        }
+      }
+
+      const branchIdsToConfigure = new Set();
+      if (shouldAutoEnable) {
+        for (const b of activeBranches) {
+          branchIdsToConfigure.add(b._id.toString());
+        }
+      }
+      for (const [bId] of overrideMap.entries()) {
+        branchIdsToConfigure.add(bId);
+      }
+
+      for (const bId of branchIdsToConfigure) {
+        const override = overrideMap.get(bId);
+        const isEnabled = override?.enabled !== undefined ? Boolean(override.enabled) : true;
+        const capacity = override?.capacity !== undefined && Number.isInteger(Number(override.capacity)) && Number(override.capacity) >= 1
+          ? Number(override.capacity)
+          : 1;
+        const availability = Array.isArray(override?.availability) ? override.availability : [];
+
+        await BranchServiceConfig.findOneAndUpdate(
+          { branchId: bId, serviceId: service._id },
+          {
+            $set: {
+              enabled: isEnabled,
+              capacity,
+              availability,
+            },
+            $setOnInsert: {
+              blockedWindows: [],
+              version: 1,
+            }
+          },
+          { upsert: true, new: true, session, runValidators: true }
+        );
+
+        if (isEnabled) enabledBranchCount += 1;
+      }
+    }
+
+    return formatServiceResponse(service, enabledBranchCount);
+  };
+
+  if (mongoose.connection.readyState === 1 && typeof mongoose.startSession === 'function') {
+    try {
+      const session = await mongoose.startSession();
+      try {
+        let result;
+        await session.withTransaction(async () => {
+          result = await runWork(session);
+        });
+        return result;
+      } catch (err) {
+        if (err.message && (err.message.includes('replica set') || err.message.includes('Transaction numbers'))) {
+          return await runWork(null);
+        }
+        throw err;
+      } finally {
+        await session.endSession();
+      }
+    } catch (err) {
+      if (err.message && (err.message.includes('replica set') || err.message.includes('Transaction numbers'))) {
+        return await runWork(null);
+      }
+      throw err;
+    }
+  }
+
+  return runWork(null);
+};
+
+export const listServiceBranchConfigs = async (serviceId, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+    throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
+  }
+  const service = await Service.findById(serviceId).lean();
+  if (!service) {
+    throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
+  }
+
+  const branches = await Branch.find({}).sort({ name: 1 }).lean();
+  const configs = await BranchServiceConfig.find({ serviceId }).lean();
+  const configMap = new Map(configs.map((c) => [c.branchId.toString(), c]));
+
+  const result = branches.map((b) => {
+    const cfg = configMap.get(b._id.toString());
+    return {
+      branchId: b._id.toString(),
+      branchName: b.name,
+      branchCode: b.code,
+      branchStatus: b.status,
+      enabled: cfg ? Boolean(cfg.enabled) : false,
+      capacity: cfg ? (cfg.capacity || 1) : 1,
+      availability: cfg ? (cfg.availability || []) : [],
+      blockedWindows: cfg ? (cfg.blockedWindows || []) : [],
+      version: cfg ? cfg.version : 0
+    };
+  });
+
+  return {
+    serviceId: service._id.toString(),
+    serviceName: service.name,
+    configs: result
+  };
 };
 
 export const updateService = async (id, data, actor = null) => {

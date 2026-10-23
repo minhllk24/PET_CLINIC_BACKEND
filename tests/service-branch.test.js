@@ -535,6 +535,149 @@ describe('Priority P0 – Service Catalog & Branch Management Suite', () => {
       const start9Slot = result.slots.find((s) => s.start.includes('09:00:00'));
       expect(start9Slot).toBeDefined();
     });
+
+    it('Includes full slots with status FULL and occupancy metrics when includeFull is true (BE-01)', async () => {
+      jest.spyOn(Branch, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(branch1Id),
+        status: 'ACTIVE',
+        openingHours: [{ dayOfWeek: 2, open: '08:00', close: '10:00' }],
+        holidays: [],
+      });
+
+      jest.spyOn(Service, 'find').mockResolvedValue([
+        {
+          _id: new mongoose.Types.ObjectId(serviceGroomingId),
+          name: 'Tắm & Sấy',
+          serviceType: 'GROOMING',
+          durationMinutes: 60,
+          requiredStaffRole: 'CARE_STAFF_GROOMER',
+          bookingMode: 'BOOKABLE',
+          status: 'ACTIVE',
+        },
+      ]);
+
+      jest.spyOn(BranchServiceConfig, 'find').mockResolvedValue([
+        {
+          branchId: new mongoose.Types.ObjectId(branch1Id),
+          serviceId: new mongoose.Types.ObjectId(serviceGroomingId),
+          enabled: true,
+          capacity: 1,
+        },
+      ]);
+
+      jest.spyOn(Shift, 'find').mockReturnValue({
+        populate: jest.fn().mockResolvedValue([
+          {
+            _id: new mongoose.Types.ObjectId(),
+            branchId: new mongoose.Types.ObjectId(branch1Id),
+            startAt: new Date(`${testDate}T08:00:00.000Z`),
+            endAt: new Date(`${testDate}T10:00:00.000Z`),
+            status: 'ACTIVE',
+            staffId: {
+              _id: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
+              staffSubRole: 'CARE_STAFF_GROOMER',
+              status: 'ACTIVE',
+            },
+          },
+        ]),
+      });
+
+      jest.spyOn(Appointment, 'find').mockResolvedValue([
+        {
+          status: 'CONFIRMED',
+          services: [
+            {
+              serviceId: new mongoose.Types.ObjectId(serviceGroomingId),
+              assignedStaffId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
+              scheduledStart: new Date(`${testDate}T08:00:00.000Z`),
+              scheduledEnd: new Date(`${testDate}T09:00:00.000Z`),
+            },
+          ],
+        },
+      ]);
+
+      const result = await availabilityService.getAvailability({
+        serviceIds: [serviceGroomingId],
+        branchId: branch1Id,
+        date: testDate,
+        includeFull: true,
+      });
+
+      const start8Slot = result.slots.find((s) => s.start.includes('08:00:00'));
+      expect(start8Slot).toBeDefined();
+      expect(start8Slot.status).toBe('FULL');
+      expect(start8Slot.bookedCount).toBe(1);
+      expect(start8Slot.totalCount).toBe(1);
+      expect(start8Slot.remaining).toBe(0);
+    });
+
+    it('Marks slots as BLOCKED when blockedWindows are defined on BranchServiceConfig (BE-03)', async () => {
+      jest.spyOn(Branch, 'findById').mockResolvedValue({
+        _id: new mongoose.Types.ObjectId(branch1Id),
+        status: 'ACTIVE',
+        openingHours: [{ dayOfWeek: 2, open: '08:00', close: '10:00' }],
+        holidays: [],
+      });
+
+      jest.spyOn(Service, 'find').mockResolvedValue([
+        {
+          _id: new mongoose.Types.ObjectId(serviceGroomingId),
+          name: 'Tắm & Sấy',
+          serviceType: 'GROOMING',
+          durationMinutes: 60,
+          requiredStaffRole: 'CARE_STAFF_GROOMER',
+          bookingMode: 'BOOKABLE',
+          status: 'ACTIVE',
+        },
+      ]);
+
+      jest.spyOn(BranchServiceConfig, 'find').mockResolvedValue([
+        {
+          branchId: new mongoose.Types.ObjectId(branch1Id),
+          serviceId: new mongoose.Types.ObjectId(serviceGroomingId),
+          enabled: true,
+          capacity: 2,
+          blockedWindows: [
+            {
+              startAt: new Date(`${testDate}T08:00:00.000Z`),
+              endAt: new Date(`${testDate}T09:00:00.000Z`),
+              reason: 'Bảo trì máy sấy',
+            },
+          ],
+        },
+      ]);
+
+      jest.spyOn(Shift, 'find').mockReturnValue({
+        populate: jest.fn().mockResolvedValue([
+          {
+            _id: new mongoose.Types.ObjectId(),
+            branchId: new mongoose.Types.ObjectId(branch1Id),
+            startAt: new Date(`${testDate}T08:00:00.000Z`),
+            endAt: new Date(`${testDate}T10:00:00.000Z`),
+            status: 'ACTIVE',
+            staffId: {
+              _id: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
+              staffSubRole: 'CARE_STAFF_GROOMER',
+              status: 'ACTIVE',
+            },
+          },
+        ]),
+      });
+
+      jest.spyOn(Appointment, 'find').mockResolvedValue([]);
+
+      const result = await availabilityService.getAvailability({
+        serviceIds: [serviceGroomingId],
+        branchId: branch1Id,
+        date: testDate,
+        includeFull: true,
+      });
+
+      const start8Slot = result.slots.find((s) => s.start.includes('08:00:00'));
+      expect(start8Slot).toBeDefined();
+      expect(start8Slot.status).toBe('BLOCKED');
+      expect(start8Slot.remaining).toBe(0);
+    });
   });
 
   describe('5. GET /api/v1/availability Route Integration', () => {

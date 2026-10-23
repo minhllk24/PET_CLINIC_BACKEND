@@ -4,6 +4,8 @@ import InventoryTransaction from '../src/modules/inventory/models/InventoryTrans
 import {
   applyMovementInSession,
   formatInventoryStock,
+  formatInventoryTransaction,
+  getBranchInventorySummary,
   SYSTEM_ACTOR_ID
 } from '../src/modules/inventory/inventory.service';
 import { assertTransferScope } from '../src/modules/inventory/inventory.scope';
@@ -48,6 +50,7 @@ describe('Inventory V7 invariants', () => {
       quantity: 0,
       lowStock: true,
       lowStockThreshold: 0,
+      thresholdConfigured: false,
       version: 0
     });
   });
@@ -221,5 +224,96 @@ describe('Inventory V7 invariants', () => {
     expect(result.items[0]).toMatchObject({ name: 'Product snapshot', skuSnapshot: 'SKU-001' });
     expect(result).not.toHaveProperty('_id');
     expect(result).not.toHaveProperty('__v');
+  });
+
+  it('updates lowStockThreshold and sets thresholdConfigured: true when threshold is provided on Receipt', async () => {
+    jest.spyOn(InventoryStock, 'findOne').mockReturnValue(sessionResult(null));
+    const createStockSpy = jest.spyOn(InventoryStock, 'create').mockResolvedValue([{
+      branchId: branchA,
+      inventoryItemId,
+      quantity: 10,
+      lowStockThreshold: 5,
+      thresholdConfigured: true,
+      version: 1
+    }]);
+    jest.spyOn(InventoryTransaction, 'create').mockImplementation(async ([value]) => [{
+      _id: new mongoose.Types.ObjectId(),
+      ...value,
+      createdAt: new Date()
+    }]);
+
+    const result = await applyMovementInSession({
+      session: fakeSession,
+      branchId: branchA,
+      inventoryItemId,
+      transactionType: 'RECEIPT',
+      quantity: 10,
+      lowStockThreshold: 5,
+      reason: 'RECEIPT_WITH_THRESHOLD',
+      actorId: SYSTEM_ACTOR_ID
+    });
+
+    expect(createStockSpy).toHaveBeenCalledWith([
+      expect.objectContaining({
+        quantity: 10,
+        lowStockThreshold: 5,
+        thresholdConfigured: true
+      })
+    ], { session: fakeSession });
+  });
+
+  it('formats inventory transaction with branch and actor information', () => {
+    const txId = new mongoose.Types.ObjectId();
+    const formatted = formatInventoryTransaction({
+      _id: txId,
+      branchId: branchA,
+      branchName: 'Chi nhánh Quận 1',
+      branchCode: 'Q1',
+      inventoryItemId,
+      transactionType: 'RECEIPT',
+      beforeQty: 0,
+      changeQty: 10,
+      afterQty: 10,
+      actorId: SYSTEM_ACTOR_ID,
+      actorName: 'Hệ thống',
+      actorRole: 'SYSTEM',
+      isSystemActor: true,
+      reason: 'Nhận hàng',
+      createdAt: new Date('2026-10-23T00:00:00.000Z'),
+      sourceType: 'MANUAL',
+      sourceId: null
+    });
+
+    expect(formatted).toMatchObject({
+      id: txId.toString(),
+      branchName: 'Chi nhánh Quận 1',
+      branchCode: 'Q1',
+      actorName: 'Hệ thống',
+      actorRole: 'SYSTEM',
+      isSystemActor: true
+    });
+  });
+
+  it('calculates branch inventory summary distinguishing low stock and out of stock', async () => {
+    jest.spyOn(InventoryStock, 'find').mockReturnValue({
+      lean: jest.fn().mockResolvedValue([
+        { quantity: 0, lowStockThreshold: 5, thresholdConfigured: true },
+        { quantity: 3, lowStockThreshold: 5, thresholdConfigured: true },
+        { quantity: 20, lowStockThreshold: 5, thresholdConfigured: true },
+        { quantity: 2, lowStockThreshold: 0, thresholdConfigured: false }
+      ])
+    });
+
+    const summary = await getBranchInventorySummary(branchA.toString(), {
+      id: SYSTEM_ACTOR_ID.toString(),
+      systemRole: 'ADMIN'
+    });
+
+    expect(summary).toEqual({
+      branchId: branchA.toString(),
+      totalItems: 4,
+      lowStockItems: 1, // only the item with quantity 3 (0 < 3 <= 5 and thresholdConfigured)
+      outOfStockItems: 1 // only the item with quantity 0
+    });
   });
 });

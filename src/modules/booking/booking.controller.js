@@ -3,11 +3,52 @@ import * as availabilityService from './availability.service';
 
 export const getAvailability = async (req, res, next) => {
   try {
-    const { serviceIds, branchId, date } = req.query;
+    const { serviceIds, branchId, date, includeFull } = req.query;
+    const isIncludeFull =
+      includeFull === 'true' ||
+      includeFull === true ||
+      ['ADMIN', 'MANAGER', 'STAFF'].includes(req.actor?.systemRole);
+
     const result = await availabilityService.getAvailability({
       serviceIds,
       branchId,
       date,
+      includeFull: isIncludeFull,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBranchOperationSlots = async (req, res, next) => {
+  try {
+    const { branchId } = req.params;
+    const { date, serviceId, includeFull } = req.query;
+    const result = await availabilityService.getBranchOperationSlots(
+      {
+        branchId,
+        date: date || new Date().toISOString().slice(0, 10),
+        serviceId,
+        includeFull: includeFull !== 'false',
+      },
+      req.actor
+    );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getServiceOccupancy = async (req, res, next) => {
+  try {
+    const { branchId, serviceId } = req.params;
+    const { date } = req.query;
+    const result = await availabilityService.getAvailability({
+      serviceIds: [serviceId],
+      branchId,
+      date: date || new Date().toISOString().slice(0, 10),
+      includeFull: true,
     });
     res.json(result);
   } catch (error) {
