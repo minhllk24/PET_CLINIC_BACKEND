@@ -42,7 +42,7 @@ const schema = new mongoose.Schema(
     petSnapshot: { type: Object, default: null },
     customerSnapshot: { type: Object, default: null },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-    serviceType: { type: String, required: true, enum: ['GROOMING', 'MEDICAL', 'MIXED_SERVICE_TYPES'] },
+    serviceType: { type: String, required: true, enum: ['GROOMING', 'MEDICAL'] },
     paymentMethod: {
       type: String,
       required: true,

@@ -9793,6 +9793,26 @@ components:
             - dayOfWeek
             - open
             - close
+        blockedWindows:
+          type: array
+          description: Cac khoang thoi gian tam ngung phuc vu dich vu (temporary blocks do bao tri/su co)
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              startAt:
+                $ref: '#/components/schemas/DateTime'
+              endAt:
+                $ref: '#/components/schemas/DateTime'
+              reason:
+                type: string
+              createdBy:
+                type:
+                - string
+                - 'null'
+              createdAt:
+                $ref: '#/components/schemas/DateTime'
         updatedAt:
           $ref: '#/components/schemas/DateTime'
       additionalProperties: false
