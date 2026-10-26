@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/app';
+import app, { limiter } from '../src/app';
 import mongoose from 'mongoose';
 
 describe('Foundation Verification Tests', () => {
@@ -148,5 +148,20 @@ describe('Foundation Verification Tests', () => {
     expect(res.status).toBe(429);
     expect(res.body).toHaveProperty('code', 'RATE_LIMIT');
     expect(res.body).toHaveProperty('correlationId');
+
+    // Reset rate limiter so downstream tests in the same process are not throttled
+    if (limiter && typeof limiter.resetKey === 'function') {
+      limiter.resetKey('127.0.0.1');
+      limiter.resetKey('::1');
+      limiter.resetKey('::ffff:127.0.0.1');
+    }
+  });
+
+  afterAll(() => {
+    if (limiter && typeof limiter.resetKey === 'function') {
+      limiter.resetKey('127.0.0.1');
+      limiter.resetKey('::1');
+      limiter.resetKey('::ffff:127.0.0.1');
+    }
   });
 });

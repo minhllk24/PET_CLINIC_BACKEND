@@ -256,4 +256,5 @@ app.use(notFoundHandler);
 // Global Error Handler
 app.use(errorHandler);
 
+export { limiter };
 export default app;
