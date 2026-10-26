@@ -200,3 +200,22 @@ Khi gửi request checkout, FE truyền mã voucher đã validate:
 }
 ```
 Frontend điều hướng khách hàng tới cổng thanh toán trực tuyến để thu khoản cọc `135,000 VND` (`depositAmount`). Sau khi cọc thành công, trạng thái lịch hẹn chuyển sang `CONFIRMED`.
+
+---
+
+## 5. Danh Sách Mã Voucher Demo Đã Khởi Tạo (Cho FE Hưng Kiểm Thử Vercel)
+
+Dữ liệu voucher mẫu đã được nạp trực tiếp vào cơ sở dữ liệu MongoDB và sẵn sàng kiểm thử qua lệnh `npm run seed:vouchers`:
+
+| Mã Voucher (`code`) | Loại giảm giá | Mức giảm | Đơn tối thiểu | Phạm vi (`scope`) | Mục đích kiểm thử UI / Logic |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`GIAM40K_DON150K`** | `FIXED` | 40,000 VNĐ | 150,000 VNĐ | `ORDER` | Test đơn hàng E-commerce giảm tiền mặt cố định |
+| **`GIAM10_CAP50`** | `PERCENTAGE` | 10% (Tối đa 50,000 VNĐ) | 100,000 VNĐ | `ORDER` | Test đơn hàng giảm % có áp trần giảm giá tối đa |
+| **`FREESHIP`** | `FIXED` | 30,000 VNĐ | 100,000 VNĐ | `ORDER` | Test miễn phí / giảm trừ phí vận chuyển |
+| **`SUMMER20`** | `PERCENTAGE` | 20% (Tối đa 100,000 VNĐ) | 0 VNĐ | `SERVICE` | Test đặt lịch hẹn Spa/Grooming/Khám bệnh có voucher |
+| **`PETCLINIC50K`** | `FIXED` | 50,000 VNĐ | 200,000 VNĐ | `SERVICE` | Test đặt lịch hẹn giảm 50k với hóa đơn $\ge 200k$ |
+| **`THUNHO20`** | `PERCENTAGE` | 20% (Tối đa 100,000 VNĐ) | 0 VNĐ | `PRODUCT` | Test giỏ hàng chứa sản phẩm danh mục chỉ định |
+| **`VIP100K_DON500K`** | `FIXED` | 100,000 VNĐ | 500,000 VNĐ | `ORDER` | Test điều kiện đơn hàng giá trị cao |
+| **`EXPIRED_TEST`** | `PERCENTAGE` | 15% | 0 VNĐ | `ORDER` | **Test lỗi UI:** Mã đã hết hạn (`EXPIRED`) |
+| **`MAXOUT_TEST`** | `FIXED` | 20,000 VNĐ | 0 VNĐ | `ORDER` | **Test lỗi UI:** Mã đã hết lượt sử dụng (`QUOTA_EXCEEDED`) |
+

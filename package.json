@@ -9,6 +9,7 @@
     "build": "babel src --out-dir dist",
     "start": "node dist/server.js",
     "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
+    "seed:vouchers": "babel-node src/seeds/voucherSeed.js",
     "migrate:inventory-v7": "babel-node scripts/migrateInventoryV7.js",
     "test": "jest --runInBand"
   },
