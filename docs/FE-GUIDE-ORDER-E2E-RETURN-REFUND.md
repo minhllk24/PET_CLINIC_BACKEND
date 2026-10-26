@@ -7,6 +7,13 @@
 > **Chuẩn Content-Type:** `application/json`  
 > **Chuẩn Error Response:** RFC 9457 Problem Details (`application/problem+json`)
 
+> [!IMPORTANT]
+> **HÀNH ĐỘNG CẦN LÀM NGAY (QUICK START DÀNH CHO FRONTEND):**
+> 1. **Đổi Base URL sang:** `https://pet-clinic-backend-a4lj.onrender.com/api/v1` (tuyệt đối không gọi vào `api.drpetshouse.lat` nữa do domain này chưa cấu hình DNS trên Render).
+> 2. **Đăng nhập bằng tài khoản:**
+>    - **Admin (Quản lý toàn bộ đơn hàng/nhân sự/duyệt hoàn tiền):** `admin` (mật khẩu: `K9#mQ$8xL!2vW*7z`)
+>    - **Khách hàng (Xem và tạo 12 đơn UAT, áp voucher, yêu cầu đổi trả):** `customer` (mật khẩu: `cT6$vM2!pL9#zR8&`)
+
 > [!WARNING]
 > **LƯU Ý QUAN TRỌNG VỀ DOMAIN:**
 > Domain `https://api.drpetshouse.lat` hiện **CHƯA được cấu hình DNS/CNAME** trên Render Custom Domains.
@@ -523,7 +530,8 @@ import { v4 as uuidv4 } from 'uuid';
   providedIn: 'root'
 })
 export class OrderService {
-  private baseUrl = 'http://localhost:8080/api/v1';
+  // URL Live: https://pet-clinic-backend-a4lj.onrender.com/api/v1 (hoặc 'http://localhost:8080/api/v1' cho local)
+  private baseUrl = 'https://pet-clinic-backend-a4lj.onrender.com/api/v1';
 
   constructor(private http: HttpClient) {}
 
