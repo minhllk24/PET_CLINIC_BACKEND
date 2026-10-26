@@ -26,6 +26,53 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 
 ---
 
+### 📅 2026-10-26 | Người thực hiện: An Thai & Minh Le Ly
+
+**Task:** Đồng bộ Remote & Nghiệm thu Order E2E Test Suite, Return Net Refund Allocation, Unified Branches và FE Integration Guides
+
+**Nội dung:**
+1. ✅ Pull và đồng bộ toàn bộ codebase Backend (`feat/foundation-v6`) và Frontend (`build-init`):
+   - Cả 2 repository đã được cập nhật hoàn toàn trùng khớp với remote github.
+   - Nhận 2 commits mới từ Minh: `696a5e6` (Order Return Net Refund & Docs) và `6a6e382` (Order E2E Test Suite & FE Integration Guide).
+2. ✅ Nghiệm thu Cơ chế Tính Tiền Hoàn Trả Ròng (Net Refund with Voucher Allocation):
+   - Nâng cấp `src/modules/order/order.service.js` và `src/modules/order/return.service.js`: Phân bổ giá trị voucher giảm giá theo tỷ lệ từng dòng sản phẩm khi thanh toán đơn hàng.
+   - Khi khách hàng yêu cầu hoàn trả (Return / Refund), số tiền hoàn trả được tính theo giá ròng thực trả (`netPrice = lineTotal - allocatedVoucherDiscount`), không hoàn lại phần chiết khấu của voucher.
+   - Phí vận chuyển (shipping fee) là không hoàn lại (`non-refundable shipping fee`).
+   - Kiểm soát trần hoàn tiền (`refund ceiling`): Tổng số tiền hoàn qua các đợt không vượt quá số tiền thực thanh toán (`paidAmount`).
+   - Tự động hoàn kho nguyên tử (`atomic stock compensation`) và cập nhật trạng thái đơn hàng.
+3. ✅ Nghiệm thu Bộ Test Suite Toàn Diện E2E Đơn Hàng (`tests/order-e2e.test.js`):
+   - Tích hợp 16 test cases kiểm thử 12 kịch bản nghiệp vụ khắt khe (SC-01 đến SC-12) với fixture dữ liệu đa loài (Chó, Mèo, Động vật nhỏ, Chim) và 3 chi nhánh.
+   - SC-01: Định giá hai tầng (Áp dụng giảm giá sản phẩm trước, voucher sau).
+   - SC-02: Cơ chế điều phối chi nhánh `FulfillmentBranchResolver` (Ưu tiên branch chỉ định, fallback branch mặc định, từ chối tách giỏ 422 `INSUFFICIENT_INVENTORY`).
+   - SC-03: Chuyển đổi trạng thái thanh toán COD khi giao hàng thành công (`PENDING` -> `PAID`).
+   - SC-04: Tự động hủy đơn khi thanh toán `ONLINE_MOCK` thất bại, hoàn kho nguyên tử và hoàn quota voucher idempotent.
+   - SC-05: Cửa sổ đổi trả 7 ngày (từ chối yêu cầu ngoài 7 ngày).
+   - SC-06: Chống bypass RBAC (khách hàng không tự hoàn tiền nếu chưa duyệt, nhân viên không vượt quyền chi nhánh).
+   - SC-07: Đổi trả nhiều phần / nhiều đợt (`partial / multistage return`).
+   - SC-08 -> SC-12: Giới hạn phí vận chuyển, trần hoàn tiền và kiểm soát tính toàn vẹn dữ liệu.
+4. ✅ Bàn giao Tài liệu Tích hợp cho Frontend (FE Handoff):
+   - `docs/FE-GUIDE-ORDER-E2E-RETURN-REFUND.md`: Hướng dẫn chi tiết luồng tích hợp Đơn hàng & Đổi trả, sơ đồ trạng thái, payloads mẫu và bảng mã lỗi RFC 9457.
+   - `docs/FE-HANDOFF-SERVICE-BRANCH-ORDER-RETURN.md`: Tài liệu đặc tả dịch vụ, chi nhánh và vòng đời đơn hàng phục vụ FE team.
+5. ✅ Kiểm thử Tự động:
+   - Tổng số test suites tăng lên **13 suites**, **184/184 tests passed (100% PASS)**.
+   - Bao gồm: `appointment`, `auth`, `catalog`, `contract`, `health`, `inventory-api`, `inventory`, `order-e2e`, `order-return`, `service-branch`, `shift`, `staff`, `voucher`.
+
+**Files thay đổi:**
+- `src/modules/order/order.service.js` – Tính toán phân bổ voucher theo tỷ lệ (voucher allocation)
+- `src/modules/order/return.service.js` – Tính toán hoàn tiền ròng (net refund), trần hoàn tiền, hoàn kho
+- `src/seeds/serviceCatalogSeed.js` – Chuẩn hóa tên các chi nhánh đồng nhất
+- `tests/order-return.test.js` – Bổ sung test case phân bổ voucher và net refund
+- `tests/fixtures/orderE2EData.js` – Bộ fixture đa loài và chi nhánh phục vụ E2E
+- `tests/order-e2e.test.js` – Bộ test suite E2E đơn hàng 12 kịch bản (964 lines)
+- `docs/PLAN-order-e2e.md` – Kế hoạch kiểm thử E2E đơn hàng
+- `docs/FE-GUIDE-ORDER-E2E-RETURN-REFUND.md` – Cẩm nang tích hợp Đơn hàng & Hoàn trả cho Frontend
+- `docs/FE-HANDOFF-SERVICE-BRANCH-ORDER-RETURN.md` – Tài liệu bàn giao dịch vụ chi nhánh và đơn hàng
+- `docs/PROJECT-LOG.md` – Nghiệm thu và ghi nhận log phiên làm việc 2026-10-26
+
+**Trạng thái test:** 184/184 PASS (13 suites, 100%)
+
+---
+
 ### 📅 2026-10-23 | Người thực hiện: An Thai
 
 **Task:** Pull & Đồng bộ toàn diện Base Foundation v6 + PM Feedback Resolution (Render Keep-Alive, Only-Text Admin, Demo Passwords & Flexible Staff Creation)
