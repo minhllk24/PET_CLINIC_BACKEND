@@ -16,11 +16,13 @@ import branchRoutes from './modules/branch/branch.routes';
 import staffRoutes from './modules/staff/staff.routes';
 import catalogRoutes from './modules/catalog/catalog.routes';
 import customerRoutes from './modules/customer/customer.routes';
+import guestRoutes, { activationRouter } from './modules/customer/guest.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes from './modules/order/order.routes';
 import checkoutRoutes from './modules/order/checkout.routes';
 import bookingRoutes from './modules/booking/booking.routes';
+import bookingRefundRoutes from './modules/booking/bookingRefund.routes';
 import availabilityRoutes from './modules/booking/availability.routes';
 import executionRoutes from './modules/execution/execution.routes';
 import uploadRoutes from './modules/upload/upload.routes';
@@ -28,6 +30,8 @@ import voucherRoutes from './modules/order/voucher.routes';
 import { returnRouter, refundRouter } from './modules/order/return.routes';
 import internalBookingRoutes from './modules/booking/internalBooking.routes';
 import shiftRoutes from './modules/staff/shift.routes';
+import reviewRoutes from './modules/review/review.routes';
+import feedbackRoutes from './modules/review/feedback.routes';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -167,6 +171,7 @@ app.use(
             const decoded = jwt.verify(token, config.jwt.accessSecret);
             req.actor = {
               id: decoded.id,
+              fullName: decoded.fullName || decoded.name || null,
               systemRole: decoded.systemRole,
               staffSubRole: decoded.staffSubRole,
               assignedBranchIds: decoded.assignedBranchIds || [],
@@ -220,20 +225,27 @@ app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1', catalogRoutes);
 app.use('/api/v1/catalog', catalogRoutes);
 app.use('/api/v1/customers', customerRoutes);
+app.use('/api/v1/admin/customers', customerRoutes);
+app.use('/api/v1/guest', guestRoutes);
+app.use('/api/v1/activation', activationRouter);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/carts', cartRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1', checkoutRoutes);
 app.use('/api/v1/appointments', bookingRoutes);
+app.use('/api/v1/booking-refunds', bookingRefundRoutes);
 app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/execution', executionRoutes);
+app.use('/api/v1/service-records', executionRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/vouchers', voucherRoutes);
 app.use('/api/v1/order-returns', returnRouter);
 app.use('/api/v1/order-refunds', refundRouter);
 app.use('/api/v1/internal', internalBookingRoutes);
 app.use('/api/v1/shifts', shiftRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/feedback', feedbackRoutes);
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));

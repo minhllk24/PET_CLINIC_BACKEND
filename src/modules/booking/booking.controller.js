@@ -234,3 +234,18 @@ export const mockCompletePayment = async (req, res, next) => {
     next(error);
   }
 };
+
+export const assignReviewer = async (req, res, next) => {
+  try {
+    const { staffId, expectedVersion } = req.body;
+    const appointment = await bookingService.assignReviewer(
+      req.params.id,
+      staffId,
+      expectedVersion,
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
+};

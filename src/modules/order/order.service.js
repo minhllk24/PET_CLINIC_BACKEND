@@ -8,6 +8,7 @@ import InventoryTransaction from '../inventory/models/InventoryTransaction';
 import SystemSetting from '../settings/models/SystemSetting';
 import Product from '../catalog/models/Product';
 import OrderRefund from './models/OrderRefund';
+import GuestContact from '../customer/models/GuestContact';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
@@ -204,10 +205,36 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           };
         });
 
+        let guestContactId = undefined;
+        if (!actor && contact && (contact.phone || contact.email)) {
+          const cPhone = contact.phone ? contact.phone.trim() : null;
+          const cEmail = contact.email ? contact.email.trim().toLowerCase() : null;
+          const cName = (shippingAddress && shippingAddress.fullName) || contact.name || 'Guest Customer';
+
+          let guest = null;
+          if (cPhone) {
+            guest = await GuestContact.findOne({ phone: cPhone }).session(session);
+          } else if (cEmail) {
+            guest = await GuestContact.findOne({ email: cEmail }).session(session);
+          }
+
+          if (!guest) {
+            guest = new GuestContact({
+              fullName: cName,
+              phone: cPhone || undefined,
+              email: cEmail || undefined,
+              activationStatus: 'NO_ACCOUNT',
+            });
+            await guest.save({ session });
+          }
+          guestContactId = guest._id;
+        }
+
         createdOrder = new Order({
           _id: orderId,
           code: makeOrderCode(),
           customerId: actor ? actor.id : undefined,
+          guestContactId,
           fulfillmentBranchId: branch._id,
           status: 'PENDING',
           paymentMethod,

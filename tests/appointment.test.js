@@ -13,6 +13,7 @@ import BranchServiceConfig from '../src/modules/branch/models/BranchServiceConfi
 import Shift from '../src/modules/staff/models/Shift';
 import StaffProfile from '../src/modules/staff/models/StaffProfile';
 import IdempotencyKey from '../src/modules/audit/models/IdempotencyKey';
+import GuestContact from '../src/modules/customer/models/GuestContact';
 import * as bookingService from '../src/modules/booking/booking.service';
 import * as availabilityService from '../src/modules/booking/availability.service';
 
@@ -59,6 +60,12 @@ describe('Priority P0 Appointment Management & Time Slot Engine Suite', () => {
   beforeEach(() => {
     jest.spyOn(IdempotencyKey, 'findOne').mockResolvedValue(null);
     jest.spyOn(IdempotencyKey, 'findOneAndUpdate').mockResolvedValue({});
+    jest.spyOn(GuestContact, 'findOne').mockReturnValue(makeMockQuery({
+      _id: new mongoose.Types.ObjectId(),
+      fullName: 'Nguyen Van A',
+      phone: '0901234567',
+    }));
+    jest.spyOn(GuestContact.prototype, 'save').mockResolvedValue(true);
   });
 
   afterEach(() => {

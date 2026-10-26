@@ -8,7 +8,9 @@ import Branch from '../branch/models/Branch';
 import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import Shift from '../staff/models/Shift';
 import StaffProfile from '../staff/models/StaffProfile';
+import GuestContact from '../customer/models/GuestContact';
 import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
 import {
   validateVoucherEligibility,
   consumeQuotaInSession,
@@ -126,6 +128,11 @@ export const formatAppointment = (apt) => {
   }
   if (doc.rescheduleCount !== undefined) {
     res.rescheduleCount = Number(doc.rescheduleCount || 0);
+  }
+  if (doc.reviewerStaffId !== undefined) {
+    res.reviewerStaffId = doc.reviewerStaffId
+      ? (doc.reviewerStaffId._id || doc.reviewerStaffId).toString()
+      : null;
   }
 
   // Pricing
@@ -320,7 +327,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       }
     } else {
       // Guest booking
-      if (!contact || !contact.name || !contact.phone) {
+      if (!contact || (!contact.name && !contact.fullName) || !contact.phone) {
         throw new AppError(
           400,
           'ValidationError',
@@ -328,11 +335,32 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
           'Guest appointments must supply contact with name and phone'
         );
       }
-      guestContactId = new mongoose.Types.ObjectId();
+      const contactName = contact.name || contact.fullName;
+      const contactPhone = contact.phone ? contact.phone.trim() : null;
+      const contactEmail = contact.email ? contact.email.trim().toLowerCase() : null;
+
+      let guest = null;
+      if (contactPhone) {
+        guest = await GuestContact.findOne({ phone: contactPhone }).session(session);
+      } else if (contactEmail) {
+        guest = await GuestContact.findOne({ email: contactEmail }).session(session);
+      }
+
+      if (!guest) {
+        guest = new GuestContact({
+          fullName: contactName,
+          phone: contactPhone || undefined,
+          email: contactEmail || undefined,
+          activationStatus: 'NO_ACCOUNT',
+        });
+        await guest.save({ session });
+      }
+
+      guestContactId = guest._id;
       contactSnapshot = {
-        name: contact.name,
-        phone: contact.phone,
-        email: contact.email || null,
+        name: contactName,
+        phone: contactPhone,
+        email: contactEmail,
       };
     }
 
@@ -1445,3 +1473,39 @@ export const mockCompletePayment = async (prepaymentId, actor) => {
     throw error;
   }
 };
+
+/**
+ * Assign medical reviewer to confirmed appointment (CAS concurrency check)
+ */
+export const assignReviewer = async (id, staffId, expectedVersion, actor) => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid appointmentId');
+  }
+  if (!staffId || !mongoose.Types.ObjectId.isValid(staffId)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid staffId');
+  }
+  if (typeof expectedVersion !== 'number') {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'expectedVersion is required');
+  }
+
+  const appointment = await Appointment.findById(id);
+  if (!appointment) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Appointment not found');
+  }
+
+  if (appointment.version !== expectedVersion) {
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Version conflict: appointment was modified');
+  }
+
+  const staff = await StaffProfile.findById(staffId);
+  if (!staff || staff.staffSubRole !== 'VETERINARIAN' || staff.status !== 'ACTIVE') {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.STAFF_ROLE_MISMATCH, 'Reviewer must be an active Veterinarian');
+  }
+
+  appointment.reviewerStaffId = staffId;
+  appointment.version = (appointment.version || 0) + 1;
+  await appointment.save();
+
+  return formatAppointment(appointment);
+};
+

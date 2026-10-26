@@ -25,6 +25,7 @@ router.post('/:id/cancel-override', requireRole(['MANAGER', 'ADMIN']), idempoten
 
 // Reassign Staff per segment
 router.put('/:id/segments/:serviceId/staff', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.reassignSegmentStaff);
+router.put('/:id/reviewer', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.assignReviewer);
 
 // Backward Compatibility Aliases (PATCH)
 router.patch('/:id/confirm', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.confirmAppointment);

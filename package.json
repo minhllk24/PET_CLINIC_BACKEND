@@ -10,7 +10,7 @@
     "start": "node dist/server.js",
     "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
     "migrate:inventory-v7": "babel-node scripts/migrateInventoryV7.js",
-    "test": "jest"
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

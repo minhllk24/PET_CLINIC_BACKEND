@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 const materialSchema = new mongoose.Schema({
   inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem', required: true },
-  quantity: { type: Number, required: true, min: 0 }
+  quantity: { type: Number, required: true, min: 0 },
+  unit: { type: String, default: null },
+  notes: { type: String, default: null }
 }, { _id: false });
 
 const schema = new mongoose.Schema({
@@ -29,6 +31,9 @@ const schema = new mongoose.Schema({
     result: String,
     professionalNote: String
   },
+  reopenedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  reopenedAt: { type: Date, default: null },
+  reopenReason: { type: String, default: null },
   actualStartAt: { type: Date, default: Date.now },
   actualEndAt: { type: Date, default: null },
   version: { type: Number, default: 1, min: 1 }

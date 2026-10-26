@@ -1,110 +1,86 @@
 import express from 'express';
-import Customer from './models/Customer';
+import * as customerService from './customer.service';
 import Pet from './models/Pet';
-import User from '../../models/User';
-import { authenticate, requireRole } from '../../shared/authMiddleware';
-import AppError from '../../utils/AppError';
-import { ErrorCodes } from '../../shared/errorCodes';
+import { requireRole } from '../../shared/authMiddleware';
+import { idempotency } from '../../middleware/idempotencyMiddleware';
 
 const router = express.Router();
 
 // List Customers (Admin, Manager)
-router.get('/', authenticate, requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
+router.get('/', requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
   try {
-    const customers = await Customer.find().populate('userId', 'email fullName status');
-    res.json(customers);
+    const result = await customerService.listCustomers(req.query, req.actor);
+    res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-// Create Customer Record (Admin only)
-router.post('/', authenticate, requireRole(['ADMIN']), async (req, res, next) => {
+// Get Customer by ID (Admin, Manager, Customer self)
+router.get('/:id', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), async (req, res, next) => {
   try {
-    const customer = new Customer(req.body);
-    await customer.save();
-    res.status(201).json(customer);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get Customer by ID (Admin, Manager, Staff, Customer own)
-router.get('/:id', authenticate, async (req, res, next) => {
-  try {
-    const customer = await Customer.findById(req.params.id).populate('userId', 'email fullName status');
-    if (!customer) {
-      throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
-    }
-
-    // Ownership check for CUSTOMER role
-    if (req.actor.systemRole === 'CUSTOMER') {
-      const isOwner = customer.userId && customer.userId._id.toString() === req.actor.id.toString();
-      if (!isOwner) {
-        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to view this customer');
-      }
-    }
-
+    const customer = await customerService.getCustomerById(req.params.id, req.actor);
     res.json(customer);
   } catch (error) {
     next(error);
   }
 });
 
-// Block Customer (ADMIN ONLY - Manager strictly forbidden per Checkpoint Invariant #20)
-router.post('/:id/block', authenticate, requireRole(['ADMIN']), async (req, res, next) => {
-  try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer) {
-      throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
+// Block Customer (ADMIN ONLY)
+router.post(
+  '/:id/block',
+  requireRole(['ADMIN']),
+  idempotency('adminCustomerBlock', { required: false }),
+  async (req, res, next) => {
+    try {
+      const customer = await customerService.blockCustomer(req.params.id, req.body, req.actor);
+      res.json(customer);
+    } catch (error) {
+      next(error);
     }
-    if (customer.userId) {
-      await User.findByIdAndUpdate(customer.userId, { status: 'BLOCKED' });
-    }
-    customer.activationStatus = 'BLOCKED';
-    await customer.save();
-    res.json(customer);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Unblock Customer (ADMIN ONLY)
-router.post('/:id/unblock', authenticate, requireRole(['ADMIN']), async (req, res, next) => {
-  try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer) {
-      throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
+router.post(
+  '/:id/unblock',
+  requireRole(['ADMIN']),
+  idempotency('adminCustomerUnblock', { required: false }),
+  async (req, res, next) => {
+    try {
+      const customer = await customerService.unblockCustomer(req.params.id, req.body, req.actor);
+      res.json(customer);
+    } catch (error) {
+      next(error);
     }
-    if (customer.userId) {
-      await User.findByIdAndUpdate(customer.userId, { status: 'ACTIVE' });
-    }
-    customer.activationStatus = 'ACTIVATED';
-    await customer.save();
-    res.json(customer);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Pets (Admin, Manager, Staff, Customer own)
-router.get('/:customerId/pets', authenticate, async (req, res, next) => {
+const listPets = async (req, res, next) => {
   try {
-    const pets = await Pet.find({ customerId: req.params.customerId });
+    const customerId = req.params.customerId || req.params.id;
+    const pets = await Pet.find({ customerId });
     res.json(pets);
   } catch (error) {
     next(error);
   }
-});
+};
 
-router.post('/:customerId/pets', authenticate, async (req, res, next) => {
+const createPet = async (req, res, next) => {
   try {
-    const pet = new Pet({ ...req.body, customerId: req.params.customerId });
+    const customerId = req.params.customerId || req.params.id;
+    const pet = new Pet({ ...req.body, customerId });
     await pet.save();
     res.status(201).json(pet);
   } catch (error) {
     next(error);
   }
-});
+};
+
+router.get('/:customerId/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), listPets);
+router.get('/:id/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), listPets);
+router.post('/:customerId/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), createPet);
+router.post('/:id/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), createPet);
 
 export default router;

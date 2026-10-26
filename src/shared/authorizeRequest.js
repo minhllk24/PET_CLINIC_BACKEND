@@ -20,8 +20,10 @@ export const authorizeRequest = (req, res, next) => {
   if (
     !req.actor &&
     req.headers['x-guest-lookup-token'] &&
-    authz.roles &&
-    authz.roles.includes('guest(lookup token)')
+    (
+      (authz.roles && (authz.roles.includes('guest(lookup token)') || authz.roles.includes('guest(verified)'))) ||
+      authz.auth === 'lookup token'
+    )
   ) {
     return next();
   }
@@ -44,21 +46,17 @@ export const authorizeRequest = (req, res, next) => {
   let hasRole = false;
   if (authz.roles && Array.isArray(authz.roles)) {
     for (const allowed of authz.roles) {
-      if (allowed === 'ADMIN' && actorRole === 'ADMIN') hasRole = true;
-      if (allowed === 'MANAGER' && actorRole === 'MANAGER') hasRole = true;
-      if (allowed === 'CUSTOMER' && actorRole === 'CUSTOMER') hasRole = true;
-      if (allowed === 'STAFF' && actorRole === 'STAFF') hasRole = true;
+      if ((allowed === 'ADMIN' || allowed.startsWith('ADMIN(')) && actorRole === 'ADMIN') hasRole = true;
+      if ((allowed === 'MANAGER' || allowed.startsWith('MANAGER(')) && actorRole === 'MANAGER') hasRole = true;
+      if ((allowed === 'CUSTOMER' || allowed.startsWith('CUSTOMER(')) && actorRole === 'CUSTOMER') hasRole = true;
+      if ((allowed === 'STAFF' || allowed.startsWith('STAFF(')) && actorRole === 'STAFF') hasRole = true;
       
       // staffSubRoles checking
       if (actorRole === 'STAFF') {
-        if (allowed === 'RECEPTIONIST' && actorSubRole === 'RECEPTIONIST') hasRole = true;
-        if (allowed === 'VETERINARIAN' && actorSubRole === 'VETERINARIAN') hasRole = true;
-        if (allowed === 'NURSE' && actorSubRole === 'NURSE') hasRole = true;
-        if (allowed === 'CARE_STAFF_GROOMER' && actorSubRole === 'CARE_STAFF_GROOMER') hasRole = true;
-        
-        // Handle STAFF(assigned appointment) or similar patterns by allowing basic access here,
-        // and relying on Resource Scope Resolver logic later in the service layer for actual data access.
-        if (allowed.startsWith('STAFF(')) hasRole = true; 
+        if ((allowed === 'RECEPTIONIST' || allowed.startsWith('RECEPTIONIST(')) && actorSubRole === 'RECEPTIONIST') hasRole = true;
+        if ((allowed === 'VETERINARIAN' || allowed.startsWith('VETERINARIAN(')) && actorSubRole === 'VETERINARIAN') hasRole = true;
+        if ((allowed === 'NURSE' || allowed.startsWith('NURSE(')) && actorSubRole === 'NURSE') hasRole = true;
+        if ((allowed === 'CARE_STAFF_GROOMER' || allowed.startsWith('CARE_STAFF_GROOMER(')) && actorSubRole === 'CARE_STAFF_GROOMER') hasRole = true;
       }
     }
   }

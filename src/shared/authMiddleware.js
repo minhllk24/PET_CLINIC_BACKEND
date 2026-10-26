@@ -10,6 +10,9 @@ const extractToken = (req) => {
 };
 
 export const authenticate = (req, res, next) => {
+  if (req.actor) {
+    return next();
+  }
   const token = extractToken(req);
 
   if (!token) {
@@ -23,6 +26,7 @@ export const authenticate = (req, res, next) => {
     // For skeleton, we just set decoded info onto req.actor
     req.actor = {
       id: decoded.id,
+      fullName: decoded.fullName || decoded.name || null,
       systemRole: decoded.systemRole,
       staffSubRole: decoded.staffSubRole,
       assignedBranchIds: decoded.assignedBranchIds || [],
@@ -45,6 +49,7 @@ export const optionalAuth = (req, res, next) => {
     const decoded = jwt.verify(token, config.jwt.accessSecret);
     req.actor = {
       id: decoded.id,
+      fullName: decoded.fullName || decoded.name || null,
       systemRole: decoded.systemRole,
       staffSubRole: decoded.staffSubRole,
       assignedBranchIds: decoded.assignedBranchIds || [],
@@ -58,28 +63,35 @@ export const optionalAuth = (req, res, next) => {
 
 export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
   return (req, res, next) => {
+    const checkRoles = () => {
+      const actorSystemRole = req.actor.systemRole;
+      const actorStaffSubRole = req.actor.staffSubRole;
+
+      let hasRole = false;
+      if (allowedSystemRoles.includes(actorSystemRole)) {
+        hasRole = true;
+      }
+      if (actorSystemRole === 'STAFF' && actorStaffSubRole && allowedSystemRoles.includes(actorStaffSubRole)) {
+        hasRole = true;
+      }
+      if (allowedStaffSubRoles.length > 0 && actorSystemRole === 'STAFF' && allowedStaffSubRoles.includes(actorStaffSubRole)) {
+        hasRole = true;
+      }
+
+      if (!hasRole) {
+        return next(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'You do not have the required permissions'));
+      }
+
+      next();
+    };
+
     if (!req.actor) {
-      return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Not logged in'));
+      authenticate(req, res, (err) => {
+        if (err) return next(err);
+        checkRoles();
+      });
+    } else {
+      checkRoles();
     }
-
-    const actorSystemRole = req.actor.systemRole;
-    const actorStaffSubRole = req.actor.staffSubRole;
-
-    let hasRole = false;
-    if (allowedSystemRoles.includes(actorSystemRole)) {
-      hasRole = true;
-    }
-    if (actorSystemRole === 'STAFF' && actorStaffSubRole && allowedSystemRoles.includes(actorStaffSubRole)) {
-      hasRole = true;
-    }
-    if (allowedStaffSubRoles.length > 0 && actorSystemRole === 'STAFF' && allowedStaffSubRoles.includes(actorStaffSubRole)) {
-      hasRole = true;
-    }
-
-    if (!hasRole) {
-      return next(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'You do not have the required permissions'));
-    }
-
-    next();
   };
 };

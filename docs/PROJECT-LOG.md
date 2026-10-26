@@ -320,6 +320,69 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 
 ---
 
+## BẢNG TRIỂN KHAI HOÀN TẤT: TASKS 4.3 - 4.6 (FOUNDATION V6 / V7 CONFIRMED)
+
+### 1. Task 4.3: Appointment E2E & Booking Refund Lifecycle
+- **Cronjob Hold Expiries (`processAppointmentHoldExpiries`)**: Quét định kỳ các lịch hẹn giữ chỗ quá hạn (`holdExpiresAt < now`), tự động chuyển trạng thái `CANCELLED_PAYMENT_TIMEOUT`, hoàn trả slot thời gian (`SlotReservation.deleteMany`) theo chuẩn ADR-41.
+- **Phân công Bác sĩ đánh giá (`assignReviewer`)**: Endpoint `POST /api/v1/appointments/:id/assign-reviewer` hỗ trợ CAS Optimistic Locking (`version`), bắt buộc role `VETERINARIAN`.
+- **Vòng đời Hoàn tiền Đặt lịch (`BookingRefund`)**:
+  - `POST /api/v1/booking-refunds`: Yêu cầu hoàn tiền (Customer/Staff/Admin).
+  - `POST /api/v1/booking-refunds/:id/approve`: Quản lý/Admin phê duyệt (Idempotency).
+  - `POST /api/v1/booking-refunds/:id/complete`: Hoàn tất chuyển tiền hoàn cọc (Idempotency).
+  - `POST /api/v1/booking-refunds/:id/reject`: Từ chối hoàn tiền với lý do cụ thể.
+- **Test suite**: `tests/appointment-e2e.test.js` (13/13 PASS).
+
+### 2. Task 4.4: Service Record & Vật tư tiêu hao (Execution Module)
+- **Mount alias**: Hỗ trợ song song cả `/api/v1/service-records` (chuẩn OpenAPI v7) và `/api/v1/execution`.
+- **Quản lý Vật tư tiêu hao (`updateMaterials`)**: Hỗ trợ `PUT`/`PATCH`, bắt buộc đầy đủ `materialId`, `quantity`, `unit`, `notes`, đồng thời lưu snapshot phiên bản (`revisions`).
+- **Ghi chú chuyên môn (`updateProfessional`)**: Cho phép Bác sĩ/Nhân viên cập nhật chẩn đoán, diễn tiến bệnh án và hướng điều trị.
+- **Quy trình hoàn tất (`finalizeRecord`) & Mở lại hồ sơ (`reopenRecord`)**: Đóng hồ sơ dịch vụ, quản lý lý do và lịch sử kiểm toán khi mở lại.
+- **Lịch sử sửa đổi (`getRevisions`)**: Xem toàn bộ lịch sử chỉnh sửa từng lần của hồ sơ.
+- **Test suite**: `tests/execution.test.js` (15/15 PASS).
+
+### 3. Task 4.5: Customer & Guest Management
+- **Task 4.5 P0 (Guest / OTP / Activation)**:
+  - `POST /api/v1/guest/lookup-otp`: Gửi mã OTP xác thực tra cứu cho khách vãng lai (áp dụng rate-limit 60s, mã hóa SHA-256).
+  - `POST /api/v1/guest/verify-otp`: Xác thực OTP an toàn (constant-time compare), cấp JWT Token `X-Guest-Lookup-Token`.
+  - `GET /api/v1/guest/history`: Tra cứu lịch sử đơn hàng và lịch hẹn bằng Lookup Token.
+  - `POST /api/v1/guest/invite-activation`: Nhân viên gửi lời mời kích hoạt tài khoản thành viên.
+  - `POST /api/v1/guest/complete-activation`: Khách hoàn tất thiết lập mật khẩu, liên kết Customer record với User account mới.
+  - **Test suite**: `tests/guest-activation.test.js` (15/15 PASS).
+- **Task 4.5 P1 (Customer Account Management)**:
+  - Tách bạch trường trạng thái: `activationStatus` (`NO_ACCOUNT`, `PENDING_ACTIVATION`, `ACTIVATED`) độc lập với `accountStatus` (`ACTIVE`, `BLOCKED`).
+  - `GET /api/v1/customers` & `/api/v1/admin/customers`: Phân trang Cursor, tìm kiếm thông minh theo SĐT/Tên/Email, phân quyền theo chi nhánh (Branch scoping).
+  - `GET /api/v1/customers/:id`: Xem chi tiết khách hàng và danh sách thú cưng.
+  - `POST /api/v1/admin/customers/:id/block`: Admin khóa tài khoản khách hàng (bắt buộc lý do, bảo toàn lịch sử audit).
+  - `POST /api/v1/admin/customers/:id/unblock`: Admin mở khóa tài khoản.
+  - **Test suite**: `tests/customer-account.test.js` (9/9 PASS).
+
+### 4. Task 4.6: Feedback & Review Module
+- **Hệ thống Đánh giá (`Review`)**:
+  - `POST /api/v1/reviews`: Tạo đánh giá sản phẩm hoặc dịch vụ. Kiểm tra tự động điều kiện hoàn tất đơn hàng (`Order: COMPLETED/DELIVERED`) hoặc lịch hẹn (`Appointment: COMPLETED`), chống trùng lặp đánh giá.
+  - Hỗ trợ chế độ ẩn danh: Khi `anonymous: true`, endpoint public tự động ẩn `displayName: null`.
+  - `GET /api/v1/reviews`: Danh sách đánh giá công khai (chỉ hiển thị bản ghi `ACTIVE`, không bị ẩn).
+  - `GET /api/v1/reviews/admin`: Quản trị viên/Quản lý xem đầy đủ danh tính và các đánh giá bị ẩn.
+  - `POST /api/v1/reviews/:id/hide` & `show`: Quản lý/Admin ẩn đánh giá vi phạm và khôi phục hiển thị.
+- **Hệ thống Góp ý (`Feedback`)**:
+  - `POST /api/v1/feedback`: Khách hàng/công chúng gửi ý kiến đóng góp, phân loại theo danh mục.
+  - `GET /api/v1/feedback` & `GET /:id`: Quản lý/Admin theo dõi và phản hồi.
+  - `PATCH /api/v1/feedback/:id/status`: Máy trạng thái nghiêm ngặt (`NEW` -> `READ` -> `PROCESSING` -> `PROCESSED`/`REJECTED`/`NEED_CONTACT`).
+  - **Test suite**: `tests/review.test.js` (13/13 PASS).
+
+---
+
+## TỔNG KẾT REGRESSION TEST SUITE TOÀN HỆ THỐNG
+```text
+Test Suites: 18 passed, 18 total
+Tests:       249 passed, 249 total
+Snapshots:   0 total
+Time:        94.436 s
+Ran all test suites with --runInBand.
+100% ZERO REGRESSION.
+```
+
+---
+
 ## LIÊN HỆ
 
 | Thành viên | Vai trò | Phụ trách |
