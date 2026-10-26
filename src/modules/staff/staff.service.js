@@ -24,6 +24,18 @@ export const formatStaff = (profile, user = null) => {
   if (u?.fullName) {
     dto.fullName = u.fullName;
   }
+  if (u?.phone) {
+    dto.phone = u.phone;
+  }
+  if (u?.email) {
+    dto.email = u.email;
+  }
+  if (u?.username) {
+    dto.username = u.username;
+  }
+  if (u?.accountStatus) {
+    dto.accountStatus = u.accountStatus;
+  }
   if (profile.homeBranchId) {
     dto.homeBranchId = (profile.homeBranchId?._id || profile.homeBranchId).toString();
   } else {
@@ -81,10 +93,13 @@ export const listStaff = async (query = {}, actor = null) => {
 
   const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
 
-  const profiles = await StaffProfile.find(filter)
-    .populate('userId')
-    .sort({ _id: -1 })
-    .limit(parsedLimit + 1);
+  const [profiles, totalCount] = await Promise.all([
+    StaffProfile.find(filter)
+      .populate('userId')
+      .sort({ _id: -1 })
+      .limit(parsedLimit + 1),
+    StaffProfile.countDocuments(filter)
+  ]);
 
   let nextCursor = null;
   if (profiles.length > parsedLimit) {
@@ -94,6 +109,7 @@ export const listStaff = async (query = {}, actor = null) => {
 
   return {
     items: profiles.map((item) => formatStaff(item, item.userId)),
+    totalCount,
     nextCursor,
   };
 };

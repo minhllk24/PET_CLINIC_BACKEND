@@ -2,25 +2,111 @@
 
 > **Dành cho:** Frontend Developers (Web Admin, Web Customer, Mobile App)  
 > **Hệ thống:** PET CLINIC BACKEND  
-> **Base URL:** `http://localhost:8080/api/v1` (Local) / `https://api.drpetshouse.lat/api/v1` (Staging/Production)  
+> **Base URL Live (Render - CHÍNH THỨC):** `https://pet-clinic-backend-a4lj.onrender.com/api/v1`  
+> **Base URL Local:** `http://localhost:8080/api/v1`  
 > **Chuẩn Content-Type:** `application/json`  
 > **Chuẩn Error Response:** RFC 9457 Problem Details (`application/problem+json`)
+
+> [!WARNING]
+> **LƯU Ý QUAN TRỌNG VỀ DOMAIN:**
+> Domain `https://api.drpetshouse.lat` hiện **CHƯA được cấu hình DNS/CNAME** trên Render Custom Domains.
+> FE vui lòng kết nối trực tiếp vào URL chính thức của Render:
+> **`https://pet-clinic-backend-a4lj.onrender.com/api/v1`** để tránh hoàn toàn lỗi DNS `Could not resolve host` hoặc spam login gây 429 Rate Limit.
 
 ---
 
 ## 📑 MỤC LỤC
-1. [Các Điểm Thay Đổi Mới Cần Lưu Ý](#1-các-điểm-thay-đổi-mới-cần-lưu-ý)
-2. [Cơ Chế Tính Giá & Chiết Khấu 2 Tầng (Two-Tier Pricing)](#2-cơ-chế-tính-giá--chiết-khấu-2-tầng-two-tier-pricing)
-3. [Headers Bắt Buộc & Authentication](#3-headers-bắt-buộc--authentication)
-4. [Luồng Khách Hàng: Đặt Hàng & Thanh Toán (Checkout)](#4-luồng-khách-hàng-đặt-hàng--thanh-toán-checkout)
-5. [Luồng Vận Hành Nhân Sự: Xử Lý Đơn Hàng (Order Fulfillment)](#5-luồng-vận-hành-nhân-sự-xử-lý-đơn-hàng-order-fulfillment)
-6. [Luồng Đổi Trả & Hoàn Tiền Đa Cấp (Return & Refund)](#6-luồng-đổi-trả--hoàn-tiền-đa-cấp-return--refund)
-7. [Bảng Tra Cứu Mã Lỗi RFC 9457 Phổ Biến & Cách Bắt Lỗi Trên UI](#7-bảng-tra-cứu-mã-lỗi-rfc-9457-phổ-biến--cách-bắt-lỗi-trên-ui)
-8. [Code Mẫu Tích Hợp (TypeScript / Axios / Angular)](#8-code-mẫu-tích-hợp-typescript--axios--angular)
+1. [Thông Tin Kết Nối & Danh Sách Tài Khoản Test Demo](#1-thông-tin-kết-nối--danh-sách-tài-khoản-test-demo)
+2. [Bộ Dữ Liệu UAT Mẫu (12 Đơn Hàng, 9 Voucher, Nhân Sự)](#2-bộ-dữ-liệu-uat-mẫu-12-đơn-hàng-9-voucher-nhân-sự)
+3. [Các Điểm Thay Đổi Mới Cần Lưu Ý & Phạm Vi Tính Năng](#3-các-điểm-thay-đổi-mới-cần-lưu-ý--phạm-vi-tính-năng)
+4. [Cơ Chế Tính Giá & Chiết Khấu 2 Tầng (Two-Tier Pricing)](#4-cơ-chế-tính-giá--chiết-khấu-2-tầng-two-tier-pricing)
+5. [Headers Bắt Buộc & Authentication](#5-headers-bắt-buộc--authentication)
+6. [Luồng Khách Hàng: Đặt Hàng & Thanh Toán (Checkout)](#6-luồng-khách-hàng-đặt-hàng--thanh-toán-checkout)
+7. [Luồng Vận Hành Nhân Sự: Xử Lý Đơn Hàng (Order Fulfillment)](#7-luồng-vận-hành-nhân-sự-xử-lý-đơn-hàng-order-fulfillment)
+8. [Luồng Đổi Trả & Hoàn Tiền Đa Cấp (Return & Refund)](#8-luồng-đổi-trả--hoàn-tiền-đa-cấp-return--refund)
+9. [Bảng Tra Cứu Mã Lỗi RFC 9457 Phổ Biến & Cách Bắt Lỗi Trên UI](#9-bảng-tra-cứu-mã-lỗi-rfc-9457-phổ-biến--cách-bắt-lỗi-trên-ui)
+10. [Code Mẫu Tích Hợp (TypeScript / Axios / Angular)](#10-code-mẫu-tích-hợp-typescript--axios--angular)
 
 ---
 
-## 1. CÁC ĐIỂM THAY ĐỔI MỚI CẦN LƯU Ý
+## 1. THÔNG TIN KẾT NỐI & DANH SÁCH TÀI KHOẢN TEST DEMO
+
+### 1.1 Thông Tin Server & Base URL
+- **Base URL Live (Render):** `https://pet-clinic-backend-a4lj.onrender.com/api/v1`
+- **Base URL Local:** `http://localhost:8080/api/v1`
+- **Tình trạng Custom Domain (`api.drpetshouse.lat`):** Hiện chưa cấu hình bản ghi DNS/CNAME trên Render. FE vui lòng chỉ dùng URL Render trên.
+- **Cơ chế chống 429:** Backend đã áp dụng bypass Rate Limit cho hệ thống probe của Render, đảm bảo không còn tình trạng sập instance khi test.
+
+### 1.2 Bảng Tài Khoản Test Đã Tạo Sẵn (Mật Khẩu Chuẩn)
+
+| Username | Role | SubRole | Mật khẩu (Password) | Quyền hạn chính |
+| :--- | :--- | :--- | :--- | :--- |
+| `admin` | `ADMIN` | - | `K9#mQ$8xL!2vW*7z` | Toàn quyền hệ thống, xem mọi đơn, duyệt hoàn tiền |
+| `manager` | `MANAGER` | - | `tR5*bY9#fP2!sM7&` | Quản lý chi nhánh Q1, Q3, Bình Thạnh, duyệt hoàn tiền |
+| `receptionist` | `STAFF` | `RECEPTIONIST` | `rC4!mZ7#bX9$vT2&` | Tiếp nhận đơn, xác nhận nhận hàng trả (`/process`, `/receive`) |
+| `doctor` | `STAFF` | `VETERINARIAN` | `vE8$dK2#zL6!pQ9@` | Bác sĩ thú y chi nhánh Quận 1 |
+| `nurse` | `STAFF` | `NURSE` | `nS4#yP8!vQ2$kM7@` | Y tá thú y chi nhánh Quận 1 |
+| `groomer` | `STAFF` | `CARE_STAFF_GROOMER`| `gM9$kL3@sY7!bN2#` | Chăm sóc spa thú cưng |
+| `customer` | `CUSTOMER` | - | `cT6$vM2!pL9#zR8&` | Khách hàng (SĐT: `0905555555`) sở hữu 12 đơn UAT |
+| `pending_user` | `CUSTOMER` | - | `pU3#zK8!vQ5$mY2@` | Khách hàng chờ kích hoạt (SĐT: `0907777777`) |
+| `blocked_user` | `CUSTOMER` | - | `bL9$rM2#vK4!zQ7@` | Khách hàng bị khóa (SĐT: `0906666666`) |
+
+> [!TIP]
+> **API Đăng nhập:** `POST /api/v1/auth/login` với body: `{"identifier": "<username hoặc sdt>", "password": "<password>"}`.
+> Token nhận về được lưu vào header `Authorization: Bearer <accessToken>`.
+
+---
+
+## 2. BỘ DỮ LIỆU UAT MẪU SẴN SÀNG TRÊN DATABASE (12 ĐƠN, 9 VOUCHER, NHÂN SỰ)
+
+### 2.1 Danh Sách 12 Đơn Hàng UAT Đầy Đủ Trạng Thái (Test Mọi Kịch Bản)
+Tất cả đơn hàng dưới đây đã được tạo sẵn trong database và thuộc sở hữu của khách hàng `customer` (hoặc tra cứu được qua SĐT `0905555555`):
+
+| Mã Đơn Hàng (code) | Trạng thái (status) | Phương thức | Tổng tiền | Trạng thái Đổi trả / Hoàn tiền | Mục đích kiểm thử |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `ORD-UAT-01-PENDING-COD` | `PENDING` | `COD` | 380.000đ | Không áp dụng | Test nút "Xác nhận đơn" (Staff/Receptionist) & "Huỷ đơn" (Customer) |
+| `ORD-UAT-02-PENDING-ONLINE` | `PENDING` | `ONLINE_MOCK` | 270.000đ | Không áp dụng | Test thanh toán Online (`POST /payments/:id/process`) |
+| `ORD-UAT-03-CONFIRMED` | `CONFIRMED` | `COD` | 310.000đ | Không áp dụng | Test chuyển sang `PROCESSING` (Đang đóng gói) |
+| `ORD-UAT-04-PROCESSING` | `PROCESSING` | `COD` | 430.000đ | Không áp dụng | Test chuyển sang `SHIPPED` (Giao cho đơn vị vận chuyển) |
+| `ORD-UAT-05-SHIPPED` | `SHIPPED` | `COD` | 220.000đ | Không áp dụng | Test nút "Giao thành công" $\rightarrow$ tự động chuyển thanh toán COD sang `PAID` |
+| `ORD-UAT-06-DELIVERED-RECENT` | `COMPLETED` | `COD` | 650.000đ | **HỢP LỆ ĐỔI TRẢ** (Giao 2 ngày trước) | Test khách gửi yêu cầu trả hàng (`POST /order-returns`), báo giá trả hàng |
+| `ORD-UAT-07-DELIVERED-EXPIRED`| `COMPLETED` | `COD` | 250.000đ | **HẾT HẠN** (Giao 10 ngày trước) | Test kiểm tra chặn trả hàng quá cửa sổ 7 ngày (`RETURN_WINDOW_EXPIRED`) |
+| `ORD-UAT-08-COMPLETED-ONLINE` | `COMPLETED` | `ONLINE_MOCK` | 390.000đ | Đã hoàn tất | Test hiển thị chi tiết đơn hàng Online hoàn tất thành công |
+| `ORD-UAT-09-CANCELLED-CUSTOMER`| `CANCELLED` | `COD` | 115.000đ | Đã huỷ | Test hiển thị đơn huỷ bởi khách hàng |
+| `ORD-UAT-10-CANCELLED-EXPIRED` | `CANCELLED` | `ONLINE_MOCK` | 380.000đ | Đã huỷ | Test đơn Online tự động huỷ khi hết hạn thanh toán |
+| `ORD-UAT-11-RETURN-REQUESTED` | `COMPLETED` | `COD` | 310.000đ | **Đang yêu cầu (`RET-UAT-11`)** | Test Lễ tân tiếp nhận (`/process`) và nhận hàng (`/receive`) |
+| `ORD-UAT-12-RETURN-REFUNDED`  | `COMPLETED` | `ONLINE_MOCK` | 220.000đ | **Đã hoàn tiền (`REF-UAT-12`)** | Test xem lịch sử đổi trả & số tiền đã hoàn trả 95.000đ |
+
+### 2.2 Danh Sách 9 Voucher UAT & Điều Kiện Áp Dụng Thực Tế
+
+| Mã Voucher | Phạm vi (Scope) | Hình thức giảm | Mức giảm | Đơn tối thiểu | Lưu ý tích hợp cho FE |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `FREESHIP` | `ORDER` | `FIXED` | **0đ Phí Ship** | 0đ | **Miễn phí ship 100%** (Phí vận chuyển hiển thị 0đ) |
+| `GIAM40K_DON150K` | `ORDER` | `FIXED` | 40.000đ | 150.000đ | Giảm cố định 40k trên tiền hàng |
+| `GIAM10_CAP50` | `ORDER` | `PERCENTAGE` | 10% (Tối đa 50k) | 100.000đ | Giảm theo %, chặn trần tối đa 50.000đ |
+| `VIP100K_DON500K` | `ORDER` | `FIXED` | 100.000đ | 500.000đ | Áp dụng cho đơn giá trị cao |
+| `THUNHO20` | `PRODUCT` | `PERCENTAGE` | 20% (Tối đa 100k) | 0đ | Chỉ áp dụng cho các sản phẩm Thú nhỏ & Phụ kiện |
+| `SUMMER20` | `SERVICE` | `PERCENTAGE` | 20% (Tối đa 100k) | 0đ | Áp dụng khi đặt dịch vụ Spa / Khám |
+| `PETCLINIC50K` | `SERVICE` | `FIXED` | 50.000đ | 200.000đ | Áp dụng khi đặt dịch vụ từ 200k |
+| `EXPIRED_TEST` | `ORDER` | `PERCENTAGE` | 15% | 0đ | **Voucher hết hạn** $\rightarrow$ test bắt lỗi UI `VOUCHER_EXPIRED` |
+| `MAXOUT_TEST` | `ORDER` | `FIXED` | 20.000đ | 0đ | **Voucher hết lượt** $\rightarrow$ test bắt lỗi UI `VOUCHER_QUOTA_EXCEEDED` |
+
+### 2.3 Phân Định Rõ Phạm Vi Nghiệp Vụ (Supported vs Out-of-Scope)
+Để FE phát triển đúng spec và không bị nhầm lẫn giữa các màn hình:
+- **TÍNH NĂNG ĐÃ HỖ TRỢ ĐẦY ĐỦ (PRODUCTION READY):**
+  - Khách hàng (hoặc Guest) mua hàng qua Web/App Customer $\rightarrow$ Checkout chọn COD/Online $\rightarrow$ Áp Voucher $\rightarrow$ Backend tự động điều phối chi nhánh còn hàng.
+  - Quản lý / Lễ tân / Admin xem danh sách đơn hàng, lọc theo trạng thái, tìm kiếm mã đơn, SĐT.
+  - Luồng duyệt đơn: `PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `PROCESSING` $\rightarrow$ `SHIPPED` $\rightarrow$ `COMPLETED`.
+  - Khách hàng yêu cầu đổi trả trong vòng 7 ngày kể từ lúc nhận hàng (`DELIVERED`/`COMPLETED`).
+  - Lễ tân tiếp nhận và nhận hàng tại quầy $\rightarrow$ Quản lý/Admin duyệt hoàn tiền.
+- **TÍNH NĂNG CHƯA NẰM TRONG ĐỢT NÀY (NOT_SUPPORTED - SẼ TRIỂN KHAI ĐỢT SAU):**
+  - Nhân viên Admin/Lễ tân tự bấm tạo đơn hàng hộ khách từ màn hình quản trị POS.
+  - Phục hồi tồn kho chi tiết theo từng SKU khi khách hủy hàng sau khi đã xuất kho.
+  - Tùy chọn "Nhận hàng tại quầy (Store Pickup)" trong lúc thanh toán.
+
+---
+
+## 3. CÁC ĐIỂM THAY ĐỔI MỚI CẦN LƯU Ý
 
 1. **4 Nhóm Danh Mục Sản Phẩm Mới (Category Taxonomy):**
    - `Thức ăn & Dinh dưỡng` (`thuc-an-va-dinh-duong`)

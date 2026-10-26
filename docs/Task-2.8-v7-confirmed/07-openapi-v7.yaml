@@ -8628,6 +8628,14 @@ components:
               type: string
             password:
               type: string
+        phone:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        accountStatus:
+          type: string
       additionalProperties: false
       required:
       - id
@@ -8714,6 +8722,8 @@ components:
           type:
           - string
           - 'null'
+        totalCount:
+          type: integer
       additionalProperties: false
       required:
       - items
@@ -10094,6 +10104,8 @@ components:
           type:
           - string
           - 'null'
+        totalCount:
+          type: integer
       additionalProperties: false
       required:
       - items
@@ -10707,7 +10719,13 @@ components:
           type: string
         city:
           type: string
-      additionalProperties: false
+        fullName:
+          type: string
+        addressDetail:
+          type: string
+        province:
+          type: string
+      additionalProperties: true
       required:
       - recipientName
       - phone
@@ -10909,7 +10927,41 @@ components:
               $ref: '#/components/schemas/ObjectId'
             status:
               $ref: '#/components/schemas/PaymentStatus'
+            method:
+              type: string
           additionalProperties: false
+        customer:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              $ref: '#/components/schemas/ObjectId'
+            fullName:
+              type:
+              - string
+              - 'null'
+            phone:
+              type:
+              - string
+              - 'null'
+            email:
+              type:
+              - string
+              - 'null'
+        statusHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              at:
+                $ref: '#/components/schemas/DateTime'
+              actorId:
+                $ref: '#/components/schemas/ObjectId'
+              note:
+                type: string
         deliveredAt:
           oneOf:
           - $ref: '#/components/schemas/DateTime'
@@ -10948,6 +11000,8 @@ components:
           type:
           - string
           - 'null'
+        totalCount:
+          type: integer
       additionalProperties: false
       required:
       - items

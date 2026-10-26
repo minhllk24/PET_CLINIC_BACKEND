@@ -98,15 +98,25 @@ const DEMO_ACCOUNTS = [
   },
 ];
 
-const seedDemoUsers = async () => {
+export const seedDemoUsers = async () => {
   try {
-    console.log(`Connecting to MongoDB: ${config.mongoUri}...`);
-    await mongoose.connect(config.mongoUri);
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(config.mongoUri);
+    }
     logger.info('Connected to MongoDB for demo users seeding');
+
+    // Dynamically resolve default branch (BR-000001) from DB
+    const defaultBranch = (await Branch.findOne({ code: 'BR-000001' })) || (await Branch.findOne({ status: 'ACTIVE' })) || (await Branch.findOne());
+    const defaultBranchId = defaultBranch ? defaultBranch._id : new mongoose.Types.ObjectId('6ad08e4417bf41f5954234c3');
+    console.log(`[DEMO_USERS] Using Branch: ${defaultBranch?.code || 'FALLBACK'} (${defaultBranchId})`);
 
     const salt = await bcrypt.genSalt(12);
 
     for (const acc of DEMO_ACCOUNTS) {
+      const targetBranchIds = ['MANAGER', 'STAFF'].includes(acc.systemRole)
+        ? [defaultBranchId]
+        : [];
+
       let userRecord;
       const existing = await User.findOne({
         $or: [
@@ -124,6 +134,14 @@ const seedDemoUsers = async () => {
         }
         if (acc.staffSubRole && existing.staffSubRole !== acc.staffSubRole) {
           existing.staffSubRole = acc.staffSubRole;
+          isUpdated = true;
+        }
+        if (acc.systemRole && existing.systemRole !== acc.systemRole) {
+          existing.systemRole = acc.systemRole;
+          isUpdated = true;
+        }
+        if (targetBranchIds.length > 0) {
+          existing.assignedBranchIds = targetBranchIds;
           isUpdated = true;
         }
         // If acc has no phone/email (like only-text admin), unset phone & email from DB
@@ -148,7 +166,7 @@ const seedDemoUsers = async () => {
             await User.updateOne({ _id: existing._id }, { $unset: unsetFields });
           }
           await existing.save();
-          console.log(`[UPDATED] User ${existing.username || existing.phone} -> username: '${acc.username}', pass updated, role: ${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''}`);
+          console.log(`[UPDATED] User ${existing.username || existing.phone} -> role: ${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''}`);
         } else {
           console.log(`[EXISTS] User: ${(existing.username || '-').padEnd(12)} | Phone: ${acc.phone || 'NONE (Only Text)'} (${acc.systemRole}${acc.staffSubRole ? ':' + acc.staffSubRole : ''})`);
         }
@@ -163,20 +181,18 @@ const seedDemoUsers = async () => {
           passwordHash,
           systemRole: acc.systemRole,
           staffSubRole: acc.staffSubRole || null,
-          assignedBranchIds: acc.assignedBranchIds || [],
+          assignedBranchIds: targetBranchIds,
           accountStatus: acc.accountStatus,
           activatedAt: acc.accountStatus === 'ACTIVE' ? new Date() : null,
         });
 
-        console.log(`[CREATED] ${acc.systemRole.padEnd(8)} | User: ${(acc.username || '-').padEnd(12)} | Phone: ${acc.phone || 'NONE (Only Text)'} | Pass: ${acc.password.padEnd(14)} | ${acc.fullName}`);
+        console.log(`[CREATED] ${acc.systemRole.padEnd(8)} | User: ${(acc.username || '-').padEnd(12)} | Phone: ${acc.phone || 'NONE (Only Text)'} | ${acc.fullName}`);
       }
 
       // If user is STAFF, ensure StaffProfile and Shifts exist
       if (userRecord.systemRole === 'STAFF' && userRecord.staffSubRole) {
         let profile = await StaffProfile.findOne({ userId: userRecord._id });
-        const branchIds = userRecord.assignedBranchIds && userRecord.assignedBranchIds.length > 0
-          ? userRecord.assignedBranchIds
-          : [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')];
+        const branchIds = targetBranchIds.length > 0 ? targetBranchIds : [defaultBranchId];
 
         if (!profile) {
           profile = await StaffProfile.create({
@@ -187,6 +203,13 @@ const seedDemoUsers = async () => {
             status: 'ACTIVE',
           });
           console.log(`  └─ [STAFF_PROFILE] Created profile for ${userRecord.username} (${userRecord.staffSubRole})`);
+        } else {
+          profile.authorizedBranchIds = branchIds;
+          profile.homeBranchId = branchIds[0];
+          profile.staffSubRole = userRecord.staffSubRole;
+          profile.status = 'ACTIVE';
+          await profile.save();
+          console.log(`  └─ [STAFF_PROFILE] Updated profile for ${userRecord.username} (${userRecord.staffSubRole})`);
         }
 
         // Seed 7 sample shifts (08:00 - 17:00) starting today if none exist
@@ -224,16 +247,26 @@ const seedDemoUsers = async () => {
     }
     console.log('========================================================================\n');
     console.log('✅ Demo users seeded successfully!');
-    await mongoose.disconnect();
-    process.exit(0);
+    return true;
   } catch (error) {
     logger.error('Failed to seed demo users:', error);
     console.error('Failed to seed demo users:', error.message);
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-    process.exit(1);
+    throw error;
   }
 };
 
-seedDemoUsers();
+// If run directly via CLI
+const isDirectCli = process.argv[1] && (process.argv[1].endsWith('demoUsersSeed.js') || process.argv[1].endsWith('demoUsersSeed'));
+if (isDirectCli) {
+  seedDemoUsers()
+    .then(async () => {
+      await mongoose.disconnect();
+      process.exit(0);
+    })
+    .catch(async () => {
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+      process.exit(1);
+    });
+}

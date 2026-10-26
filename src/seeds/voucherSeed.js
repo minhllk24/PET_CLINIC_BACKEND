@@ -3,6 +3,8 @@ import config from '../shared/config.js';
 import { logger } from '../shared/logger.js';
 import Voucher from '../modules/order/models/Voucher.js';
 
+import Product from '../modules/catalog/models/Product.js';
+
 export const VOUCHER_SEEDS = [
   // 1. Voucher giảm tiền mặt cho Đơn hàng Sản phẩm (Order Ecommerce)
   {
@@ -36,10 +38,10 @@ export const VOUCHER_SEEDS = [
   // 3. Voucher Miễn phí vận chuyển (Freeship)
   {
     code: 'FREESHIP',
-    name: 'Hỗ trợ 30,000đ phí vận chuyển toàn quốc',
+    name: 'Miễn phí vận chuyển toàn quốc',
     discountType: 'FIXED',
     discountValue: 30000,
-    minOrderAmount: 100000,
+    minOrderAmount: 0,
     scope: 'ORDER',
     quota: 1000,
     usedCount: 0,
@@ -85,6 +87,7 @@ export const VOUCHER_SEEDS = [
     maxDiscountAmount: 100000,
     minOrderAmount: 0,
     scope: 'PRODUCT',
+    scopeRefs: [],
     quota: 1000,
     usedCount: 0,
     status: 'ACTIVE',
@@ -137,20 +140,41 @@ export const VOUCHER_SEEDS = [
 
 export const seedVouchers = async () => {
   try {
-    console.log(`Connecting to MongoDB for vouchers seeding: ${config.mongoUri}...`);
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(config.mongoUri);
     }
     logger.info('Connected to MongoDB for vouchers seeding');
 
+    // Dynamic resolution for THUNHO20 scopeRefs
+    const activeProducts = await Product.find({ status: 'ACTIVE' }).select('_id').limit(10).lean();
+    const productScopeRefs = activeProducts.map((p) => p._id);
+
     for (const vData of VOUCHER_SEEDS) {
-      const existing = await Voucher.findOne({ code: vData.code });
-      if (existing) {
-        await Voucher.updateOne({ _id: existing._id }, { $set: vData });
-        console.log(`[UPDATED] Voucher: ${vData.code.padEnd(16)} | ${vData.name} (${vData.scope})`);
+      const dataToSave = { ...vData };
+      if (dataToSave.code === 'THUNHO20' && productScopeRefs.length > 0) {
+        dataToSave.scopeRefs = productScopeRefs;
+      }
+
+      if (dataToSave.code === 'MAXOUT_TEST') {
+        // Special test voucher that must always have usedCount = quota
+        await Voucher.updateOne(
+          { code: dataToSave.code },
+          { $set: dataToSave },
+          { upsert: true }
+        );
+        console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (QUOTA_EXCEEDED test)`);
       } else {
-        await Voucher.create(vData);
-        console.log(`[CREATED] Voucher: ${vData.code.padEnd(16)} | ${vData.name} (${vData.scope})`);
+        // Idempotent: do NOT overwrite existing usedCount with 0
+        const { usedCount, ...updateFields } = dataToSave;
+        await Voucher.updateOne(
+          { code: dataToSave.code },
+          {
+            $set: updateFields,
+            $setOnInsert: { usedCount: 0 }
+          },
+          { upsert: true }
+        );
+        console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (${dataToSave.scope})`);
       }
     }
 
@@ -178,7 +202,8 @@ export const seedVouchers = async () => {
 };
 
 // If run directly via CLI
-if (require.main === module) {
+const isDirectCli = process.argv[1] && (process.argv[1].endsWith('voucherSeed.js') || process.argv[1].endsWith('voucherSeed'));
+if (isDirectCli) {
   seedVouchers()
     .then(async () => {
       await mongoose.disconnect();

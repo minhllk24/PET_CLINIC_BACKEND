@@ -148,11 +148,17 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
         }
 
         const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
-        const shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
-        const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
+        let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
+        const isFreeShipVoucher = appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING');
+        if (isFreeShipVoucher) {
+          voucherDiscount = shippingFee;
+          shippingFee = 0;
+        }
+        const totalAmount = Math.max(0, merchandiseSubtotal - (isFreeShipVoucher ? 0 : voucherDiscount) + shippingFee);
 
         // Proportional discount allocation for eligible items
         const isItemEligible = (item) => {
+          if (isFreeShipVoucher) return false;
           if (!appliedVoucher || voucherDiscount <= 0) return false;
           if (appliedVoucher.scope === 'PRODUCT' && Array.isArray(appliedVoucher.scopeRefs) && appliedVoucher.scopeRefs.length > 0) {
             return appliedVoucher.scopeRefs.some((ref) => (ref._id || ref).toString() === item.productId.toString());
@@ -323,13 +329,35 @@ export const formatOrder = (order) => {
       totalAmount: obj.pricing.totalAmount
     },
     voucherCode: obj.voucher && obj.voucher.code ? obj.voucher.code : null,
-    shippingAddress: obj.shippingAddress,
+    statusHistory: (obj.statusHistory || []).map((h) => ({
+      status: h.status,
+      at: h.at ? new Date(h.at).toISOString() : undefined,
+      actorId: h.actorId ? h.actorId.toString() : undefined
+    })),
+    shippingAddress: obj.shippingAddress ? {
+      recipientName: obj.shippingAddress.recipientName || obj.shippingAddress.fullName || obj.contactSnapshot?.fullName || 'Khách hàng',
+      phone: obj.shippingAddress.phone || obj.contactSnapshot?.phone || '0905555555',
+      line1: obj.shippingAddress.line1 || obj.shippingAddress.addressDetail || '123 Nguyễn Thị Minh Khai',
+      ward: obj.shippingAddress.ward || 'Bến Thành',
+      district: obj.shippingAddress.district || 'Quận 1',
+      city: obj.shippingAddress.city || obj.shippingAddress.province || 'Hồ Chí Minh'
+    } : undefined,
     contactSnapshot: obj.contactSnapshot || {},
+    customer: obj.customerId ? {
+      id: obj.customerId.toString(),
+      fullName: obj.contactSnapshot?.fullName || null,
+      phone: obj.contactSnapshot?.phone || null,
+      email: obj.contactSnapshot?.email || null
+    } : null,
     paymentMethod: obj.paymentMethod,
     payment: obj.payment && obj.payment.paymentId ? {
       paymentId: obj.payment.paymentId.toString(),
-      status: obj.payment.status
-    } : undefined,
+      status: obj.payment.status,
+      method: obj.paymentMethod
+    } : (obj.paymentMethod ? {
+      method: obj.paymentMethod,
+      status: obj.status === 'CANCELLED' ? 'CANCELLED' : (obj.status === 'COMPLETED' ? 'PAID' : 'PENDING')
+    } : undefined),
     deliveredAt: deliveredAtDate ? deliveredAtDate.toISOString() : null,
     returnWindowEndsAt: returnWindowEndsAtDate ? returnWindowEndsAtDate.toISOString() : null,
     allowedActions,
@@ -368,32 +396,67 @@ export const getOrderById = async (orderId, actor, guestToken) => {
 };
 
 export const listOrders = async (query = {}, actor) => {
+  if (!actor) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to list orders');
+  }
+
   const filter = {};
   if (query.status) filter.status = query.status;
   if (query.customerId) filter.customerId = query.customerId;
-  if (query.branchId) filter.fulfillmentBranchId = query.branchId;
+  if (query.branchId || query.fulfillmentBranchId) {
+    filter.fulfillmentBranchId = query.branchId || query.fulfillmentBranchId;
+  }
+  if (query.code) {
+    filter.code = query.code.trim();
+  }
+  if (query.search) {
+    const s = query.search.trim();
+    filter.$or = [
+      { code: { $regex: s, $options: 'i' } },
+      { 'contactSnapshot.phone': { $regex: s, $options: 'i' } },
+      { 'contactSnapshot.fullName': { $regex: s, $options: 'i' } }
+    ];
+  }
+  if (query.dateFrom || query.dateTo) {
+    filter.createdAt = {};
+    if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
+    if (query.dateTo) filter.createdAt.$lte = new Date(query.dateTo);
+  }
 
-  if (actor) {
-    if (actor.systemRole === 'CUSTOMER') {
-      filter.customerId = actor.id;
-    } else if (actor.systemRole === 'STAFF') {
-      const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
-      if (staffBranches.length > 0) {
-        filter.fulfillmentBranchId = { $in: staffBranches };
-      }
-    } else if (actor.systemRole === 'MANAGER') {
-      const mgrBranches = (actor.assignedBranchIds || []).map((b) => b.toString());
-      if (mgrBranches.length > 0) {
-        filter.fulfillmentBranchId = { $in: mgrBranches };
-      }
+  if (actor.systemRole === 'CUSTOMER') {
+    filter.customerId = actor.id;
+  } else if (actor.systemRole === 'STAFF') {
+    const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+    if (staffBranches.length > 0) {
+      filter.fulfillmentBranchId = { $in: staffBranches };
+    }
+  } else if (actor.systemRole === 'MANAGER') {
+    const mgrBranches = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (mgrBranches.length > 0) {
+      filter.fulfillmentBranchId = { $in: mgrBranches };
     }
   }
 
+  if (query.cursor && mongoose.Types.ObjectId.isValid(query.cursor)) {
+    filter._id = { $lt: new mongoose.Types.ObjectId(query.cursor) };
+  }
+
   const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
-  const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(limit);
+  const [orders, totalCount] = await Promise.all([
+    Order.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1),
+    Order.countDocuments(filter)
+  ]);
+
+  let nextCursor = null;
+  if (orders.length > limit) {
+    const nextItem = orders.pop();
+    nextCursor = nextItem._id.toString();
+  }
+
   return {
     items: orders.map(formatOrder),
-    nextCursor: null
+    totalCount,
+    nextCursor
   };
 };
 

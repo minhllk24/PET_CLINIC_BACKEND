@@ -197,10 +197,14 @@ export const listReturns = async (query = {}, actor) => {
   }
 
   const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
-  const returns = await OrderReturn.find(filter).sort({ createdAt: -1 }).limit(limit);
+  const [returns, totalCount] = await Promise.all([
+    OrderReturn.find(filter).sort({ createdAt: -1 }).limit(limit),
+    OrderReturn.countDocuments(filter)
+  ]);
 
   return {
     items: returns.map(formatOrderReturn),
+    totalCount,
     nextCursor: null
   };
 };

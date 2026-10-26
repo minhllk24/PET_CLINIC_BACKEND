@@ -119,6 +119,13 @@ const limiter = rateLimit({
   max: config.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for Render platform health probes to prevent 429 instance failures
+    if (req.path.endsWith('/health') && (req.headers['x-render-origin-server'] || req.headers['rndr-id'] || req.headers['user-agent']?.includes('Render'))) {
+      return true;
+    }
+    return false;
+  },
   handler: (req, res, next) => {
     next(new AppError(429, 'Too Many Requests', 'RATE_LIMIT', 'Too many requests from this IP, please try again later.'));
   }
