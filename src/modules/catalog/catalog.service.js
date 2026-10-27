@@ -407,7 +407,12 @@ export const listProducts = async (params, actor) => {
       { $match: { totalQty: { $gt: 0 } } }
     ]);
     const inStockItemIds = inStockAgg.map((a) => a._id);
-    query['variants.inventoryItemId'] = { $in: inStockItemIds };
+    query.variants = {
+      $elemMatch: {
+        inventoryItemId: { $in: inStockItemIds },
+        status: 'ACTIVE'
+      }
+    };
   }
 
   // Tổng số bản ghi thỏa mãn điều kiện (chuẩn xác 100% bao gồm cả filter inStock)

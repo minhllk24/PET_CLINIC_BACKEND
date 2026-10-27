@@ -1118,6 +1118,18 @@ paths:
         in: query
         schema:
           type: string
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - NAME_ASC
+          - NAME_DESC
+          - PRICE_ASC
+          - PRICE_DESC
+          - DURATION_ASC
+          - DURATION_DESC
+          - NEWEST
       responses:
         '200':
           description: Services
@@ -1180,6 +1192,44 @@ paths:
       - admin
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+  /services/suggestions:
+    get:
+      operationId: servicesSuggestions
+      summary: Goi y tu khoa dich vu
+      tags:
+      - Services
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        allowEmptyValue: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 10
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+      x-authz:
+        auth: none
+        roles:
+        - public
+        scope: Public
+        resolver: ServiceCatalog
+      x-audience:
+      - customer
+      - admin
   /services/{id}:
     get:
       operationId: servicesGet
@@ -5271,6 +5321,171 @@ paths:
           -> 409 IDEMPOTENCY_KEY_REUSED
       x-audience:
       - admin
+  /search/suggestions:
+    get:
+      operationId: searchSuggestions
+      summary: Goi y tu khoa tim kiem tu du lieu that (san pham, dich vu, danh muc)
+      tags:
+      - Search
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        allowEmptyValue: true
+        schema:
+          type: string
+        description: Tu khoa tim kiem dang nhap
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+      responses:
+        '200':
+          description: Search suggestions result
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - query
+                - suggestions
+                - total
+                properties:
+                  query:
+                    type: string
+                  suggestions:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - keyword
+                      - type
+                      - id
+                      properties:
+                        keyword:
+                          type: string
+                        type:
+                          type: string
+                          enum:
+                          - product
+                          - service
+                          - category
+                        id:
+                          type: string
+                        code:
+                          type: string
+                        category:
+                          type: string
+                        serviceType:
+                          type: string
+                        price:
+                          type: number
+                        basePrice:
+                          type: number
+                        slug:
+                          type: string
+                  total:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+      x-authz:
+        auth: optional bearer
+        roles:
+        - public
+        - CUSTOMER
+        - MANAGER
+        - ADMIN
+        scope: Public suggestions
+        resolver: Search
+      x-audience:
+      - customer
+      - admin
+  /search:
+    get:
+      operationId: unifiedSearch
+      summary: Tim kiem tong hop server-side (Product, Service)
+      tags:
+      - Search
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: keyword
+        in: query
+        schema:
+          type: string
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - product
+          - service
+          default: all
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: sort
+        in: query
+        schema:
+          type: string
+      - name: categoryId
+        in: query
+        schema:
+          type: string
+      - name: minPrice
+        in: query
+        schema:
+          type: integer
+      - name: maxPrice
+        in: query
+        schema:
+          type: integer
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+      x-authz:
+        auth: optional bearer
+        roles:
+        - public
+        - CUSTOMER
+        - MANAGER
+        - ADMIN
+        scope: Public unified search
+        resolver: Search
+      x-audience:
+      - customer
+      - admin
   /products:
     get:
       operationId: productsList
@@ -5417,6 +5632,44 @@ paths:
       - admin
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+  /products/suggestions:
+    get:
+      operationId: productsSuggestions
+      summary: Goi y tu khoa san pham
+      tags:
+      - Catalog
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        allowEmptyValue: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 10
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+      x-authz:
+        auth: none
+        roles:
+        - public
+        scope: Public
+        resolver: Product
+      x-audience:
+      - customer
+      - admin
   /products/{id}:
     get:
       operationId: productsGet

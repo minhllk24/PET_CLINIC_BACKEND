@@ -14,6 +14,16 @@ router.get('/categories/:id', optionalAuth, catalogController.getCategoryById);
 router.patch('/categories/:id', authenticate, requireRole(['ADMIN']), catalogController.updateCategory);
 router.post('/categories/:id/archive', authenticate, requireRole(['ADMIN']), idempotency('categoriesArchive'), catalogController.archiveCategory);
 
+// ================= SUGGESTIONS =================
+router.get('/suggestions', optionalAuth, (req, res, next) => {
+  const { getSearchSuggestions } = require('../search/search.controller');
+  return getSearchSuggestions(req, res, next);
+});
+router.get('/products/suggestions', optionalAuth, (req, res, next) => {
+  const { getSearchSuggestions } = require('../search/search.controller');
+  return getSearchSuggestions(req, res, next);
+});
+
 // ================= PRODUCTS =================
 router.get('/products', optionalAuth, catalogController.listProducts);
 router.post('/products', authenticate, requireRole(['ADMIN']), idempotency('productsCreate'), catalogController.createProduct);
@@ -30,6 +40,10 @@ router.post('/products/:id/variants/:variantId/deactivate', authenticate, requir
 router.post('/products/:id/variants/:variantId/activate', authenticate, requireRole(['ADMIN']), idempotency('productVariantsActivate'), catalogController.activateVariant);
 
 // ================= SERVICES (Global Master Catalog) =================
+router.get('/services/suggestions', optionalAuth, (req, res, next) => {
+  const { getSearchSuggestions } = require('../search/search.controller');
+  return getSearchSuggestions(req, res, next);
+});
 router.get('/services', optionalAuth, catalogController.listServices);
 router.post('/services', authenticate, requireRole(['ADMIN']), idempotency('servicesCreate'), catalogController.createService);
 router.get('/services/:id', optionalAuth, catalogController.getServiceById);

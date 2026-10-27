@@ -32,6 +32,7 @@ import internalBookingRoutes from './modules/booking/internalBooking.routes';
 import shiftRoutes from './modules/staff/shift.routes';
 import reviewRoutes from './modules/review/review.routes';
 import feedbackRoutes from './modules/review/feedback.routes';
+import searchRoutes from './modules/search/search.routes';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -253,6 +254,7 @@ app.use('/api/v1/internal', internalBookingRoutes);
 app.use('/api/v1/shifts', shiftRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
+app.use('/api/v1/search', searchRoutes);
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));

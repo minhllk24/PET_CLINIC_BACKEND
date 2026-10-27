@@ -70,6 +70,10 @@ const schema = new mongoose.Schema({
 schema.index({ status: 1, bookingMode: 1 });
 schema.index({ status: 1, serviceType: 1 });
 schema.index({ requiredStaffRole: 1, status: 1 });
+schema.index({ status: 1, name: 1 });
+schema.index({ status: 1, basePrice: 1 });
+schema.index({ status: 1, durationMinutes: 1 });
+schema.index({ status: 1, category: 1 });
 
 // Guardrail check: Validate staff role against service type
 schema.pre('validate', function(next) {

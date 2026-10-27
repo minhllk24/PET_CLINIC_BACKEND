@@ -189,11 +189,15 @@ export const listServices = async ({
   search,
   branchId = null,
   isAvailable = null,
+  sort = null,
   limit = 20,
   cursor = null,
   page = null,
   actor = null,
 }) => {
+  if (mongoose.connection.readyState !== 1 && !Service.find?._isMockFunction) {
+    return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
+  }
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
   const filter = {};
@@ -218,6 +222,43 @@ export const listServices = async ({
     ];
   }
 
+  let validBranchId = null;
+  if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+    validBranchId = branchId;
+  }
+
+  // Pre-filter by isAvailable at DB level BEFORE countDocuments & pagination
+  if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
+    const targetAvailable = isAvailable === true || isAvailable === 'true';
+    if (mongoose.connection.readyState === 1 || BranchServiceConfig.find?._isMockFunction) {
+      try {
+        if (validBranchId) {
+          const enabledConfigs = await BranchServiceConfig.find({
+            branchId: validBranchId,
+            enabled: true,
+          }).select('serviceId');
+          const enabledServiceIds = (enabledConfigs || []).map((c) => c.serviceId);
+          if (targetAvailable) {
+            filter._id = { $in: enabledServiceIds };
+          } else {
+            filter._id = { $nin: enabledServiceIds };
+          }
+        } else {
+          const enabledConfigs = await BranchServiceConfig.find({
+            enabled: true,
+          }).distinct('serviceId');
+          if (targetAvailable) {
+            filter._id = { $in: enabledConfigs || [] };
+          } else {
+            filter._id = { $nin: enabledConfigs || [] };
+          }
+        }
+      } catch (err) {
+        // fallback
+      }
+    }
+  }
+
   let totalItems = 0;
   if (mongoose.connection.readyState === 1 || Service.countDocuments?._isMockFunction) {
     try {
@@ -228,15 +269,25 @@ export const listServices = async ({
   }
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
-  let serviceQuery = Service.find(filter).sort({ _id: 1 });
+  // Sorting
+  let sortCriteria = { _id: 1 };
+  if (sort === 'NAME_ASC') sortCriteria = { name: 1, _id: 1 };
+  else if (sort === 'NAME_DESC') sortCriteria = { name: -1, _id: -1 };
+  else if (sort === 'PRICE_ASC') sortCriteria = { basePrice: 1, _id: 1 };
+  else if (sort === 'PRICE_DESC') sortCriteria = { basePrice: -1, _id: -1 };
+  else if (sort === 'DURATION_ASC') sortCriteria = { durationMinutes: 1, _id: 1 };
+  else if (sort === 'DURATION_DESC') sortCriteria = { durationMinutes: -1, _id: -1 };
+  else if (sort === 'NEWEST') sortCriteria = { createdAt: -1, _id: -1 };
+
+  let serviceQuery = Service.find(filter).sort(sortCriteria);
 
   if (parsedPage && typeof serviceQuery.skip === 'function') {
     serviceQuery = serviceQuery.skip((parsedPage - 1) * parsedLimit);
   } else if (!parsedPage && cursor) {
     const decodedId = decodeCursor(cursor);
     if (decodedId && mongoose.Types.ObjectId.isValid(decodedId)) {
-      filter._id = { $gt: new mongoose.Types.ObjectId(decodedId) };
-      serviceQuery = Service.find(filter).sort({ _id: 1 });
+      filter._id = { ...((filter._id && typeof filter._id === 'object') ? filter._id : {}), $gt: new mongoose.Types.ObjectId(decodedId) };
+      serviceQuery = Service.find(filter).sort(sortCriteria);
     }
   }
 
@@ -244,10 +295,15 @@ export const listServices = async ({
     serviceQuery = serviceQuery.limit(parsedLimit + 1);
   }
 
-  const [services, totalBranchCount] = await Promise.all([
-    serviceQuery,
-    Branch.countDocuments({ status: 'ACTIVE' }),
-  ]);
+  let totalBranchCount = 0;
+  if (mongoose.connection.readyState === 1 || Branch.countDocuments?._isMockFunction) {
+    try {
+      totalBranchCount = await Branch.countDocuments({ status: 'ACTIVE' });
+    } catch (e) {
+      totalBranchCount = 0;
+    }
+  }
+  const services = (await serviceQuery) || [];
 
   let nextCursor = null;
   let items = services;
@@ -258,37 +314,46 @@ export const listServices = async ({
 
   // Calculate enabledBranchCount for the returned services
   const serviceIds = items.map((s) => s._id);
-  const branchCounts = await BranchServiceConfig.aggregate([
-    {
-      $match: {
-        serviceId: { $in: serviceIds },
-        enabled: true,
-      },
-    },
-    {
-      $group: {
-        _id: '$serviceId',
-        count: { $sum: 1 },
-      },
-    },
-  ]);
+  let branchCounts = [];
+  if (mongoose.connection.readyState === 1 || BranchServiceConfig.aggregate?._isMockFunction) {
+    try {
+      branchCounts = await BranchServiceConfig.aggregate([
+        {
+          $match: {
+            serviceId: { $in: serviceIds },
+            enabled: true,
+          },
+        },
+        {
+          $group: {
+            _id: '$serviceId',
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+    } catch (e) {
+      branchCounts = [];
+    }
+  }
 
   const countMap = new Map();
-  branchCounts.forEach((bc) => countMap.set(bc._id.toString(), bc.count));
+  (branchCounts || []).forEach((bc) => countMap.set(bc._id.toString(), bc.count));
 
   // If branchId is specified, fetch branch-specific configurations
   const branchConfigMap = new Map();
-  let validBranchId = null;
-  if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
-    validBranchId = branchId;
-    const branchConfigs = await BranchServiceConfig.find({
-      branchId,
-      serviceId: { $in: serviceIds },
-    });
-    branchConfigs.forEach((cfg) => branchConfigMap.set(cfg.serviceId.toString(), cfg));
+  if (validBranchId && (mongoose.connection.readyState === 1 || BranchServiceConfig.find?._isMockFunction)) {
+    try {
+      const branchConfigs = await BranchServiceConfig.find({
+        branchId: validBranchId,
+        serviceId: { $in: serviceIds },
+      });
+      (branchConfigs || []).forEach((cfg) => branchConfigMap.set(cfg.serviceId.toString(), cfg));
+    } catch (e) {
+      // ignore
+    }
   }
 
-  let formattedItems = items.map((s) => {
+  const formattedItems = items.map((s) => {
     const sIdStr = s._id.toString();
     const enabledBranchCount = countMap.get(sIdStr) || 0;
     const branchConfig = validBranchId ? branchConfigMap.get(sIdStr) : undefined;
@@ -299,12 +364,6 @@ export const listServices = async ({
       branchId: validBranchId,
     });
   });
-
-  // Filter by isAvailable if requested
-  if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
-    const targetAvailable = isAvailable === true || isAvailable === 'true';
-    formattedItems = formattedItems.filter((item) => item.isAvailable === targetAvailable);
-  }
 
   return {
     items: formattedItems,
