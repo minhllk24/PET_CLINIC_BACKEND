@@ -394,6 +394,19 @@ paths:
       responses:
         '202':
           description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  token:
+                    type: string
+                  activationStatus:
+                    $ref: '#/components/schemas/ActivationStatus'
+                  expiresAt:
+                    $ref: '#/components/schemas/DateTime'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -8005,9 +8018,13 @@ components:
       properties:
         lookupToken:
           type: string
+        token:
+          type: string
         expiresIn:
           type: integer
           minimum: 1
+        guestContactId:
+          type: string
       additionalProperties: false
       required:
       - lookupToken
@@ -8031,9 +8048,11 @@ components:
       properties:
         guestContactId:
           $ref: '#/components/schemas/ObjectId'
+        phone:
+          type: string
+        email:
+          type: string
       additionalProperties: false
-      required:
-      - guestContactId
     ActivationCompleteRequest:
       type: object
       properties:
@@ -8049,10 +8068,11 @@ components:
         acceptTerms:
           type: boolean
           const: true
+        fullName:
+          type: string
       additionalProperties: false
       required:
       - token
-      - otp
       - password
       - acceptTerms
     ReasonRequest:
@@ -11402,6 +11422,12 @@ components:
         expiresIn:
           type: integer
           minimum: 1
+        message:
+          type: string
+        debugOtp:
+          type: string
+        otp:
+          type: string
       additionalProperties: false
       required:
       - challengeId

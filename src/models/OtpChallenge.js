@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const OTP_PURPOSES = ['REGISTER', 'FORGOT_PASSWORD', 'LOGIN_VERIFICATION'];
+const OTP_PURPOSES = ['REGISTER', 'FORGOT_PASSWORD', 'LOGIN_VERIFICATION', 'GUEST_LOOKUP', 'ACTIVATION'];
 
 const otpChallengeSchema = new mongoose.Schema({
   identifier: {

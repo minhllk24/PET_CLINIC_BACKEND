@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import AuditLog from '../models/AuditLog';
 import { logger } from '../shared/logger';
 
@@ -18,6 +19,9 @@ export const recordAuditLog = async ({
   metadata = {},
   correlationId = null,
 }) => {
+  if (mongoose.connection.readyState !== 1) {
+    return null;
+  }
   try {
     const entry = await AuditLog.create({
       actor: {

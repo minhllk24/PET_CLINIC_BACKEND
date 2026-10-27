@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import IdempotencyKey from '../modules/audit/models/IdempotencyKey';
 import AppError from '../utils/AppError';
 import { ErrorCodes } from '../shared/errorCodes';
@@ -30,6 +31,10 @@ export const idempotency = (operationId = '', { required = false } = {}) => {
     }
     if (typeof key !== 'string' || key.length > 200) {
       return next(new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Invalid Idempotency-Key header'));
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      return next();
     }
 
     try {

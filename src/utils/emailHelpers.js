@@ -114,3 +114,69 @@ export const sendAppointmentReminderEmail = async (toEmail, appointmentCode, dat
   }
 };
 
+export const sendGuestOtpEmail = async (toEmail, otpCode) => {
+  const transporter = createTransporter();
+
+  const mailOptions = {
+    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    to: toEmail,
+    subject: 'Mã xác thực tra cứu giao dịch - Pet Clinic',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #333; text-align: center;">Tra Cứu Giao Dịch</h2>
+        <p>Chào bạn,</p>
+        <p>Bạn đã yêu cầu mã xác nhận để tra cứu đơn hàng / lịch hẹn tại Pet Clinic. Vui lòng sử dụng mã OTP dưới đây:</p>
+        <div style="background-color: #f9f9f9; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0; border: 1px dashed #ccc;">
+          <h1 style="color: #2196f3; letter-spacing: 5px; margin: 0;">${otpCode}</h1>
+        </div>
+        <p>Mã này có hiệu lực trong vòng <strong>5 phút</strong>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+        <br>
+        <p>Trân trọng,</p>
+        <p><strong>Đội ngũ Pet Clinic</strong></p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending guest OTP email:', error);
+    return false;
+  }
+};
+
+export const sendActivationInviteEmail = async (toEmail, inviteToken, fullName) => {
+  const transporter = createTransporter();
+  const customerAppUrl = process.env.CUSTOMER_APP_URL || 'https://drpetshouse.lat';
+  const activationUrl = `${customerAppUrl}/activate?token=${inviteToken}`;
+
+  const mailOptions = {
+    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    to: toEmail,
+    subject: 'Kích hoạt tài khoản thành viên - Pet Clinic',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #333; text-align: center;">Kích Hoạt Tài Khoản Pet Clinic</h2>
+        <p>Chào ${fullName || 'bạn'},</p>
+        <p>Cảm ơn bạn đã sử dụng dịch vụ tại Pet Clinic. Hãy kích hoạt tài khoản để liên kết toàn bộ đơn hàng và lịch hẹn của bạn:</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${activationUrl}" style="background-color: #4caf50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Kích Hoạt Tài Khoản</a>
+        </div>
+        <p>Liên kết kích hoạt có hiệu lực trong vòng <strong>7 ngày</strong>.</p>
+        <br>
+        <p>Trân trọng,</p>
+        <p><strong>Đội ngũ Pet Clinic</strong></p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending activation invite email:', error);
+    return false;
+  }
+};
+

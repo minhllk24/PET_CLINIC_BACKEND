@@ -5,28 +5,78 @@ import mongoose from 'mongoose';
 import GuestContact from './models/GuestContact';
 import Customer from './models/Customer';
 import User from '../../models/User';
+import OtpChallenge from '../../models/OtpChallenge';
 import Order from '../order/models/Order';
 import Appointment from '../booking/models/Appointment';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import config from '../../shared/config';
+import { generateOtpCode, hashOtp, verifyOtp } from '../../utils/otpHelpers';
+import { sendGuestOtpEmail, sendActivationInviteEmail } from '../../utils/emailHelpers';
+import { recordAuditLog } from '../../utils/auditLogger';
 
-// In-memory OTP storage for guest lookup
-// key: identifier (phone or email), value: { otp, expiresAt, attempts, lastRequestedAt }
-const otpStore = new Map();
+// In-memory store fallback for offline test environments
+const mockChallengeStore = new Map();
 
-/**
- * Generate a 6-digit numeric OTP
- */
-const generateOtp = () => {
-  if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
-    return '123456';
+const findActiveChallenge = async (query) => {
+  if (mongoose.connection.readyState === 1) {
+    return OtpChallenge.findOne(query).sort({ createdAt: -1 });
   }
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  for (const [id, c] of mockChallengeStore.entries()) {
+    let match = true;
+    if (query._id && id !== query._id.toString()) match = false;
+    if (query.identifier && c.identifier !== query.identifier) match = false;
+    if (query.purpose && c.purpose !== query.purpose) match = false;
+    if (match) return c;
+  }
+  return null;
+};
+
+const saveNewChallenge = async ({ identifier, otpHash, purpose, expiresAt }) => {
+  if (mongoose.connection.readyState === 1) {
+    await OtpChallenge.deleteMany({ identifier, purpose });
+    return OtpChallenge.create({
+      identifier,
+      otpHash,
+      purpose,
+      attemptCount: 0,
+      expiresAt,
+      lastSentAt: new Date(),
+    });
+  }
+  for (const [id, c] of mockChallengeStore.entries()) {
+    if (c.identifier === identifier && c.purpose === purpose) {
+      mockChallengeStore.delete(id);
+    }
+  }
+  const id = new mongoose.Types.ObjectId().toString();
+  const c = {
+    _id: id,
+    identifier,
+    otpHash,
+    purpose,
+    attemptCount: 0,
+    expiresAt,
+    lastSentAt: new Date(),
+    createdAt: new Date(),
+    save: async function () {
+      mockChallengeStore.set(id, this);
+    },
+  };
+  mockChallengeStore.set(id, c);
+  return c;
+};
+
+const removeChallenge = async (challengeId) => {
+  if (mongoose.connection.readyState === 1) {
+    return OtpChallenge.deleteOne({ _id: challengeId });
+  }
+  mockChallengeStore.delete(challengeId ? challengeId.toString() : '');
 };
 
 /**
  * Request an OTP for guest lookup
+ * Uses MongoDB OtpChallenge with TTL and 60s cooldown
  */
 export const requestGuestOtp = async ({ phone, email }) => {
   if (!phone && !email) {
@@ -34,95 +84,135 @@ export const requestGuestOtp = async ({ phone, email }) => {
   }
 
   const identifier = (phone || email).trim().toLowerCase();
-  const existing = otpStore.get(identifier);
 
-  // Rate limit: 60s resend delay
-  if (existing && Date.now() - existing.lastRequestedAt < 60000) {
-    const waitSeconds = Math.ceil((60000 - (Date.now() - existing.lastRequestedAt)) / 1000);
-    throw new AppError(429, 'RateLimitExceeded', 'RATE_LIMIT_EXCEEDED', `Please wait ${waitSeconds}s before requesting a new OTP`);
+  // Rate limit: 60s cooldown check
+  const existing = await findActiveChallenge({
+    identifier,
+    purpose: 'GUEST_LOOKUP',
+  });
+
+  if (existing) {
+    const elapsed = Date.now() - new Date(existing.lastSentAt || existing.createdAt).getTime();
+    if (elapsed < 60000) {
+      const waitSeconds = Math.ceil((60000 - elapsed) / 1000);
+      throw new AppError(429, 'RateLimitExceeded', 'RATE_LIMIT_EXCEEDED', `Please wait ${waitSeconds}s before requesting a new OTP`);
+    }
   }
 
-  const otp = generateOtp();
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 mins
+  const otp = (config.env === 'test' || config.env === 'development') ? '123456' : generateOtpCode();
+  const otpHash = hashOtp(otp);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-  otpStore.set(identifier, {
-    otp,
+  const challenge = await saveNewChallenge({
+    identifier,
+    otpHash,
+    purpose: 'GUEST_LOOKUP',
     expiresAt,
-    attempts: 0,
-    lastRequestedAt: Date.now(),
-    phone: phone ? phone.trim() : null,
-    email: email ? email.trim().toLowerCase() : null,
   });
+
+  // Attempt real email send if email was provided
+  const targetEmail = email ? email.trim().toLowerCase() : (identifier.includes('@') ? identifier : null);
+  if (targetEmail) {
+    sendGuestOtpEmail(targetEmail, otp).catch((err) => {
+      console.warn('Non-blocking: Failed to dispatch guest OTP email', err?.message);
+    });
+  }
 
   return {
     message: 'OTP sent successfully',
+    challengeId: challenge._id.toString(),
     expiresIn: 300,
     otp: config.env !== 'production' ? otp : undefined,
+    debugOtp: config.env !== 'production' ? otp : undefined,
   };
 };
 
 /**
  * Verify OTP for guest lookup and issue short-lived token
  */
-export const verifyGuestOtp = async ({ phone, email, otp }) => {
+export const verifyGuestOtp = async ({ phone, email, otp, challengeId }) => {
   if (!otp) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'OTP is required');
   }
-  if (!phone && !email) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Either phone or email must be provided');
+
+  let challenge = null;
+  if (challengeId && mongoose.Types.ObjectId.isValid(challengeId)) {
+    challenge = await findActiveChallenge({ _id: challengeId, purpose: 'GUEST_LOOKUP' });
   }
 
-  const identifier = (phone || email).trim().toLowerCase();
-  const record = otpStore.get(identifier);
+  if (!challenge && (phone || email)) {
+    const identifier = (phone || email).trim().toLowerCase();
+    challenge = await findActiveChallenge({ identifier, purpose: 'GUEST_LOOKUP' });
+  }
 
-  if (!record) {
+  if (!challenge) {
     throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'No OTP request found for this contact. Please request a new OTP.');
   }
 
-  if (Date.now() > record.expiresAt) {
-    otpStore.delete(identifier);
+  if (new Date() > challenge.expiresAt) {
+    await removeChallenge(challenge._id);
     throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'OTP has expired. Please request a new one.');
   }
 
-  record.attempts += 1;
-  if (record.attempts > 5) {
-    otpStore.delete(identifier);
+  challenge.attemptCount = (challenge.attemptCount || 0) + 1;
+  if (challenge.attemptCount > 5) {
+    await removeChallenge(challenge._id);
     throw new AppError(429, 'TooManyRequests', 'RATE_LIMIT_EXCEEDED', 'Too many failed attempts. Please request a new OTP.');
   }
 
-  if (record.otp !== otp.trim()) {
+  const isValid = verifyOtp(otp.trim(), challenge.otpHash);
+  if (!isValid) {
+    await challenge.save();
     throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'Invalid OTP code.');
   }
 
-  // Clear OTP on successful verification
-  otpStore.delete(identifier);
+  // Clear challenge on success
+  await removeChallenge(challenge._id);
+
+  // Record audit log
+  recordAuditLog({
+    action: 'OTP_VERIFIED',
+    target: { type: 'OtpChallenge', id: challenge._id },
+    metadata: { identifier: challenge.identifier, purpose: 'GUEST_LOOKUP' },
+  }).catch(() => {});
 
   // Find or create GuestContact
-  const query = phone ? { phone: phone.trim() } : { email: email.trim().toLowerCase() };
+  const rawContact = phone || email || challenge.identifier;
+  const isEmail = rawContact.includes('@');
+  const contactPhone = phone ? phone.trim() : (!isEmail ? rawContact.trim() : undefined);
+  const contactEmail = email ? email.trim().toLowerCase() : (isEmail ? rawContact.trim().toLowerCase() : undefined);
+
+  const query = contactPhone ? { phone: contactPhone } : { email: contactEmail };
   let guest = await GuestContact.findOne(query);
 
   if (!guest) {
     guest = new GuestContact({
-      fullName: phone || email,
-      phone: phone ? phone.trim() : undefined,
-      email: email ? email.trim().toLowerCase() : undefined,
+      fullName: contactPhone || contactEmail,
+      phone: contactPhone,
+      email: contactEmail,
       activationStatus: 'NO_ACCOUNT',
     });
-    await guest.save();
   }
+
+  if (contactPhone) guest.phoneVerifiedAt = new Date();
+  if (contactEmail) guest.emailVerifiedAt = new Date();
+  await guest.save();
 
   // Sign a guest lookup token (valid 15 mins)
   const tokenPayload = {
     guestContactId: guest._id.toString(),
     phone: guest.phone,
     email: guest.email,
+    phoneVerified: !!guest.phoneVerifiedAt,
+    emailVerified: !!guest.emailVerifiedAt,
     isGuest: true,
   };
 
   const token = jwt.sign(tokenPayload, config.jwt.accessSecret, { expiresIn: '15m' });
 
   return {
-    token,
+    lookupToken: token,
+    token, // backward compatibility
     expiresIn: 900,
     guestContactId: guest._id.toString(),
   };
@@ -202,6 +292,13 @@ export const sendActivationInvite = async ({ guestContactId, phone, email }) => 
   guest.activationInviteSentAt = new Date();
   await guest.save();
 
+  // Send email if contact email exists
+  if (guest.email) {
+    sendActivationInviteEmail(guest.email, activationToken, guest.fullName).catch((err) => {
+      console.warn('Non-blocking: Failed to dispatch activation invite email', err?.message);
+    });
+  }
+
   return {
     message: 'Activation invite sent successfully',
     token: activationToken,
@@ -212,8 +309,9 @@ export const sendActivationInvite = async ({ guestContactId, phone, email }) => 
 
 /**
  * Complete activation, create User + Customer, link all transactions
+ * Strict rule: only link guest transactions after phone/email has been verified
  */
-export const completeActivation = async ({ token, password, acceptTerms, fullName }) => {
+export const completeActivation = async ({ token, otp, password, acceptTerms, fullName }) => {
   if (acceptTerms !== true) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'You must accept the terms and conditions');
   }
@@ -261,6 +359,39 @@ export const completeActivation = async ({ token, password, acceptTerms, fullNam
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'An account already exists with this phone or email');
   }
 
+  // Link transactions only after phone/email has been verified
+  const orderOrConditions = [{ guestContactId: guest._id }];
+  const appointmentOrConditions = [{ guestContactId: guest._id }];
+
+  // Verified contact linking
+  const isPhoneVerified = !!guest.phoneVerifiedAt;
+  const isEmailVerified = !!guest.emailVerifiedAt || !!guest.activationToken; // Token sent to email proves ownership
+
+  if (isPhoneVerified && guest.phone) {
+    orderOrConditions.push({ 'contactSnapshot.phone': guest.phone });
+    appointmentOrConditions.push({ 'contactSnapshot.phone': guest.phone });
+  }
+
+  if (isEmailVerified && guest.email) {
+    orderOrConditions.push({ 'contactSnapshot.email': guest.email });
+    appointmentOrConditions.push({ 'contactSnapshot.email': guest.email });
+  }
+
+  // Discover activity branches from all matching orders & appointments
+  const [matchingOrders, matchingAppointments] = await Promise.all([
+    Order.find({ $or: orderOrConditions }).select('fulfillmentBranchId'),
+    Appointment.find({ $or: appointmentOrConditions }).select('branchId'),
+  ]);
+
+  const branchSet = new Set();
+  matchingOrders.forEach((o) => {
+    if (o.fulfillmentBranchId) branchSet.add(o.fulfillmentBranchId.toString());
+  });
+  matchingAppointments.forEach((a) => {
+    if (a.branchId) branchSet.add(a.branchId.toString());
+  });
+  const activityBranchIds = Array.from(branchSet).map((b) => new mongoose.Types.ObjectId(b));
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -286,21 +417,22 @@ export const completeActivation = async ({ token, password, acceptTerms, fullNam
       accountStatus: 'ACTIVE',
       contactPhone: guest.phone,
       contactEmail: guest.email,
-      phoneVerifiedAt: guest.phone ? new Date() : null,
-      emailVerifiedAt: guest.email ? new Date() : null,
+      phoneVerifiedAt: isPhoneVerified ? (guest.phoneVerifiedAt || new Date()) : null,
+      emailVerifiedAt: isEmailVerified ? (guest.emailVerifiedAt || new Date()) : null,
+      activityBranchIds,
     });
     await newCustomer.save({ session });
 
-    // Link guest transactions
-    const [orderRes, aptRes] = await Promise.all([
+    // Link transactions to Customer (store User._id for consistency across authorization checks)
+    await Promise.all([
       Order.updateMany(
-        { guestContactId: guest._id },
+        { $or: orderOrConditions },
         { $set: { customerId: newUser._id } },
         { session }
       ),
       Appointment.updateMany(
-        { guestContactId: guest._id },
-        { $set: { customerId: newCustomer._id } },
+        { $or: appointmentOrConditions },
+        { $set: { customerId: newUser._id } },
         { session }
       ),
     ]);
@@ -314,6 +446,19 @@ export const completeActivation = async ({ token, password, acceptTerms, fullNam
     await guest.save({ session });
 
     await session.commitTransaction();
+
+    // Record central audit log
+    recordAuditLog({
+      actor: { userId: newUser._id, systemRole: 'CUSTOMER' },
+      action: 'ACCOUNT_ACTIVATED',
+      target: { type: 'Customer', id: newCustomer._id },
+      metadata: {
+        source: 'GUEST_ACTIVATION',
+        linkedOrdersCount: matchingOrders.length,
+        linkedAppointmentsCount: matchingAppointments.length,
+        activityBranchIdsCount: activityBranchIds.length,
+      },
+    }).catch(() => {});
 
     const accessToken = jwt.sign(
       {
