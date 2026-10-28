@@ -11,6 +11,7 @@
     "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
     "seed:vouchers": "babel-node src/seeds/voucherSeed.js",
     "seed:uat": "babel-node src/seeds/uatSeed.js",
+    "seed:uat-prod": "babel-node src/seeds/productionUatSeed.js",
     "inspect:data": "babel-node scripts/inspectData.js",
     "migrate:inventory-v7": "babel-node scripts/migrateInventoryV7.js",
     "test": "jest --runInBand"
