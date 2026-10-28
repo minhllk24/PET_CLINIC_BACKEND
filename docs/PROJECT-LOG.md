@@ -40,7 +40,37 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 
 ## LOG ENTRIES
 
-### 📅 2026-10-28 | Người thực hiện: An Thai & Minh Le Ly
+### 📅 2026-10-28 (Phiên 2) | Người thực hiện: An Thai & Minh Le Ly
+
+**Task:** Triển khai Hoàn tất Kết nối API Customer (Angular 22) Cho Linh, Bàn Giao Kỹ thuật & Khóa Ranh giới Backend (Scope Boundary Lock)
+
+**Nội dung:**
+1. ✅ Triển khai thực tế trên repo Frontend chính thức `DR_PETS_HOUSE_ANGULAR` (Angular 22) theo chỉ đạo đặc biệt của PM:
+   - Nâng cấp `src/app/core/customer/services/customer-http.service.ts`:
+     - Tích hợp `assertSuccess` đa hình xử lý REST V7 `{ success, data }`, Direct REST (object/array), và Legacy `{ EC, EM, DT }`. Giải quyết dứt điểm lỗi ném ngoại lệ `"Request failed"` khi Backend trả 200 OK.
+     - Auto `Idempotency-Key` Injection (crypto.randomUUID) cho mọi mutating request (`POST`/`PUT`/`PATCH`/`DELETE`).
+     - Bảo vệ phiên đăng nhập: bắt 401 phát sự kiện `petclinic:auth-expired`, mở form login tại chỗ, loại bỏ hoàn toàn việc bị chuyển hướng sang `/admin/login`.
+   - Nâng cấp đồng bộ 14 API services (`src/app/core/customer/services/api/`):
+     - `auth-api.service.ts`: Chuẩn hóa `/auth/login`, `/auth/register`, `/auth/refresh-token`, bổ sung OTP và kích hoạt tài khoản khách vãng lai (`/auth/guest-otp`, `/auth/activate-guest`).
+     - `order-api.service.ts`: Hợp nhất checkout thành `POST /orders/checkout`, hỗ trợ Member lẫn Guest (`customerId: null`, `contactSnapshot`), hủy đơn `POST /orders/:id/cancel`.
+     - `booking-api.service.ts`: Lấy chi nhánh `GET /branches?status=ACTIVE`, dịch vụ `GET /catalog/services`, báo giá `POST /appointments/quote`, đặt lịch `POST /appointments`, hủy lịch `POST /appointments/:id/cancel`.
+     - `pet-api.service.ts`: Quản lý thú cưng qua `GET/POST /customers/:customerId/pets`, ánh xạ ảnh đại diện từ `photoUrl` (CDN) và `pet_images`.
+     - `user-api.service.ts`: Lấy và cập nhật hồ sơ khách hàng `GET/PUT /customers/:id`.
+     - `loyalty-api.service.ts`: Kiểm tra voucher qua `POST /vouchers/validate`.
+     - `cart-api.service.ts`, `product-api.service.ts`, `service-pricing-api.service.ts`, `search-api.service.ts`, `rescue-api.service.ts`, `content-api.service.ts`, `notification-api.service.ts`, `contact-api.service.ts`: Chuẩn hóa normalizer và an toàn dữ liệu mảng.
+2. ✅ Kiểm tra chất lượng & Biên dịch:
+   - Frontend Angular: `npm run build` $\rightarrow$ **Application bundle generation complete, 0 Lỗi (Exit code 0)**.
+   - Backend MongoDB: `npm test` $\rightarrow$ **20/20 Test suites passed, 282/282 tests passed (100% PASS)**.
+3. ✅ Bàn giao Git:
+   - Frontend: Commit `80ecafa`, merge vào `main` (`22327e5`, `ce404af`), push thành công lên `origin/main` và `origin/feat/customer-api-v7-integration`.
+   - Backend: Commit tài liệu kỹ thuật `KE-HOACH-NOI-API-CUSTOMER-ANGULAR-LINH.md` và `BAO-CAO-KET-NOI-API-CUSTOMER-FRONTEND-LINH.md`.
+4. 🔒 **KHÓA RANH GIỚI PHẠM VI (SCOPE BOUNDARY ENFORCEMENT):**
+   - Nhiệm vụ hỗ trợ Frontend hoàn tất 100%. Phân hệ Frontend (`DR_PETS_HOUSE_ANGULAR` và `FE/`) chính thức chuyển sang chế độ **READ-ONLY (CHỈ ĐỌC)**.
+   - Nhóm kỹ sư cam kết tiếp tục tập trung **100% vào phát triển và hoàn thiện các tính năng Backend (`BE/`)**.
+
+---
+
+### 📅 2026-10-28 (Phiên 1) | Người thực hiện: An Thai & Minh Le Ly
 
 **Task:** Task 2.8 - UAT Production Realistic Seed, Full Guest Scenarios, PM Feedback Resolution & Comprehensive Frontend Fix Guide
 
