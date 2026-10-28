@@ -1,11 +1,27 @@
 # 📋 PROJECT LOG – Dr. Pet's House (WEB-2 Backend)
 
 > **Dự án:** Dr. Pet's House – Pet Clinic Management System
-> **Repository BE:** github.com/minhllk24/PET_CLINIC_BACKEND (branch: `feat/foundation-v6`)
-> **Repository FE:** github.com/minhllk24/BE_A_PET_CLINIC-FRONTEND (branch: `build-init`)
-> **Production URL:** https://www.drpetshouse.lat/
-> **Backend Render:** https://pet-clinic-backend-a4lj.onrender.com/
+> **Repository BE (Chính thức):** https://github.com/minhllk24/PET_CLINIC_BACKEND (branch: `feat/foundation-v6`)
+> **Repository FE (Chính thức - Angular 22):** https://github.com/chungvinhhung/DR_PETS_HOUSE_ANGULAR (branch: `main`)
+> **Repository FE (Legacy - React cũ chỉ dùng tham khảo UI):** https://github.com/minhllk24/BE_A_PET_CLINIC-FRONTEND (branch: `build-init`)
+> **Production Frontend URL:** https://www.drpetshouse.lat/ (Angular App - Admin & Customer)
+> **Production Backend API:** https://pet-clinic-backend-a4lj.onrender.com/api/v1
 > **Cập nhật bởi:** An Thai | **File này dành cho:** Project Manager (PM)
+
+---
+
+## NGUYÊN TẮC PHÂN ĐỊNH RANH GIỚI & QUY TRÌNH GIT (SCOPE BOUNDARY & WORKFLOW)
+
+1. **Ranh giới công việc (Scope Boundary):**
+   - **Backend Team (An Thai & Minh):** Tập trung **100% vào Backend** (Node.js/Express, MongoDB Atlas, Mongoose, Jest Tests, OpenAPI V7 spec trên branch `feat/foundation-v6`). **TUYỆT ĐỐI KHÔNG CAN THIỆP / CHỈNH SỬA MÃ NGUỒN FRONTEND.**
+   - **Frontend Team (Hưng & Linh):** Chịu trách nhiệm toàn diện trên repository chính thức **`DR_PETS_HOUSE_ANGULAR`** (Angular 22, branch `main`). Hưng phụ trách Admin, Linh phụ trách Customer.
+2. **Quy trình kết nối & Bàn giao Kỹ thuật (Handoff Protocol):**
+   - Backend cung cấp API Contract qua tài liệu Markdown trong thư mục `BE/docs/` (ví dụ: `BAO-CAO-HUONG-DAN-FIX-FE.md`, OpenAPI V7 YAML).
+   - Frontend độc lập cập nhật tầng Service và Adapter (`CustomerHttpService` / `assertSuccess`) để tiêu thụ API mà không làm xáo trộn mã nguồn hai bên.
+3. **Quy chuẩn Git Commit & Push:**
+   - Mọi thay đổi Backend phải chạy toàn bộ bài kiểm thử tự động `npm test` (đạt 100% PASS) trước khi push.
+   - Commit theo chuẩn Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`).
+   - Đẩy trực tiếp lên nhánh làm việc chính thức: `origin/feat/foundation-v6`.
 
 ---
 
