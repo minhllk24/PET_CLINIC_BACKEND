@@ -24,6 +24,41 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 
 ## LOG ENTRIES
 
+### 📅 2026-10-28 | Người thực hiện: An Thai & Minh Le Ly
+
+**Task:** Task 2.8 - UAT Production Realistic Seed, Full Guest Scenarios, PM Feedback Resolution & Comprehensive Frontend Fix Guide
+
+**Nội dung:**
+1. ✅ Giải quyết triệt để phản hồi của PM & Phân tích nguyên nhân gốc rễ:
+   - Ca làm việc & Nhân sự: Phân bổ 12 nhân viên chia đều cho cả 3 chi nhánh (Q1, Q7, Bình Thạnh). Thiết lập lịch trực xoay ca thực tế (Ca Sáng 08:00–14:00, Ca Chiều 14:00–20:00), mỗi nhân viên chỉ trực 1 ca/ngày và có ngày nghỉ cố định 1-2 ngày/tuần theo Luật Lao động.
+   - Dọn dẹp dữ liệu rác: Tự động xóa sạch 100% sản phẩm và ca trực test cũ (`SP-000555`, `SP-000888`, `SP-000999`, tên chứa `test`, `thử nghiệm`).
+   - Chuẩn hóa 4 Danh mục và 10 Sản phẩm thực tế có ảnh Unsplash CDN chất lượng cao (1200x1200px), đầy đủ biến thể, giá bán, giá vốn và phân bổ tồn kho đa chi nhánh (`InventoryStock`).
+2. ✅ Nâng cấp Schema `src/modules/customer/models/Pet.js`:
+   - Hoàn thiện schema Mongoose đầy đủ (`customerId`, `name`, `species`, `breed`, `gender`, `ageYears`, `weightKg`, `healthStatus`, `medicalNotes`, `photoUrl`, `isArchived`).
+3. ✅ Xây dựng kịch bản seed toàn diện `src/seeds/productionUatSeed.js` (1.090 lines) bao phủ 100% tất cả các trường hợp dữ liệu nghiệp vụ:
+   - **Member Profile (Có tài khoản):** Khách hàng Lê Văn Cường, 2 thú cưng (Buddy, Luna), 4 đơn hàng đa trạng thái (`COMPLETED`, `SHIPPED`, `PROCESSING`, `CANCELLED`), 1 lịch hẹn kèm Bệnh án điện tử `ServiceRecord` đã được Bác sĩ ký duyệt (`FINALIZED`).
+   - **Khách vãng lai mua hàng (`Guest Order - NO ACCOUNT`):** Đơn `ORD-GUEST-HOT-01`, thanh toán COD, `customerId: null`, gắn kết qua `guestContactId`, snapshot thông tin đầy đủ.
+   - **Khách vãng lai đặt lịch khám (`Guest Booking - NO ACCOUNT`):** Lịch hẹn `APT-GUEST-CLINIC-01`, `customerId: null`, cọc 30% tại quầy (`PAY_AT_STORE`), lưu `contactSnapshot` và `petSnapshot` (Mèo Miu Miu).
+   - **Khách vãng lai chờ kích hoạt tài khoản (`PENDING_ACTIVATION`):** Mã mời `INVITE-ACT-778899` để kiểm thử luồng kích hoạt.
+   - **Voucher khuyến mãi:** Tích hợp 9 mã voucher đa dạng bao phủ toàn bộ use-case.
+4. ✅ Biên soạn 2 tài liệu kỹ thuật hoàn chỉnh:
+   - `docs/BAO-CAO-TRIEN-KHAI-BACKEND-MONGO.md`: Báo cáo kỹ thuật chi tiết BE/Mongo, phân tích nguyên nhân gốc rễ, kiến trúc đa chi nhánh, toàn bộ data scenarios và hướng dẫn mở IP whitelist nạp dữ liệu lên Atlas qua `npm run seed:uat-prod`.
+   - `docs/BAO-CAO-HUONG-DAN-FIX-FE.md`: Báo cáo hướng dẫn kỹ thuật chi tiết cho team FE (Hưng & Linh) giải quyết lỗi ảnh `[object Object]`, lặp nhãn role, drop-down chi nhánh ca làm, xử lý đơn/lịch hẹn khách vãng lai, và Axios Interceptor Silent Refresh Token 15 phút.
+5. ✅ Kiểm thử Tự động Hồi quy:
+   - Chạy toàn bộ test suites: **20/20 suites passed, 282/282 tests passed (100% PASS)**.
+
+**Files thay đổi:**
+- `src/modules/customer/models/Pet.js` – Hoàn thiện schema Pet
+- `src/seeds/productionUatSeed.js` – Script nạp dữ liệu thực tế UAT đa chi nhánh & guest cases
+- `package.json` – Bổ sung script `seed:uat-prod`
+- `docs/BAO-CAO-TRIEN-KHAI-BACKEND-MONGO.md` – Báo cáo kỹ thuật triển khai BE và MongoDB Atlas
+- `docs/BAO-CAO-HUONG-DAN-FIX-FE.md` – Báo cáo hướng dẫn kỹ thuật hoàn thiện Frontend
+- `docs/PROJECT-LOG.md` – Cập nhật log tiến độ dự án 2026-10-28
+
+**Trạng thái test:** 282/282 PASS (20 suites, 100%)
+
+**Ghi chú cho FE:** Đọc kỹ `docs/BAO-CAO-HUONG-DAN-FIX-FE.md` để triển khai code snippets cho ảnh sản phẩm, role hiển thị, drop-down chi nhánh, badge khách vãng lai và Axios refresh token.
+
 ---
 
 ### 📅 2026-10-26 | Người thực hiện: An Thai & Minh Le Ly
