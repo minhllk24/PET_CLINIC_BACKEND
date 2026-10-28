@@ -3,16 +3,33 @@ import Order from './models/Order';
 import OrderReturn from './models/OrderReturn';
 import OrderRefund from './models/OrderRefund';
 import Payment from '../payment/models/Payment';
+import Product from '../catalog/models/Product';
 import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
+import { receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
-export const formatOrderReturn = (ret) => {
+export const formatOrderReturn = (ret, parentOrder = null) => {
   const obj = typeof ret.toObject === 'function' ? ret.toObject() : ret;
+  let allowedActions = [];
+  if (obj.status === 'REQUESTED') {
+    allowedActions = ['PROCESS', 'REJECT', 'CANCEL'];
+  } else if (obj.status === 'PROCESSING') {
+    allowedActions = ['RECEIVE', 'REJECT', 'CANCEL'];
+  } else if (obj.status === 'RECEIVED') {
+    allowedActions = ['APPROVE', 'REJECT'];
+  } else if (obj.status === 'APPROVED') {
+    allowedActions = ['REFUND'];
+  }
+
   const result = {
     id: obj._id.toString(),
+    code: obj.code || `RET-${obj._id.toString().slice(-8).toUpperCase()}`,
     orderId: obj.orderId.toString(),
+    orderCode: obj.orderCode || parentOrder?.code || null,
+    fulfillmentBranchId: obj.fulfillmentBranchId?.toString() || parentOrder?.fulfillmentBranchId?.toString() || null,
     status: obj.status,
     items: (obj.items || []).map((item) => ({
       orderItemId: item.orderItemId.toString(),
@@ -20,15 +37,20 @@ export const formatOrderReturn = (ret) => {
       orderedQty: item.orderedQty,
       alreadyReturnedQty: item.alreadyReturnedQty || 0,
       requestedQty: item.requestedQty,
+      receivedQty: item.receivedQty !== undefined ? item.receivedQty : item.requestedQty,
+      quality: item.quality || 'RESELLABLE',
       refundAmount: item.refundAmount
     })),
     reason: obj.reason,
+    evidenceUrls: obj.evidenceUrls || [],
     refundBreakdown: {
-      merchandiseNet: obj.refundBreakdown.merchandiseNet,
+      merchandiseNet: obj.refundBreakdown?.merchandiseNet || 0,
       shippingRefunded: 0,
-      total: obj.refundBreakdown.total
+      total: obj.refundBreakdown?.total || 0
     },
     refundId: obj.refundId ? obj.refundId.toString() : null,
+    allowedActions,
+    createdAt: obj.createdAt ? new Date(obj.createdAt).toISOString() : new Date().toISOString(),
     history: (obj.history || []).map((h) => ({
       status: h.status,
       at: h.at ? new Date(h.at).toISOString() : new Date().toISOString(),
@@ -38,6 +60,7 @@ export const formatOrderReturn = (ret) => {
   };
   return Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
 };
+
 
 export const formatOrderRefund = (refund) => {
   const obj = typeof refund.toObject === 'function' ? refund.toObject() : refund;
@@ -188,24 +211,69 @@ export const createReturn = async (data, actor, guestToken) => {
 };
 
 export const listReturns = async (query = {}, actor) => {
+  if (!actor) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to list returns');
+  }
+
   const filter = {};
   if (query.status) filter.status = query.status;
   if (query.orderId) filter.orderId = query.orderId;
 
-  if (actor && actor.systemRole === 'CUSTOMER') {
+  if (actor.systemRole === 'CUSTOMER') {
     filter.customerId = actor.id;
+  } else if (actor.systemRole === 'MANAGER') {
+    const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+    if (query.branchId) {
+      if (mgrBranches.length > 0 && !mgrBranches.includes(query.branchId)) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Branch not in assigned scope');
+      }
+      const branchOrders = await Order.find({ fulfillmentBranchId: query.branchId }).select('_id');
+      filter.orderId = { $in: branchOrders.map((o) => o._id) };
+    } else {
+      const branchOrders = await Order.find({ fulfillmentBranchId: { $in: mgrBranches } }).select('_id');
+      filter.orderId = { $in: branchOrders.map((o) => o._id) };
+    }
+  } else if (actor.systemRole === 'STAFF') {
+    const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+    const branchOrders = await Order.find({ fulfillmentBranchId: { $in: staffBranches } }).select('_id');
+    filter.orderId = { $in: branchOrders.map((o) => o._id) };
+  } else if (query.branchId) {
+    const branchOrders = await Order.find({ fulfillmentBranchId: query.branchId }).select('_id');
+    filter.orderId = { $in: branchOrders.map((o) => o._id) };
+  }
+
+  if (query.cursor && mongoose.Types.ObjectId.isValid(query.cursor)) {
+    filter._id = { $lt: new mongoose.Types.ObjectId(query.cursor) };
   }
 
   const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
-  const [returns, totalCount] = await Promise.all([
-    OrderReturn.find(filter).sort({ createdAt: -1 }).limit(limit),
-    OrderReturn.countDocuments(filter)
+  const [returns, totalCount, pendingCount] = await Promise.all([
+    OrderReturn.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1),
+    OrderReturn.countDocuments(filter),
+    OrderReturn.countDocuments({ ...filter, status: 'REQUESTED' })
   ]);
 
+  let nextCursor = null;
+  if (returns.length > limit) {
+    returns.pop();
+    const lastItem = returns[returns.length - 1];
+    nextCursor = lastItem._id.toString();
+  }
+
+  const orderIds = returns.map((r) => r.orderId);
+  const parentOrders = await Order.find({ _id: { $in: orderIds } }).select('code fulfillmentBranchId');
+  const parentOrderMap = new Map();
+  for (const po of parentOrders) {
+    parentOrderMap.set(po._id.toString(), po);
+  }
+
   return {
-    items: returns.map(formatOrderReturn),
+    items: returns.map((r) => formatOrderReturn(r, parentOrderMap.get(r.orderId.toString()))),
     totalCount,
-    nextCursor: null
+    nextCursor,
+    summary: {
+      pendingCount
+    }
   };
 };
 
@@ -213,11 +281,37 @@ export const getReturnById = async (returnId, actor) => {
   const ret = await OrderReturn.findById(returnId);
   if (!ret) throw new AppError(404, 'Not Found', 'ORDER_RETURN_NOT_FOUND', 'Order return not found');
 
-  if (actor && actor.systemRole === 'CUSTOMER' && ret.customerId && ret.customerId.toString() !== actor.id) {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You do not own this return');
+  if (!actor) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view return details');
   }
 
-  return ret;
+  const parentOrder = await Order.findById(ret.orderId);
+
+  if (actor.systemRole === 'ADMIN') {
+    return { returnDoc: ret, parentOrder };
+  }
+
+  if (actor.systemRole === 'CUSTOMER') {
+    if (ret.customerId && ret.customerId.toString() !== actor.id) {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You do not own this return');
+    }
+  } else if (actor.systemRole === 'MANAGER') {
+    if (parentOrder?.fulfillmentBranchId && (actor.assignedBranchIds || actor.authorizedBranchIds)) {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+      if (mgrBranches.length === 0 || !mgrBranches.includes(parentOrder.fulfillmentBranchId?.toString())) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Return belongs to an unassigned branch');
+      }
+    }
+  } else if (actor.systemRole === 'STAFF') {
+    if (parentOrder?.fulfillmentBranchId && (actor.assignedBranchIds || actor.authorizedBranchIds)) {
+      const staffBranches = (actor.authorizedBranchIds || actor.assignedBranchIds || []).map((b) => b.toString());
+      if (staffBranches.length === 0 || !staffBranches.includes(parentOrder.fulfillmentBranchId?.toString())) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Return belongs to an unauthorized branch');
+      }
+    }
+  }
+
+  return { returnDoc: ret, parentOrder };
 };
 
 export const processReturn = async (returnId, actor) => {
@@ -238,7 +332,7 @@ export const processReturn = async (returnId, actor) => {
   return ret;
 };
 
-export const receiveReturn = async (returnId, actor) => {
+export const receiveReturn = async (returnId, receiveData = {}, actor) => {
   const ret = await OrderReturn.findById(returnId);
   if (!ret) throw new AppError(404, 'Not Found', 'ORDER_RETURN_NOT_FOUND', 'Order return not found');
 
@@ -246,11 +340,22 @@ export const receiveReturn = async (returnId, actor) => {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot receive return in ${ret.status} state`);
   }
 
+  if (Array.isArray(receiveData.items) && receiveData.items.length > 0) {
+    for (const rItem of receiveData.items) {
+      const target = ret.items.find((i) => i.orderItemId.toString() === rItem.orderItemId?.toString());
+      if (target) {
+        if (typeof rItem.receivedQty === 'number') target.receivedQty = rItem.receivedQty;
+        if (rItem.quality) target.quality = rItem.quality;
+      }
+    }
+  }
+
   ret.status = 'RECEIVED';
   ret.history.push({
     status: 'RECEIVED',
     at: new Date(),
-    actorId: actor ? (actor.id || actor._id) : undefined
+    actorId: actor ? (actor.id || actor._id) : undefined,
+    note: receiveData.note || 'Đã kiểm hàng tại kho'
   });
   await ret.save();
   return ret;
@@ -276,17 +381,55 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
     const order = await Order.findById(ret.orderId).session(session);
     if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
 
-    // Update Order item return quantities
-    for (const retItem of ret.items) {
-      const lineItem = order.items.find((i) => i.orderItemId.toString() === retItem.orderItemId.toString());
-      if (lineItem) {
-        lineItem.returnReservedQty = Math.max(0, (lineItem.returnReservedQty || 0) - retItem.requestedQty);
-        lineItem.returnedQty = (lineItem.returnedQty || 0) + retItem.requestedQty;
-        lineItem.refundedNet = (lineItem.refundedNet || 0) + retItem.refundAmount;
+    if (actor.systemRole === 'MANAGER' && order.fulfillmentBranchId && (actor.assignedBranchIds || actor.authorizedBranchIds)) {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+      if (mgrBranches.length === 0 || !mgrBranches.includes(order.fulfillmentBranchId?.toString())) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Cannot approve return for an unassigned branch');
       }
     }
 
-    // Safeguard: Total cumulative refund cannot exceed net merchandise amount paid
+    const movementsToRestock = [];
+    let calculatedRefundTotal = 0;
+
+    for (const retItem of ret.items) {
+      const lineItem = order.items.find((i) => i.orderItemId.toString() === retItem.orderItemId.toString());
+      const acceptedQty = typeof retItem.receivedQty === 'number' ? retItem.receivedQty : retItem.requestedQty;
+      const itemRefund = retItem.refundAmount ? Math.round((retItem.refundAmount / (retItem.requestedQty || 1)) * acceptedQty) : 0;
+      calculatedRefundTotal += itemRefund;
+
+      if (lineItem) {
+        lineItem.returnReservedQty = Math.max(0, (lineItem.returnReservedQty || 0) - retItem.requestedQty);
+        lineItem.returnedQty = (lineItem.returnedQty || 0) + acceptedQty;
+        lineItem.refundedNet = (lineItem.refundedNet || 0) + itemRefund;
+
+        if (retItem.quality === 'RESELLABLE' && acceptedQty > 0) {
+          const product = await Product.findById(lineItem.productId).session(session);
+          if (product) {
+            const variant = (product.variants || []).find((v) => v._id.toString() === lineItem.variantId?.toString());
+            if (variant && variant.inventoryItemId) {
+              movementsToRestock.push({
+                inventoryItemId: variant.inventoryItemId,
+                quantity: acceptedQty
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (movementsToRestock.length > 0) {
+      await receiveForOrder({
+        session,
+        orderId: order._id,
+        branchId: order.fulfillmentBranchId,
+        movements: movementsToRestock,
+        actorId: actor ? (actor.id || actor._id) : SYSTEM_ACTOR_ID,
+        reason: `Restock approved return ${ret._id}`
+      });
+    }
+
+    const finalRefund = calculatedRefundTotal > 0 ? calculatedRefundTotal : ret.refundBreakdown.total;
+
     const totalOrderMerchandiseNetPaid = (order.items || []).reduce(
       (sum, item) => sum + (Number(item.lineNet) || 0),
       0
@@ -310,7 +453,7 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
       }
     }
 
-    if (totalAlreadyRefunded + ret.refundBreakdown.total > totalOrderMerchandiseNetPaid) {
+    if (totalAlreadyRefunded + finalRefund > totalOrderMerchandiseNetPaid) {
       throw new AppError(
         422,
         'Unprocessable Entity',
@@ -321,13 +464,12 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
 
     await order.save({ session });
 
-    // Create OrderRefund document in PENDING state
     const refund = new OrderRefund({
       code: `REF-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`,
       cause: 'RETURN',
       orderReturnId: ret._id,
       orderId: order._id,
-      amount: ret.refundBreakdown.total,
+      amount: finalRefund,
       status: 'PENDING',
       history: [{
         status: 'PENDING',
@@ -340,6 +482,8 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
 
     ret.status = 'APPROVED';
     ret.refundId = refund._id;
+    ret.refundBreakdown.total = finalRefund;
+    ret.refundBreakdown.merchandiseNet = finalRefund;
     ret.history.push({
       status: 'APPROVED',
       at: new Date(),
@@ -347,6 +491,7 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
       note: approveData.note || ''
     });
     await ret.save({ session });
+
 
     await session.commitTransaction();
     session.endSession();

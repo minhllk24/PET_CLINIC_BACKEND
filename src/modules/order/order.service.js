@@ -335,12 +335,12 @@ export const formatOrder = (order) => {
       actorId: h.actorId ? h.actorId.toString() : undefined
     })),
     shippingAddress: obj.shippingAddress ? {
-      recipientName: obj.shippingAddress.recipientName || obj.shippingAddress.fullName || obj.contactSnapshot?.fullName || 'Khách hàng',
-      phone: obj.shippingAddress.phone || obj.contactSnapshot?.phone || '0905555555',
-      line1: obj.shippingAddress.line1 || obj.shippingAddress.addressDetail || '123 Nguyễn Thị Minh Khai',
-      ward: obj.shippingAddress.ward || 'Bến Thành',
-      district: obj.shippingAddress.district || 'Quận 1',
-      city: obj.shippingAddress.city || obj.shippingAddress.province || 'Hồ Chí Minh'
+      recipientName: obj.shippingAddress.recipientName || obj.shippingAddress.fullName || obj.contactSnapshot?.fullName || null,
+      phone: obj.shippingAddress.phone || obj.contactSnapshot?.phone || null,
+      line1: obj.shippingAddress.line1 || obj.shippingAddress.addressDetail || obj.shippingAddress.detail || null,
+      ward: obj.shippingAddress.ward || null,
+      district: obj.shippingAddress.district || null,
+      city: obj.shippingAddress.city || obj.shippingAddress.province || null
     } : undefined,
     contactSnapshot: obj.contactSnapshot || {},
     customer: obj.customerId ? {
@@ -372,24 +372,35 @@ export const getOrderById = async (orderId, actor, guestToken) => {
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
 
   // Verify ownership / access permission
+  if (!actor && !guestToken) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view order details');
+  }
+
   if (actor) {
+    if (actor.systemRole === 'ADMIN') {
+      return order;
+    }
     if (actor.systemRole === 'CUSTOMER') {
       if (!order.customerId || order.customerId.toString() !== actor.id) {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You do not own this order');
       }
     } else if (actor.systemRole === 'STAFF') {
       const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
-      if (staffBranches.length > 0 && !staffBranches.includes(order.fulfillmentBranchId.toString())) {
-        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Order belongs to a different branch');
+      if (staffBranches.length === 0 || !staffBranches.includes(order.fulfillmentBranchId?.toString())) {
+        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Order belongs to an unauthorized branch');
       }
     } else if (actor.systemRole === 'MANAGER') {
-      const mgrBranches = (actor.assignedBranchIds || []).map((b) => b.toString());
-      if (mgrBranches.length > 0 && !mgrBranches.includes(order.fulfillmentBranchId.toString())) {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+      if (mgrBranches.length === 0 || !mgrBranches.includes(order.fulfillmentBranchId?.toString())) {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Order belongs to an unassigned branch');
       }
     }
   } else if (guestToken) {
-    // Guest verification via contactSnapshot phone or token
+    const isMatchingContact = (guestToken.guestContactId && order.guestContactId && order.guestContactId.toString() === guestToken.guestContactId)
+      || (guestToken.phone && order.contactSnapshot && order.contactSnapshot.phone === guestToken.phone);
+    if (!isMatchingContact) {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Guest token does not match this order');
+    }
   }
 
   return order;
@@ -427,14 +438,10 @@ export const listOrders = async (query = {}, actor) => {
     filter.customerId = actor.id;
   } else if (actor.systemRole === 'STAFF') {
     const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
-    if (staffBranches.length > 0) {
-      filter.fulfillmentBranchId = { $in: staffBranches };
-    }
+    filter.fulfillmentBranchId = { $in: staffBranches };
   } else if (actor.systemRole === 'MANAGER') {
-    const mgrBranches = (actor.assignedBranchIds || []).map((b) => b.toString());
-    if (mgrBranches.length > 0) {
-      filter.fulfillmentBranchId = { $in: mgrBranches };
-    }
+    const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+    filter.fulfillmentBranchId = { $in: mgrBranches };
   }
 
   if (query.cursor && mongoose.Types.ObjectId.isValid(query.cursor)) {
@@ -449,8 +456,9 @@ export const listOrders = async (query = {}, actor) => {
 
   let nextCursor = null;
   if (orders.length > limit) {
-    const nextItem = orders.pop();
-    nextCursor = nextItem._id.toString();
+    orders.pop();
+    const lastItem = orders[orders.length - 1];
+    nextCursor = lastItem._id.toString();
   }
 
   return {
@@ -459,6 +467,7 @@ export const listOrders = async (query = {}, actor) => {
     nextCursor
   };
 };
+
 
 export const confirmOrder = async (orderId, actor) => {
   const order = await Order.findById(orderId);
@@ -760,3 +769,364 @@ export const getReturnQuote = async (orderId, requestedItems = [], actor, guestT
     }
   };
 };
+
+export const quoteAdminOrder = async (data, actor) => {
+  const { customerId, items = [], branchId, voucherCode } = data;
+
+  if (!items || items.length === 0) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Order items must not be empty');
+  }
+
+  let fulfillmentBranchId = branchId;
+  if (!fulfillmentBranchId) {
+    const setting = await SystemSetting.findOne({ key: 'commerce' });
+    const priority = (setting && setting.value && setting.value.fulfillmentBranchPriority) || [];
+    if (priority.length > 0) {
+      fulfillmentBranchId = priority[0];
+    } else {
+      const activeBranch = await Branch.findOne({ status: 'ACTIVE' });
+      if (!activeBranch) throw new AppError(400, 'Bad Request', 'NO_ACTIVE_BRANCH', 'No active branch available');
+      fulfillmentBranchId = activeBranch._id;
+    }
+  }
+
+  if (actor && actor.systemRole !== 'ADMIN') {
+    const allowedBranches = ((actor.systemRole === 'MANAGER' ? actor.assignedBranchIds : actor.authorizedBranchIds) || []).map((b) => b.toString());
+    if (allowedBranches.length > 0 && !allowedBranches.includes(fulfillmentBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You are not authorized for this branch');
+    }
+  }
+
+  let merchandiseSubtotal = 0;
+  const enrichedItems = [];
+  const blockingItems = [];
+
+  for (const it of items) {
+    const product = await Product.findById(it.productId);
+    if (!product || product.status !== 'ACTIVE') {
+      throw new AppError(404, 'Not Found', 'PRODUCT_NOT_FOUND', `Product not found or inactive: ${it.productId}`);
+    }
+    const variant = (product.variants || []).find((v) => v._id.toString() === it.variantId?.toString() || v.sku === it.sku);
+    if (!variant || variant.status !== 'ACTIVE') {
+      throw new AppError(404, 'Not Found', 'VARIANT_NOT_FOUND', `Variant not found or inactive: ${it.variantId || it.sku}`);
+    }
+
+    const unitPrice = variant.price;
+    const finalPrice = variant.finalPrice || variant.price;
+    const lineSubtotal = unitPrice * it.quantity;
+    const lineNet = finalPrice * it.quantity;
+    merchandiseSubtotal += lineNet;
+
+    const stock = await InventoryStock.findOne({ branchId: fulfillmentBranchId, inventoryItemId: variant.inventoryItemId });
+    const availableQty = stock ? stock.quantity : 0;
+    if (availableQty < it.quantity) {
+      blockingItems.push({
+        sku: variant.sku,
+        name: `${product.name} (${variant.label})`,
+        requestedQuantity: it.quantity,
+        availableQuantity: availableQty
+      });
+    }
+
+    enrichedItems.push({
+      productId: product._id,
+      variantId: variant._id,
+      inventoryItemId: variant.inventoryItemId,
+      sku: variant.sku,
+      nameSnapshot: `${product.name} (${variant.label})`,
+      unitPrice,
+      quantity: it.quantity,
+      lineSubtotal,
+      lineNet
+    });
+  }
+
+  let voucherDiscount = 0;
+  let appliedVoucher = null;
+  if (voucherCode) {
+    const vRes = await validateVoucherEligibility({
+      code: voucherCode,
+      targetType: 'ORDER',
+      orderAmount: merchandiseSubtotal,
+      customerId: customerId || null,
+      items: enrichedItems.map((i) => ({ productId: i.productId, lineNet: i.lineNet }))
+    });
+    if (vRes.eligible) {
+      appliedVoucher = vRes.voucher;
+      voucherDiscount = calculateDiscount(appliedVoucher, merchandiseSubtotal);
+    }
+  }
+
+  const setting = await SystemSetting.findOne({ key: 'commerce' });
+  const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
+  let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
+  if (appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING')) {
+    voucherDiscount = shippingFee;
+    shippingFee = 0;
+  }
+  const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
+
+  return {
+    eligible: blockingItems.length === 0,
+    fulfillmentBranchId: fulfillmentBranchId.toString(),
+    items: enrichedItems.map((i) => ({
+      sku: i.sku,
+      name: i.nameSnapshot,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      lineNet: i.lineNet
+    })),
+    pricing: {
+      merchandiseSubtotal,
+      voucherDiscount,
+      shippingFee,
+      totalAmount
+    },
+    availability: {
+      canFulfillEntireCart: blockingItems.length === 0,
+      blockingItems
+    },
+    quoteExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  };
+};
+
+export const createAdminOrder = async (data, actor) => {
+  const {
+    customerId,
+    guestContact,
+    items = [],
+    shippingAddress,
+    paymentMethod = 'COD',
+    voucherCode,
+    branchId,
+    note
+  } = data;
+
+  if (!items || items.length === 0) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Order items must not be empty');
+  }
+
+  let finalCustomerId = customerId || null;
+  let finalGuestContactId = null;
+  let contactSnapshot = { fullName: '', phone: '', email: '' };
+  let guestActivationStatus = undefined;
+
+  if (finalCustomerId) {
+    const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+    const cust = await CustomerModel.findById(finalCustomerId);
+    if (!cust) throw new AppError(404, 'Not Found', 'CUSTOMER_NOT_FOUND', 'Customer not found');
+    contactSnapshot = {
+      fullName: cust.fullName || cust.name || 'Thành viên',
+      phone: cust.phone || '',
+      email: cust.email || ''
+    };
+  } else if (guestContact && guestContact.phone) {
+    let gContact = await GuestContact.findOne({ phone: guestContact.phone });
+    if (!gContact) {
+      gContact = await GuestContact.create({
+        fullName: guestContact.fullName || 'Khách vãng lai',
+        phone: guestContact.phone,
+        email: guestContact.email || null,
+        activationStatus: 'PENDING_ACTIVATION'
+      });
+    }
+    finalGuestContactId = gContact._id;
+    guestActivationStatus = gContact.activationStatus;
+    contactSnapshot = {
+      fullName: gContact.fullName,
+      phone: gContact.phone,
+      email: gContact.email
+    };
+  } else {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Either customerId or guestContact with phone is required');
+  }
+
+  let fulfillmentBranchId = branchId;
+  if (!fulfillmentBranchId) {
+    const setting = await SystemSetting.findOne({ key: 'commerce' });
+    const priority = (setting && setting.value && setting.value.fulfillmentBranchPriority) || [];
+    fulfillmentBranchId = priority.length > 0 ? priority[0] : (await Branch.findOne({ status: 'ACTIVE' }))._id;
+  }
+
+  if (actor && actor.systemRole !== 'ADMIN') {
+    const allowedBranches = ((actor.systemRole === 'MANAGER' ? actor.assignedBranchIds : actor.authorizedBranchIds) || []).map((b) => b.toString());
+    if (allowedBranches.length > 0 && !allowedBranches.includes(fulfillmentBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You are not authorized for this branch');
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    let merchandiseSubtotal = 0;
+    const orderItems = [];
+    const movements = [];
+
+    for (const it of items) {
+      const product = await Product.findById(it.productId).session(session);
+      if (!product || product.status !== 'ACTIVE') {
+        throw new AppError(404, 'Not Found', 'PRODUCT_NOT_FOUND', `Product not found: ${it.productId}`);
+      }
+      const variant = (product.variants || []).find((v) => v._id.toString() === it.variantId?.toString() || v.sku === it.sku);
+      if (!variant || variant.status !== 'ACTIVE') {
+        throw new AppError(404, 'Not Found', 'VARIANT_NOT_FOUND', `Variant not found: ${it.variantId || it.sku}`);
+      }
+
+      const unitPrice = variant.price;
+      const finalPrice = variant.finalPrice || variant.price;
+      const lineSubtotal = unitPrice * it.quantity;
+      const lineNet = finalPrice * it.quantity;
+      merchandiseSubtotal += lineNet;
+
+      orderItems.push({
+        orderItemId: new mongoose.Types.ObjectId().toString(),
+        productId: product._id,
+        variantId: variant._id,
+        nameSnapshot: `${product.name} (${variant.label})`,
+        skuSnapshot: variant.sku,
+        unitPrice,
+        quantity: it.quantity,
+        lineSubtotal,
+        lineNet,
+        allocatedDiscount: 0
+      });
+
+      movements.push({
+        inventoryItemId: variant.inventoryItemId,
+        quantity: it.quantity
+      });
+    }
+
+    const orderId = new mongoose.Types.ObjectId();
+
+    await issueForOrder({
+      session,
+      orderId,
+      branchId: fulfillmentBranchId,
+      movements,
+      actorId: actor && actor.id ? actor.id : SYSTEM_ACTOR_ID,
+      reason: 'Admin order creation'
+    });
+
+    let voucherDiscount = 0;
+    let appliedVoucher = null;
+    if (voucherCode) {
+      const vRes = await validateVoucherEligibility({
+        code: voucherCode,
+        targetType: 'ORDER',
+        orderAmount: merchandiseSubtotal,
+        customerId: finalCustomerId,
+        items: orderItems.map((i) => ({ productId: i.productId, lineNet: i.lineNet })),
+        session
+      });
+      if (vRes.eligible) {
+        appliedVoucher = vRes.voucher;
+        voucherDiscount = calculateDiscount(appliedVoucher, merchandiseSubtotal);
+        await consumeQuotaInSession({
+          voucherId: appliedVoucher._id,
+          targetType: 'ORDER',
+          targetId: orderId,
+          discountApplied: voucherDiscount,
+          session
+        });
+      }
+    }
+
+    const setting = await SystemSetting.findOne({ key: 'commerce' }).session(session);
+    const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
+    let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
+    if (appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING')) {
+      voucherDiscount = shippingFee;
+      shippingFee = 0;
+    }
+    const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
+
+    const orderCode = makeOrderCode();
+    const isPaid = paymentMethod === 'STORE_CASH' || paymentMethod === 'ONLINE_MOCK';
+
+    const [paymentDoc] = await Payment.create(
+      [
+        {
+          targetType: 'ORDER',
+          targetId: orderId,
+          amount: totalAmount,
+          method: paymentMethod,
+          status: isPaid ? 'PAID' : 'PENDING',
+          paidAt: isPaid ? new Date() : null,
+          metadata: { createdByActorId: actor?.id, createdByRole: actor?.systemRole }
+        }
+      ],
+      { session }
+    );
+
+    const [createdOrder] = await Order.create(
+      [
+        {
+          _id: orderId,
+          code: orderCode,
+          customerId: finalCustomerId,
+          guestContactId: finalGuestContactId,
+          fulfillmentBranchId,
+          status: isPaid ? 'CONFIRMED' : 'PENDING',
+          paymentMethod,
+          payment: {
+            paymentId: paymentDoc._id,
+            status: paymentDoc.status,
+            method: paymentMethod
+          },
+          pricing: {
+            merchandiseSubtotal,
+            voucherDiscount,
+            shippingFee,
+            totalAmount
+          },
+          shippingAddress: shippingAddress ? {
+            recipientName: shippingAddress.recipientName || shippingAddress.fullName || contactSnapshot.fullName,
+            phone: shippingAddress.phone || contactSnapshot.phone,
+            line1: shippingAddress.line1 || shippingAddress.detail || '',
+            ward: shippingAddress.ward || '',
+            district: shippingAddress.district || '',
+            city: shippingAddress.city || shippingAddress.province || 'Hồ Chí Minh'
+          } : undefined,
+          contactSnapshot,
+          items: orderItems,
+          voucher: appliedVoucher ? {
+            voucherId: appliedVoucher._id,
+            code: appliedVoucher.code,
+            discountAmount: voucherDiscount
+          } : undefined,
+          note: note || '',
+          statusHistory: [
+            {
+              status: isPaid ? 'CONFIRMED' : 'PENDING',
+              at: new Date(),
+              actorId: actor?.id
+            }
+          ]
+        }
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      order: formatOrder(createdOrder),
+      payment: {
+        id: paymentDoc._id.toString(),
+        status: paymentDoc.status,
+        method: paymentMethod
+      },
+      fulfillmentBranchId: fulfillmentBranchId.toString(),
+      guestActivationStatus,
+      activationInviteStatus: finalGuestContactId ? 'QUEUED' : undefined
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+

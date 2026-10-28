@@ -20,8 +20,8 @@ export const listReturns = async (req, res, next) => {
 
 export const getReturn = async (req, res, next) => {
   try {
-    const ret = await returnService.getReturnById(req.params.id, req.actor);
-    res.json(returnService.formatOrderReturn(ret));
+    const { returnDoc, parentOrder } = await returnService.getReturnById(req.params.id, req.actor);
+    res.json(returnService.formatOrderReturn(returnDoc, parentOrder));
   } catch (error) {
     next(error);
   }
@@ -38,7 +38,7 @@ export const processReturn = async (req, res, next) => {
 
 export const receiveReturn = async (req, res, next) => {
   try {
-    const ret = await returnService.receiveReturn(req.params.id, req.actor);
+    const ret = await returnService.receiveReturn(req.params.id, req.body, req.actor);
     res.json(returnService.formatOrderReturn(ret));
   } catch (error) {
     next(error);

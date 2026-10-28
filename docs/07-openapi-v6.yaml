@@ -9870,6 +9870,10 @@ components:
           type: integer
         requestedQty:
           type: integer
+        receivedQty:
+          type: integer
+        quality:
+          type: string
         refundAmount:
           $ref: '#/components/schemas/Money'
       additionalProperties: false
@@ -9882,8 +9886,18 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/ObjectId'
+        code:
+          type: string
         orderId:
           $ref: '#/components/schemas/ObjectId'
+        orderCode:
+          type:
+          - string
+          - 'null'
+        fulfillmentBranchId:
+          type:
+          - string
+          - 'null'
         status:
           $ref: '#/components/schemas/OrderReturnStatus'
         items:
@@ -9891,6 +9905,16 @@ components:
           items:
             $ref: '#/components/schemas/OrderReturnItem'
         reason:
+          type: string
+        evidenceUrls:
+          type: array
+          items:
+            type: string
+        allowedActions:
+          type: array
+          items:
+            type: string
+        createdAt:
           type: string
         refundBreakdown:
           $ref: '#/components/schemas/RefundBreakdown'
@@ -9920,6 +9944,10 @@ components:
           type:
           - string
           - 'null'
+        totalCount:
+          type: integer
+        summary:
+          type: object
       additionalProperties: false
       required:
       - items

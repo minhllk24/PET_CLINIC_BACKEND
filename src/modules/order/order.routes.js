@@ -42,4 +42,13 @@ router.patch('/:id/customer-cancel', optionalAuth, idempotency('ordersCustomerCa
 router.get('/:id/returnable-items', optionalAuth, orderController.getReturnableItems);
 router.post('/:id/return-quote', optionalAuth, orderController.getReturnQuote);
 
+// Admin Order Creation (Quote & Commit)
+export const adminOrderRouter = express.Router();
+adminOrderRouter.post('/quote', orderOperators, orderController.quoteAdminOrder);
+adminOrderRouter.post('/', orderOperators, idempotency('adminCreateOrder', { required: false }), orderController.createAdminOrder);
+
+router.post('/admin/orders/quote', orderOperators, orderController.quoteAdminOrder);
+router.post('/admin/orders', orderOperators, idempotency('adminCreateOrder', { required: false }), orderController.createAdminOrder);
+
 export default router;
+

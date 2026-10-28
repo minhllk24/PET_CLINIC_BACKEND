@@ -7,7 +7,9 @@ const returnItemSchema = new mongoose.Schema({
   orderedQty: { type: Number, required: true },
   alreadyReturnedQty: { type: Number, default: 0 },
   requestedQty: { type: Number, required: true, min: 1 },
-  refundAmount: { type: Number, required: true, min: 0 }
+  refundAmount: { type: Number, required: true, min: 0 },
+  receivedQty: { type: Number, default: 0 },
+  quality: { type: String, enum: ['RESELLABLE', 'DAMAGED', 'DISCARDED'], default: 'RESELLABLE' }
 }, { _id: false });
 
 const schema = new mongoose.Schema({
