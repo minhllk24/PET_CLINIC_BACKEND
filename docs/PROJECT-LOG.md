@@ -40,6 +40,34 @@ File này ghi nhận toàn bộ tiến độ phát triển Backend theo từng n
 
 ## LOG ENTRIES
 
+### 📅 2026-10-28 (Phiên 3) | Người thực hiện: An Thai & Minh Le Ly
+
+**Task:** Triển khai Feedback PM - Chuẩn hóa Only-Text Credentials Nhân sự Nội bộ, Ma trận Phân bổ 3 Chi nhánh Toàn diện & Ràng buộc Chống trùng ca (Anti-Overlap Guardrail)
+
+**Nội dung:**
+1. ✅ **Chuẩn hóa Cơ chế Only-Text Credentials cho toàn bộ nhân sự nội bộ:**
+   - Phân biệt rõ rệt hai phân hệ: Khách hàng (`CUSTOMER`) bắt buộc giữ SĐT / Email thực tế để nhận mã OTP SMS, hóa đơn điện tử; Toàn bộ nhân sự nội bộ (`ADMIN`, `MANAGER`, và `STAFF: VETERINARIAN, CARE_STAFF_GROOMER, RECEPTIONIST, NURSE`) chuyển sang định danh **Username Plain-Text thuần túy**, **HOÀN TOÀN KHÔNG YÊU CẦU SĐT / EMAIL**.
+   - Cập nhật đồng bộ `BE/src/seeds/productionUatSeed.js` và `BE/src/seeds/demoUsersSeed.js`: Loại bỏ `phone` và `email`, thiết lập cơ chế `$unset: { phone: 1, email: 1 }` khi nạp seed để dọn sạch dữ liệu cũ trong MongoDB.
+   - Thống nhất mật khẩu kiểm thử chuẩn cho toàn bộ tài khoản nội bộ: `K9#mQ$8xL!2vW*7z`.
+
+2. ✅ **Phủ toàn diện Ma trận Phân bổ tối thiểu 3 Chi nhánh & 4 Roles Đa chi nhánh:**
+   - 3 cơ sở chính: `BR-000001` (Trụ sở Quận 1), `BR-000002` (Phú Mỹ Hưng Quận 7), `BR-000003` (Bình Thạnh).
+   - 4 role nội bộ (`MANAGER`, `VET`, `CARE`, `RECEPTIONIST` và `NURSE`) đều có đầy đủ tài khoản phục vụ mọi trường hợp phân công công tác:
+     - **Single-branch (Đơn chi nhánh):** Cố định tại từng cơ sở (Q1, Q7, Bình Thạnh).
+     - **Dual-branch (Đa chi nhánh / Kép):** Luân phiên giữa 2 cơ sở (Q1-Q7, Q1-BT, Q7-BT).
+     - **Tri-branch / All (Toàn hệ thống):** Bao quát cả 3 cơ sở (General Manager, Bác sĩ trưởng hội chẩn liên viện, Trưởng nhóm Grooming/Spa toàn chuỗi).
+     - **Admin (Global):** Quản trị tối cao, phạm vi toàn cục unconstrained.
+
+3. ✅ **Thực thi Ràng buộc Chống trùng ca (Anti-Overlap Shift Constraint):**
+   - Thuật toán tạo ca trực (Shifts) đảm bảo nhân sự làm việc đa chi nhánh luân phiên ngày công tác, mỗi ngày trực tối đa 1 ca (Sáng hoặc Chiều), loại bỏ 100% rủi ro trùng khung giờ giữa các chi nhánh (`startAt < other.endAt && endAt > other.startAt` luôn sai).
+   - Bổ sung bộ kiểm thử chuyên biệt `tests/multi-branch-credentials.test.js` kiểm tra 8 ca kiểm thử: Schema User không cần SĐT/email, xác thực đăng nhập qua username, lưu trữ `authorizedBranchIds`, chặn `SHIFT_OVERLAP` (409) và chặn `BRANCH_SCOPE_ERROR` (422).
+
+4. ✅ **Kết quả kiểm thử tự động:**
+   - Bộ test mới `tests/multi-branch-credentials.test.js`: **8/8 tests PASS (100%)**.
+   - Các suite cốt lõi (`auth`, `staff`, `shift`, `voucher`): **Pass 100%**.
+
+---
+
 ### 📅 2026-10-28 (Phiên 2) | Người thực hiện: An Thai & Minh Le Ly
 
 **Task:** Triển khai Hoàn tất Kết nối API Customer (Angular 22) Cho Linh, Bàn Giao Kỹ thuật & Khóa Ranh giới Backend (Scope Boundary Lock)

@@ -8,67 +8,127 @@ import Shift from '../modules/staff/models/Shift.js';
 import Branch from '../modules/branch/models/Branch.js';
 
 const DEMO_ACCOUNTS = [
+  // 1. Quản trị tối cao (Global) - ONLY TEXT
   {
     username: 'admin',
     fullName: 'System Administrator',
     password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'ADMIN',
     accountStatus: 'ACTIVE',
+    allBranches: true,
   },
+
+  // 2. Ban Quản Lý (MANAGER) - ONLY TEXT
   {
     username: 'manager',
-    phone: '0901234567',
-    fullName: 'Quản Lý Chi Nhánh 1',
-    email: 'manager.q1@petclinic.com',
-    password: 'tR5*bY9#fP2!sM7&',
+    fullName: 'Quản Lý Chi Nhánh 1 (Q1)',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'MANAGER',
-    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
     accountStatus: 'ACTIVE',
   },
+  {
+    username: 'manager_dual',
+    fullName: 'Quản Lý Điều Phối (Q1 & Q7)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'MANAGER',
+    accountStatus: 'ACTIVE',
+    multiBranch: true,
+  },
+  {
+    username: 'manager_general',
+    fullName: 'Tổng Quản Lý Điều Hành (3 Chi Nhánh)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'MANAGER',
+    accountStatus: 'ACTIVE',
+    allBranches: true,
+  },
+
+  // 3. Bác Sĩ Thú Y (VETERINARIAN) - ONLY TEXT
   {
     username: 'doctor',
-    phone: '0903333333',
-    fullName: 'Bác Sĩ Thú Y Nguyễn Văn A',
-    email: 'vet.nguyena@petclinic.com',
-    password: 'vE8$dK2#zL6!pQ9@',
+    fullName: 'Bác Sĩ Thú Y Nguyễn Văn A (Q1)',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'STAFF',
     staffSubRole: 'VETERINARIAN',
-    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
     accountStatus: 'ACTIVE',
   },
+  {
+    username: 'vet_dual',
+    fullName: 'Bác Sĩ Luân Phiên (Q1 & Q7)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'STAFF',
+    staffSubRole: 'VETERINARIAN',
+    accountStatus: 'ACTIVE',
+    multiBranch: true,
+  },
+  {
+    username: 'vet_master',
+    fullName: 'Bác Sĩ Trưởng Hội Chẩn (3 Chi Nhánh)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'STAFF',
+    staffSubRole: 'VETERINARIAN',
+    accountStatus: 'ACTIVE',
+    allBranches: true,
+  },
+
+  // 4. Lễ Tân Tiếp Đón (RECEPTIONIST) - ONLY TEXT
   {
     username: 'receptionist',
-    phone: '0904444444',
-    fullName: 'Lễ Tân Tiếp Đón Trần Thị B',
-    email: 'reception.tranb@petclinic.com',
-    password: 'rC4!mZ7#bX9$vT2&',
+    fullName: 'Lễ Tân Tiếp Đón Trần Thị B (Q1)',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'STAFF',
     staffSubRole: 'RECEPTIONIST',
-    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
     accountStatus: 'ACTIVE',
   },
+  {
+    username: 'receptionist_dual',
+    fullName: 'Lễ Tân Điều Phối (Q7 & Bình Thạnh)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'STAFF',
+    staffSubRole: 'RECEPTIONIST',
+    accountStatus: 'ACTIVE',
+    multiBranch: true,
+  },
+
+  // 5. Grooming & Spa (CARE_STAFF_GROOMER) - ONLY TEXT
   {
     username: 'groomer',
-    phone: '0908888888',
-    fullName: 'Nhân Viên Grooming Phạm Văn D',
-    email: 'groomer.phamd@petclinic.com',
-    password: 'gM9$kL3@sY7!bN2#',
+    fullName: 'Nhân Viên Grooming Phạm Văn D (Q1)',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'STAFF',
     staffSubRole: 'CARE_STAFF_GROOMER',
-    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
     accountStatus: 'ACTIVE',
   },
   {
+    username: 'care_dual',
+    fullName: 'Chuyên Viên Spa Luân Phiên (Q1 & Bình Thạnh)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'STAFF',
+    staffSubRole: 'CARE_STAFF_GROOMER',
+    accountStatus: 'ACTIVE',
+    multiBranch: true,
+  },
+  {
+    username: 'care_master',
+    fullName: 'Master Groomer Trưởng Nhóm (3 Chi Nhánh)',
+    password: 'K9#mQ$8xL!2vW*7z',
+    systemRole: 'STAFF',
+    staffSubRole: 'CARE_STAFF_GROOMER',
+    accountStatus: 'ACTIVE',
+    allBranches: true,
+  },
+
+  // 6. Y Tá & Điều Dưỡng (NURSE) - ONLY TEXT
+  {
     username: 'nurse',
-    phone: '0909999999',
-    fullName: 'Y Tá Thú Y Hoàng Thị E',
-    email: 'nurse.hoange@petclinic.com',
-    password: 'nS4#yP8!vQ2$kM7@',
+    fullName: 'Y Tá Thú Y Hoàng Thị E (Q1)',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'STAFF',
     staffSubRole: 'NURSE',
-    assignedBranchIds: [new mongoose.Types.ObjectId('60c72b2f9b1d8b2bad000001')],
     accountStatus: 'ACTIVE',
   },
+
+  // 7. Khách Hàng (CUSTOMER) - Giữ SĐT / Email thực tế để nhận OTP & Hóa đơn
   {
     username: 'customer',
     phone: '0905555555',
@@ -105,17 +165,25 @@ export const seedDemoUsers = async () => {
     }
     logger.info('Connected to MongoDB for demo users seeding');
 
-    // Dynamically resolve default branch (BR-000001) from DB
-    const defaultBranch = (await Branch.findOne({ code: 'BR-000001' })) || (await Branch.findOne({ status: 'ACTIVE' })) || (await Branch.findOne());
-    const defaultBranchId = defaultBranch ? defaultBranch._id : new mongoose.Types.ObjectId('6ad08e4417bf41f5954234c3');
-    console.log(`[DEMO_USERS] Using Branch: ${defaultBranch?.code || 'FALLBACK'} (${defaultBranchId})`);
+    // Dynamically resolve branches from DB
+    const branches = await Branch.find({ status: 'ACTIVE' }).limit(3);
+    const branch1Id = branches[0]?._id || (await Branch.findOne({ code: 'BR-000001' }))?._id || new mongoose.Types.ObjectId('6ad08e4417bf41f5954234c3');
+    const branch2Id = branches[1]?._id || (await Branch.findOne({ code: 'BR-000002' }))?._id || branch1Id;
+    const branch3Id = branches[2]?._id || (await Branch.findOne({ code: 'BR-000003' }))?._id || branch1Id;
+    const allBranchIds = branches.length > 0 ? branches.map((b) => b._id) : [branch1Id, branch2Id, branch3Id];
+    console.log(`[DEMO_USERS] Active branches: ${allBranchIds.length} cơ sở (Q1, Q7, Bình Thạnh)`);
 
     const salt = await bcrypt.genSalt(12);
 
     for (const acc of DEMO_ACCOUNTS) {
-      const targetBranchIds = ['MANAGER', 'STAFF'].includes(acc.systemRole)
-        ? [defaultBranchId]
-        : [];
+      let targetBranchIds = [];
+      if (acc.allBranches) {
+        targetBranchIds = allBranchIds;
+      } else if (acc.multiBranch) {
+        targetBranchIds = [branch1Id, branch2Id];
+      } else if (['MANAGER', 'STAFF'].includes(acc.systemRole)) {
+        targetBranchIds = [branch1Id];
+      }
 
       let userRecord;
       const existing = await User.findOne({
@@ -223,7 +291,7 @@ export const seedDemoUsers = async () => {
 
             await Shift.create({
               staffId: profile._id,
-              branchId: branchIds[0],
+              branchId: branchIds[dayOffset % branchIds.length],
               staffSubRole: userRecord.staffSubRole,
               startAt: new Date(`${dateStr}T08:00:00.000Z`),
               endAt: new Date(`${dateStr}T17:00:00.000Z`),

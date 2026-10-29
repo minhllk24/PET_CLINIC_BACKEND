@@ -13,3 +13,6 @@ const v7Spec = path.join(__dirname, '../docs/Task-2.8-v7-confirmed/07-openapi-v7
 process.env.OPENAPI_SPEC_PATH = require('fs').existsSync(v7Spec) ? v7Spec : path.join(__dirname, '../docs/07-openapi-v6.yaml');
 process.env.RATE_LIMIT_MAX = '100'; // Standard limit for tests
 process.env.RATE_LIMIT_WINDOW_MS = '60000'; // 1 min
+
+// Increase default test timeout for heavy crypto/database integration tests
+jest.setTimeout(30000);

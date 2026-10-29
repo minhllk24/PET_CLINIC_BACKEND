@@ -142,167 +142,307 @@ export const runProductionUatSeed = async () => {
   console.log('   ✅ Đã cấu hình Commerce: Ưu tiên chi nhánh [Q1 -> Q7 -> Bình Thạnh], Freeship đơn >= 500k.');
 
   // ========================================================================
-  // BƯỚC 3: ĐỘI NGŨ NHÂN SỰ ĐA CHI NHÁNH & PHÂN CA THỰC TẾ
+  // BƯỚC 3: ĐỘI NGŨ NHÂN SỰ ĐA CHI NHÁNH & PHÂN CA THỰC TẾ (100% ONLY TEXT CREDENTIALS)
   // ========================================================================
   console.log('\n👨‍⚕️ Bước 3: Thiết lập đội ngũ nhân sự và phân ca làm việc thực tế...');
 
   const STAFF_USERS = [
-    // 1. Quản trị & Điều hành
+    // 1. Quản trị tối cao (Global Scope - Toàn hệ thống)
     {
       username: 'admin',
-      fullName: 'System Administrator',
-      email: 'admin@drpetshouse.vn',
+      fullName: 'System Administrator (Quản Trị Tối Cao)',
       systemRole: 'ADMIN',
       accountStatus: 'ACTIVE',
       assignedBranchIds: allBranchIds,
-      authorizedBranchIds: allBranchIds
+      authorizedBranchIds: allBranchIds,
+      isGlobal: true,
     },
+
+    // 2. Ban Quản Lý (MANAGER) - Phủ Đơn chi nhánh, Đa chi nhánh và Toàn hệ thống
     {
       username: 'manager_q1',
-      fullName: 'Quản Lý Nguyễn Quốc Tuấn (Q1)',
-      phone: '0901234001',
-      email: 'manager.q1@drpetshouse.vn',
+      fullName: 'Quản Lý Nguyễn Quốc Tuấn (Trụ sở Q1)',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch1._id],
-      authorizedBranchIds: [branch1._id]
+      authorizedBranchIds: [branch1._id],
     },
     {
       username: 'manager_q7',
-      fullName: 'Quản Lý Lê Thúy Hằng (Q7)',
-      phone: '0901234002',
-      email: 'manager.q7@drpetshouse.vn',
+      fullName: 'Quản Lý Lê Thúy Hằng (Phú Mỹ Hưng Q7)',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch2._id],
-      authorizedBranchIds: [branch2._id]
+      authorizedBranchIds: [branch2._id],
+    },
+    {
+      username: 'manager_bt',
+      fullName: 'Quản Lý Hoàng Đình Trọng (Bình Thạnh)',
+      systemRole: 'MANAGER',
+      accountStatus: 'ACTIVE',
+      assignedBranchIds: [branch3._id],
+      authorizedBranchIds: [branch3._id],
+    },
+    {
+      username: 'manager_dual',
+      fullName: 'Quản Lý Điều Phối Phan Minh Triết (Q1 & Q7)',
+      systemRole: 'MANAGER',
+      accountStatus: 'ACTIVE',
+      assignedBranchIds: [branch1._id, branch2._id],
+      authorizedBranchIds: [branch1._id, branch2._id],
+    },
+    {
+      username: 'manager_dual_13',
+      fullName: 'Quản Lý Điều Phối Đặng Gia Huy (Q1 & Bình Thạnh)',
+      systemRole: 'MANAGER',
+      accountStatus: 'ACTIVE',
+      assignedBranchIds: [branch1._id, branch3._id],
+      authorizedBranchIds: [branch1._id, branch3._id],
+    },
+    {
+      username: 'manager_dual_23',
+      fullName: 'Quản Lý Điều Phối Vũ Diệu Linh (Q7 & Bình Thạnh)',
+      systemRole: 'MANAGER',
+      accountStatus: 'ACTIVE',
+      assignedBranchIds: [branch2._id, branch3._id],
+      authorizedBranchIds: [branch2._id, branch3._id],
+    },
+    {
+      username: 'manager_general',
+      fullName: 'Tổng Quản Lý Điều Hành Trần Quốc Toản (3 Chi Nhánh)',
+      systemRole: 'MANAGER',
+      accountStatus: 'ACTIVE',
+      assignedBranchIds: allBranchIds,
+      authorizedBranchIds: allBranchIds,
     },
 
-    // 2. Chi nhánh 1 (Quận 1)
+    // 3. Bác Sĩ Thú Y (VETERINARIAN) - Phủ Đơn chi nhánh, Đa chi nhánh và Hội Chẩn Toàn Chuỗi
     {
-      username: 'doctor.an',
-      fullName: 'BS. Nguyễn Văn An',
-      phone: '0911001001',
-      email: 'dr.an@drpetshouse.vn',
+      username: 'vet_q1',
+      fullName: 'BS. Nguyễn Văn An (Trụ sở Q1)',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
-      branch: branch1,
-      shifts: [1, 2, 4, 5, 7] // làm thứ 2, 3, 5, 6, CN (nghỉ thứ 4, thứ 7)
+      assignedBranchIds: [branch1._id],
+      shifts: [1, 2, 4, 5, 7], // Làm thứ 2, 3, 5, 6, CN (nghỉ thứ 4, thứ 7)
+      legacyAliases: ['doctor.an'],
     },
     {
-      username: 'nurse.mai',
-      fullName: 'Y tá Hoàng Thị Mai',
-      phone: '0911001002',
-      email: 'nurse.mai@drpetshouse.vn',
+      username: 'vet_q7',
+      fullName: 'BS. Lê Hoàng Nam (Phú Mỹ Hưng Q7)',
       systemRole: 'STAFF',
-      staffSubRole: 'NURSE',
-      branch: branch1,
-      shifts: [1, 2, 3, 5, 6]
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: [branch2._id],
+      shifts: [2, 3, 4, 6, 7],
+      legacyAliases: ['doctor.nam'],
     },
     {
-      username: 'reception.bich',
-      fullName: 'Lễ tân Trần Thị Bích',
-      phone: '0911001003',
-      email: 'reception.bich@drpetshouse.vn',
+      username: 'vet_bt',
+      fullName: 'BS. Trần Phương Thảo (Bình Thạnh)',
       systemRole: 'STAFF',
-      staffSubRole: 'RECEPTIONIST',
-      branch: branch1,
-      shifts: [1, 3, 4, 5, 6]
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: [branch3._id],
+      shifts: [1, 3, 5, 6, 7],
+      legacyAliases: ['doctor.thao'],
     },
     {
-      username: 'groomer.dat',
-      fullName: 'Groomer Phạm Quốc Đạt',
-      phone: '0911001004',
-      email: 'groomer.dat@drpetshouse.vn',
+      username: 'vet_dual',
+      fullName: 'BS. Phạm Minh Khôi (Trực luân phiên Q1 & Q7)',
       systemRole: 'STAFF',
-      staffSubRole: 'CARE_STAFF_GROOMER',
-      branch: branch1,
-      shifts: [2, 3, 4, 6, 7]
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: [branch1._id, branch2._id],
+      shifts: [1, 2, 3, 5, 6],
+    },
+    {
+      username: 'vet_dual_13',
+      fullName: 'BS. Đỗ Tuấn Hưng (Trực luân phiên Q1 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: [branch1._id, branch3._id],
+      shifts: [1, 3, 4, 6, 7],
+    },
+    {
+      username: 'vet_dual_23',
+      fullName: 'BS. Vũ Bảo Long (Trực luân phiên Q7 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: [branch2._id, branch3._id],
+      shifts: [2, 3, 4, 5, 7],
+    },
+    {
+      username: 'vet_master',
+      fullName: 'BS CKII. Trịnh Văn Thành (Bác Sĩ Trưởng Hội Chẩn 3 Chi Nhánh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'VETERINARIAN',
+      assignedBranchIds: allBranchIds,
+      shifts: [1, 2, 3, 4, 5],
     },
 
-    // 3. Chi nhánh 2 (Quận 7)
+    // 4. Chăm Sóc & Spa / Grooming (CARE_STAFF_GROOMER) - Phủ Đơn, Đa chi nhánh và Master Spa
     {
-      username: 'doctor.nam',
-      fullName: 'BS. Lê Hoàng Nam',
-      phone: '0911002001',
-      email: 'dr.nam@drpetshouse.vn',
-      systemRole: 'STAFF',
-      staffSubRole: 'VETERINARIAN',
-      branch: branch2,
-      shifts: [2, 3, 4, 6, 7]
-    },
-    {
-      username: 'nurse.trang',
-      fullName: 'Y tá Vũ Thu Trang',
-      phone: '0911002002',
-      email: 'nurse.trang@drpetshouse.vn',
-      systemRole: 'STAFF',
-      staffSubRole: 'NURSE',
-      branch: branch2,
-      shifts: [1, 2, 4, 5, 6]
-    },
-    {
-      username: 'reception.khang',
-      fullName: 'Lễ tân Ngô Minh Khang',
-      phone: '0911002003',
-      email: 'reception.khang@drpetshouse.vn',
-      systemRole: 'STAFF',
-      staffSubRole: 'RECEPTIONIST',
-      branch: branch2,
-      shifts: [1, 2, 3, 5, 7]
-    },
-    {
-      username: 'groomer.huy',
-      fullName: 'Groomer Đỗ Gia Huy',
-      phone: '0911002004',
-      email: 'groomer.huy@drpetshouse.vn',
+      username: 'care_q1',
+      fullName: 'Groomer Phạm Quốc Đạt (Trụ sở Q1)',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
-      branch: branch2,
-      shifts: [1, 3, 4, 5, 6]
+      assignedBranchIds: [branch1._id],
+      shifts: [2, 3, 4, 6, 7],
+      legacyAliases: ['groomer.dat'],
+    },
+    {
+      username: 'care_q7',
+      fullName: 'Groomer Đỗ Gia Huy (Phú Mỹ Hưng Q7)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: [branch2._id],
+      shifts: [1, 3, 4, 5, 6],
+      legacyAliases: ['groomer.huy'],
+    },
+    {
+      username: 'care_bt',
+      fullName: 'Groomer Lê Anh Tuấn (Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: [branch3._id],
+      shifts: [1, 2, 4, 6, 7],
+      legacyAliases: ['groomer.tuan'],
+    },
+    {
+      username: 'care_dual',
+      fullName: 'Chuyên Viên Spa Nguyễn Mai Ly (Q1 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: [branch1._id, branch3._id],
+      shifts: [1, 2, 4, 5, 7],
+    },
+    {
+      username: 'care_dual_12',
+      fullName: 'Chuyên Viên Spa Võ Hoàng Yến (Q1 & Q7)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: [branch1._id, branch2._id],
+      shifts: [2, 3, 5, 6, 7],
+    },
+    {
+      username: 'care_dual_23',
+      fullName: 'Chuyên Viên Spa Bùi Tiến Dũng (Q7 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: [branch2._id, branch3._id],
+      shifts: [1, 3, 4, 5, 6],
+    },
+    {
+      username: 'care_master',
+      fullName: 'Master Groomer Trương Thùy Dung (Trưởng Nhóm Spa 3 Cơ Sở)',
+      systemRole: 'STAFF',
+      staffSubRole: 'CARE_STAFF_GROOMER',
+      assignedBranchIds: allBranchIds,
+      shifts: [1, 2, 3, 5, 6],
     },
 
-    // 4. Chi nhánh 3 (Bình Thạnh)
+    // 5. Lễ Tân & Tiếp Đón (RECEPTIONIST) - Phủ Đơn, Đa chi nhánh và Trưởng Lễ Tân CSKH
     {
-      username: 'doctor.thao',
-      fullName: 'BS. Trần Phương Thảo',
-      phone: '0911003001',
-      email: 'dr.thao@drpetshouse.vn',
-      systemRole: 'STAFF',
-      staffSubRole: 'VETERINARIAN',
-      branch: branch3,
-      shifts: [1, 3, 5, 6, 7]
-    },
-    {
-      username: 'nurse.phuc',
-      fullName: 'Y tá Đặng Hồng Phúc',
-      phone: '0911003002',
-      email: 'nurse.phuc@drpetshouse.vn',
-      systemRole: 'STAFF',
-      staffSubRole: 'NURSE',
-      branch: branch3,
-      shifts: [1, 2, 3, 4, 6]
-    },
-    {
-      username: 'reception.yen',
-      fullName: 'Lễ tân Nguyễn Hải Yến',
-      phone: '0911003003',
-      email: 'reception.yen@drpetshouse.vn',
+      username: 'receptionist_q1',
+      fullName: 'Lễ Tân Trần Thị Bích (Trụ sở Q1)',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
-      branch: branch3,
-      shifts: [2, 3, 4, 5, 7]
+      assignedBranchIds: [branch1._id],
+      shifts: [1, 3, 4, 5, 6],
+      legacyAliases: ['reception.bich'],
     },
     {
-      username: 'groomer.tuan',
-      fullName: 'Groomer Lê Anh Tuấn',
-      phone: '0911003004',
-      email: 'groomer.tuan@drpetshouse.vn',
+      username: 'receptionist_q7',
+      fullName: 'Lễ Tân Ngô Minh Khang (Phú Mỹ Hưng Q7)',
       systemRole: 'STAFF',
-      staffSubRole: 'CARE_STAFF_GROOMER',
-      branch: branch3,
-      shifts: [1, 2, 4, 6, 7]
-    }
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: [branch2._id],
+      shifts: [1, 2, 3, 5, 7],
+      legacyAliases: ['reception.khang'],
+    },
+    {
+      username: 'receptionist_bt',
+      fullName: 'Lễ Tân Nguyễn Hải Yến (Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: [branch3._id],
+      shifts: [2, 3, 4, 5, 7],
+      legacyAliases: ['reception.yen'],
+    },
+    {
+      username: 'receptionist_dual',
+      fullName: 'Lễ Tân Phạm Ngọc Ánh (Q7 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: [branch2._id, branch3._id],
+      shifts: [1, 2, 4, 5, 6],
+    },
+    {
+      username: 'receptionist_dual_12',
+      fullName: 'Lễ Tân Đinh Thanh Hà (Q1 & Q7)',
+      systemRole: 'STAFF',
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: [branch1._id, branch2._id],
+      shifts: [1, 3, 4, 6, 7],
+    },
+    {
+      username: 'receptionist_dual_13',
+      fullName: 'Lễ Tân Lương Thu Trang (Q1 & Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: [branch1._id, branch3._id],
+      shifts: [2, 3, 5, 6, 7],
+    },
+    {
+      username: 'receptionist_master',
+      fullName: 'Trưởng Nhóm Lễ Tân CSKH Vũ Ngọc Hân (Toàn Chuỗi)',
+      systemRole: 'STAFF',
+      staffSubRole: 'RECEPTIONIST',
+      assignedBranchIds: allBranchIds,
+      shifts: [1, 2, 4, 5, 7],
+    },
+
+    // 6. Y Tá & Điều Dưỡng (NURSE) - Phủ Đơn, Đa chi nhánh và Điều Dưỡng Trưởng
+    {
+      username: 'nurse_q1',
+      fullName: 'Y Tá Hoàng Thị Mai (Trụ sở Q1)',
+      systemRole: 'STAFF',
+      staffSubRole: 'NURSE',
+      assignedBranchIds: [branch1._id],
+      shifts: [1, 2, 3, 5, 6],
+      legacyAliases: ['nurse.mai'],
+    },
+    {
+      username: 'nurse_q7',
+      fullName: 'Y Tá Vũ Thu Trang (Phú Mỹ Hưng Q7)',
+      systemRole: 'STAFF',
+      staffSubRole: 'NURSE',
+      assignedBranchIds: [branch2._id],
+      shifts: [1, 2, 4, 5, 6],
+      legacyAliases: ['nurse.trang'],
+    },
+    {
+      username: 'nurse_bt',
+      fullName: 'Y Tá Đặng Hồng Phúc (Bình Thạnh)',
+      systemRole: 'STAFF',
+      staffSubRole: 'NURSE',
+      assignedBranchIds: [branch3._id],
+      shifts: [1, 2, 3, 4, 6],
+      legacyAliases: ['nurse.phuc'],
+    },
+    {
+      username: 'nurse_dual',
+      fullName: 'Y Tá Điều Dưỡng Lâm Thanh Tùng (Q1 & Q7)',
+      systemRole: 'STAFF',
+      staffSubRole: 'NURSE',
+      assignedBranchIds: [branch1._id, branch2._id],
+      shifts: [1, 3, 5, 6, 7],
+    },
+    {
+      username: 'nurse_master',
+      fullName: 'Điều Dưỡng Trưởng Nguyễn Thanh Phương (Toàn Chuỗi)',
+      systemRole: 'STAFF',
+      staffSubRole: 'NURSE',
+      assignedBranchIds: allBranchIds,
+      shifts: [1, 2, 3, 4, 6],
+    },
   ];
 
   const today = new Date();
@@ -310,7 +450,7 @@ export const runProductionUatSeed = async () => {
   const staffProfileMap = new Map();
 
   for (const sUser of STAFF_USERS) {
-    const branchIds = sUser.branch ? [sUser.branch._id] : sUser.assignedBranchIds || allBranchIds;
+    const branchIds = sUser.assignedBranchIds || (sUser.branch ? [sUser.branch._id] : allBranchIds);
 
     const userDoc = await User.findOneAndUpdate(
       { username: sUser.username },
@@ -318,18 +458,40 @@ export const runProductionUatSeed = async () => {
         $set: {
           username: sUser.username,
           fullName: sUser.fullName,
-          phone: sUser.phone,
-          email: sUser.email,
           passwordHash: commonPasswordHash,
           systemRole: sUser.systemRole,
           staffSubRole: sUser.staffSubRole || null,
           assignedBranchIds: branchIds,
           accountStatus: 'ACTIVE',
           activatedAt: new Date()
-        }
+        },
+        $unset: { phone: 1, email: 1 } // Đảm bảo ONLY TEXT: Không yêu cầu SĐT / Email cho nhân sự nội bộ
       },
       { upsert: true, new: true }
     );
+
+    // Đồng bộ legacy alias (nếu có) để tương thích 100% với các test/code cũ
+    if (Array.isArray(sUser.legacyAliases)) {
+      for (const aliasUsername of sUser.legacyAliases) {
+        await User.findOneAndUpdate(
+          { username: aliasUsername },
+          {
+            $set: {
+              username: aliasUsername,
+              fullName: sUser.fullName,
+              passwordHash: commonPasswordHash,
+              systemRole: sUser.systemRole,
+              staffSubRole: sUser.staffSubRole || null,
+              assignedBranchIds: branchIds,
+              accountStatus: 'ACTIVE',
+              activatedAt: new Date()
+            },
+            $unset: { phone: 1, email: 1 }
+          },
+          { upsert: true }
+        );
+      }
+    }
 
     if (sUser.systemRole === 'STAFF') {
       const profile = await StaffProfile.findOneAndUpdate(
@@ -346,25 +508,33 @@ export const runProductionUatSeed = async () => {
         { upsert: true, new: true }
       );
       staffProfileMap.set(sUser.username, profile);
+      if (Array.isArray(sUser.legacyAliases)) {
+        for (const alias of sUser.legacyAliases) {
+          staffProfileMap.set(alias, profile);
+        }
+      }
 
-      // Phân bổ ca làm thực tế trong 7 ngày tới (Ca Sáng: 08:00 - 14:00, Ca Chiều: 14:00 - 20:00)
+      // Phân bổ ca làm thực tế trong 7 ngày tới với Anti-Overlap Rule:
+      // - Ca Sáng: 08:00 - 14:00, Ca Chiều: 14:00 - 20:00
+      // - Với nhân viên đa chi nhánh: luân phiên các chi nhánh được ủy quyền, tuyệt đối không trùng giờ
       if (Array.isArray(sUser.shifts)) {
         for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
           const shiftDate = new Date(today);
           shiftDate.setDate(today.getDate() + dayOffset);
           const dayOfWeek = shiftDate.getDay() === 0 ? 7 : shiftDate.getDay(); // 1 (Mon) -> 7 (Sun)
 
-          // Nếu nhân viên có lịch làm vào ngày này
           if (sUser.shifts.includes(dayOfWeek)) {
             const dateStr = shiftDate.toISOString().split('T')[0];
-            // Xoay ca: chẵn làm ca sáng, lẻ làm ca chiều
             const isMorning = (dayOffset % 2 === 0);
             const startHour = isMorning ? '08:00:00' : '14:00:00';
             const endHour = isMorning ? '14:00:00' : '20:00:00';
 
+            // Phân bổ branch luân phiên từ authorizedBranchIds mà không trùng giờ
+            const targetBranchId = branchIds[dayOffset % branchIds.length];
+
             await Shift.create({
               staffId: profile._id,
-              branchId: branchIds[0],
+              branchId: targetBranchId,
               staffSubRole: sUser.staffSubRole,
               startAt: new Date(`${dateStr}T${startHour}.000Z`),
               endAt: new Date(`${dateStr}T${endHour}.000Z`),
@@ -376,7 +546,7 @@ export const runProductionUatSeed = async () => {
       }
     }
   }
-  console.log(`   ✅ Đã tạo ${STAFF_USERS.length} tài khoản nhân sự & ${totalShiftsCreated} ca trực thực tế.`);
+  console.log(`   ✅ Đã tạo ${STAFF_USERS.length} tài khoản nhân sự (100% ONLY TEXT) & ${totalShiftsCreated} ca trực thực tế (ANTI-OVERLAP).`);
 
   // ========================================================================
   // BƯỚC 4: DANH MỤC & SẢN PHẨM E-COMMERCE CHUẨN ĐẸP CÓ ẢNH CDN
