@@ -70,8 +70,14 @@ export const createVoucher = async (req, res, next) => {
  */
 export const listVouchers = async (req, res, next) => {
   try {
-    const { status, scope, limit, cursor } = req.query;
-    const result = await voucherService.listVouchers({ status, scope, limit, cursor });
+    const { status, scope, limit, cursor, search, q } = req.query;
+    const result = await voucherService.listVouchers({
+      status,
+      scope,
+      limit,
+      cursor,
+      search: search || q
+    });
     res.status(200).json(result);
   } catch (error) {
     next(error);

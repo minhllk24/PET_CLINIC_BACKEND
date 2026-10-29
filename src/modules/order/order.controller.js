@@ -98,3 +98,22 @@ export const getReturnQuote = async (req, res, next) => {
     next(error);
   }
 };
+
+export const quoteAdminOrder = async (req, res, next) => {
+  try {
+    const result = await orderService.quoteAdminOrder(req.body, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createAdminOrder = async (req, res, next) => {
+  try {
+    const result = await orderService.createAdminOrder(req.body, req.actor);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+

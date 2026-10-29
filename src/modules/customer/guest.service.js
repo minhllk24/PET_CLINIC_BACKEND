@@ -299,12 +299,19 @@ export const sendActivationInvite = async ({ guestContactId, phone, email }) => 
     });
   }
 
-  return {
+  const responseData = {
+    success: true,
     message: 'Activation invite sent successfully',
-    token: activationToken,
     activationStatus: guest.activationStatus,
     expiresAt: guest.activationExpiresAt,
   };
+
+  // P0-03: Never expose raw activationToken in production. Retained in test/dev for integration verification
+  if (process.env.NODE_ENV !== 'production') {
+    responseData.token = activationToken;
+  }
+
+  return responseData;
 };
 
 /**

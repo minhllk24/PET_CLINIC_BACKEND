@@ -33,10 +33,13 @@ import Service from '../modules/catalog/models/Service.js';
 import InventoryItem from '../modules/inventory/models/InventoryItem.js';
 import InventoryStock from '../modules/inventory/models/InventoryStock.js';
 import Order from '../modules/order/models/Order.js';
+import OrderReturn from '../modules/order/models/OrderReturn.js';
+import OrderRefund from '../modules/order/models/OrderRefund.js';
 import Appointment from '../modules/booking/models/Appointment.js';
 import ServiceRecord from '../modules/execution/models/ServiceRecord.js';
 import { seedVouchers } from './voucherSeed.js';
 import { seedServiceCatalog } from './serviceCatalogSeed.js';
+import { runMigrateLegacyProducts } from './migrateLegacyProducts.js';
 
 export const runProductionUatSeed = async () => {
   console.log('\n========================================================================');
@@ -52,23 +55,67 @@ export const runProductionUatSeed = async () => {
   const commonPasswordHash = await bcrypt.hash('K9#mQ$8xL!2vW*7z', salt);
 
   // ========================================================================
-  // BƯỚC 1: DỌN DẸP CHỌN LỌC DỮ LIỆU RÁC (IDEMPOTENT CLEAN-UP)
+  // BƯỚC 1: DỌN DẸP TRIỆT ĐỂ DỮ LIỆU RÁC (IDEMPOTENT CLEAN-UP)
   // ========================================================================
-  console.log('🧹 Bước 1: Dọn dẹp các sản phẩm test rác, ca làm việc cũ...');
+  console.log('🧹 Bước 1: Dọn dẹp triệt để các sản phẩm rác, danh mục cũ và ca làm việc...');
+
+  const OFFICIAL_PRODUCT_CODES = [
+    'SP-RC-MINI-001',
+    'SP-WHISKAS-002',
+    'SP-CATURE-003',
+    'SP-BRAVECTO-004',
+    'SP-SOS-SHAMPOO-005',
+    'SP-KONG-TOY-006',
+    'SP-ALFALFA-007',
+    'SP-RIO-BIRD-008',
+    'SP-GIMCAT-009',
+    'SP-PETBED-010',
+    'SP-LEASH-011',
+    'SP-CATTOY-012'
+  ];
+
+  const OFFICIAL_CATEGORY_SLUGS = [
+    'thuc-an',
+    'do-dung-thiet-yeu',
+    'cham-soc-suc-khoe',
+    'do-choi',
+    'phu-kien'
+  ];
+
+  // 1.1 Xóa tất cả các sản phẩm rác cũ (mã SP-000..., SP-UAT..., hoặc không thuộc danh sách 12 sản phẩm chuẩn & 100 sản phẩm di trú)
   const deleteRes = await Product.deleteMany({
     $or: [
+      {
+        productCode: {
+          $nin: OFFICIAL_PRODUCT_CODES,
+          $not: /^SP-LEG-/
+        }
+      },
       { name: /test/i },
       { name: /thử nghiệm/i },
       { name: 'Product name' },
-      { productCode: /SP-000555/i },
-      { productCode: /SP-000888/i },
-      { productCode: /SP-000999/i },
-      { productCode: /PROD-BATH/i }
+      { productCode: /SP-000/i },
+      { productCode: /SP-UAT-/i }
     ]
   });
-  console.log(`   ✅ Đã dọn dẹp ${deleteRes.deletedCount} sản phẩm test rác.`);
+  console.log(`   ✅ Đã dọn dẹp ${deleteRes.deletedCount} sản phẩm rác/không hợp lệ.`);
 
-  // Xóa ca làm việc cũ bị lặp full tuần
+  // 1.2 Dọn dẹp InventoryItem cũ của các sản phẩm rác
+  const deleteInvRes = await InventoryItem.deleteMany({
+    $or: [
+      { sku: { $regex: /^SP-(000|UAT)/i } },
+      { name: /test/i }
+    ]
+  });
+  console.log(`   ✅ Đã dọn dẹp ${deleteInvRes.deletedCount} tồn kho mặt hàng cũ.`);
+
+  // 1.3 Dọn dẹp danh mục rác cũ ngoài 4 danh mục chuẩn
+  const deleteCatRes = await Category.deleteMany({
+    slug: { $nin: OFFICIAL_CATEGORY_SLUGS }
+  });
+  console.log(`   ✅ Đã dọn dẹp ${deleteCatRes.deletedCount} danh mục lộn xộn/rác cũ.`);
+
+  // 1.4 Xóa ca làm việc cũ bị lặp full tuần
   await Shift.deleteMany({});
   console.log('   ✅ Đã làm mới ca làm việc (Shifts) để phân bổ ca thực tế.');
 
@@ -551,13 +598,14 @@ export const runProductionUatSeed = async () => {
   // ========================================================================
   // BƯỚC 4: DANH MỤC & SẢN PHẨM E-COMMERCE CHUẨN ĐẸP CÓ ẢNH CDN
   // ========================================================================
-  console.log('\n📦 Bước 4: Thiết lập 4 danh mục chuẩn & 10 sản phẩm thương mại có hình ảnh CDN...');
+  console.log('\n📦 Bước 4: Thiết lập 5 danh mục chuẩn theo UI & các sản phẩm thương mại có hình ảnh CDN...');
 
   const CORE_CATEGORIES = [
-    { name: 'Thức ăn & Dinh dưỡng', slug: 'thuc-an-dinh-duong', status: 'ACTIVE' },
-    { name: 'Vệ sinh & Khử mùi', slug: 'cham-soc-ve-sinh', status: 'ACTIVE' },
-    { name: 'Y tế & Chăm sóc sức khỏe', slug: 'y-te-thuoc', status: 'ACTIVE' },
-    { name: 'Phụ kiện & Đồ chơi thú cưng', slug: 'phu-kien-do-choi', status: 'ACTIVE' }
+    { name: 'Thức ăn', slug: 'thuc-an', status: 'ACTIVE' },
+    { name: 'Đồ dùng thiết yếu', slug: 'do-dung-thiet-yeu', status: 'ACTIVE' },
+    { name: 'Chăm sóc sức khỏe', slug: 'cham-soc-suc-khoe', status: 'ACTIVE' },
+    { name: 'Đồ chơi', slug: 'do-choi', status: 'ACTIVE' },
+    { name: 'Phụ kiện', slug: 'phu-kien', status: 'ACTIVE' }
   ];
 
   const categoryMap = new Map();
@@ -574,7 +622,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-RC-MINI-001',
       name: 'Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult',
-      categorySlug: 'thuc-an-dinh-duong',
+      categorySlug: 'thuc-an',
       origin: 'Pháp',
       productType: 'VARIANT',
       images: [
@@ -590,7 +638,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-WHISKAS-002',
       name: 'Pate thơm ngon cho mèo Whiskas vị cá thu và cá hồi biển',
-      categorySlug: 'thuc-an-dinh-duong',
+      categorySlug: 'thuc-an',
       origin: 'Thái Lan',
       productType: 'VARIANT',
       images: [
@@ -606,7 +654,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-CATURE-003',
       name: 'Cát đậu nành hữu cơ xả bồn cầu Cature Tofu Clumping Litter',
-      categorySlug: 'cham-soc-ve-sinh',
+      categorySlug: 'do-dung-thiet-yeu',
       origin: 'Mỹ',
       productType: 'SIMPLE',
       images: [
@@ -620,7 +668,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-BRAVECTO-004',
       name: 'Viên nhai đặc trị ve rận, bọ chét và ghẻ demodex Bravecto Chewable',
-      categorySlug: 'y-te-thuoc',
+      categorySlug: 'cham-soc-suc-khoe',
       origin: 'Áo',
       productType: 'VARIANT',
       images: [
@@ -635,7 +683,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-SOS-SHAMPOO-005',
       name: 'Sữa tắm thảo dược dưỡng lông mềm mượt SOS dành cho thú cưng',
-      categorySlug: 'cham-soc-ve-sinh',
+      categorySlug: 'do-dung-thiet-yeu',
       origin: 'Đài Loan',
       productType: 'VARIANT',
       images: [
@@ -650,7 +698,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-KONG-TOY-006',
       name: 'Đồ chơi gặm cao su tự nhiên siêu bền KONG Classic Dog Toy',
-      categorySlug: 'phu-kien-do-choi',
+      categorySlug: 'do-choi',
       origin: 'Mỹ',
       productType: 'SIMPLE',
       images: [
@@ -664,7 +712,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-ALFALFA-007',
       name: 'Cỏ khô Alfalfa tự nhiên giàu đạm và canxi cho Thỏ & Bọ Ú',
-      categorySlug: 'thuc-an-dinh-duong',
+      categorySlug: 'thuc-an',
       origin: 'Úc',
       productType: 'SIMPLE',
       images: [
@@ -678,7 +726,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-RIO-BIRD-008',
       name: 'Hạt dinh dưỡng hỗn hợp đa hạt phong phú cho Vẹt & Chim cảnh Rio',
-      categorySlug: 'thuc-an-dinh-duong',
+      categorySlug: 'thuc-an',
       origin: 'Đức',
       productType: 'SIMPLE',
       images: [
@@ -692,7 +740,7 @@ export const runProductionUatSeed = async () => {
     {
       code: 'SP-GIMCAT-009',
       name: 'Gel dinh dưỡng bổ sung 12 loại Vitamin thiết yếu cho Mèo GimCat Paste',
-      categorySlug: 'y-te-thuoc',
+      categorySlug: 'cham-soc-suc-khoe',
       origin: 'Đức',
       productType: 'SIMPLE',
       images: [
@@ -705,8 +753,8 @@ export const runProductionUatSeed = async () => {
     },
     {
       code: 'SP-PETBED-010',
-      name: 'Nệm tròn lông vũ êm ái chống lạnh chống trượt cho Chó Mèo',
-      categorySlug: 'phu-kien-do-choi',
+      name: 'Nệm tròn lông vũ êm ái chống lạnh chống trượt cho Chó Mèo Cozy Cloud',
+      categorySlug: 'phu-kien',
       origin: 'Việt Nam',
       productType: 'VARIANT',
       images: [
@@ -716,6 +764,35 @@ export const runProductionUatSeed = async () => {
       variants: [
         { label: 'Size S (Dưới 5kg)', price: 190000, discountPercent: 0 },
         { label: 'Size L (Dưới 15kg)', price: 290000, discountPercent: 10 }
+      ]
+    },
+    {
+      code: 'SP-LEASH-011',
+      name: 'Dây dắt kèm yếm ngực phản quang trợ lực đi dạo cho Chó Mèo',
+      categorySlug: 'phu-kien',
+      origin: 'Hàn Quốc',
+      productType: 'VARIANT',
+      images: [
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&q=80', isPrimary: true }
+      ],
+      description: 'Chất liệu vải Oxford thoáng khí êm ái, viền dạ quang phát sáng an toàn khi đi dạo ban đêm.',
+      variants: [
+        { label: 'Size S (Dưới 6kg)', price: 125000, discountPercent: 0 },
+        { label: 'Size M (6 - 14kg)', price: 165000, discountPercent: 5 }
+      ]
+    },
+    {
+      code: 'SP-CATTOY-012',
+      name: 'Cần câu mèo gắn chuông lông vũ kích thích vận động Funny Cat Stick',
+      categorySlug: 'do-choi',
+      origin: 'Nhật Bản',
+      productType: 'SIMPLE',
+      images: [
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&q=80', isPrimary: true }
+      ],
+      description: 'Cán sợi carbon dẻo dai đàn hồi cao, gắn lông vũ tự nhiên và chuông nhỏ thu hút sự chú ý của mèo.',
+      variants: [
+        { label: 'Chiều dài 90cm', price: 45000, discountPercent: 0 }
       ]
     }
   ];
@@ -798,12 +875,22 @@ export const runProductionUatSeed = async () => {
     console.log(`   - [SẢN PHẨM] ${p.code} | ${p.name.slice(0, 38)}... (Ảnh CDN: ${p.images.length})`);
   }
 
+  // 4.3 Tích hợp 100 sản phẩm di trú từ MySQL (tổng quy mô: 112 sản phẩm)
+  console.log('\n📦 Bước 4.3: Tích hợp 100 sản phẩm di trú từ MySQL (tổng quy mô: 112 sản phẩm)...');
+  await runMigrateLegacyProducts();
+
   // ========================================================================
   // BƯỚC 5: KHÁCH HÀNG CÓ TÀI KHOẢN (REGISTERED CUSTOMER, PETS & TRANSACTIONS)
   // ========================================================================
   console.log('\n👤 Bước 5: Thiết lập Khách hàng thành viên, Thú cưng & Đơn hàng mẫu...');
 
-  const custUser = await User.findOneAndUpdate(
+  // ========================================================================
+  // BƯỚC 5: KHÁCH HÀNG CÓ TÀI KHOẢN (REGISTERED CUSTOMERS, PETS & TRANSACTIONS)
+  // ========================================================================
+  console.log('\n👤 Bước 5: Thiết lập Khách hàng thành viên, Thú cưng, Đơn hàng & Yêu cầu đổi trả mẫu...');
+
+  // 5.1 Khách hàng 1: Lê Văn Cường (Quận 1 & Quận 7 - 2 Thú cưng)
+  const custUser1 = await User.findOneAndUpdate(
     { username: 'customer' },
     {
       $set: {
@@ -820,13 +907,13 @@ export const runProductionUatSeed = async () => {
     { upsert: true, new: true }
   );
 
-  const customerProfile = await Customer.findOneAndUpdate(
-    { userId: custUser._id },
+  const customerProfile1 = await Customer.findOneAndUpdate(
+    { userId: custUser1._id },
     {
       $set: {
-        userId: custUser._id,
-        contactPhone: custUser.phone,
-        contactEmail: custUser.email,
+        userId: custUser1._id,
+        contactPhone: custUser1.phone,
+        contactEmail: custUser1.email,
         activationStatus: 'ACTIVATED',
         accountStatus: 'ACTIVE',
         activityBranchIds: [branch1._id, branch2._id]
@@ -835,12 +922,11 @@ export const runProductionUatSeed = async () => {
     { upsert: true, new: true }
   );
 
-  // Tạo Thú cưng liên kết
   const petBuddy = await Pet.findOneAndUpdate(
-    { customerId: customerProfile._id, name: 'Buddy' },
+    { customerId: customerProfile1._id, name: 'Buddy' },
     {
       $set: {
-        customerId: customerProfile._id,
+        customerId: customerProfile1._id,
         name: 'Buddy',
         species: 'DOG',
         breed: 'Golden Retriever',
@@ -854,10 +940,10 @@ export const runProductionUatSeed = async () => {
   );
 
   const petLuna = await Pet.findOneAndUpdate(
-    { customerId: customerProfile._id, name: 'Luna' },
+    { customerId: customerProfile1._id, name: 'Luna' },
     {
       $set: {
-        customerId: customerProfile._id,
+        customerId: customerProfile1._id,
         name: 'Luna',
         species: 'CAT',
         breed: 'Mèo Anh lông ngắn',
@@ -869,64 +955,159 @@ export const runProductionUatSeed = async () => {
     },
     { upsert: true, new: true }
   );
-  console.log(`   ✅ Đã liên kết tài khoản Khách hàng ${custUser.fullName} và 2 thú cưng (Buddy, Luna).`);
 
-  // Đơn hàng của Khách có tài khoản (Bao phủ các trạng thái)
+  // 5.2 Khách hàng 2: Trần Văn Hùng (Chi nhánh Quận 7 - 1 Thú cưng)
+  const custUser2 = await User.findOneAndUpdate(
+    { username: 'customer_q7' },
+    {
+      $set: {
+        username: 'customer_q7',
+        fullName: 'Trần Văn Hùng',
+        phone: '0903334455',
+        email: 'hung.tran@gmail.com',
+        passwordHash: commonPasswordHash,
+        systemRole: 'CUSTOMER',
+        accountStatus: 'ACTIVE',
+        activatedAt: new Date()
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const customerProfile2 = await Customer.findOneAndUpdate(
+    { userId: custUser2._id },
+    {
+      $set: {
+        userId: custUser2._id,
+        contactPhone: custUser2.phone,
+        contactEmail: custUser2.email,
+        activationStatus: 'ACTIVATED',
+        accountStatus: 'ACTIVE',
+        activityBranchIds: [branch2._id]
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const petLuLu = await Pet.findOneAndUpdate(
+    { customerId: customerProfile2._id, name: 'LuLu' },
+    {
+      $set: {
+        customerId: customerProfile2._id,
+        name: 'LuLu',
+        species: 'DOG',
+        breed: 'Poodle',
+        gender: 'FEMALE',
+        ageYears: 2,
+        weightKg: 4.5,
+        medicalNotes: 'Sức khỏe tốt, đã tiêm phòng dại và tẩy giun định kỳ.'
+      }
+    },
+    { upsert: true, new: true }
+  );
+  console.log(`   ✅ Đã tạo 2 tài khoản Khách hàng thành viên (${custUser1.fullName}, ${custUser2.fullName}) và 3 thú cưng (Buddy, Luna, LuLu).`);
+
+  // 5.3 Đơn hàng của Khách có tài khoản (Bao phủ toàn bộ các trạng thái Order)
   const orderProduct1 = seededProducts[0]; // Royal Canin
   const orderProduct2 = seededProducts[1]; // Whiskas
 
   const CUST_ORDERS = [
     {
-      code: 'ORD-CUST-COMPLETED-01',
-      status: 'COMPLETED',
-      paymentMethod: 'ONLINE_MOCK',
-      deliveredAt: new Date(Date.now() - 3600000 * 24 * 2)
+      code: 'ORD-CUST-PENDING-01',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
+      status: 'PENDING',
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      deliveredAt: null,
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
     },
     {
-      code: 'ORD-CUST-SHIPPED-02',
-      status: 'SHIPPED',
-      paymentMethod: 'COD',
-      deliveredAt: null
+      code: 'ORD-CUST-CONFIRMED-02',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
+      status: 'CONFIRMED',
+      paymentMethod: 'ONLINE_MOCK',
+      paymentStatus: 'PENDING',
+      deliveredAt: null,
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
     },
     {
       code: 'ORD-CUST-PROCESSING-03',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
       status: 'PROCESSING',
       paymentMethod: 'ONLINE_MOCK',
-      deliveredAt: null
+      paymentStatus: 'PAID',
+      deliveredAt: null,
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
     },
     {
-      code: 'ORD-CUST-CANCELLED-04',
+      code: 'ORD-CUST-SHIPPED-04',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
+      status: 'SHIPPED',
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      deliveredAt: null,
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
+    },
+    {
+      code: 'ORD-CUST-COMPLETED-05',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
+      status: 'COMPLETED',
+      paymentMethod: 'ONLINE_MOCK',
+      paymentStatus: 'PAID',
+      deliveredAt: new Date(Date.now() - 3600000 * 24 * 3),
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
+    },
+    {
+      code: 'ORD-CUST-COMPLETED-06',
+      customerId: customerProfile2._id,
+      branchId: branch2._id,
+      status: 'COMPLETED',
+      paymentMethod: 'ONLINE_MOCK',
+      paymentStatus: 'PAID',
+      deliveredAt: new Date(Date.now() - 3600000 * 24 * 1),
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phong', detail: '102 Nguyễn Thị Thập' }
+    },
+    {
+      code: 'ORD-CUST-CANCELLED-07',
+      customerId: customerProfile1._id,
+      branchId: branch1._id,
       status: 'CANCELLED',
       paymentMethod: 'COD',
-      deliveredAt: null
+      paymentStatus: 'CANCELLED',
+      deliveredAt: null,
+      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
     }
   ];
 
+  const seededOrderMap = new Map();
   for (const o of CUST_ORDERS) {
-    await Order.findOneAndUpdate(
+    const isCust2 = o.customerId.toString() === customerProfile2._id.toString();
+    const contactUser = isCust2 ? custUser2 : custUser1;
+
+    const savedOrder = await Order.findOneAndUpdate(
       { code: o.code },
       {
         $set: {
           code: o.code,
-          customerId: customerProfile._id,
-          fulfillmentBranchId: branch1._id,
+          customerId: o.customerId,
+          fulfillmentBranchId: o.branchId,
           status: o.status,
           paymentMethod: o.paymentMethod,
-          payment: { status: o.status === 'CANCELLED' ? 'CANCELLED' : (o.paymentMethod === 'ONLINE_MOCK' ? 'PAID' : 'PENDING') },
+          payment: { status: o.paymentStatus },
           contactSnapshot: {
-            fullName: custUser.fullName,
-            phone: custUser.phone,
-            email: custUser.email
+            fullName: contactUser.fullName,
+            phone: contactUser.phone,
+            email: contactUser.email
           },
-          shippingAddress: {
-            province: 'Thành phố Hồ Chí Minh',
-            district: 'Quận 1',
-            ward: 'Phường Bến Nghé',
-            detail: 'Số 45 Lê Duẩn'
-          },
+          shippingAddress: o.address,
           items: [
             {
-              orderItemId: 'item-1',
+              orderItemId: `item-${o.code}-1`,
               productId: orderProduct1._id,
               variantId: orderProduct1.variants[0]._id,
               nameSnapshot: `${orderProduct1.name} (${orderProduct1.variants[0].label})`,
@@ -947,17 +1128,95 @@ export const runProductionUatSeed = async () => {
           deliveredAt: o.deliveredAt
         }
       },
-      { upsert: true }
+      { upsert: true, new: true }
     );
+    seededOrderMap.set(o.code, savedOrder);
   }
-  console.log(`   ✅ Đã tạo ${CUST_ORDERS.length} đơn hàng mẫu cho Khách có tài khoản (COMPLETED, SHIPPED, PROCESSING, CANCELLED).`);
+  console.log(`   ✅ Đã tạo ${CUST_ORDERS.length} đơn hàng thành viên (PENDING, CONFIRMED, PROCESSING, SHIPPED, COMPLETED, CANCELLED).`);
+
+  // 5.4 Yêu cầu Đổi trả (OrderReturn) - Bao phủ trọn vẹn 7 trạng thái
+  const targetCompletedOrder = seededOrderMap.get('ORD-CUST-COMPLETED-05');
+  if (targetCompletedOrder) {
+    const RETURN_CASES = [
+      { code: 'RET-REQ-01', status: 'REQUESTED', reason: 'Bao bì sản phẩm bị rách khi giao hàng' },
+      { code: 'RET-PROC-02', status: 'PROCESSING', reason: 'Giao nhầm phân loại thức ăn chó' },
+      { code: 'RET-RECV-03', status: 'RECEIVED', reason: 'Sản phẩm lỗi khóa zip bao bì', quality: 'RESELLABLE', receivedQty: 1 },
+      { code: 'RET-APPR-04', status: 'APPROVED', reason: 'Hạt ẩm mốc do lỗi đóng gói từ nhà máy', hasRefund: 'PENDING' },
+      { code: 'RET-REJ-05', status: 'REJECTED', reason: 'Khách không thích mùi vị sản phẩm', rejectionNote: 'Từ chối: Sản phẩm đã khui và tiêu thụ hơn 50%' },
+      { code: 'RET-COMP-06', status: 'COMPLETED', reason: 'Sản phẩm cận ngày hết hạn sử dụng', hasRefund: 'REFUNDED' },
+      { code: 'RET-CANC-07', status: 'CANCELLED', reason: 'Khách hàng đổi ý muốn tiếp tục giữ lại sản phẩm' }
+    ];
+
+    for (const rc of RETURN_CASES) {
+      let refundDoc = null;
+      if (rc.hasRefund) {
+        refundDoc = await OrderRefund.findOneAndUpdate(
+          { code: `REF-${rc.code}` },
+          {
+            $set: {
+              code: `REF-${rc.code}`,
+              cause: 'RETURN',
+              orderId: targetCompletedOrder._id,
+              amount: 340000,
+              provider: 'MOCK',
+              status: rc.hasRefund,
+              refundedAt: rc.hasRefund === 'REFUNDED' ? new Date(Date.now() - 3600000 * 12) : null
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+
+      await OrderReturn.findOneAndUpdate(
+        { code: rc.code },
+        {
+          $set: {
+            code: rc.code,
+            orderId: targetCompletedOrder._id,
+            customerId: customerProfile1._id,
+            status: rc.status,
+            reason: rc.reason,
+            evidenceUrls: ['https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&q=80'],
+            refundId: refundDoc?._id || undefined,
+            refundBreakdown: {
+              merchandiseNet: 340000,
+              shippingRefunded: 0,
+              total: 340000
+            },
+            items: [
+              {
+                orderItemId: `item-ORD-CUST-COMPLETED-05-1`,
+                productId: orderProduct1._id,
+                productName: orderProduct1.name,
+                orderedQty: 1,
+                alreadyReturnedQty: 0,
+                requestedQty: 1,
+                refundAmount: 340000,
+                receivedQty: rc.receivedQty || 0,
+                quality: rc.quality || 'RESELLABLE'
+              }
+            ],
+            history: [
+              {
+                status: rc.status,
+                at: new Date(),
+                note: rc.rejectionNote || `Cập nhật trạng thái đổi trả ${rc.status}`
+              }
+            ]
+          }
+        },
+        { upsert: true }
+      );
+    }
+    console.log(`   ✅ Đã tạo ${RETURN_CASES.length} yêu cầu đổi trả (REQUESTED, PROCESSING, RECEIVED, APPROVED, REJECTED, COMPLETED, CANCELLED).`);
+  }
 
   // ========================================================================
-  // BƯỚC 6: KHÁCH VÃNG LAI (GUEST KHÔNG CÓ TÀI KHOẢN NHƯNG CÓ ĐƠN & LỊCH HẸN)
+  // BƯỚC 6: KHÁCH VÃNG LAI (GUEST KHÔNG TÀI KHOẢN) & TOÀN BỘ 7 TRẠNG THÁI LỊCH HẸN
   // ========================================================================
-  console.log('\n🚶 Bước 6: Thiết lập các trường hợp Khách vãng lai (Guest KHÔNG CÓ TÀI KHOẢN)...');
+  console.log('\n🚶 Bước 6: Thiết lập các trường hợp Khách vãng lai (Guest KHÔNG CÓ TÀI KHOẢN) & 7 trạng thái Lịch hẹn...');
 
-  // 1. Guest A: Đặt đơn hàng mua cát và pate nhưng không tạo tài khoản
+  // 6.1 Khách vãng lai 1 (Guest A): Đặt đơn hàng mua cát và pate nhưng không tạo tài khoản (NO_ACCOUNT)
   const guestA = await GuestContact.findOneAndUpdate(
     { phone: '0981112233' },
     {
@@ -1021,9 +1280,9 @@ export const runProductionUatSeed = async () => {
     },
     { upsert: true }
   );
-  console.log(`   ✅ [GUEST ĐƠN HÀNG] Đã tạo đơn ${'ORD-GUEST-HOT-01'} cho ${guestA.fullName} (KHÔNG CÓ TÀI KHOẢN).`);
+  console.log(`   ✅ [GUEST 1 - NO_ACCOUNT] Đã tạo đơn ${'ORD-GUEST-HOT-01'} cho ${guestA.fullName} (KHÔNG CÓ TÀI KHOẢN).`);
 
-  // 2. Guest B: Đặt lịch hẹn khám thú cưng tại phòng khám nhưng chưa đăng ký tài khoản
+  // 6.2 Khách vãng lai 2 (Guest B): Đặt lịch hẹn khám thú cưng tại phòng khám nhưng chưa đăng ký tài khoản (NO_ACCOUNT)
   const guestB = await GuestContact.findOneAndUpdate(
     { phone: '0978889900' },
     {
@@ -1040,115 +1299,300 @@ export const runProductionUatSeed = async () => {
     { upsert: true, new: true }
   );
 
-  // Đảm bảo Service Catalog (12 dịch vụ Y tế & Spa) được nạp
+  // 6.3 Khách vãng lai 3 (Guest C): Đang chờ kích hoạt tài khoản (PENDING_ACTIVATION)
+  const guestC = await GuestContact.findOneAndUpdate(
+    { phone: '0908888888' },
+    {
+      $set: {
+        phone: '0908888888',
+        fullName: 'Lê Thị Mai (Khách chờ kích hoạt)',
+        email: 'guest.mai@gmail.com',
+        activationStatus: 'PENDING_ACTIVATION',
+        activationInviteSentAt: new Date(),
+        activationToken: 'INVITE-ACT-MAI-888',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date()
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  await Order.findOneAndUpdate(
+    { code: 'ORD-GUEST-PENDING-02' },
+    {
+      $set: {
+        code: 'ORD-GUEST-PENDING-02',
+        customerId: null,
+        guestContactId: guestC._id,
+        fulfillmentBranchId: branch1._id,
+        status: 'SHIPPED',
+        paymentMethod: 'COD',
+        payment: { status: 'PENDING' },
+        contactSnapshot: {
+          fullName: guestC.fullName,
+          phone: guestC.phone,
+          email: guestC.email
+        },
+        shippingAddress: {
+          province: 'Thành phố Hồ Chí Minh',
+          district: 'Quận 1',
+          ward: 'Phường Đa Kao',
+          detail: '15 Điện Biên Phủ'
+        },
+        items: [
+          {
+            orderItemId: 'item-guest-2',
+            productId: orderProduct1._id,
+            variantId: orderProduct1.variants[0]._id,
+            nameSnapshot: `${orderProduct1.name} (${orderProduct1.variants[0].label})`,
+            skuSnapshot: orderProduct1.variants[0].sku,
+            unitPrice: orderProduct1.variants[0].price,
+            quantity: 1,
+            lineSubtotal: orderProduct1.variants[0].price,
+            lineNet: orderProduct1.variants[0].finalPrice,
+            allocatedDiscount: 0
+          }
+        ],
+        pricing: {
+          merchandiseSubtotal: orderProduct1.variants[0].price,
+          voucherDiscount: 0,
+          shippingFee: 30000,
+          totalAmount: orderProduct1.variants[0].finalPrice + 30000
+        }
+      }
+    },
+    { upsert: true }
+  );
+  console.log(`   ✅ [GUEST 3 - PENDING_ACTIVATION] Đã tạo đơn SHIPPED ORD-GUEST-PENDING-02 cho ${guestC.fullName}.`);
+
+  // 6.4 Khách vãng lai 4 (Guest D): Đã kích hoạt tài khoản thành công (ACTIVATED liên kết Customer 2)
+  await GuestContact.findOneAndUpdate(
+    { phone: '0901234567' },
+    {
+      $set: {
+        phone: '0901234567',
+        fullName: 'Trần Thu Trang (Khách đã kích hoạt)',
+        email: 'trang.tran@gmail.com',
+        activationStatus: 'ACTIVATED',
+        activatedAt: new Date(),
+        userId: custUser2._id,
+        customerId: customerProfile2._id,
+        phoneVerifiedAt: new Date()
+      }
+    },
+    { upsert: true }
+  );
+  console.log(`   ✅ [GUEST 4 - ACTIVATED] Đã tạo hồ sơ Guest ACTIVATED liên kết CustomerProfile2.`);
+
+  // 6.5 Đảm bảo Service Catalog (12 dịch vụ Y tế & Spa) được nạp
   await seedServiceCatalog();
   const medicalService = (await Service.findOne({ serviceType: 'MEDICAL' })) || (await Service.findOne());
   const groomingService = (await Service.findOne({ serviceType: 'GROOMING' })) || (await Service.findOne());
   const doctorAnProfile = staffProfileMap.get('doctor.an');
   const groomerDatProfile = staffProfileMap.get('groomer.dat');
 
-  // A. Lịch hẹn của Khách có tài khoản (Đã hoàn tất + Có Hồ sơ Bệnh án ServiceRecord)
-  if (medicalService && doctorAnProfile) {
-    const pastStart = new Date(Date.now() - 3600000 * 24 * 3); // 3 ngày trước
-    const pastEnd = new Date(pastStart.getTime() + 3600000);
-
-    const custApt = await Appointment.findOneAndUpdate(
-      { code: 'APT-CUST-COMPLETED-01' },
+  // 6.6 Toàn bộ 7 trạng thái Lịch hẹn (Appointments)
+  if (medicalService && groomingService && doctorAnProfile && groomerDatProfile) {
+    const APPOINTMENT_SEEDS = [
       {
-        $set: {
-          code: 'APT-CUST-COMPLETED-01',
-          customerId: customerProfile._id,
-          petId: petBuddy._id,
-          branchId: branch1._id,
-          serviceType: 'MEDICAL',
-          paymentMethod: 'PAY_AT_STORE',
-          status: 'COMPLETED',
-          scheduledStart: pastStart,
-          scheduledEnd: pastEnd,
-          scheduledDurationMinutes: 60,
-          contactSnapshot: {
-            fullName: custUser.fullName,
-            phone: custUser.phone,
-            email: custUser.email
-          },
-          petSnapshot: {
-            name: petBuddy.name,
-            species: petBuddy.species,
-            breed: petBuddy.breed,
-            weightKg: petBuddy.weightKg
-          },
-          services: [
-            {
-              serviceId: medicalService._id,
-              serviceName: medicalService.name || 'Khám tổng quát & Kê đơn điều trị',
-              serviceType: 'MEDICAL',
-              unitPrice: 250000,
-              durationMinutes: 60,
-              requiredStaffRole: 'VETERINARIAN',
-              sequence: 1,
-              scheduledStart: pastStart,
-              scheduledEnd: pastEnd,
-              assignedStaffId: doctorAnProfile._id,
-              executionStatus: 'COMPLETED'
+        code: 'APT-CUST-PEND-PAY-01',
+        status: 'PENDING_PAYMENT',
+        serviceType: 'MEDICAL',
+        service: medicalService,
+        staff: doctorAnProfile,
+        customer: customerProfile1,
+        pet: petBuddy,
+        user: custUser1,
+        startHoursOffset: 48,
+        depositStatus: 'PENDING'
+      },
+      {
+        code: 'APT-CUST-PEND-CONF-02',
+        status: 'PENDING_CONFIRMATION',
+        serviceType: 'GROOMING',
+        service: groomingService,
+        staff: groomerDatProfile,
+        customer: customerProfile1,
+        pet: petLuna,
+        user: custUser1,
+        startHoursOffset: 24,
+        depositStatus: 'NOT_REQUIRED'
+      },
+      {
+        code: 'APT-CUST-CONFIRMED-03',
+        status: 'CONFIRMED',
+        serviceType: 'MEDICAL',
+        service: medicalService,
+        staff: doctorAnProfile,
+        customer: customerProfile1,
+        pet: petBuddy,
+        user: custUser1,
+        startHoursOffset: 12,
+        depositStatus: 'HELD'
+      },
+      {
+        code: 'APT-CUST-INPROGRESS-04',
+        status: 'IN_PROGRESS',
+        serviceType: 'GROOMING',
+        service: groomingService,
+        staff: groomerDatProfile,
+        customer: customerProfile1,
+        pet: petLuna,
+        user: custUser1,
+        startHoursOffset: 0,
+        depositStatus: 'NOT_REQUIRED',
+        execStatus: 'IN_PROGRESS'
+      },
+      {
+        code: 'APT-CUST-COMPLETED-05',
+        status: 'COMPLETED',
+        serviceType: 'MEDICAL',
+        service: medicalService,
+        staff: doctorAnProfile,
+        customer: customerProfile1,
+        pet: petBuddy,
+        user: custUser1,
+        startHoursOffset: -72,
+        depositStatus: 'APPLIED',
+        execStatus: 'COMPLETED',
+        hasServiceRecord: true
+      },
+      {
+        code: 'APT-CUST-CANCELLED-06',
+        status: 'CANCELLED',
+        serviceType: 'MEDICAL',
+        service: medicalService,
+        staff: doctorAnProfile,
+        customer: customerProfile1,
+        pet: petLuna,
+        user: custUser1,
+        startHoursOffset: -24,
+        depositStatus: 'NOT_REQUIRED',
+        cancel: { by: 'CUSTOMER', reason: 'Khách hàng bận lịch công tác đột xuất' }
+      },
+      {
+        code: 'APT-CUST-NOSHOW-07',
+        status: 'NO_SHOW',
+        serviceType: 'GROOMING',
+        service: groomingService,
+        staff: groomerDatProfile,
+        customer: customerProfile1,
+        pet: petBuddy,
+        user: custUser1,
+        startHoursOffset: -12,
+        depositStatus: 'FORFEITED',
+        note: 'Khách không đến theo giờ hẹn và không liên lạc được'
+      }
+    ];
+
+    for (const apt of APPOINTMENT_SEEDS) {
+      const aptStart = new Date(Date.now() + 3600000 * apt.startHoursOffset);
+      const aptEnd = new Date(aptStart.getTime() + 3600000);
+      const unitPrice = apt.service.price || (apt.serviceType === 'MEDICAL' ? 250000 : 200000);
+
+      const savedApt = await Appointment.findOneAndUpdate(
+        { code: apt.code },
+        {
+          $set: {
+            code: apt.code,
+            customerId: apt.customer._id,
+            petId: apt.pet._id,
+            branchId: branch1._id,
+            serviceType: apt.serviceType,
+            paymentMethod: 'PAY_AT_STORE',
+            status: apt.status,
+            scheduledStart: aptStart,
+            scheduledEnd: aptEnd,
+            scheduledDurationMinutes: 60,
+            contactSnapshot: {
+              fullName: apt.user.fullName,
+              phone: apt.user.phone,
+              email: apt.user.email
+            },
+            petSnapshot: {
+              name: apt.pet.name,
+              species: apt.pet.species,
+              breed: apt.pet.breed,
+              weightKg: apt.pet.weightKg
+            },
+            services: [
+              {
+                serviceId: apt.service._id,
+                serviceName: apt.service.name || 'Dịch vụ chuẩn phòng khám',
+                serviceType: apt.serviceType,
+                unitPrice,
+                durationMinutes: 60,
+                requiredStaffRole: apt.serviceType === 'MEDICAL' ? 'VETERINARIAN' : 'CARE_STAFF_GROOMER',
+                sequence: 1,
+                scheduledStart: aptStart,
+                scheduledEnd: aptEnd,
+                assignedStaffId: apt.staff._id,
+                executionStatus: apt.execStatus || 'NOT_STARTED'
+              }
+            ],
+            pricing: {
+              subtotal: unitPrice,
+              voucherDiscount: 0,
+              finalAmount: unitPrice,
+              depositAmount: apt.depositStatus !== 'NOT_REQUIRED' ? 60000 : 0,
+              paidAmount: apt.status === 'COMPLETED' ? unitPrice : (apt.depositStatus === 'HELD' ? 60000 : 0),
+              balanceAmount: apt.status === 'COMPLETED' ? 0 : unitPrice
+            },
+            deposit: {
+              status: apt.depositStatus
+            },
+            cancel: apt.cancel ? { ...apt.cancel, at: new Date() } : undefined,
+            note: apt.note || undefined
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt
+      if (apt.hasServiceRecord) {
+        await ServiceRecord.findOneAndUpdate(
+          { appointmentId: savedApt._id },
+          {
+            $set: {
+              appointmentId: savedApt._id,
+              petId: apt.pet._id,
+              branchId: branch1._id,
+              serviceIds: [apt.service._id],
+              assignedStaffIds: [apt.staff._id],
+              reviewerStaffId: apt.staff._id,
+              recordType: 'MEDICAL',
+              status: 'FINALIZED',
+              actualStartAt: aptStart,
+              actualEndAt: aptEnd,
+              professional: {
+                diagnosis: 'Viêm da dị ứng nhẹ vùng cổ, đã xử lý sát trùng và kê thuốc bôi.',
+                treatmentPlan: 'Bôi dung dịch sát trùng Betadine 2 lần/ngày, uống vitamin dưỡng lông trong 7 ngày.'
+              }
             }
-          ],
-          pricing: {
-            subtotal: 250000,
-            voucherDiscount: 0,
-            finalAmount: 250000,
-            depositAmount: 75000,
-            paidAmount: 250000,
-            balanceAmount: 0
-          }
-        }
-      },
-      { upsert: true, new: true }
-    );
+          },
+          { upsert: true }
+        );
+      }
+    }
+    console.log(`   ✅ Đã tạo ${APPOINTMENT_SEEDS.length} lịch hẹn thành viên (PENDING_PAYMENT, PENDING_CONFIRMATION, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW).`);
 
-    // Tạo Bệnh án ServiceRecord đã được Bác sĩ ký duyệt Finalize
-    await ServiceRecord.findOneAndUpdate(
-      { appointmentId: custApt._id },
-      {
-        $set: {
-          appointmentId: custApt._id,
-          petId: petBuddy._id,
-          branchId: branch1._id,
-          serviceIds: [medicalService._id],
-          assignedStaffIds: [doctorAnProfile._id],
-          reviewerStaffId: doctorAnProfile._id,
-          recordType: 'MEDICAL',
-          status: 'FINALIZED',
-          actualStartAt: pastStart,
-          actualEndAt: pastEnd,
-          professional: {
-            diagnosis: 'Viêm da dị ứng nhẹ vùng cổ, đã xử lý sát trùng và kê thuốc bôi.',
-            treatmentPlan: 'Bôi dung dịch sát trùng Betadine 2 lần/ngày, uống vitamin dưỡng lông trong 7 ngày.'
-          }
-        }
-      },
-      { upsert: true }
-    );
-    console.log(`   ✅ [CUST LỊCH HẸN] Đã tạo lịch hẹn COMPLETED ${custApt.code} kèm Bệnh án ServiceRecord đã ký duyệt.`);
-  }
-
-  // B. Lịch hẹn của Khách vãng lai Guest B (CONFIRMED ngày mai, cọc 30%, KHÔNG CÓ TÀI KHOẢN)
-  if (medicalService && doctorAnProfile) {
-    const aptStart = new Date(Date.now() + 3600000 * 24); // Ngày mai
-    const aptEnd = new Date(aptStart.getTime() + 3600000);
-
-    const guestApt = await Appointment.findOneAndUpdate(
+    // 6.7 Lịch hẹn Khách vãng lai Guest B (CONFIRMED, Mèo Miu Miu, Cọc 30%, KHÔNG CÓ TÀI KHOẢN)
+    const guestAptStart = new Date(Date.now() + 3600000 * 24);
+    const guestAptEnd = new Date(guestAptStart.getTime() + 3600000);
+    await Appointment.findOneAndUpdate(
       { code: 'APT-GUEST-CLINIC-01' },
       {
         $set: {
           code: 'APT-GUEST-CLINIC-01',
-          customerId: null, // Không có customerId!
+          customerId: null,
           guestContactId: guestB._id,
           branchId: branch1._id,
           serviceType: 'MEDICAL',
           paymentMethod: 'PAY_AT_STORE',
           status: 'CONFIRMED',
-          scheduledStart: aptStart,
-          scheduledEnd: aptEnd,
+          scheduledStart: guestAptStart,
+          scheduledEnd: guestAptEnd,
           scheduledDurationMinutes: 60,
           contactSnapshot: {
             fullName: guestB.fullName,
@@ -1171,8 +1615,8 @@ export const runProductionUatSeed = async () => {
               durationMinutes: 60,
               requiredStaffRole: 'VETERINARIAN',
               sequence: 1,
-              scheduledStart: aptStart,
-              scheduledEnd: aptEnd,
+              scheduledStart: guestAptStart,
+              scheduledEnd: guestAptEnd,
               assignedStaffId: doctorAnProfile._id,
               executionStatus: 'NOT_STARTED'
             }
@@ -1181,35 +1625,76 @@ export const runProductionUatSeed = async () => {
             subtotal: 200000,
             voucherDiscount: 0,
             finalAmount: 200000,
-            depositAmount: 60000, // Cọc 30%
+            depositAmount: 60000,
             paidAmount: 60000,
             balanceAmount: 140000
-          }
+          },
+          deposit: { status: 'HELD' }
         }
       },
-      { upsert: true, new: true }
+      { upsert: true }
     );
-    console.log(`   ✅ [GUEST LỊCH HẸN] Đã tạo lịch hẹn ${guestApt.code} cho ${guestB.fullName} (Mèo Miu Miu, Cọc 30%, KHÔNG CÓ TÀI KHOẢN).`);
-  }
+    console.log(`   ✅ [GUEST 2 - LỊCH HẸN] Đã tạo lịch hẹn APT-GUEST-CLINIC-01 cho ${guestB.fullName} (Mèo Miu Miu, Cọc 30%, KHÔNG CÓ TÀI KHOẢN).`);
 
-  // 3. Guest C: Khách vãng lai đã hoàn tất dịch vụ và đang nhận lời mời kích hoạt tài khoản
-  await GuestContact.findOneAndUpdate(
-    { phone: '0912345678' },
-    {
-      $set: {
-        phone: '0912345678',
-        fullName: 'Trần Minh Đức (Khách nhận mời kích hoạt)',
-        email: 'guest.duc@gmail.com',
-        activationStatus: 'PENDING_ACTIVATION', // Trạng thái chờ kích hoạt
-        activationInviteSentAt: new Date(),
-        activationToken: 'INVITE-ACT-778899',
-        userId: null,
-        customerId: null
-      }
-    },
-    { upsert: true }
-  );
-  console.log(`   ✅ [GUEST KÍCH HOẠT] Đã tạo hồ sơ Guest PENDING_ACTIVATION (sẵn sàng test flow kích hoạt tài khoản).`);
+    // 6.8 Lịch hẹn Khách vãng lai Guest C (IN_PROGRESS, Mèo Bông, Grooming spa)
+    const guestCAptStart = new Date();
+    const guestCAptEnd = new Date(guestCAptStart.getTime() + 3600000);
+    await Appointment.findOneAndUpdate(
+      { code: 'APT-GUEST-GROOM-02' },
+      {
+        $set: {
+          code: 'APT-GUEST-GROOM-02',
+          customerId: null,
+          guestContactId: guestC._id,
+          branchId: branch1._id,
+          serviceType: 'GROOMING',
+          paymentMethod: 'PAY_AT_STORE',
+          status: 'IN_PROGRESS',
+          scheduledStart: guestCAptStart,
+          scheduledEnd: guestCAptEnd,
+          scheduledDurationMinutes: 60,
+          contactSnapshot: {
+            fullName: guestC.fullName,
+            phone: guestC.phone,
+            email: guestC.email
+          },
+          petSnapshot: {
+            name: 'Bông',
+            species: 'CAT',
+            breed: 'Mèo Anh',
+            weightKg: 4.0,
+            ageYears: 2
+          },
+          services: [
+            {
+              serviceId: groomingService._id,
+              serviceName: groomingService.name || 'Grooming & Spa Thú Cưng',
+              serviceType: 'GROOMING',
+              unitPrice: 200000,
+              durationMinutes: 60,
+              requiredStaffRole: 'CARE_STAFF_GROOMER',
+              sequence: 1,
+              scheduledStart: guestCAptStart,
+              scheduledEnd: guestCAptEnd,
+              assignedStaffId: groomerDatProfile._id,
+              executionStatus: 'IN_PROGRESS'
+            }
+          ],
+          pricing: {
+            subtotal: 200000,
+            voucherDiscount: 0,
+            finalAmount: 200000,
+            depositAmount: 0,
+            paidAmount: 0,
+            balanceAmount: 200000
+          },
+          deposit: { status: 'NOT_REQUIRED' }
+        }
+      },
+      { upsert: true }
+    );
+    console.log(`   ✅ [GUEST 3 - LỊCH HẸN] Đã tạo lịch hẹn IN_PROGRESS APT-GUEST-GROOM-02 cho ${guestC.fullName} (Mèo Bông).`);
+  }
 
   // ========================================================================
   // BƯỚC 7: NẠP VOUCHERS KHUYẾN MÃI DEMO
@@ -1225,7 +1710,10 @@ export const runProductionUatSeed = async () => {
   const finalShiftCount = await Shift.countDocuments({ status: 'ACTIVE' });
   const finalProductCount = await Product.countDocuments({ status: 'ACTIVE' });
   const finalOrderCount = await Order.countDocuments({});
+  const finalReturnCount = await OrderReturn.countDocuments({});
+  const finalRefundCount = await OrderRefund.countDocuments({});
   const finalAptCount = await Appointment.countDocuments({});
+  const finalGuestCount = await GuestContact.countDocuments({});
 
   console.log('\n========================================================================');
   console.log('🎉 TỔNG KẾT BỘ DỮ LIỆU THỰC TẾ (PRODUCTION UAT) ĐÃ HOÀN TẤT THÀNH CÔNG');
@@ -1235,7 +1723,10 @@ export const runProductionUatSeed = async () => {
   console.log(`| Ca trực thực tế (Shifts)          : ${String(finalShiftCount).padEnd(4)} ca (Ca Sáng / Ca Chiều, có ngày nghỉ)`);
   console.log(`| Sản phẩm thương mại (Products)    : ${String(finalProductCount).padEnd(4)} sản phẩm (100% CÓ ẢNH CDN CHUẨN ĐẸP)`);
   console.log(`| Đơn hàng mẫu (Orders)             : ${String(finalOrderCount).padEnd(4)} đơn (Bao phủ cả Khách thành viên & Khách vãng lai)`);
-  console.log(`| Lịch hẹn mẫu (Appointments)       : ${String(finalAptCount).padEnd(4)} lịch (Bao phủ cả Khách thành viên & Khách vãng lai)`);
+  console.log(`| Yêu cầu đổi trả (Returns)         : ${String(finalReturnCount).padEnd(4)} yêu cầu (Bao phủ 7 trạng thái đổi trả)`);
+  console.log(`| Hoàn tiền đổi trả (Refunds)       : ${String(finalRefundCount).padEnd(4)} hoàn tiền (Bao phủ PENDING & REFUNDED)`);
+  console.log(`| Lịch hẹn mẫu (Appointments)       : ${String(finalAptCount).padEnd(4)} lịch (Bao phủ 7 trạng thái + Khách vãng lai)`);
+  console.log(`| Khách vãng lai (GuestContacts)    : ${String(finalGuestCount).padEnd(4)} hồ sơ (Bao phủ 4 trường hợp Guest)`);
   console.log('========================================================================\n');
 
   return true;

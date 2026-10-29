@@ -15,6 +15,7 @@ export const formatVoucherResponse = (voucher) => {
     id: (doc._id || doc.id).toString(),
     code: doc.code,
     name: doc.name,
+    description: doc.description || doc.name,
     discountType: doc.discountType,
     discountValue: Number(doc.discountValue),
     scope: doc.scope,
@@ -22,7 +23,9 @@ export const formatVoucherResponse = (voucher) => {
     effectiveTo: new Date(doc.effectiveTo).toISOString(),
     quota: Number(doc.quota),
     usedCount: Number(doc.usedCount || 0),
-    status: doc.status
+    status: doc.status,
+    minOrderAmount: Number(doc.minOrderAmount || 0),
+    maxDiscountAmount: doc.maxDiscountAmount != null ? Number(doc.maxDiscountAmount) : null
   };
 };
 
@@ -277,6 +280,7 @@ export const createVoucher = async (data) => {
   const voucher = new Voucher({
     code,
     name: data.name.trim(),
+    description: data.description ? data.description.trim() : data.name.trim(),
     discountType: data.discountType,
     discountValue: Number(data.discountValue),
     scope: data.scope,
@@ -329,6 +333,7 @@ export const updateVoucher = async (id, data) => {
   }
 
   if (data.name !== undefined) voucher.name = data.name.trim();
+  if (data.description !== undefined) voucher.description = data.description.trim();
   if (data.discountType !== undefined) voucher.discountType = data.discountType;
   if (data.discountValue !== undefined) voucher.discountValue = Number(data.discountValue);
   if (data.scope !== undefined) voucher.scope = data.scope;
@@ -350,10 +355,17 @@ export const updateVoucher = async (id, data) => {
 /**
  * Admin / Manager: List vouchers
  */
-export const listVouchers = async ({ status, scope, limit = 20, cursor }) => {
+export const listVouchers = async ({ status, scope, limit = 20, cursor, search } = {}) => {
   const query = {};
   if (status) query.status = status;
   if (scope) query.scope = scope;
+  if (search && search.trim()) {
+    const s = search.trim();
+    query.$or = [
+      { code: new RegExp(s, 'i') },
+      { name: new RegExp(s, 'i') }
+    ];
+  }
   if (cursor) {
     try {
       query._id = { $gt: new mongoose.Types.ObjectId(cursor) };
@@ -363,17 +375,31 @@ export const listVouchers = async ({ status, scope, limit = 20, cursor }) => {
   }
 
   const parsedLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 100);
+  const totalCount = await Voucher.countDocuments(
+    search && search.trim()
+      ? {
+          ...(status ? { status } : {}),
+          ...(scope ? { scope } : {}),
+          $or: [{ code: new RegExp(search.trim(), 'i') }, { name: new RegExp(search.trim(), 'i') }]
+        }
+      : {
+          ...(status ? { status } : {}),
+          ...(scope ? { scope } : {})
+        }
+  );
+
   const items = await Voucher.find(query).sort({ _id: 1 }).limit(parsedLimit + 1);
 
   let nextCursor = null;
   if (items.length > parsedLimit) {
-    const nextItem = items.pop();
+    items.pop();
     nextCursor = items[items.length - 1]._id.toString();
   }
 
   return {
     items: items.map(formatVoucherResponse),
-    nextCursor
+    nextCursor,
+    totalCount
   };
 };
 

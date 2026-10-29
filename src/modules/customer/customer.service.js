@@ -64,14 +64,27 @@ export const listCustomers = async (query = {}, actor = {}) => {
     andConditions.push({ accountStatus: query.accountStatus });
   }
 
-  if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
-    andConditions.push({
-      $or: [
-        { contactPhone: searchRegex },
-        { contactEmail: searchRegex },
-      ],
-    });
+  if (query.exactPhone || query.phone) {
+    const ep = (query.exactPhone || query.phone).trim();
+    andConditions.push({ contactPhone: ep });
+  } else if (query.search) {
+    const s = query.search.trim();
+    if (query.exact === 'true' || query.exact === true) {
+      andConditions.push({
+        $or: [
+          { contactPhone: s },
+          { contactEmail: s },
+        ],
+      });
+    } else {
+      const searchRegex = new RegExp(s, 'i');
+      andConditions.push({
+        $or: [
+          { contactPhone: searchRegex },
+          { contactEmail: searchRegex },
+        ],
+      });
+    }
   }
 
   if (query.cursor && mongoose.Types.ObjectId.isValid(query.cursor)) {

@@ -10347,6 +10347,10 @@ components:
           type: integer
         requestedQty:
           type: integer
+        receivedQty:
+          type: integer
+        quality:
+          type: string
         refundAmount:
           $ref: '#/components/schemas/Money'
       additionalProperties: false
@@ -10359,8 +10363,18 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/ObjectId'
+        code:
+          type: string
         orderId:
           $ref: '#/components/schemas/ObjectId'
+        orderCode:
+          type:
+          - string
+          - 'null'
+        fulfillmentBranchId:
+          type:
+          - string
+          - 'null'
         status:
           $ref: '#/components/schemas/OrderReturnStatus'
         items:
@@ -10368,6 +10382,16 @@ components:
           items:
             $ref: '#/components/schemas/OrderReturnItem'
         reason:
+          type: string
+        evidenceUrls:
+          type: array
+          items:
+            type: string
+        allowedActions:
+          type: array
+          items:
+            type: string
+        createdAt:
           type: string
         refundBreakdown:
           $ref: '#/components/schemas/RefundBreakdown'
@@ -10399,6 +10423,8 @@ components:
           - 'null'
         totalCount:
           type: integer
+        summary:
+          type: object
       additionalProperties: false
       required:
       - items
@@ -11337,6 +11363,8 @@ components:
           type: string
         name:
           type: string
+        description:
+          type: string
         discountType:
           $ref: '#/components/schemas/VoucherDiscountType'
         discountValue:
@@ -11356,6 +11384,13 @@ components:
           minimum: 0
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        minOrderAmount:
+          type: number
+          minimum: 0
+        maxDiscountAmount:
+          type:
+          - number
+          - 'null'
       additionalProperties: false
       required:
       - id
@@ -11376,6 +11411,8 @@ components:
           type: string
         name:
           type: string
+        description:
+          type: string
         discountType:
           $ref: '#/components/schemas/VoucherDiscountType'
         discountValue:
@@ -11392,6 +11429,12 @@ components:
           minimum: 1
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        minOrderAmount:
+          type: number
+          minimum: 0
+        maxDiscountAmount:
+          type: number
+          minimum: 0
       required:
       - code
       - discountType
@@ -11411,6 +11454,8 @@ components:
           type:
           - string
           - 'null'
+        totalCount:
+          type: integer
       additionalProperties: false
       required:
       - items
