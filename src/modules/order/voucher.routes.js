@@ -8,6 +8,9 @@ const router = express.Router();
 // Public / Customer / Guest: Validate voucher (No quota consumed)
 router.post('/validate', optionalAuth, voucherController.validateVoucher);
 
+// Backward compatibility alias for FE (/vouchers/apply -> /vouchers/validate)
+router.post('/apply', optionalAuth, voucherController.validateVoucher);
+
 // Manager / Admin: List vouchers
 router.get('/', requireRole(['MANAGER', 'ADMIN']), voucherController.listVouchers);
 

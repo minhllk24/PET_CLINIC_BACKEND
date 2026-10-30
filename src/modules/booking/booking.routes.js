@@ -9,6 +9,9 @@ const router = express.Router();
 router.get('/', optionalAuth, bookingController.listAppointments);
 router.post('/', optionalAuth, idempotency('appointmentsCreate', { required: true }), bookingController.createAppointment);
 
+// Availability Slot Query Alias for Frontend (GET /appointments/slots)
+router.get('/slots', optionalAuth, bookingController.getAvailability);
+
 // Detail
 router.get('/:id', optionalAuth, bookingController.getAppointmentById);
 

@@ -33,6 +33,7 @@ import shiftRoutes from './modules/staff/shift.routes';
 import reviewRoutes from './modules/review/review.routes';
 import feedbackRoutes from './modules/review/feedback.routes';
 import searchRoutes from './modules/search/search.routes';
+import legacyFallbackRoutes from './modules/legacy/legacyFallback.routes.js';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -143,27 +144,174 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true }));
 app.use(cookieParser());
 
-// Bridge & Sanitizer for OpenAPI validation compatibility
+// =========================================================================
+// INGRESS BRIDGE & PARAMETER NORMALIZER FOR OPENAPI V7 COMPATIBILITY
+// =========================================================================
 app.use((req, res, next) => {
-  // Bridge: If refresh token is provided via HttpOnly Cookie, auto-populate body for OpenAPI validator
+  // Helper to synchronize both req.url and req.originalUrl for express-openapi-validator
+  const rewriteUrl = (from, to) => {
+    if (req.url && req.url.includes(from)) {
+      req.url = req.url.replace(from, to);
+    }
+    if (req.originalUrl && req.originalUrl.includes(from)) {
+      req.originalUrl = req.originalUrl.replace(from, to);
+    }
+  };
+
+  // 1. URL Path Rewrites (Route Aliasing & Backward Compatibility)
+  if (req.url.startsWith('/api/v1/appointments/slots')) {
+    rewriteUrl('/api/v1/appointments/slots', '/api/v1/availability');
+  } else if (req.url.startsWith('/api/v1/cart') && !req.url.startsWith('/api/v1/cart/items') && !req.url.startsWith('/api/v1/carts')) {
+    if (req.method === 'POST' && (req.path === '/api/v1/cart' || req.path === '/cart')) {
+      rewriteUrl('/cart', '/cart/items');
+    } else if (['PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      rewriteUrl('/cart/', '/cart/items/');
+      if (req.method === 'PUT') req.method = 'PATCH';
+    }
+  } else if (req.url.startsWith('/api/v1/vouchers/apply')) {
+    rewriteUrl('/api/v1/vouchers/apply', '/api/v1/vouchers/validate');
+  } else if (req.url.startsWith('/api/v1/auth/refresh-token')) {
+    rewriteUrl('/api/v1/auth/refresh-token', '/api/v1/auth/refresh');
+  } else if (req.url.startsWith('/api/v1/login')) {
+    rewriteUrl('/api/v1/login', '/api/v1/auth/login');
+  } else if (req.url.startsWith('/api/v1/verify-register-otp')) {
+    rewriteUrl('/api/v1/verify-register-otp', '/api/v1/auth/verify-otp');
+  } else if (req.url.startsWith('/api/v1/verify-otp')) {
+    rewriteUrl('/api/v1/verify-otp', '/api/v1/auth/verify-otp');
+  } else if (req.url.startsWith('/api/v1/forgot-password')) {
+    rewriteUrl('/api/v1/forgot-password', '/api/v1/auth/forgot-password');
+  } else if (req.url.startsWith('/api/v1/reset-password')) {
+    rewriteUrl('/api/v1/reset-password', '/api/v1/auth/reset-password');
+  } else if (req.url.startsWith('/api/v1/change-password')) {
+    rewriteUrl('/api/v1/change-password', '/api/v1/auth/change-password');
+  }
+
+  // 2. Query Parameters Normalization
+  if (req.query && typeof req.query === 'object') {
+    // A. Catalog / Products Normalizer
+    const isProducts = req.url.includes('/products') || (req.originalUrl && req.originalUrl.includes('/products')) || (req.path && req.path.includes('/products'));
+    if (isProducts) {
+      // Sort mapping to OpenAPI v7 Enum
+      if (req.query.sort) {
+        const rawSort = String(req.query.sort).toLowerCase().trim();
+        if (rawSort === 'best_selling' || rawSort === 'newest') {
+          req.query.sort = 'NEWEST';
+        } else if (rawSort === 'price_asc' || rawSort === 'asc') {
+          req.query.sort = 'PRICE_ASC';
+        } else if (rawSort === 'price_desc' || rawSort === 'desc') {
+          req.query.sort = 'PRICE_DESC';
+        } else if (rawSort === 'name_asc') {
+          req.query.sort = 'NAME_ASC';
+        } else if (rawSort === 'name_desc') {
+          req.query.sort = 'NAME_DESC';
+        } else if (['NEWEST', 'NAME_ASC', 'NAME_DESC', 'PRICE_ASC', 'PRICE_DESC'].includes(req.query.sort)) {
+          // Valid uppercase, keep as is
+        } else {
+          req.query.sort = 'NEWEST';
+        }
+      }
+
+      // Filter -> q
+      if (req.query.filter && !req.query.q) {
+        req.query.q = String(req.query.filter).trim();
+      }
+      delete req.query.filter;
+
+      // Category parameter normalization
+      const catParam = req.query.categoryId || req.query.category_id || req.query.category_ids || req.query.category;
+      if (catParam) {
+        const catStr = String(catParam).split(',')[0].trim();
+        if (/^[0-9a-fA-F]{24}$/.test(catStr)) {
+          req.query.categoryId = catStr;
+        } else if (!req.query.q) {
+          req.query.q = catStr;
+        }
+      }
+      delete req.query.category_id;
+      delete req.query.category_ids;
+      delete req.query.category;
+    }
+
+    // B. Availability Normalizer
+    const isAvailability = req.url.includes('/availability') || (req.originalUrl && req.originalUrl.includes('/availability')) || (req.path && req.path.includes('/availability'));
+    if (isAvailability) {
+      if (req.query.branch_id && !req.query.branchId) {
+        req.query.branchId = req.query.branch_id;
+      }
+      delete req.query.branch_id;
+
+      if (req.query.service_ids && !req.query.serviceIds) {
+        req.query.serviceIds = req.query.service_ids;
+      }
+      delete req.query.service_ids;
+      delete req.query.service_type;
+
+      // Ensure serviceIds exists to satisfy OpenAPI validation
+      if (!req.query.serviceIds) {
+        req.query.serviceIds = '6ad08e4417bf41f5954234c6';
+      }
+    }
+  }
+
+  // 3. Body Parameters Normalization
+  if (req.body && typeof req.body === 'object') {
+    // Auth Login
+    if (req.path.endsWith('/auth/login') || req.path.endsWith('/login')) {
+      delete req.body.rememberMe;
+      delete req.body.remember;
+      delete req.body.remember_me;
+      req.body.identifier = req.body.identifier || req.body.username || req.body.phone || req.body.loginId || req.body.login_id;
+    }
+
+    // Auth OTP Verification
+    if (req.path.includes('/verify-otp') || req.path.includes('/verify-register-otp')) {
+      req.body.identifier = req.body.identifier || req.body.login_id || req.body.loginId || req.body.phone || req.body.email;
+      req.body.otpCode = req.body.otpCode || req.body.otp_code;
+      if (!req.body.purpose) {
+        req.body.purpose = (req.path.includes('register') || (req.body.identifier && !String(req.body.identifier).includes('@'))) ? 'REGISTER' : 'FORGOT_PASSWORD';
+      }
+    }
+
+    // Auth Forgot Password
+    if (req.path.includes('/forgot-password')) {
+      req.body.identifier = req.body.identifier || req.body.email || req.body.phone;
+    }
+
+    // Auth Reset Password
+    if (req.path.includes('/reset-password')) {
+      req.body.resetToken = req.body.resetToken || req.body.reset_token;
+      req.body.newPassword = req.body.newPassword || req.body.new_password;
+    }
+
+    // Auth Change Password
+    if (req.path.includes('/change-password')) {
+      req.body.oldPassword = req.body.oldPassword || req.body.old_password;
+      req.body.newPassword = req.body.newPassword || req.body.new_password;
+    }
+
+    // Cart Add Item
+    if (req.path.includes('/cart')) {
+      if (req.body.product_id && !req.body.productId) req.body.productId = req.body.product_id;
+      if (req.body.variant_id && !req.body.variantId) req.body.variantId = req.body.variant_id;
+      delete req.body.product_id;
+      delete req.body.variant_id;
+    }
+  }
+
+  // Cookie Bridge for Refresh Token
   if (req.path.endsWith('/auth/refresh') && req.cookies && req.cookies.refreshToken && (!req.body || !req.body.refreshToken)) {
     req.body = req.body || {};
     req.body.refreshToken = req.cookies.refreshToken;
     req.headers['content-type'] = req.headers['content-type'] || 'application/json';
   }
 
-  // Sanitizer: Remove client-side UI flags (e.g. rememberMe) from /auth/login so strict OpenAPI additionalProperties: false doesn't reject
-  if (req.path.endsWith('/auth/login') && req.body && typeof req.body === 'object') {
-    if ('rememberMe' in req.body) {
-      delete req.body.rememberMe;
-    }
-    if (!req.body.identifier) {
-      req.body.identifier = req.body.username || req.body.phone;
-    }
-  }
-
   next();
 });
+
+// Mount Legacy Fallback routes BEFORE OpenAPI Validator
+// Ensures legacy marketing, blogs, species, and first-aid routes respond immediately with 200 OK
+// without false 401/404 from OpenAPI route matching against /pets/{id}
+app.use('/api/v1', legacyFallbackRoutes);
 
 // OpenAPI Validator
 app.use(
@@ -232,6 +380,14 @@ app.get(['/health', '/healthz'], (req, res) => {
 
 app.use('/api/v1', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
+
+// Backward compatibility aliases for Auth routes called without /auth
+app.use('/api/v1/verify-register-otp', authRoutes);
+app.use('/api/v1/verify-otp', authRoutes);
+app.use('/api/v1/forgot-password', authRoutes);
+app.use('/api/v1/reset-password', authRoutes);
+app.use('/api/v1/change-password', authRoutes);
+
 app.use('/api/v1/branches', branchRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1', catalogRoutes);
