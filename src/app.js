@@ -82,37 +82,41 @@ const isOriginAllowed = (origin) => {
   return false;
 };
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+const corsOptionsDelegate = (req, callback) => {
+  const origin = req.headers.origin;
+  if (origin && !isOriginAllowed(origin)) {
+    const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+    return callback(new AppError(403, "Forbidden", "AUTHORIZATION_ERROR", msg), false);
+  }
 
-    if (!isOriginAllowed(origin)) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'Idempotency-Key',
-    'X-Correlation-Id',
-    'X-Guest-Lookup-Token',
-    'X-Guest-Cart-Token',
-    'Accept',
-    'Origin',
-    'X-Requested-With',
-  ],
-  exposedHeaders: ['X-Correlation-Id'],
-  optionsSuccessStatus: 204,
-  maxAge: 86400,
+  const requestedHeaders = req.headers["access-control-request-headers"];
+  const corsOpts = {
+    origin: origin || true,
+    credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: requestedHeaders || [
+      "Content-Type",
+      "Authorization",
+      "Idempotency-Key",
+      "idempotency-key",
+      "X-Correlation-Id",
+      "x-correlation-id",
+      "X-Guest-Lookup-Token",
+      "X-Guest-Cart-Token",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+      "ngrok-skip-browser-warning",
+    ],
+    exposedHeaders: ["X-Correlation-Id"],
+    optionsSuccessStatus: 204,
+    maxAge: 86400,
+  };
+  callback(null, corsOpts);
 };
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
+app.options("*", cors(corsOptionsDelegate));
 
 // Global Rate limiting
 const limiter = rateLimit({
