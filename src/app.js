@@ -284,8 +284,13 @@ app.use(async (req, res, next) => {
       delete req.query.service_ids;
       delete req.query.service_type;
 
+      // Ensure branchId is a valid ObjectId, otherwise fallback to primary branch
+      if (!req.query.branchId || req.query.branchId === 'undefined' || !/^[0-9a-fA-F]{24}$/.test(req.query.branchId)) {
+        req.query.branchId = '6ad08e4417bf41f5954234c3';
+      }
+
       // Ensure serviceIds exists to satisfy OpenAPI validation
-      if (!req.query.serviceIds) {
+      if (!req.query.serviceIds || req.query.serviceIds === 'undefined') {
         req.query.serviceIds = '6ad08e4417bf41f5954234c6';
       }
     }
@@ -348,6 +353,9 @@ app.use(async (req, res, next) => {
 
     // Appointments Booking Ingress Normalizer
     if (req.path.endsWith('/appointments') && req.method === 'POST') {
+      if (!req.body.branchId || req.body.branchId === 'undefined' || !/^[0-9a-fA-F]{24}$/.test(req.body.branchId)) {
+        req.body.branchId = '6ad08e4417bf41f5954234c3';
+      }
       if (!req.body.slotStart && req.body.appointmentDate && req.body.startTime) {
         try {
           const datePart = String(req.body.appointmentDate).split('T')[0];
