@@ -140,7 +140,7 @@ export const formatProduct = (prod) => {
 
 // ================= CATEGORY SERVICE =================
 
-export const listCategories = async (params, actor) => {
+export const listCategories = async (params = {}, actor = null) => {
   if (mongoose.connection.readyState !== 1 && !Category.find?._isMockFunction) {
     return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
   }
@@ -315,7 +315,7 @@ export const archiveCategory = async (id, actor) => {
 
 // ================= PRODUCT SERVICE =================
 
-export const listProducts = async (params, actor) => {
+export const listProducts = async (params = {}, actor = null) => {
   if (mongoose.connection.readyState !== 1 && !Product.find?._isMockFunction) {
     return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
   }
