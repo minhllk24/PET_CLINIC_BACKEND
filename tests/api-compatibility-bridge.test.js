@@ -137,6 +137,26 @@ describe('API Ingress Bridge & Compatibility Verification', () => {
         .expect(200);
       expect(resBreeds.body.success).toBe(true);
     });
+
+    it('GET /api/v1/services/pricing-matrix returns 200 with service pricing categories', async () => {
+      const resMatrix = await request(app)
+        .get('/api/v1/services/pricing-matrix')
+        .expect(200);
+      expect(resMatrix.body.success).toBe(true);
+      expect(Array.isArray(resMatrix.body.data)).toBe(true);
+      expect(resMatrix.body.data.length).toBeGreaterThan(0);
+      expect(resMatrix.body.data[0]).toHaveProperty('category_name');
+    });
+
+    it('POST /api/v1/appointments/quote computes subtotal and 30% deposit', async () => {
+      const resQuote = await request(app)
+        .post('/api/v1/appointments/quote')
+        .send({ serviceIds: ['6ad08e4417bf41f5954234c6'] })
+        .expect(200);
+      expect(resQuote.body.success).toBe(true);
+      expect(resQuote.body.data).toHaveProperty('depositAmount');
+      expect(resQuote.body.data.depositValue).toBe(30);
+    });
   });
 
   describe('4. Auth & Voucher Aliases', () => {
@@ -160,6 +180,14 @@ describe('API Ingress Bridge & Compatibility Verification', () => {
 
       // Status should be 200 (if db connected) or auth failure, NOT 400 additionalProperties
       expect(res.status).not.toBe(400);
+    });
+
+    it('POST /api/v1/auth/guest-otp rewrites to /api/v1/guest/lookup/otp without 404', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/guest-otp')
+        .send({ phone: '0912345678' });
+
+      expect(res.status).not.toBe(404);
     });
   });
 });

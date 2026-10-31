@@ -185,6 +185,10 @@ app.use(async (req, res, next) => {
     rewriteUrl('/api/v1/reset-password', '/api/v1/auth/reset-password');
   } else if (req.url.startsWith('/api/v1/change-password')) {
     rewriteUrl('/api/v1/change-password', '/api/v1/auth/change-password');
+  } else if (req.url.startsWith('/api/v1/auth/guest-otp')) {
+    rewriteUrl('/api/v1/auth/guest-otp', '/api/v1/guest/lookup/otp');
+  } else if (req.url.startsWith('/api/v1/auth/activate-guest')) {
+    rewriteUrl('/api/v1/auth/activate-guest', '/api/v1/activation/complete');
   }
 
   // Smart Product ID Resolver (Resolves codes, skus, slugs or numeric indexes before OpenAPI validator)
@@ -340,6 +344,69 @@ app.use(async (req, res, next) => {
       if (req.body.variant_id && !req.body.variantId) req.body.variantId = req.body.variant_id;
       delete req.body.product_id;
       delete req.body.variant_id;
+    }
+
+    // Appointments Booking Ingress Normalizer
+    if (req.path.endsWith('/appointments') && req.method === 'POST') {
+      if (!req.body.slotStart && req.body.appointmentDate && req.body.startTime) {
+        try {
+          const datePart = String(req.body.appointmentDate).split('T')[0];
+          const timePart = String(req.body.startTime).includes(':') ? req.body.startTime : `${req.body.startTime}:00`;
+          req.body.slotStart = new Date(`${datePart}T${timePart}:00.000Z`).toISOString();
+        } catch {
+          req.body.slotStart = new Date().toISOString();
+        }
+      }
+      if (req.body.contactSnapshot && !req.body.contact) {
+        req.body.contact = req.body.contactSnapshot;
+      }
+      if (!req.body.paymentMethod) {
+        req.body.paymentMethod = 'PAY_AT_STORE';
+      }
+      delete req.body.customerId;
+      delete req.body.appointmentDate;
+      delete req.body.startTime;
+      delete req.body.contactSnapshot;
+    }
+
+    // Reviews Ingress Normalizer
+    if (req.path.endsWith('/reviews') && req.method === 'POST') {
+      if (req.body.target_type && !req.body.targetType) {
+        req.body.targetType = String(req.body.target_type).toUpperCase();
+      }
+      if (req.body.target_id && !req.body.targetId) {
+        req.body.targetId = req.body.target_id;
+      }
+      delete req.body.target_type;
+      delete req.body.target_id;
+    }
+
+    // Vouchers Ingress Normalizer
+    if (req.path.includes('/vouchers/validate') || req.path.includes('/vouchers/apply')) {
+      if (req.body.branch_id && !req.body.branchId) {
+        req.body.branchId = req.body.branch_id;
+      }
+      if (!req.body.scope) {
+        req.body.scope = 'ORDER';
+      }
+      delete req.body.branch_id;
+      delete req.body.order_value;
+    }
+
+    // Orders Checkout Ingress Normalizer
+    if ((req.path.endsWith('/orders/checkout') || req.path.endsWith('/checkout')) && req.method === 'POST') {
+      if (req.body.paymentMethod === 'ONLINE' || req.body.paymentMethod === 'online') {
+        req.body.paymentMethod = 'ONLINE_MOCK';
+      } else if (req.body.paymentMethod === 'store' || req.body.paymentMethod === 'STORE') {
+        req.body.paymentMethod = 'COD';
+      }
+      if (req.body.contactSnapshot && !req.body.contact) {
+        req.body.contact = req.body.contactSnapshot;
+      }
+      delete req.body.customerId;
+      delete req.body.items;
+      delete req.body.addressId;
+      delete req.body.contactSnapshot;
     }
   }
 
