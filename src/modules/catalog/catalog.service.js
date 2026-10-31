@@ -103,6 +103,12 @@ export const formatProduct = (prod) => {
     origin: obj.origin || null,
     expiryInfo: obj.expiryInfo || null,
     images: Array.isArray(obj.images) ? obj.images : [],
+    thumbnailUrl: (Array.isArray(obj.images) && obj.images.length > 0)
+      ? (obj.images.find((img) => img.isPrimary)?.url || obj.images[0]?.url || null)
+      : null,
+    image: (Array.isArray(obj.images) && obj.images.length > 0)
+      ? (obj.images.find((img) => img.isPrimary)?.url || obj.images[0]?.url || null)
+      : null,
     productType: obj.productType || 'SIMPLE',
     usageType: obj.usageType || 'SALE',
     variants,

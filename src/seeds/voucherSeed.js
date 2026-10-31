@@ -136,35 +136,59 @@ export const VOUCHER_SEEDS = [
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
   },
-  // 10. Voucher Flash Sale Khung Giờ Vàng
+  // 10. Voucher Flash Sale đang diễn ra (ACTIVE Flash Sale)
   {
-    code: 'FLASHSALE50K',
-    name: '⚡ Flash Sale Giờ Vàng - Giảm 50.000đ cho đơn từ 120.000đ',
-    discountType: 'FIXED',
-    discountValue: 50000,
-    minOrderAmount: 120000,
-    scope: 'ORDER',
-    quota: 50,
-    usedCount: 28,
-    status: 'ACTIVE',
-    effectiveFrom: new Date('2026-10-31T00:00:00.000Z'),
-    effectiveTo: new Date('2026-10-31T23:59:59.000Z'),
-  },
-  // 11. Voucher Flash Sale Phụ kiện
-  {
-    code: 'FLASHACCESSORY',
-    name: '⚡ Flash Sale Phụ Kiện - Giảm 30% tối đa 70.000đ',
+    code: 'FLASHSALE30',
+    name: '⚡ FLASH SALE 30% - Giờ vàng giảm giá đơn hàng',
     discountType: 'PERCENTAGE',
     discountValue: 30,
-    maxDiscountAmount: 70000,
+    maxDiscountAmount: 80000,
     minOrderAmount: 100000,
     scope: 'ORDER',
-    quota: 30,
-    usedCount: 12,
+    quota: 200,
+    usedCount: 142,
     status: 'ACTIVE',
-    effectiveFrom: new Date('2026-10-31T00:00:00.000Z'),
-    effectiveTo: new Date('2026-10-31T23:59:59.000Z'),
+    isFlashSale: true,
+    flashSaleStartTime: new Date(Date.now() - 3600000 * 2),
+    flashSaleEndTime: new Date(Date.now() + 3600000 * 4),
+    effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+    effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
   },
+  // 11. Voucher Flash Sale 50k dịch vụ chăm sóc thú cưng
+  {
+    code: 'FLASHSALE50K',
+    name: '⚡ FLASH SALE 50K - Dịch vụ Spa & Grooming',
+    discountType: 'FIXED',
+    discountValue: 50000,
+    minOrderAmount: 150000,
+    scope: 'SERVICE',
+    quota: 100,
+    usedCount: 89,
+    status: 'ACTIVE',
+    isFlashSale: true,
+    flashSaleStartTime: new Date(Date.now() - 3600000 * 1),
+    flashSaleEndTime: new Date(Date.now() + 3600000 * 5),
+    effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+    effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
+  },
+  // 12. Voucher Flash Sale sắp diễn ra (UPCOMING Flash Sale)
+  {
+    code: 'FLASH_UPCOMING',
+    name: '⚡ FLASH SALE ĐÊM MUỘN - Sắp mở bán',
+    discountType: 'PERCENTAGE',
+    discountValue: 40,
+    maxDiscountAmount: 150000,
+    minOrderAmount: 200000,
+    scope: 'ORDER',
+    quota: 300,
+    usedCount: 0,
+    status: 'ACTIVE',
+    isFlashSale: true,
+    flashSaleStartTime: new Date(Date.now() + 3600000 * 8),
+    flashSaleEndTime: new Date(Date.now() + 3600000 * 14),
+    effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+    effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
+  }
 ];
 
 export const seedVouchers = async () => {
@@ -189,7 +213,7 @@ export const seedVouchers = async () => {
         { $set: dataToSave },
         { upsert: true }
       );
-      console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (${dataToSave.usedCount}/${dataToSave.quota} lượt)`);
+      console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (Used: ${dataToSave.usedCount}/${dataToSave.quota})`);
     }
 
     console.log('\n========================================================================');

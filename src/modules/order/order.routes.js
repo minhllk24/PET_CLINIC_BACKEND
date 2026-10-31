@@ -11,6 +11,8 @@ router.post('/checkout', optionalAuth, idempotency('checkoutCreateOrder', { requ
 
 // Order query & detail
 router.get('/', optionalAuth, orderController.listOrders);
+router.get('/stats', optionalAuth, orderController.getOrderStats);
+router.get('/summary', optionalAuth, orderController.getOrderStats);
 router.get('/:id', optionalAuth, orderController.getOrder);
 
 // Order actions (OpenAPI POST + PATCH backwards-compat)

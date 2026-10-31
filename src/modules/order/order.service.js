@@ -26,7 +26,15 @@ const aggregateMovements = (items) => {
   return [...totals.entries()].map(([inventoryItemId, quantity]) => ({ inventoryItemId, quantity }));
 };
 
-const makeOrderCode = () => `ORD-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`;
+let dailyOrderSeq = 1;
+export const makeOrderCode = (date = new Date()) => {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const seq = String(dailyOrderSeq++).padStart(4, '0');
+  return `ORD-${yyyy}${mm}${dd}-${seq}`;
+};
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
   const { cartId, paymentMethod, shippingAddress, contact, voucherCode, note } = data;
@@ -428,10 +436,18 @@ export const listOrders = async (query = {}, actor) => {
       { 'contactSnapshot.fullName': { $regex: s, $options: 'i' } }
     ];
   }
-  if (query.dateFrom || query.dateTo) {
+  const dateFrom = query.dateFrom || query.startDate;
+  const dateTo = query.dateTo || query.endDate;
+  if (dateFrom || dateTo) {
     filter.createdAt = {};
-    if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
-    if (query.dateTo) filter.createdAt.$lte = new Date(query.dateTo);
+    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const dTo = new Date(dateTo);
+      if (typeof dateTo === 'string' && dateTo.length === 10) {
+        dTo.setHours(23, 59, 59, 999);
+      }
+      filter.createdAt.$lte = dTo;
+    }
   }
 
   if (actor.systemRole === 'CUSTOMER') {
@@ -465,6 +481,59 @@ export const listOrders = async (query = {}, actor) => {
     items: orders.map(formatOrder),
     totalCount,
     nextCursor
+  };
+};
+
+export const getOrderStats = async (query = {}, actor = null) => {
+  const filter = {};
+  if (query.branchId || query.fulfillmentBranchId) {
+    filter.fulfillmentBranchId = query.branchId || query.fulfillmentBranchId;
+  }
+  const dateFrom = query.dateFrom || query.startDate;
+  const dateTo = query.dateTo || query.endDate;
+  if (dateFrom || dateTo) {
+    filter.createdAt = {};
+    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const dTo = new Date(dateTo);
+      if (typeof dateTo === 'string' && dateTo.length === 10) {
+        dTo.setHours(23, 59, 59, 999);
+      }
+      filter.createdAt.$lte = dTo;
+    }
+  }
+
+  if (actor) {
+    if (actor.systemRole === 'CUSTOMER') {
+      filter.customerId = actor.id;
+    } else if (actor.systemRole === 'STAFF') {
+      const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+      filter.fulfillmentBranchId = { $in: staffBranches };
+    } else if (actor.systemRole === 'MANAGER') {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+      filter.fulfillmentBranchId = { $in: mgrBranches };
+    }
+  }
+
+  const [total, pending, confirmed, processing, shipped, completed, cancelled] = await Promise.all([
+    Order.countDocuments(filter),
+    Order.countDocuments({ ...filter, status: 'PENDING' }),
+    Order.countDocuments({ ...filter, status: 'CONFIRMED' }),
+    Order.countDocuments({ ...filter, status: 'PROCESSING' }),
+    Order.countDocuments({ ...filter, status: 'SHIPPED' }),
+    Order.countDocuments({ ...filter, status: 'COMPLETED' }),
+    Order.countDocuments({ ...filter, status: 'CANCELLED' })
+  ]);
+
+  return {
+    total,
+    pending,
+    confirmed,
+    processing,
+    shipping: shipped,
+    shipped,
+    completed,
+    cancelled
   };
 };
 

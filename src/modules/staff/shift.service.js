@@ -317,3 +317,62 @@ export const cancelShift = async (id, actor = null) => {
 
   return formatShift(shift);
 };
+
+/**
+ * Delete a Shift (Hard delete if shift has not started, block if ongoing or completed)
+ */
+export const deleteShift = async (id, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Shift not found');
+  }
+
+  const shift = await Shift.findById(id).populate('staffId');
+  if (!shift) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Shift not found');
+  }
+
+  // Scope check for Manager
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (!assignedIds.includes(shift.branchId.toString())) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to delete shifts of this branch');
+    }
+  }
+
+  // Check if shift has already started or completed
+  const now = new Date();
+  if (shift.startAt && new Date(shift.startAt) <= now) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Cannot delete shift that has already started or completed. Please cancel it instead.');
+  }
+
+  // Check for confirmed appointments
+  let confirmedAppointments = [];
+  if (mongoose.connection.readyState !== 0) {
+    confirmedAppointments = await Appointment.find({
+      branchId: shift.branchId,
+      status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
+      'services.assignedStaffId': shift.staffId._id || shift.staffId,
+      'services.scheduledStart': { $lt: shift.endAt },
+      'services.scheduledEnd': { $gt: shift.startAt },
+    });
+  }
+
+  if (confirmedAppointments.length > 0) {
+    const error = new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.CONFLICT,
+      'Cannot delete shift with existing confirmed appointments'
+    );
+    error.affectedAppointmentIds = confirmedAppointments.map((a) => (a._id || a.id).toString());
+    throw error;
+  }
+
+  await Shift.findByIdAndDelete(id);
+
+  return {
+    success: true,
+    message: 'Shift deleted successfully',
+    id
+  };
+};

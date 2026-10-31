@@ -72,6 +72,12 @@ const userSchema = new mongoose.Schema({
     },
     default: null,
   },
+  staffCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+  },
   assignedBranchIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch',

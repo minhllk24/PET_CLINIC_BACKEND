@@ -39,4 +39,12 @@ router.post(
   shiftController.cancelShift
 );
 
+// DELETE /api/v1/shifts/:id (MANAGER, ADMIN)
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole(['MANAGER', 'ADMIN']),
+  shiftController.deleteShift
+);
+
 export default router;

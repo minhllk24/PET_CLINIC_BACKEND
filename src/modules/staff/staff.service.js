@@ -43,6 +43,14 @@ export const formatStaff = (profile, user = null) => {
   } else {
     dto.homeBranchId = null;
   }
+  if (profile.staffCode || u?.staffCode) {
+    dto.staffCode = profile.staffCode || u?.staffCode;
+  }
+  const createdDate = u?.createdAt || profile.createdAt;
+  if (createdDate) {
+    dto.createdAt = new Date(createdDate).toISOString();
+    dto.startDate = dto.createdAt;
+  }
 
   return dto;
 };

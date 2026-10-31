@@ -18,6 +18,15 @@ export const listOrders = async (req, res, next) => {
   }
 };
 
+export const getOrderStats = async (req, res, next) => {
+  try {
+    const result = await orderService.getOrderStats(req.query, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getOrder = async (req, res, next) => {
   try {
     const order = await orderService.getOrderById(req.params.id, req.actor, req.headers['x-guest-lookup-token']);

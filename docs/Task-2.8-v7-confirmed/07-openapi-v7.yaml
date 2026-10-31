@@ -11399,6 +11399,18 @@ components:
           type:
           - number
           - 'null'
+        isFlashSale:
+          type: boolean
+        flashSaleStartTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        flashSaleEndTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
       additionalProperties: false
       required:
       - id
@@ -11443,6 +11455,18 @@ components:
         maxDiscountAmount:
           type: number
           minimum: 0
+        isFlashSale:
+          type: boolean
+        flashSaleStartTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        flashSaleEndTime:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - code
       - discountType

@@ -10875,6 +10875,20 @@ components:
         usedCount:
           type: integer
           minimum: 0
+        description:
+          type: string
+        minOrderAmount:
+          type: number
+          minimum: 0
+        maxDiscountAmount:
+          type: number
+          minimum: 0
+        isFlashSale:
+          type: boolean
+        flashSaleStartTime:
+          $ref: '#/components/schemas/DateTime'
+        flashSaleEndTime:
+          $ref: '#/components/schemas/DateTime'
         status:
           $ref: '#/components/schemas/ActiveStatus'
       additionalProperties: false
@@ -10911,6 +10925,20 @@ components:
         quota:
           type: integer
           minimum: 1
+        description:
+          type: string
+        minOrderAmount:
+          type: number
+          minimum: 0
+        maxDiscountAmount:
+          type: number
+          minimum: 0
+        isFlashSale:
+          type: boolean
+        flashSaleStartTime:
+          $ref: '#/components/schemas/DateTime'
+        flashSaleEndTime:
+          $ref: '#/components/schemas/DateTime'
         status:
           $ref: '#/components/schemas/ActiveStatus'
       required:

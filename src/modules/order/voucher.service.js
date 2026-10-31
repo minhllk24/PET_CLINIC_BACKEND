@@ -25,7 +25,10 @@ export const formatVoucherResponse = (voucher) => {
     usedCount: Number(doc.usedCount || 0),
     status: doc.status,
     minOrderAmount: Number(doc.minOrderAmount || 0),
-    maxDiscountAmount: doc.maxDiscountAmount != null ? Number(doc.maxDiscountAmount) : null
+    maxDiscountAmount: doc.maxDiscountAmount != null ? Number(doc.maxDiscountAmount) : null,
+    isFlashSale: Boolean(doc.isFlashSale),
+    flashSaleStartTime: doc.flashSaleStartTime ? new Date(doc.flashSaleStartTime).toISOString() : null,
+    flashSaleEndTime: doc.flashSaleEndTime ? new Date(doc.flashSaleEndTime).toISOString() : null
   };
 };
 
@@ -122,6 +125,28 @@ export const validateVoucherEligibility = async ({
       discount: 0,
       voucher
     };
+  }
+
+  // Flash Sale time window check
+  if (voucher.isFlashSale) {
+    if (voucher.flashSaleStartTime && now < new Date(voucher.flashSaleStartTime)) {
+      return {
+        code: cleanCode,
+        valid: false,
+        reason: 'FLASH_SALE_NOT_STARTED',
+        discount: 0,
+        voucher
+      };
+    }
+    if (voucher.flashSaleEndTime && now > new Date(voucher.flashSaleEndTime)) {
+      return {
+        code: cleanCode,
+        valid: false,
+        reason: 'FLASH_SALE_EXPIRED',
+        discount: 0,
+        voucher
+      };
+    }
   }
 
   // Scope check:
@@ -291,7 +316,10 @@ export const createVoucher = async (data) => {
     usedCount: 0,
     status: data.status || 'ACTIVE',
     minOrderAmount: data.minOrderAmount || 0,
-    maxDiscountAmount: data.maxDiscountAmount
+    maxDiscountAmount: data.maxDiscountAmount,
+    isFlashSale: Boolean(data.isFlashSale),
+    flashSaleStartTime: data.flashSaleStartTime ? new Date(data.flashSaleStartTime) : null,
+    flashSaleEndTime: data.flashSaleEndTime ? new Date(data.flashSaleEndTime) : null
   });
 
   await voucher.save();
@@ -348,6 +376,10 @@ export const updateVoucher = async (id, data) => {
     throw new AppError(422, 'Unprocessable Entity', ErrorCodes.VALIDATION_ERROR, 'effectiveTo must be strictly greater than effectiveFrom');
   }
 
+  if (data.isFlashSale !== undefined) voucher.isFlashSale = Boolean(data.isFlashSale);
+  if (data.flashSaleStartTime !== undefined) voucher.flashSaleStartTime = data.flashSaleStartTime ? new Date(data.flashSaleStartTime) : null;
+  if (data.flashSaleEndTime !== undefined) voucher.flashSaleEndTime = data.flashSaleEndTime ? new Date(data.flashSaleEndTime) : null;
+
   await voucher.save();
   return formatVoucherResponse(voucher);
 };
@@ -355,10 +387,13 @@ export const updateVoucher = async (id, data) => {
 /**
  * Admin / Manager: List vouchers
  */
-export const listVouchers = async ({ status, scope, limit = 20, cursor, search } = {}) => {
+export const listVouchers = async ({ status, scope, limit = 20, cursor, search, isFlashSale } = {}) => {
   const query = {};
   if (status) query.status = status;
   if (scope) query.scope = scope;
+  if (isFlashSale !== undefined) {
+    query.isFlashSale = isFlashSale === 'true' || isFlashSale === true;
+  }
   if (search && search.trim()) {
     const s = search.trim();
     query.$or = [
@@ -375,18 +410,15 @@ export const listVouchers = async ({ status, scope, limit = 20, cursor, search }
   }
 
   const parsedLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 100);
-  const totalCount = await Voucher.countDocuments(
-    search && search.trim()
-      ? {
-          ...(status ? { status } : {}),
-          ...(scope ? { scope } : {}),
-          $or: [{ code: new RegExp(search.trim(), 'i') }, { name: new RegExp(search.trim(), 'i') }]
-        }
-      : {
-          ...(status ? { status } : {}),
-          ...(scope ? { scope } : {})
-        }
-  );
+  const filterForCount = {
+    ...(status ? { status } : {}),
+    ...(scope ? { scope } : {}),
+    ...(isFlashSale !== undefined ? { isFlashSale: isFlashSale === 'true' || isFlashSale === true } : {})
+  };
+  if (search && search.trim()) {
+    filterForCount.$or = [{ code: new RegExp(search.trim(), 'i') }, { name: new RegExp(search.trim(), 'i') }];
+  }
+  const totalCount = await Voucher.countDocuments(filterForCount);
 
   const items = await Voucher.find(query).sort({ _id: 1 }).limit(parsedLimit + 1);
 

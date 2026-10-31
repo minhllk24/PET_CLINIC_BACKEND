@@ -46,3 +46,12 @@ export const cancelShift = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteShift = async (req, res, next) => {
+  try {
+    const result = await shiftService.deleteShift(req.params.id, req.actor);
+    return sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};

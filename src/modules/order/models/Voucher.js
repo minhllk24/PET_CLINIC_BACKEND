@@ -69,6 +69,17 @@ const schema = new mongoose.Schema({
     type: Number,
     min: 0
   },
+  isFlashSale: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  flashSaleStartTime: {
+    type: Date
+  },
+  flashSaleEndTime: {
+    type: Date
+  },
   version: {
     type: Number,
     default: 1
