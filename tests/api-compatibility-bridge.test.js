@@ -189,5 +189,17 @@ describe('API Ingress Bridge & Compatibility Verification', () => {
 
       expect(res.status).not.toBe(404);
     });
+    it('GET /api/v1/appointments/slots accepts Vietnamese branch_id and service_id without 400', async () => {
+      const res = await request(app)
+        .get('/api/v1/appointments/slots')
+        .query({
+          branch_id: 'Quận 1, TP. Hồ Chí Minh',
+          service_id: '6ad08e4417bf41f5954234c6',
+          date: '2026-11-01'
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('slots');
+    });
   });
 });

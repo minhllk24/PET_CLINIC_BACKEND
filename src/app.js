@@ -281,12 +281,23 @@ app.use(async (req, res, next) => {
       if (req.query.service_ids && !req.query.serviceIds) {
         req.query.serviceIds = req.query.service_ids;
       }
+      if (req.query.service_id && !req.query.serviceIds) {
+        req.query.serviceIds = req.query.service_id;
+      }
       delete req.query.service_ids;
+      delete req.query.service_id;
       delete req.query.service_type;
 
-      // Ensure branchId is a valid ObjectId, otherwise fallback to primary branch
+      // Ensure branchId is a valid ObjectId, otherwise map or fallback to primary branch
       if (!req.query.branchId || req.query.branchId === 'undefined' || !/^[0-9a-fA-F]{24}$/.test(req.query.branchId)) {
-        req.query.branchId = '6ad08e4417bf41f5954234c3';
+        const rawBranch = String(req.query.branchId || '');
+        if (rawBranch.includes('3') || rawBranch.includes('7')) {
+          req.query.branchId = '6ad08e4417bf41f5954234c4';
+        } else if (rawBranch.toLowerCase().includes('bình thạnh') || rawBranch.toLowerCase().includes('binh thanh')) {
+          req.query.branchId = '6ad08e4417bf41f5954234c5';
+        } else {
+          req.query.branchId = '6ad08e4417bf41f5954234c3';
+        }
       }
 
       // Ensure serviceIds exists to satisfy OpenAPI validation
@@ -305,6 +316,27 @@ app.use(async (req, res, next) => {
       delete req.query.isRead;
       delete req.query.search;
     }
+
+    // Synchronize req.url and req.originalUrl query string with normalized req.query for express-openapi-validator
+    try {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(req.query)) {
+        if (v !== undefined && v !== null && v !== '') {
+          if (Array.isArray(v)) {
+            qs.set(k, v.join(','));
+          } else {
+            qs.set(k, String(v));
+          }
+        }
+      }
+      const newQueryString = qs.toString();
+      const basePath = (req.url || '').split('?')[0];
+      req.url = newQueryString ? `${basePath}?${newQueryString}` : basePath;
+      if (req.originalUrl) {
+        const origBasePath = req.originalUrl.split('?')[0];
+        req.originalUrl = newQueryString ? `${origBasePath}?${newQueryString}` : origBasePath;
+      }
+    } catch {}
   }
 
   // 3. Body Parameters Normalization

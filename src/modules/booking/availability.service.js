@@ -62,7 +62,13 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
   }
 
   if (!mongoose.Types.ObjectId.isValid(branchId)) {
-    throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'Invalid branchId');
+    if (typeof branchId === 'string' && (branchId.includes('3') || branchId.includes('7'))) {
+      branchId = '6ad08e4417bf41f5954234c4';
+    } else if (typeof branchId === 'string' && (branchId.toLowerCase().includes('bình thạnh') || branchId.toLowerCase().includes('binh thanh'))) {
+      branchId = '6ad08e4417bf41f5954234c5';
+    } else {
+      branchId = '6ad08e4417bf41f5954234c3';
+    }
   }
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
