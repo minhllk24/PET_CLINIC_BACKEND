@@ -14,6 +14,7 @@
     "seed:uat-prod": "babel-node src/seeds/productionUatSeed.js",
     "seed:legacy-products": "babel-node src/seeds/migrateLegacyProducts.js",
     "inspect:data": "babel-node scripts/inspectData.js",
+    "check:clean": "babel-node scripts/verifyCleanData.js",
     "migrate:inventory-v7": "babel-node scripts/migrateInventoryV7.js",
     "test": "jest --runInBand"
   },
