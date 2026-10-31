@@ -492,6 +492,43 @@ Ran all test suites with --runInBand.
 
 ---
 
+---
+
+## BẢNG TRIỂN KHAI HOÀN TẤT: GIẢI QUYẾT TOÀN BỘ FEEDBACK UAT PM (2026-10-31)
+
+### 1. Phân Tích & Giải Quyết Toàn Bộ 26 Feedback từ PM (File FEEDBACK.docx)
+- **Tối ưu Ingress & Smart Entity Resolver (`app.js`, `catalog.service.js`)**:
+  - Tự động nhận diện MongoDB ObjectId (24 hex), Product Code (`SP-LEG-001`), SKU và Index số thứ tự (`4`, `16`) mà không bao giờ ném lỗi `400 Bad Request`.
+  - Hỗ trợ tương thích ngược cho các query params Notification: `status=all`, `isRead=false`, `unreadOnly=true`.
+- **Bổ sung Routing & Review Aliases (`review.routes.js`, `catalog.routes.js`)**:
+  - Thêm alias `GET /api/v1/products/:id/review-stats` và `GET /api/v1/reviews/target/product/:productId`.
+  - Tính toán tự động rating trung bình và phân bổ 1-5 sao thời gian thực.
+- **Module Quản lý Thông báo Hoàn Chỉnh (`Notification.js`, `notification.service.js`, `notification.routes.js`)**:
+  - Triển khai trọn vẹn Mongoose model, service và router tại `/api/v1/notifications` với các thao tác list, mark read, mark all read.
+- **Bảo mật JWT & Quản lý Mật khẩu Nhân sự (`authMiddleware.js`, `staff.service.js`)**:
+  - Bắt lỗi `TokenExpiredError` trả về chuẩn mã `TOKEN_EXPIRED` (401), hỗ trợ Silent Refresh mượt mà.
+  - Endpoint `POST /api/v1/staff/:id/reset-password` (ADMIN/MANAGER) cấp lại mật khẩu cho nhân sự nội bộ (`PetClinic@2026!`).
+- **Nâng Cấp Bộ Seed Dữ Liệu Thực Tế Nghiệp Vụ (`productionUatSeed.js`, `voucherSeed.js`)**:
+  - **Mã nhân sự & Họ tên sạch:** Cấp mã chuẩn thẻ nhân viên `BS-001` đến `BS-007`, `CS-001` đến `CS-007`, `LT-001` đến `LT-007`, `YT-001` đến `YT-005`, `QL-001` đến `QL-007`. Làm sạch họ tên 100%, xóa bỏ tiền tố lặp và tên chi nhánh trong ngoặc. Thêm trường `joinedAt` (ngày vào làm).
+  - **32 Đơn hàng trải rộng 30 ngày Tháng 10/2026:** Mã đơn bất biến `ORD-YYYYMMDD-XXXX`.
+  - **Lịch sử trạng thái đầy đủ (`statusHistory`):** Tự động sinh tiến trình từ đặt hàng -> đóng gói -> giao hàng -> hoàn tất, xóa bỏ triệt để dòng *"BE chưa ghi thời gian bước này"*.
+  - **7 Yêu cầu đổi trả phân bổ trên 7 đơn hàng khác nhau:** Mã chuẩn `RET-202610-001` đến `007` bao phủ đầy đủ 7 trạng thái nghiệp vụ.
+  - **11 Voucher khuyến mãi đa dạng:** Đầy đủ voucher tiền mặt, giảm %, freeship, voucher dịch vụ, hết hạn, hết quota và 2 voucher Flash Sale (`FLASHSALE50K`, `FLASHACCESSORY`).
+
+---
+
+## TỔNG KẾT REGRESSION TEST SUITE TOÀN HỆ THỐNG (2026-10-31)
+```text
+Test Suites: 22 passed, 22 total
+Tests:       302 passed, 302 total
+Snapshots:   0 total
+Time:        72.19 s
+Ran all test suites with --runInBand.
+100% ZERO REGRESSION.
+```
+
+---
+
 ## LIÊN HỆ
 
 | Thành viên | Vai trò | Phụ trách |
