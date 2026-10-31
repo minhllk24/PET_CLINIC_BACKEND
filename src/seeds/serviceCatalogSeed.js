@@ -233,6 +233,14 @@ export const seedServiceCatalog = async () => {
   ];
 
   const services = [];
+  const validServiceCodes = servicesData.map((s) => s.code);
+  const junkServices = await Service.find({ code: { $nin: validServiceCodes } });
+  if (junkServices.length > 0) {
+    const junkIds = junkServices.map((s) => s._id);
+    await BranchServiceConfig.deleteMany({ serviceId: { $in: junkIds } });
+    await Service.deleteMany({ _id: { $in: junkIds } });
+  }
+
   for (const sData of servicesData) {
     const { enabledBranchIndices, ...serviceFields } = sData;
     const service = await Service.findOneAndUpdate(

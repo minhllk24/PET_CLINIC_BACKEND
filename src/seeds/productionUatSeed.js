@@ -119,6 +119,18 @@ export const runProductionUatSeed = async () => {
   await Shift.deleteMany({});
   console.log('   ✅ Đã làm mới ca làm việc (Shifts) để phân bổ ca thực tế.');
 
+  // 1.5 Dọn dẹp Đơn hàng & Đổi trả mang mã test cũ (ORD-UAT-..., ORD-CUST-...)
+  await Order.deleteMany({
+    $or: [
+      { code: { $regex: /^ORD-(UAT|CUST)/i } },
+      { 'contactSnapshot.fullName': 'Lê Văn C' }
+    ]
+  });
+  await OrderReturn.deleteMany({ code: { $regex: /^RET-UAT/i } });
+  await Appointment.deleteMany({ code: { $regex: /^APT-(CUST|GUEST)/i } });
+  await Voucher.deleteMany({ code: { $in: ['EXPIRED_TEST', 'MAXOUT_TEST'] } });
+  console.log('   ✅ Đã quét sạch đơn hàng, đổi trả, lịch hẹn và voucher mang mã test cũ.');
+
   // ========================================================================
   // BƯỚC 2: CHUẨN HÓA 3 CHI NHÁNH THỰC TẾ & COMMERCE SETTING
   // ========================================================================
@@ -1558,7 +1570,7 @@ export const runProductionUatSeed = async () => {
   if (medicalService && groomingService && doctorAnProfile && groomerDatProfile) {
     const APPOINTMENT_SEEDS = [
       {
-        code: 'APT-CUST-PEND-PAY-01',
+        code: 'APT-20261025-0001',
         status: 'PENDING_PAYMENT',
         serviceType: 'MEDICAL',
         service: medicalService,
@@ -1570,7 +1582,7 @@ export const runProductionUatSeed = async () => {
         depositStatus: 'PENDING'
       },
       {
-        code: 'APT-CUST-PEND-CONF-02',
+        code: 'APT-20261026-0002',
         status: 'PENDING_CONFIRMATION',
         serviceType: 'GROOMING',
         service: groomingService,
@@ -1582,7 +1594,7 @@ export const runProductionUatSeed = async () => {
         depositStatus: 'NOT_REQUIRED'
       },
       {
-        code: 'APT-CUST-CONFIRMED-03',
+        code: 'APT-20261027-0003',
         status: 'CONFIRMED',
         serviceType: 'MEDICAL',
         service: medicalService,
@@ -1594,7 +1606,7 @@ export const runProductionUatSeed = async () => {
         depositStatus: 'HELD'
       },
       {
-        code: 'APT-CUST-INPROGRESS-04',
+        code: 'APT-20261028-0004',
         status: 'IN_PROGRESS',
         serviceType: 'GROOMING',
         service: groomingService,
@@ -1607,7 +1619,7 @@ export const runProductionUatSeed = async () => {
         execStatus: 'IN_PROGRESS'
       },
       {
-        code: 'APT-CUST-COMPLETED-05',
+        code: 'APT-20261029-0005',
         status: 'COMPLETED',
         serviceType: 'MEDICAL',
         service: medicalService,
@@ -1621,7 +1633,7 @@ export const runProductionUatSeed = async () => {
         hasServiceRecord: true
       },
       {
-        code: 'APT-CUST-CANCELLED-06',
+        code: 'APT-20261030-0006',
         status: 'CANCELLED',
         serviceType: 'MEDICAL',
         service: medicalService,
@@ -1634,7 +1646,7 @@ export const runProductionUatSeed = async () => {
         cancel: { by: 'CUSTOMER', reason: 'Khách hàng bận lịch công tác đột xuất' }
       },
       {
-        code: 'APT-CUST-NOSHOW-07',
+        code: 'APT-20261031-0007',
         status: 'NO_SHOW',
         serviceType: 'GROOMING',
         service: groomingService,
@@ -1743,10 +1755,10 @@ export const runProductionUatSeed = async () => {
     const guestAptStart = new Date(Date.now() + 3600000 * 24);
     const guestAptEnd = new Date(guestAptStart.getTime() + 3600000);
     await Appointment.findOneAndUpdate(
-      { code: 'APT-GUEST-CLINIC-01' },
+      { code: 'APT-20261031-0008' },
       {
         $set: {
-          code: 'APT-GUEST-CLINIC-01',
+          code: 'APT-20261031-0008',
           customerId: null,
           guestContactId: guestB._id,
           branchId: branch1._id,
@@ -1796,16 +1808,16 @@ export const runProductionUatSeed = async () => {
       },
       { upsert: true }
     );
-    console.log(`   ✅ [GUEST 2 - LỊCH HẸN] Đã tạo lịch hẹn APT-GUEST-CLINIC-01 cho ${guestB.fullName} (Mèo Miu Miu, Cọc 30%, KHÔNG CÓ TÀI KHOẢN).`);
+    console.log(`   ✅ [GUEST 2 - LỊCH HẸN] Đã tạo lịch hẹn APT-20261031-0008 cho ${guestB.fullName} (Mèo Miu Miu, Cọc 30%, KHÔNG CÓ TÀI KHOẢN).`);
 
     // 6.8 Lịch hẹn Khách vãng lai Guest C (IN_PROGRESS, Mèo Bông, Grooming spa)
     const guestCAptStart = new Date();
     const guestCAptEnd = new Date(guestCAptStart.getTime() + 3600000);
     await Appointment.findOneAndUpdate(
-      { code: 'APT-GUEST-GROOM-02' },
+      { code: 'APT-20261031-0009' },
       {
         $set: {
-          code: 'APT-GUEST-GROOM-02',
+          code: 'APT-20261031-0009',
           customerId: null,
           guestContactId: guestC._id,
           branchId: branch1._id,
@@ -1855,7 +1867,7 @@ export const runProductionUatSeed = async () => {
       },
       { upsert: true }
     );
-    console.log(`   ✅ [GUEST 3 - LỊCH HẸN] Đã tạo lịch hẹn IN_PROGRESS APT-GUEST-GROOM-02 cho ${guestC.fullName} (Mèo Bông).`);
+    console.log(`   ✅ [GUEST 3 - LỊCH HẸN] Đã tạo lịch hẹn IN_PROGRESS APT-20261031-0009 cho ${guestC.fullName} (Mèo Bông).`);
   }
 
   // ========================================================================

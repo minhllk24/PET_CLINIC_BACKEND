@@ -202,6 +202,9 @@ export const seedVouchers = async () => {
     const activeProducts = await Product.find({ status: 'ACTIVE' }).select('_id').limit(10).lean();
     const productScopeRefs = activeProducts.map((p) => p._id);
 
+    // Purge test vouchers or unlisted vouchers
+    await Voucher.deleteMany({ code: { $nin: VOUCHER_SEEDS.map((v) => v.code) } });
+
     for (const vData of VOUCHER_SEEDS) {
       const dataToSave = { ...vData };
       if (dataToSave.code === 'THUNHO20' && productScopeRefs.length > 0) {
