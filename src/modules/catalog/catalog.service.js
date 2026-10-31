@@ -477,11 +477,19 @@ export const listProducts = async (params, actor) => {
 };
 
 export const getProductById = async (id, actor) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  let productQuery;
+  if (mongoose.isValidObjectId(id)) {
+    productQuery = Product.findById(id);
+  } else {
+    productQuery = Product.findOne({
+      $or: [
+        { productCode: id },
+        { 'variants.sku': id },
+        { slug: id },
+        { code: id }
+      ]
+    });
   }
-
-  let productQuery = Product.findById(id);
   if (productQuery && typeof productQuery.populate === 'function') {
     productQuery = productQuery.populate('categoryId', 'name slug status');
   }

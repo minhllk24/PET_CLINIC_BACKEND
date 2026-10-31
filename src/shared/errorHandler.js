@@ -31,8 +31,13 @@ export const errorHandler = (err, req, res, next) => {
     );
   }
 
-  // OpenAPI Validator Errors
-  if (err.status === 401) {
+  // OpenAPI Validator Errors & Token Expiration
+  if (err.name === 'TokenExpiredError' || err.code === 'TOKEN_EXPIRED' || error.code === 'TOKEN_EXPIRED') {
+    error.status = 401;
+    error.code = 'TOKEN_EXPIRED';
+    error.title = 'Token Expired';
+    error.detail = err.detail || 'Access token has expired';
+  } else if (err.status === 401 && !err.code) {
     error = new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, err.message);
   }
   

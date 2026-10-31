@@ -88,4 +88,16 @@ const showHandler = async (req, res, next) => {
 router.post('/:id/show', requireRole(['MANAGER', 'ADMIN']), idempotency('reviewsShow', { required: false }), showHandler);
 router.patch('/:id/show', requireRole(['MANAGER', 'ADMIN']), idempotency('reviewsShow', { required: false }), showHandler);
 
+// Compatibility route for Frontend: GET /api/v1/reviews/target/product/:productId
+router.get('/target/product/:productId', optionalAuth, async (req, res, next) => {
+  try {
+    const result = await reviewService.listReviews({
+      ...req.query,
+      targetType: 'PRODUCT',
+      targetId: req.params.productId
+    }, req.actor);
+    res.json(result);
+  } catch (error) { next(error); }
+});
+
 export default router;

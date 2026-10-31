@@ -8909,6 +8909,14 @@ components:
           type: string
         accountStatus:
           type: string
+        staffCode:
+          type:
+          - string
+          - 'null'
+        joinedAt:
+          type:
+          - string
+          - 'null'
       additionalProperties: false
       required:
       - id

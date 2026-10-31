@@ -49,7 +49,7 @@ export const login = async (req, res, next) => {
     return sendSuccess(res, formatAuthTokens({
       accessToken,
       refreshToken,
-      expiresIn: 900,
+      expiresIn: parseInt(process.env.JWT_EXPIRES_IN_SEC || '900', 10),
       user,
     }));
   } catch (err) {
@@ -66,7 +66,7 @@ export const refreshToken = async (req, res, next) => {
     return sendSuccess(res, formatAuthTokens({
       accessToken,
       refreshToken: newRefreshToken,
-      expiresIn: 900,
+      expiresIn: parseInt(process.env.JWT_EXPIRES_IN_SEC || '900', 10),
     }));
   } catch (err) {
     next(err);
@@ -144,7 +144,7 @@ export const googleLogin = async (req, res, next) => {
     return sendSuccess(res, formatAuthTokens({
       accessToken,
       refreshToken,
-      expiresIn: 900,
+      expiresIn: parseInt(process.env.JWT_EXPIRES_IN_SEC || '900', 10),
       user,
     }));
   } catch (err) {

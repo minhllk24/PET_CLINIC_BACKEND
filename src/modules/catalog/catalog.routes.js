@@ -29,6 +29,13 @@ router.get('/products', optionalAuth, catalogController.listProducts);
 router.post('/products', authenticate, requireRole(['ADMIN']), idempotency('productsCreate'), catalogController.createProduct);
 
 router.get('/products/:id', optionalAuth, catalogController.getProductById);
+router.get('/products/:id/review-stats', optionalAuth, async (req, res, next) => {
+  try {
+    const { getProductReviewStats } = require('../review/review.service');
+    const stats = await getProductReviewStats(req.params.id);
+    res.json(stats);
+  } catch (error) { next(error); }
+});
 router.patch('/products/:id', authenticate, requireRole(['ADMIN']), catalogController.updateProduct);
 router.post('/products/:id/archive', authenticate, requireRole(['ADMIN']), idempotency('productsArchive'), catalogController.archiveProduct);
 router.post('/products/:id/restore', authenticate, requireRole(['ADMIN']), idempotency('productsRestore'), catalogController.restoreProduct);

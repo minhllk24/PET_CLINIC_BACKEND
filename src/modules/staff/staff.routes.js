@@ -43,6 +43,13 @@ router.put(
   staffController.updateStaffBranches
 );
 
+router.post(
+  '/:id/reset-password',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  staffController.resetStaffPassword
+);
+
 // ================= SHIFTS FOR STAFF (NESTED) =================
 router.get(
   '/:staffId/shifts',

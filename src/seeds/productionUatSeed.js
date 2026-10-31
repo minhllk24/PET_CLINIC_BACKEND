@@ -197,298 +197,434 @@ export const runProductionUatSeed = async () => {
     // 1. Quản trị tối cao (Global Scope - Toàn hệ thống)
     {
       username: 'admin',
-      fullName: 'System Administrator (Quản Trị Tối Cao)',
+      fullName: 'System Administrator',
+      phone: '0900000001',
+      email: 'admin@drpetshouse.vn',
       systemRole: 'ADMIN',
       accountStatus: 'ACTIVE',
       assignedBranchIds: allBranchIds,
       authorizedBranchIds: allBranchIds,
       isGlobal: true,
+      staffCode: 'ADMIN-001',
+      hireDate: new Date('2022-01-01T00:00:00.000Z')
     },
 
     // 2. Ban Quản Lý (MANAGER) - Phủ Đơn chi nhánh, Đa chi nhánh và Toàn hệ thống
     {
       username: 'manager_q1',
-      fullName: 'Quản Lý Nguyễn Quốc Tuấn (Trụ sở Q1)',
+      fullName: 'Nguyễn Quốc Tuấn',
+      phone: '0901000001',
+      email: 'tuan.nguyen@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch1._id],
       authorizedBranchIds: [branch1._id],
+      staffCode: 'QL-001',
+      hireDate: new Date('2023-02-15T00:00:00.000Z')
     },
     {
       username: 'manager_q7',
-      fullName: 'Quản Lý Lê Thúy Hằng (Phú Mỹ Hưng Q7)',
+      fullName: 'Lê Thúy Hằng',
+      phone: '0901000002',
+      email: 'hang.le@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch2._id],
       authorizedBranchIds: [branch2._id],
+      staffCode: 'QL-002',
+      hireDate: new Date('2023-05-10T00:00:00.000Z')
     },
     {
       username: 'manager_bt',
-      fullName: 'Quản Lý Hoàng Đình Trọng (Bình Thạnh)',
+      fullName: 'Hoàng Đình Trọng',
+      phone: '0901000003',
+      email: 'trong.hoang@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch3._id],
       authorizedBranchIds: [branch3._id],
+      staffCode: 'QL-003',
+      hireDate: new Date('2023-08-01T00:00:00.000Z')
     },
     {
       username: 'manager_dual',
-      fullName: 'Quản Lý Điều Phối Phan Minh Triết (Q1 & Q7)',
+      fullName: 'Phan Minh Triết',
+      phone: '0901000004',
+      email: 'triet.phan@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch1._id, branch2._id],
       authorizedBranchIds: [branch1._id, branch2._id],
+      staffCode: 'QL-004',
+      hireDate: new Date('2023-11-20T00:00:00.000Z')
     },
     {
       username: 'manager_dual_13',
-      fullName: 'Quản Lý Điều Phối Đặng Gia Huy (Q1 & Bình Thạnh)',
+      fullName: 'Đặng Gia Huy',
+      phone: '0901000005',
+      email: 'huy.dang@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch1._id, branch3._id],
       authorizedBranchIds: [branch1._id, branch3._id],
+      staffCode: 'QL-005',
+      hireDate: new Date('2024-01-05T00:00:00.000Z')
     },
     {
       username: 'manager_dual_23',
-      fullName: 'Quản Lý Điều Phối Vũ Diệu Linh (Q7 & Bình Thạnh)',
+      fullName: 'Vũ Diệu Linh',
+      phone: '0901000006',
+      email: 'linh.vu@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: [branch2._id, branch3._id],
       authorizedBranchIds: [branch2._id, branch3._id],
+      staffCode: 'QL-006',
+      hireDate: new Date('2024-03-12T00:00:00.000Z')
     },
     {
       username: 'manager_general',
-      fullName: 'Tổng Quản Lý Điều Hành Trần Quốc Toản (3 Chi Nhánh)',
+      fullName: 'Trần Quốc Toản',
+      phone: '0901000007',
+      email: 'toan.tran@drpetshouse.vn',
       systemRole: 'MANAGER',
       accountStatus: 'ACTIVE',
       assignedBranchIds: allBranchIds,
       authorizedBranchIds: allBranchIds,
+      staffCode: 'QL-007',
+      hireDate: new Date('2022-06-01T00:00:00.000Z')
     },
 
     // 3. Bác Sĩ Thú Y (VETERINARIAN) - Phủ Đơn chi nhánh, Đa chi nhánh và Hội Chẩn Toàn Chuỗi
     {
       username: 'vet_q1',
-      fullName: 'BS. Nguyễn Văn An (Trụ sở Q1)',
+      fullName: 'Nguyễn Văn An',
+      phone: '0902000001',
+      email: 'an.nguyen@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch1._id],
-      shifts: [1, 2, 4, 5, 7], // Làm thứ 2, 3, 5, 6, CN (nghỉ thứ 4, thứ 7)
+      shifts: [1, 2, 4, 5, 7],
       legacyAliases: ['doctor.an'],
+      staffCode: 'BS-001',
+      hireDate: new Date('2023-01-10T00:00:00.000Z')
     },
     {
       username: 'vet_q7',
-      fullName: 'BS. Lê Hoàng Nam (Phú Mỹ Hưng Q7)',
+      fullName: 'Lê Hoàng Nam',
+      phone: '0902000002',
+      email: 'nam.le@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch2._id],
       shifts: [2, 3, 4, 6, 7],
       legacyAliases: ['doctor.nam'],
+      staffCode: 'BS-002',
+      hireDate: new Date('2023-04-18T00:00:00.000Z')
     },
     {
       username: 'vet_bt',
-      fullName: 'BS. Trần Phương Thảo (Bình Thạnh)',
+      fullName: 'Trần Phương Thảo',
+      phone: '0902000003',
+      email: 'thao.tran@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch3._id],
       shifts: [1, 3, 5, 6, 7],
       legacyAliases: ['doctor.thao'],
+      staffCode: 'BS-003',
+      hireDate: new Date('2023-07-22T00:00:00.000Z')
     },
     {
       username: 'vet_dual',
-      fullName: 'BS. Phạm Minh Khôi (Trực luân phiên Q1 & Q7)',
+      fullName: 'Phạm Minh Khôi',
+      phone: '0902000004',
+      email: 'khoi.pham@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch1._id, branch2._id],
       shifts: [1, 2, 3, 5, 6],
+      staffCode: 'BS-004',
+      hireDate: new Date('2023-09-01T00:00:00.000Z')
     },
     {
       username: 'vet_dual_13',
-      fullName: 'BS. Đỗ Tuấn Hưng (Trực luân phiên Q1 & Bình Thạnh)',
+      fullName: 'Đỗ Tuấn Hưng',
+      phone: '0902000005',
+      email: 'hung.do@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch1._id, branch3._id],
       shifts: [1, 3, 4, 6, 7],
+      staffCode: 'BS-005',
+      hireDate: new Date('2024-01-15T00:00:00.000Z')
     },
     {
       username: 'vet_dual_23',
-      fullName: 'BS. Vũ Bảo Long (Trực luân phiên Q7 & Bình Thạnh)',
+      fullName: 'Vũ Bảo Long',
+      phone: '0902000006',
+      email: 'long.vu@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: [branch2._id, branch3._id],
       shifts: [2, 3, 4, 5, 7],
+      staffCode: 'BS-006',
+      hireDate: new Date('2024-02-28T00:00:00.000Z')
     },
     {
       username: 'vet_master',
-      fullName: 'BS CKII. Trịnh Văn Thành (Bác Sĩ Trưởng Hội Chẩn 3 Chi Nhánh)',
+      fullName: 'Trịnh Văn Thành',
+      phone: '0902000007',
+      email: 'thanh.trinh@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'VETERINARIAN',
       assignedBranchIds: allBranchIds,
       shifts: [1, 2, 3, 4, 5],
+      staffCode: 'BS-007',
+      hireDate: new Date('2021-10-01T00:00:00.000Z')
     },
 
-    // 4. Chăm Sóc & Spa / Grooming (CARE_STAFF_GROOMER) - Phủ Đơn, Đa chi nhánh và Master Spa
+    // 4. Chăm Sóc & Spa / Grooming (CARE_STAFF_GROOMER)
     {
       username: 'care_q1',
-      fullName: 'Groomer Phạm Quốc Đạt (Trụ sở Q1)',
+      fullName: 'Phạm Quốc Đạt',
+      phone: '0903000001',
+      email: 'dat.pham@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch1._id],
       shifts: [2, 3, 4, 6, 7],
       legacyAliases: ['groomer.dat'],
+      staffCode: 'CS-001',
+      hireDate: new Date('2023-03-01T00:00:00.000Z')
     },
     {
       username: 'care_q7',
-      fullName: 'Groomer Đỗ Gia Huy (Phú Mỹ Hưng Q7)',
+      fullName: 'Đỗ Gia Huy',
+      phone: '0903000002',
+      email: 'huy.do@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch2._id],
       shifts: [1, 3, 4, 5, 6],
       legacyAliases: ['groomer.huy'],
+      staffCode: 'CS-002',
+      hireDate: new Date('2023-06-15T00:00:00.000Z')
     },
     {
       username: 'care_bt',
-      fullName: 'Groomer Lê Anh Tuấn (Bình Thạnh)',
+      fullName: 'Lê Anh Tuấn',
+      phone: '0903000003',
+      email: 'tuan.le@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch3._id],
       shifts: [1, 2, 4, 6, 7],
       legacyAliases: ['groomer.tuan'],
+      staffCode: 'CS-003',
+      hireDate: new Date('2023-09-10T00:00:00.000Z')
     },
     {
       username: 'care_dual',
-      fullName: 'Chuyên Viên Spa Nguyễn Mai Ly (Q1 & Bình Thạnh)',
+      fullName: 'Nguyễn Mai Ly',
+      phone: '0903000004',
+      email: 'ly.nguyen@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch1._id, branch3._id],
       shifts: [1, 2, 4, 5, 7],
+      staffCode: 'CS-004',
+      hireDate: new Date('2023-11-01T00:00:00.000Z')
     },
     {
       username: 'care_dual_12',
-      fullName: 'Chuyên Viên Spa Võ Hoàng Yến (Q1 & Q7)',
+      fullName: 'Võ Hoàng Yến',
+      phone: '0903000005',
+      email: 'yen.vo@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch1._id, branch2._id],
       shifts: [2, 3, 5, 6, 7],
+      staffCode: 'CS-005',
+      hireDate: new Date('2024-02-01T00:00:00.000Z')
     },
     {
       username: 'care_dual_23',
-      fullName: 'Chuyên Viên Spa Bùi Tiến Dũng (Q7 & Bình Thạnh)',
+      fullName: 'Bùi Tiến Dũng',
+      phone: '0903000006',
+      email: 'dung.bui@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: [branch2._id, branch3._id],
       shifts: [1, 3, 4, 5, 6],
+      staffCode: 'CS-006',
+      hireDate: new Date('2024-03-01T00:00:00.000Z')
     },
     {
       username: 'care_master',
-      fullName: 'Master Groomer Trương Thùy Dung (Trưởng Nhóm Spa 3 Cơ Sở)',
+      fullName: 'Trương Thùy Dung',
+      phone: '0903000007',
+      email: 'dung.truong@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'CARE_STAFF_GROOMER',
       assignedBranchIds: allBranchIds,
       shifts: [1, 2, 3, 5, 6],
+      staffCode: 'CS-007',
+      hireDate: new Date('2022-08-15T00:00:00.000Z')
     },
 
-    // 5. Lễ Tân & Tiếp Đón (RECEPTIONIST) - Phủ Đơn, Đa chi nhánh và Trưởng Lễ Tân CSKH
+    // 5. Lễ Tân & Tiếp Đón (RECEPTIONIST)
     {
       username: 'receptionist_q1',
-      fullName: 'Lễ Tân Trần Thị Bích (Trụ sở Q1)',
+      fullName: 'Trần Thị Bích',
+      phone: '0904000001',
+      email: 'bich.tran@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch1._id],
       shifts: [1, 3, 4, 5, 6],
       legacyAliases: ['reception.bich'],
+      staffCode: 'LT-001',
+      hireDate: new Date('2023-02-01T00:00:00.000Z')
     },
     {
       username: 'receptionist_q7',
-      fullName: 'Lễ Tân Ngô Minh Khang (Phú Mỹ Hưng Q7)',
+      fullName: 'Ngô Minh Khang',
+      phone: '0904000002',
+      email: 'khang.ngo@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch2._id],
       shifts: [1, 2, 3, 5, 7],
       legacyAliases: ['reception.khang'],
+      staffCode: 'LT-002',
+      hireDate: new Date('2023-05-15T00:00:00.000Z')
     },
     {
       username: 'receptionist_bt',
-      fullName: 'Lễ Tân Nguyễn Hải Yến (Bình Thạnh)',
+      fullName: 'Nguyễn Hải Yến',
+      phone: '0904000003',
+      email: 'yen.hai@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch3._id],
       shifts: [2, 3, 4, 5, 7],
       legacyAliases: ['reception.yen'],
+      staffCode: 'LT-003',
+      hireDate: new Date('2023-08-20T00:00:00.000Z')
     },
     {
       username: 'receptionist_dual',
-      fullName: 'Lễ Tân Phạm Ngọc Ánh (Q7 & Bình Thạnh)',
+      fullName: 'Phạm Ngọc Ánh',
+      phone: '0904000004',
+      email: 'anh.pham@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch2._id, branch3._id],
       shifts: [1, 2, 4, 5, 6],
+      staffCode: 'LT-004',
+      hireDate: new Date('2023-10-15T00:00:00.000Z')
     },
     {
       username: 'receptionist_dual_12',
-      fullName: 'Lễ Tân Đinh Thanh Hà (Q1 & Q7)',
+      fullName: 'Đinh Thanh Hà',
+      phone: '0904000005',
+      email: 'ha.dinh@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch1._id, branch2._id],
       shifts: [1, 3, 4, 6, 7],
+      staffCode: 'LT-005',
+      hireDate: new Date('2024-01-10T00:00:00.000Z')
     },
     {
       username: 'receptionist_dual_13',
-      fullName: 'Lễ Tân Lương Thu Trang (Q1 & Bình Thạnh)',
+      fullName: 'Lương Thu Trang',
+      phone: '0904000006',
+      email: 'trang.luong@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: [branch1._id, branch3._id],
       shifts: [2, 3, 5, 6, 7],
+      staffCode: 'LT-006',
+      hireDate: new Date('2024-02-15T00:00:00.000Z')
     },
     {
       username: 'receptionist_master',
-      fullName: 'Trưởng Nhóm Lễ Tân CSKH Vũ Ngọc Hân (Toàn Chuỗi)',
+      fullName: 'Vũ Ngọc Hân',
+      phone: '0904000007',
+      email: 'han.vu@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'RECEPTIONIST',
       assignedBranchIds: allBranchIds,
       shifts: [1, 2, 4, 5, 7],
+      staffCode: 'LT-007',
+      hireDate: new Date('2022-09-01T00:00:00.000Z')
     },
 
-    // 6. Y Tá & Điều Dưỡng (NURSE) - Phủ Đơn, Đa chi nhánh và Điều Dưỡng Trưởng
+    // 6. Y Tá & Điều Dưỡng (NURSE)
     {
       username: 'nurse_q1',
-      fullName: 'Y Tá Hoàng Thị Mai (Trụ sở Q1)',
+      fullName: 'Hoàng Thị Mai',
+      phone: '0905000001',
+      email: 'mai.hoang@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'NURSE',
       assignedBranchIds: [branch1._id],
       shifts: [1, 2, 3, 5, 6],
       legacyAliases: ['nurse.mai'],
+      staffCode: 'YT-001',
+      hireDate: new Date('2023-03-10T00:00:00.000Z')
     },
     {
       username: 'nurse_q7',
-      fullName: 'Y Tá Vũ Thu Trang (Phú Mỹ Hưng Q7)',
+      fullName: 'Vũ Thu Trang',
+      phone: '0905000002',
+      email: 'trang.vu@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'NURSE',
       assignedBranchIds: [branch2._id],
       shifts: [1, 2, 4, 5, 6],
       legacyAliases: ['nurse.trang'],
+      staffCode: 'YT-002',
+      hireDate: new Date('2023-06-20T00:00:00.000Z')
     },
     {
       username: 'nurse_bt',
-      fullName: 'Y Tá Đặng Hồng Phúc (Bình Thạnh)',
+      fullName: 'Đặng Hồng Phúc',
+      phone: '0905000003',
+      email: 'phuc.dang@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'NURSE',
       assignedBranchIds: [branch3._id],
       shifts: [1, 2, 3, 4, 6],
       legacyAliases: ['nurse.phuc'],
+      staffCode: 'YT-003',
+      hireDate: new Date('2023-09-05T00:00:00.000Z')
     },
     {
       username: 'nurse_dual',
-      fullName: 'Y Tá Điều Dưỡng Lâm Thanh Tùng (Q1 & Q7)',
+      fullName: 'Lâm Thanh Tùng',
+      phone: '0905000004',
+      email: 'tung.lam@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'NURSE',
       assignedBranchIds: [branch1._id, branch2._id],
       shifts: [1, 3, 5, 6, 7],
+      staffCode: 'YT-004',
+      hireDate: new Date('2024-01-20T00:00:00.000Z')
     },
     {
       username: 'nurse_master',
-      fullName: 'Điều Dưỡng Trưởng Nguyễn Thanh Phương (Toàn Chuỗi)',
+      fullName: 'Nguyễn Thanh Phương',
+      phone: '0905000005',
+      email: 'phuong.nguyen@drpetshouse.vn',
       systemRole: 'STAFF',
       staffSubRole: 'NURSE',
       assignedBranchIds: allBranchIds,
       shifts: [1, 2, 3, 4, 6],
+      staffCode: 'YT-005',
+      hireDate: new Date('2022-05-15T00:00:00.000Z')
     },
   ];
 
@@ -505,14 +641,15 @@ export const runProductionUatSeed = async () => {
         $set: {
           username: sUser.username,
           fullName: sUser.fullName,
+          phone: sUser.phone || undefined,
+          email: sUser.email || undefined,
           passwordHash: commonPasswordHash,
           systemRole: sUser.systemRole,
           staffSubRole: sUser.staffSubRole || null,
           assignedBranchIds: branchIds,
           accountStatus: 'ACTIVE',
           activatedAt: new Date()
-        },
-        $unset: { phone: 1, email: 1 } // Đảm bảo ONLY TEXT: Không yêu cầu SĐT / Email cho nhân sự nội bộ
+        }
       },
       { upsert: true, new: true }
     );
@@ -546,9 +683,11 @@ export const runProductionUatSeed = async () => {
         {
           $set: {
             userId: userDoc._id,
+            staffCode: sUser.staffCode || undefined,
             staffSubRole: sUser.staffSubRole,
             authorizedBranchIds: branchIds,
             homeBranchId: branchIds[0],
+            hireDate: sUser.hireDate || new Date('2024-01-15T00:00:00.000Z'),
             status: 'ACTIVE'
           }
         },
@@ -1007,383 +1146,406 @@ export const runProductionUatSeed = async () => {
   );
   console.log(`   ✅ Đã tạo 2 tài khoản Khách hàng thành viên (${custUser1.fullName}, ${custUser2.fullName}) và 3 thú cưng (Buddy, Luna, LuLu).`);
 
-  // 5.3 Đơn hàng của Khách có tài khoản (Bao phủ toàn bộ các trạng thái Order)
+  // 5.3 Đơn hàng Đa dạng (Bao phủ toàn bộ các trạng thái Order, phân bổ 30 ngày trong Tháng 10/2026)
   const orderProduct1 = seededProducts[0]; // Royal Canin
   const orderProduct2 = seededProducts[1]; // Whiskas
+  const orderProduct3 = seededProducts[2] || seededProducts[0];
+  const orderProduct4 = seededProducts[3] || seededProducts[1];
 
-  const CUST_ORDERS = [
-    {
-      code: 'ORD-CUST-PENDING-01',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'PENDING',
-      paymentMethod: 'COD',
-      paymentStatus: 'PENDING',
-      deliveredAt: null,
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
-    },
-    {
-      code: 'ORD-CUST-CONFIRMED-02',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'CONFIRMED',
-      paymentMethod: 'ONLINE_MOCK',
-      paymentStatus: 'PENDING',
-      deliveredAt: null,
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
-    },
-    {
-      code: 'ORD-CUST-PROCESSING-03',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'PROCESSING',
-      paymentMethod: 'ONLINE_MOCK',
-      paymentStatus: 'PAID',
-      deliveredAt: null,
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
-    },
-    {
-      code: 'ORD-CUST-SHIPPED-04',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'SHIPPED',
-      paymentMethod: 'COD',
-      paymentStatus: 'PENDING',
-      deliveredAt: null,
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
-    },
-    {
-      code: 'ORD-CUST-COMPLETED-05',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'COMPLETED',
-      paymentMethod: 'ONLINE_MOCK',
-      paymentStatus: 'PAID',
-      deliveredAt: new Date(Date.now() - 3600000 * 24 * 3),
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
-    },
-    {
-      code: 'ORD-CUST-COMPLETED-06',
-      customerId: customerProfile2._id,
-      branchId: branch2._id,
-      status: 'COMPLETED',
-      paymentMethod: 'ONLINE_MOCK',
-      paymentStatus: 'PAID',
-      deliveredAt: new Date(Date.now() - 3600000 * 24 * 1),
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phong', detail: '102 Nguyễn Thị Thập' }
-    },
-    {
-      code: 'ORD-CUST-CANCELLED-07',
-      customerId: customerProfile1._id,
-      branchId: branch1._id,
-      status: 'CANCELLED',
-      paymentMethod: 'COD',
-      paymentStatus: 'CANCELLED',
-      deliveredAt: null,
-      address: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' }
+  // Helper sinh timeline statusHistory chuẩn nghiệp vụ
+  const makeStatusHistory = (status, baseDate) => {
+    const t0 = new Date(baseDate);
+    const t1 = new Date(t0.getTime() + 25 * 60 * 1000); // +25 phút
+    const t2 = new Date(t0.getTime() + 2 * 3600 * 1000); // +2 giờ
+    const t3 = new Date(t0.getTime() + 6 * 3600 * 1000); // +6 giờ
+    const t4 = new Date(t0.getTime() + 26 * 3600 * 1000); // +26 giờ
+
+    if (status === 'PENDING') {
+      return [{ status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' }];
     }
+    if (status === 'CONFIRMED') {
+      return [
+        { status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' },
+        { status: 'CONFIRMED', at: t1, note: 'Nhân viên kinh doanh đã xác nhận đơn hàng qua điện thoại' }
+      ];
+    }
+    if (status === 'PROCESSING') {
+      return [
+        { status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' },
+        { status: 'CONFIRMED', at: t1, note: 'Nhân viên kinh doanh đã xác nhận đơn hàng qua điện thoại' },
+        { status: 'PROCESSING', at: t2, note: 'Kho trung tâm đã tiếp nhận, kiểm tra chất lượng và đóng gói' }
+      ];
+    }
+    if (status === 'SHIPPED') {
+      return [
+        { status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' },
+        { status: 'CONFIRMED', at: t1, note: 'Nhân viên kinh doanh đã xác nhận đơn hàng qua điện thoại' },
+        { status: 'PROCESSING', at: t2, note: 'Kho trung tâm đã tiếp nhận, kiểm tra chất lượng và đóng gói' },
+        { status: 'SHIPPED', at: t3, note: 'Đã bàn giao kiện hàng cho đối tác vận chuyển GHTK / Ahamove' }
+      ];
+    }
+    if (status === 'COMPLETED') {
+      return [
+        { status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' },
+        { status: 'CONFIRMED', at: t1, note: 'Nhân viên kinh doanh đã xác nhận đơn hàng qua điện thoại' },
+        { status: 'PROCESSING', at: t2, note: 'Kho trung tâm đã tiếp nhận, kiểm tra chất lượng và đóng gói' },
+        { status: 'SHIPPED', at: t3, note: 'Đã bàn giao kiện hàng cho đối tác vận chuyển GHTK / Ahamove' },
+        { status: 'COMPLETED', at: t4, note: 'Khách hàng đã nhận hàng nguyên vẹn và hoàn tất thanh toán' }
+      ];
+    }
+    if (status === 'CANCELLED') {
+      return [
+        { status: 'PENDING', at: t0, note: 'Khách hàng đặt hàng thành công qua Website' },
+        { status: 'CANCELLED', at: t1, note: 'Khách hàng đổi ý, yêu cầu hủy đơn qua hotline CSKH' }
+      ];
+    }
+    return [{ status, at: t0, note: `Trạng thái: ${status}` }];
+  };
+
+  // Thiết lập danh sách khách vãng lai sạch (Guests)
+  const guestA = await GuestContact.findOneAndUpdate(
+    { phone: '0981112233' },
+    {
+      $set: {
+        phone: '0981112233',
+        fullName: 'Nguyễn Thị Hồng',
+        email: 'hong.nguyen@gmail.com',
+        activationStatus: 'NO_ACCOUNT',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date('2026-10-05T08:00:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const guestB = await GuestContact.findOneAndUpdate(
+    { phone: '0978889900' },
+    {
+      $set: {
+        phone: '0978889900',
+        fullName: 'Phạm Hoàng Long',
+        email: 'long.pham@gmail.com',
+        activationStatus: 'NO_ACCOUNT',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date('2026-10-10T09:30:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const guestC = await GuestContact.findOneAndUpdate(
+    { phone: '0908888888' },
+    {
+      $set: {
+        phone: '0908888888',
+        fullName: 'Lê Thị Mai',
+        email: 'mai.le@gmail.com',
+        activationStatus: 'PENDING_ACTIVATION',
+        activationInviteSentAt: new Date('2026-10-15T14:00:00.000Z'),
+        activationToken: 'INVITE-ACT-MAI-888',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date('2026-10-15T14:00:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const guestD = await GuestContact.findOneAndUpdate(
+    { phone: '0901234567' },
+    {
+      $set: {
+        phone: '0901234567',
+        fullName: 'Trần Thu Trang',
+        email: 'trang.tran@gmail.com',
+        activationStatus: 'ACTIVATED',
+        activatedAt: new Date('2026-10-20T10:00:00.000Z'),
+        userId: custUser2._id,
+        customerId: customerProfile2._id,
+        phoneVerifiedAt: new Date('2026-10-20T10:00:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const guestE = await GuestContact.findOneAndUpdate(
+    { phone: '0912345678' },
+    {
+      $set: {
+        phone: '0912345678',
+        fullName: 'Đỗ Minh Trí',
+        email: 'tri.do@gmail.com',
+        activationStatus: 'NO_ACCOUNT',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date('2026-10-22T11:00:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  const guestF = await GuestContact.findOneAndUpdate(
+    { phone: '0934567890' },
+    {
+      $set: {
+        phone: '0934567890',
+        fullName: 'Bùi Phương Oanh',
+        email: 'oanh.bui@gmail.com',
+        activationStatus: 'NO_ACCOUNT',
+        userId: null,
+        customerId: null,
+        phoneVerifiedAt: new Date('2026-10-25T16:20:00.000Z')
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  // Danh mục 32 đơn hàng thực tế trải dài tháng 10/2026
+  const ORDER_DEFINITIONS = [
+    // Tuần 1: 01/10 - 07/10
+    { code: 'ORD-20261001-0001', cust: customerProfile1, user: custUser1, branch: branch1, status: 'COMPLETED', date: '2026-10-01T08:30:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' } },
+    { code: 'ORD-20261002-0002', cust: customerProfile2, user: custUser2, branch: branch2, status: 'COMPLETED', date: '2026-10-02T09:15:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct2, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phong', detail: '102 Nguyễn Thị Thập' } },
+    { code: 'ORD-20261003-0003', guest: guestA, branch: branch1, status: 'COMPLETED', date: '2026-10-03T10:00:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 3', ward: 'Võ Thị Sáu', detail: '280 Cách Mạng Tháng 8' } },
+    { code: 'ORD-20261004-0004', cust: customerProfile1, user: custUser1, branch: branch3, status: 'CANCELLED', date: '2026-10-04T14:20:00.000Z', pay: 'COD', payStatus: 'CANCELLED', prod: orderProduct3, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 25', detail: '48 Điện Biên Phủ' } },
+    { code: 'ORD-20261005-0005', cust: customerProfile2, user: custUser2, branch: branch1, status: 'COMPLETED', date: '2026-10-05T15:45:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct4, qty: 3, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Quy', detail: '18 Mai Văn Vĩnh' } },
+    { code: 'ORD-20261006-0006', guest: guestB, branch: branch2, status: 'COMPLETED', date: '2026-10-06T11:30:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct2, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phú', detail: '56 Nguyễn Lương Bằng' } },
+    { code: 'ORD-20261007-0007', cust: customerProfile1, user: custUser1, branch: branch1, status: 'COMPLETED', date: '2026-10-07T16:00:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct1, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Đa Kao', detail: '12 Nguyễn Đình Chiểu' } },
+
+    // Tuần 2: 08/10 - 14/10
+    { code: 'ORD-20261008-0008', cust: customerProfile2, user: custUser2, branch: branch3, status: 'COMPLETED', date: '2026-10-08T08:45:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct3, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 19', detail: '82 Nguyễn Cửu Vân' } },
+    { code: 'ORD-20261009-0009', guest: guestC, branch: branch1, status: 'COMPLETED', date: '2026-10-09T10:30:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Tân Định', detail: '35 Trần Quang Khải' } },
+    { code: 'ORD-20261010-0010', cust: customerProfile1, user: custUser1, branch: branch2, status: 'COMPLETED', date: '2026-10-10T14:10:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct2, qty: 4, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Thành', detail: '90 Lê Thị Riêng' } },
+    { code: 'ORD-20261011-0011', guest: guestD, branch: branch3, status: 'COMPLETED', date: '2026-10-11T16:50:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct4, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 15', detail: '105 Bạch Đằng' } },
+    { code: 'ORD-20261012-0012', cust: customerProfile2, user: custUser2, branch: branch1, status: 'CANCELLED', date: '2026-10-12T09:20:00.000Z', pay: 'COD', payStatus: 'CANCELLED', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Hưng', detail: '77 Lâm Văn Bền' } },
+    { code: 'ORD-20261013-0013', cust: customerProfile1, user: custUser1, branch: branch2, status: 'COMPLETED', date: '2026-10-13T13:40:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct3, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' } },
+    { code: 'ORD-20261014-0014', guest: guestE, branch: branch1, status: 'COMPLETED', date: '2026-10-14T15:15:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct2, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 3', ward: 'Võ Thị Sáu', detail: '142 Nguyễn Thị Minh Khai' } },
+
+    // Tuần 3: 15/10 - 21/10
+    { code: 'ORD-20261015-0015', cust: customerProfile2, user: custUser2, branch: branch3, status: 'COMPLETED', date: '2026-10-15T08:10:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct1, qty: 3, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 22', detail: '208 Nguyễn Hữu Cảnh' } },
+    { code: 'ORD-20261016-0016', guest: guestF, branch: branch2, status: 'COMPLETED', date: '2026-10-16T10:45:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct4, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phong', detail: '25 Đường số 6' } },
+    { code: 'ORD-20261017-0017', cust: customerProfile1, user: custUser1, branch: branch1, status: 'COMPLETED', date: '2026-10-17T11:30:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct2, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Nguyễn Thái Bình', detail: '68 Ký Con' } },
+    { code: 'ORD-20261018-0018', cust: customerProfile2, user: custUser2, branch: branch2, status: 'COMPLETED', date: '2026-10-18T14:50:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct3, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Bình Thuận', detail: '39 Huỳnh Tấn Phát' } },
+    { code: 'ORD-20261019-0019', guest: guestA, branch: branch3, status: 'COMPLETED', date: '2026-10-19T16:20:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct1, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 24', detail: '18 Phan Chu Trinh' } },
+    { code: 'ORD-20261020-0020', cust: customerProfile1, user: custUser1, branch: branch1, status: 'COMPLETED', date: '2026-10-20T09:00:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct2, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Cầu Kho', detail: '52 Trần Hưng Đạo' } },
+    { code: 'ORD-20261021-0021', cust: customerProfile2, user: custUser2, branch: branch2, status: 'COMPLETED', date: '2026-10-21T15:30:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct4, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Quy', detail: '94 Nguyễn Thị Thập' } },
+
+    // Tuần 4: 22/10 - 28/10 (Các trạng thái Shipped, Processing, Confirmed)
+    { code: 'ORD-20261022-0022', guest: guestB, branch: branch1, status: 'COMPLETED', date: '2026-10-22T08:40:00.000Z', pay: 'COD', payStatus: 'PAID', prod: orderProduct3, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '104 Tôn Đức Thắng' } },
+    { code: 'ORD-20261023-0023', cust: customerProfile1, user: custUser1, branch: branch3, status: 'COMPLETED', date: '2026-10-23T11:15:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct1, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 17', detail: '42 Xô Viết Nghệ Tĩnh' } },
+    { code: 'ORD-20261024-0024', cust: customerProfile2, user: custUser2, branch: branch2, status: 'CANCELLED', date: '2026-10-24T13:20:00.000Z', pay: 'COD', payStatus: 'CANCELLED', prod: orderProduct2, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Thuận Đông', detail: '15 Huỳnh Tấn Phát' } },
+    { code: 'ORD-20261025-0025', guest: guestC, branch: branch1, status: 'SHIPPED', date: '2026-10-25T09:30:00.000Z', pay: 'COD', payStatus: 'PENDING', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Đa Kao', detail: '15 Điện Biên Phủ' } },
+    { code: 'ORD-20261026-0026', cust: customerProfile1, user: custUser1, branch: branch2, status: 'SHIPPED', date: '2026-10-26T10:15:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct3, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phong', detail: '60 Nguyễn Thị Thập' } },
+    { code: 'ORD-20261027-0027', cust: customerProfile2, user: custUser2, branch: branch3, status: 'PROCESSING', date: '2026-10-27T14:40:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PAID', prod: orderProduct2, qty: 3, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 25', detail: '88 D2 Văn Thánh' } },
+    { code: 'ORD-20261028-0028', guest: guestD, branch: branch1, status: 'PROCESSING', date: '2026-10-28T16:00:00.000Z', pay: 'COD', payStatus: 'PENDING', prod: orderProduct4, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '20 Lê Duẩn' } },
+
+    // Tuần 5: 29/10 - 31/10 (Các đơn mới nhất PENDING, CONFIRMED)
+    { code: 'ORD-20261029-0029', cust: customerProfile1, user: custUser1, branch: branch1, status: 'CONFIRMED', date: '2026-10-29T08:15:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PENDING', prod: orderProduct1, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Bến Nghé', detail: '45 Lê Duẩn' } },
+    { code: 'ORD-20261030-0030', guest: guestE, branch: branch2, status: 'CONFIRMED', date: '2026-10-30T10:30:00.000Z', pay: 'COD', payStatus: 'PENDING', prod: orderProduct2, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 7', ward: 'Tân Phú', detail: '12 Nguyễn Lương Bằng' } },
+    { code: 'ORD-20261031-0031', cust: customerProfile2, user: custUser2, branch: branch3, status: 'PENDING', date: '2026-10-31T09:00:00.000Z', pay: 'COD', payStatus: 'PENDING', prod: orderProduct3, qty: 1, addr: { province: 'TP. Hồ Chí Minh', district: 'Bình Thạnh', ward: 'Phường 19', detail: '45 Mê Linh' } },
+    { code: 'ORD-20261031-0032', guest: guestF, branch: branch1, status: 'PENDING', date: '2026-10-31T11:45:00.000Z', pay: 'ONLINE_MOCK', payStatus: 'PENDING', prod: orderProduct1, qty: 2, addr: { province: 'TP. Hồ Chí Minh', district: 'Quận 3', ward: 'Võ Thị Sáu', detail: '215 Nam Kỳ Khởi Nghĩa' } }
   ];
 
   const seededOrderMap = new Map();
-  for (const o of CUST_ORDERS) {
-    const isCust2 = o.customerId.toString() === customerProfile2._id.toString();
-    const contactUser = isCust2 ? custUser2 : custUser1;
+  for (const o of ORDER_DEFINITIONS) {
+    const contactName = o.user?.fullName || o.guest?.fullName || 'Khách hàng';
+    const contactPhone = o.user?.phone || o.guest?.phone || '0900000000';
+    const contactEmail = o.user?.email || o.guest?.email || 'customer@gmail.com';
+    const variant = o.prod.variants[0];
+    const unitPrice = variant.price;
+    const finalPrice = variant.finalPrice || variant.price;
+    const subtotal = unitPrice * o.qty;
+    const totalAmount = finalPrice * o.qty + 30000;
+    const statusHistory = makeStatusHistory(o.status, o.date);
+    const deliveredAt = o.status === 'COMPLETED' ? new Date(new Date(o.date).getTime() + 26 * 3600 * 1000) : null;
 
     const savedOrder = await Order.findOneAndUpdate(
       { code: o.code },
       {
         $set: {
           code: o.code,
-          customerId: o.customerId,
-          fulfillmentBranchId: o.branchId,
+          customerId: o.cust?._id || null,
+          guestContactId: o.guest?._id || null,
+          fulfillmentBranchId: o.branch._id,
           status: o.status,
-          paymentMethod: o.paymentMethod,
-          payment: { status: o.paymentStatus },
+          paymentMethod: o.pay,
+          payment: { status: o.payStatus },
           contactSnapshot: {
-            fullName: contactUser.fullName,
-            phone: contactUser.phone,
-            email: contactUser.email
+            fullName: contactName,
+            phone: contactPhone,
+            email: contactEmail
           },
-          shippingAddress: o.address,
+          shippingAddress: o.addr,
           items: [
             {
               orderItemId: `item-${o.code}-1`,
-              productId: orderProduct1._id,
-              variantId: orderProduct1.variants[0]._id,
-              nameSnapshot: `${orderProduct1.name} (${orderProduct1.variants[0].label})`,
-              skuSnapshot: orderProduct1.variants[0].sku,
-              unitPrice: orderProduct1.variants[0].price,
-              quantity: 1,
-              lineSubtotal: orderProduct1.variants[0].price,
-              lineNet: orderProduct1.variants[0].finalPrice,
-              allocatedDiscount: orderProduct1.variants[0].price - orderProduct1.variants[0].finalPrice
+              productId: o.prod._id,
+              variantId: variant._id,
+              nameSnapshot: `${o.prod.name} (${variant.label})`,
+              skuSnapshot: variant.sku,
+              unitPrice: unitPrice,
+              quantity: o.qty,
+              lineSubtotal: subtotal,
+              lineNet: finalPrice * o.qty,
+              allocatedDiscount: (unitPrice - finalPrice) * o.qty
             }
           ],
           pricing: {
-            merchandiseSubtotal: orderProduct1.variants[0].price,
-            voucherDiscount: 0,
+            merchandiseSubtotal: subtotal,
+            voucherDiscount: (unitPrice - finalPrice) * o.qty,
             shippingFee: 30000,
-            totalAmount: orderProduct1.variants[0].finalPrice + 30000
+            totalAmount: totalAmount
           },
-          deliveredAt: o.deliveredAt
+          statusHistory: statusHistory,
+          deliveredAt: deliveredAt,
+          createdAt: new Date(o.date),
+          updatedAt: statusHistory[statusHistory.length - 1].at
         }
       },
       { upsert: true, new: true }
     );
     seededOrderMap.set(o.code, savedOrder);
   }
-  console.log(`   ✅ Đã tạo ${CUST_ORDERS.length} đơn hàng thành viên (PENDING, CONFIRMED, PROCESSING, SHIPPED, COMPLETED, CANCELLED).`);
+  console.log(`   ✅ Đã tạo ${ORDER_DEFINITIONS.length} đơn hàng nghiệp vụ (30 ngày Tháng 10/2026, đầy đủ statusHistory).`);
 
-  // 5.4 Yêu cầu Đổi trả (OrderReturn) - Bao phủ trọn vẹn 7 trạng thái
-  const targetCompletedOrder = seededOrderMap.get('ORD-CUST-COMPLETED-05');
-  if (targetCompletedOrder) {
-    const RETURN_CASES = [
-      { code: 'RET-REQ-01', status: 'REQUESTED', reason: 'Bao bì sản phẩm bị rách khi giao hàng' },
-      { code: 'RET-PROC-02', status: 'PROCESSING', reason: 'Giao nhầm phân loại thức ăn chó' },
-      { code: 'RET-RECV-03', status: 'RECEIVED', reason: 'Sản phẩm lỗi khóa zip bao bì', quality: 'RESELLABLE', receivedQty: 1 },
-      { code: 'RET-APPR-04', status: 'APPROVED', reason: 'Hạt ẩm mốc do lỗi đóng gói từ nhà máy', hasRefund: 'PENDING' },
-      { code: 'RET-REJ-05', status: 'REJECTED', reason: 'Khách không thích mùi vị sản phẩm', rejectionNote: 'Từ chối: Sản phẩm đã khui và tiêu thụ hơn 50%' },
-      { code: 'RET-COMP-06', status: 'COMPLETED', reason: 'Sản phẩm cận ngày hết hạn sử dụng', hasRefund: 'REFUNDED' },
-      { code: 'RET-CANC-07', status: 'CANCELLED', reason: 'Khách hàng đổi ý muốn tiếp tục giữ lại sản phẩm' }
-    ];
+  // 5.4 Yêu cầu Đổi trả (OrderReturn) - Phân bổ 7 trạng thái trên 7 ĐƠN HÀNG HOÀN TẤT KHÁC NHAU
+  const RETURN_CASES = [
+    {
+      code: 'RET-202610-001',
+      orderCode: 'ORD-20261001-0001',
+      status: 'REQUESTED',
+      reason: 'Bao bì sản phẩm bị rách trong quá trình vận chuyển',
+      quality: 'DAMAGED',
+      rejectionNote: null,
+      refundStatus: null
+    },
+    {
+      code: 'RET-202610-002',
+      orderCode: 'ORD-20261002-0002',
+      status: 'PROCESSING',
+      reason: 'Giao nhầm phân loại hương vị pate so với đơn đã đặt',
+      quality: 'RESELLABLE',
+      rejectionNote: null,
+      refundStatus: null
+    },
+    {
+      code: 'RET-202610-003',
+      orderCode: 'ORD-20261003-0003',
+      status: 'RECEIVED',
+      reason: 'Sản phẩm lỗi khóa zip bao bì, hạt rơi ra ngoài',
+      quality: 'RESELLABLE',
+      receivedQty: 1,
+      rejectionNote: null,
+      refundStatus: null
+    },
+    {
+      code: 'RET-202610-004',
+      orderCode: 'ORD-20261005-0005',
+      status: 'APPROVED',
+      reason: 'Hạt ẩm mốc do lỗi đóng gói bảo quản từ nhà máy',
+      quality: 'DAMAGED',
+      rejectionNote: null,
+      refundStatus: 'PENDING'
+    },
+    {
+      code: 'RET-202610-005',
+      orderCode: 'ORD-20261006-0006',
+      status: 'REJECTED',
+      reason: 'Khách báo thú cưng không chịu ăn sau khi đã dùng 80% bao',
+      quality: 'DISCARDED',
+      rejectionNote: 'Từ chối đổi trả: Sản phẩm đã khui và tiêu thụ quá 50% khối lượng, không nằm trong chính sách hỗ trợ.',
+      refundStatus: null
+    },
+    {
+      code: 'RET-202610-006',
+      orderCode: 'ORD-20261007-0007',
+      status: 'COMPLETED',
+      reason: 'Sản phẩm cận hạn sử dụng dưới 2 tháng',
+      quality: 'RESELLABLE',
+      rejectionNote: null,
+      refundStatus: 'REFUNDED'
+    },
+    {
+      code: 'RET-202610-007',
+      orderCode: 'ORD-20261008-0008',
+      status: 'CANCELLED',
+      reason: 'Khách hàng liên hệ báo người nhà đồng ý giữ lại sử dụng, xin hủy yêu cầu',
+      quality: 'RESELLABLE',
+      rejectionNote: null,
+      refundStatus: null
+    }
+  ];
 
-    for (const rc of RETURN_CASES) {
-      let refundDoc = null;
-      if (rc.hasRefund) {
-        refundDoc = await OrderRefund.findOneAndUpdate(
-          { code: `REF-${rc.code}` },
-          {
-            $set: {
-              code: `REF-${rc.code}`,
-              cause: 'RETURN',
-              orderId: targetCompletedOrder._id,
-              amount: 340000,
-              provider: 'MOCK',
-              status: rc.hasRefund,
-              refundedAt: rc.hasRefund === 'REFUNDED' ? new Date(Date.now() - 3600000 * 12) : null
-            }
-          },
-          { upsert: true, new: true }
-        );
-      }
+  for (const rc of RETURN_CASES) {
+    const parentOrder = seededOrderMap.get(rc.orderCode);
+    if (!parentOrder) continue;
 
-      await OrderReturn.findOneAndUpdate(
-        { code: rc.code },
+    const returnItem = parentOrder.items[0];
+    const refundAmount = returnItem.lineNet || returnItem.lineSubtotal;
+
+    let refundDoc = null;
+    if (rc.refundStatus) {
+      refundDoc = await OrderRefund.findOneAndUpdate(
+        { code: `REF-${rc.code}` },
         {
           $set: {
-            code: rc.code,
-            orderId: targetCompletedOrder._id,
-            customerId: customerProfile1._id,
-            status: rc.status,
-            reason: rc.reason,
-            evidenceUrls: ['https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&q=80'],
-            refundId: refundDoc?._id || undefined,
-            refundBreakdown: {
-              merchandiseNet: 340000,
-              shippingRefunded: 0,
-              total: 340000
-            },
-            items: [
-              {
-                orderItemId: `item-ORD-CUST-COMPLETED-05-1`,
-                productId: orderProduct1._id,
-                productName: orderProduct1.name,
-                orderedQty: 1,
-                alreadyReturnedQty: 0,
-                requestedQty: 1,
-                refundAmount: 340000,
-                receivedQty: rc.receivedQty || 0,
-                quality: rc.quality || 'RESELLABLE'
-              }
-            ],
-            history: [
-              {
-                status: rc.status,
-                at: new Date(),
-                note: rc.rejectionNote || `Cập nhật trạng thái đổi trả ${rc.status}`
-              }
-            ]
+            code: `REF-${rc.code}`,
+            cause: 'RETURN',
+            orderId: parentOrder._id,
+            amount: refundAmount,
+            provider: 'MOCK',
+            status: rc.refundStatus,
+            refundedAt: rc.refundStatus === 'REFUNDED' ? new Date(Date.now() - 3600000 * 6) : null
           }
         },
-        { upsert: true }
+        { upsert: true, new: true }
       );
     }
-    console.log(`   ✅ Đã tạo ${RETURN_CASES.length} yêu cầu đổi trả (REQUESTED, PROCESSING, RECEIVED, APPROVED, REJECTED, COMPLETED, CANCELLED).`);
-  }
 
-  // ========================================================================
-  // BƯỚC 6: KHÁCH VÃNG LAI (GUEST KHÔNG TÀI KHOẢN) & TOÀN BỘ 7 TRẠNG THÁI LỊCH HẸN
-  // ========================================================================
-  console.log('\n🚶 Bước 6: Thiết lập các trường hợp Khách vãng lai (Guest KHÔNG CÓ TÀI KHOẢN) & 7 trạng thái Lịch hẹn...');
-
-  // 6.1 Khách vãng lai 1 (Guest A): Đặt đơn hàng mua cát và pate nhưng không tạo tài khoản (NO_ACCOUNT)
-  const guestA = await GuestContact.findOneAndUpdate(
-    { phone: '0981112233' },
-    {
-      $set: {
-        phone: '0981112233',
-        fullName: 'Nguyễn Thị Hồng (Khách vãng lai)',
-        email: 'guest.hong@gmail.com',
-        activationStatus: 'NO_ACCOUNT', // Hoàn toàn chưa có tài khoản User / Customer!
-        userId: null,
-        customerId: null,
-        phoneVerifiedAt: new Date()
-      }
-    },
-    { upsert: true, new: true }
-  );
-
-  await Order.findOneAndUpdate(
-    { code: 'ORD-GUEST-HOT-01' },
-    {
-      $set: {
-        code: 'ORD-GUEST-HOT-01',
-        customerId: null, // Đơn hàng của Guest: customerId là null!
-        guestContactId: guestA._id,
-        fulfillmentBranchId: branch1._id,
-        status: 'COMPLETED',
-        paymentMethod: 'COD',
-        payment: { status: 'PAID' },
-        contactSnapshot: {
-          fullName: guestA.fullName,
-          phone: guestA.phone,
-          email: guestA.email
-        },
-        shippingAddress: {
-          province: 'Thành phố Hồ Chí Minh',
-          district: 'Quận 3',
-          ward: 'Phường Võ Thị Sáu',
-          detail: 'Hẻm 280 Cách Mạng Tháng 8'
-        },
-        items: [
-          {
-            orderItemId: 'item-guest-1',
-            productId: orderProduct2._id,
-            variantId: orderProduct2.variants[0]._id,
-            nameSnapshot: `${orderProduct2.name} (${orderProduct2.variants[0].label})`,
-            skuSnapshot: orderProduct2.variants[0].sku,
-            unitPrice: orderProduct2.variants[0].price,
-            quantity: 5,
-            lineSubtotal: orderProduct2.variants[0].price * 5,
-            lineNet: orderProduct2.variants[0].finalPrice * 5,
-            allocatedDiscount: 0
-          }
-        ],
-        pricing: {
-          merchandiseSubtotal: orderProduct2.variants[0].price * 5,
-          voucherDiscount: 0,
-          shippingFee: 30000,
-          totalAmount: orderProduct2.variants[0].finalPrice * 5 + 30000
-        },
-        deliveredAt: new Date(Date.now() - 3600000 * 12)
-      }
-    },
-    { upsert: true }
-  );
-  console.log(`   ✅ [GUEST 1 - NO_ACCOUNT] Đã tạo đơn ${'ORD-GUEST-HOT-01'} cho ${guestA.fullName} (KHÔNG CÓ TÀI KHOẢN).`);
-
-  // 6.2 Khách vãng lai 2 (Guest B): Đặt lịch hẹn khám thú cưng tại phòng khám nhưng chưa đăng ký tài khoản (NO_ACCOUNT)
-  const guestB = await GuestContact.findOneAndUpdate(
-    { phone: '0978889900' },
-    {
-      $set: {
-        phone: '0978889900',
-        fullName: 'Phạm Hoàng Long (Khách vãng lai)',
-        email: 'guest.long@gmail.com',
-        activationStatus: 'NO_ACCOUNT', // Không có tài khoản!
-        userId: null,
-        customerId: null,
-        phoneVerifiedAt: new Date()
-      }
-    },
-    { upsert: true, new: true }
-  );
-
-  // 6.3 Khách vãng lai 3 (Guest C): Đang chờ kích hoạt tài khoản (PENDING_ACTIVATION)
-  const guestC = await GuestContact.findOneAndUpdate(
-    { phone: '0908888888' },
-    {
-      $set: {
-        phone: '0908888888',
-        fullName: 'Lê Thị Mai (Khách chờ kích hoạt)',
-        email: 'guest.mai@gmail.com',
-        activationStatus: 'PENDING_ACTIVATION',
-        activationInviteSentAt: new Date(),
-        activationToken: 'INVITE-ACT-MAI-888',
-        userId: null,
-        customerId: null,
-        phoneVerifiedAt: new Date()
-      }
-    },
-    { upsert: true, new: true }
-  );
-
-  await Order.findOneAndUpdate(
-    { code: 'ORD-GUEST-PENDING-02' },
-    {
-      $set: {
-        code: 'ORD-GUEST-PENDING-02',
-        customerId: null,
-        guestContactId: guestC._id,
-        fulfillmentBranchId: branch1._id,
-        status: 'SHIPPED',
-        paymentMethod: 'COD',
-        payment: { status: 'PENDING' },
-        contactSnapshot: {
-          fullName: guestC.fullName,
-          phone: guestC.phone,
-          email: guestC.email
-        },
-        shippingAddress: {
-          province: 'Thành phố Hồ Chí Minh',
-          district: 'Quận 1',
-          ward: 'Phường Đa Kao',
-          detail: '15 Điện Biên Phủ'
-        },
-        items: [
-          {
-            orderItemId: 'item-guest-2',
-            productId: orderProduct1._id,
-            variantId: orderProduct1.variants[0]._id,
-            nameSnapshot: `${orderProduct1.name} (${orderProduct1.variants[0].label})`,
-            skuSnapshot: orderProduct1.variants[0].sku,
-            unitPrice: orderProduct1.variants[0].price,
-            quantity: 1,
-            lineSubtotal: orderProduct1.variants[0].price,
-            lineNet: orderProduct1.variants[0].finalPrice,
-            allocatedDiscount: 0
-          }
-        ],
-        pricing: {
-          merchandiseSubtotal: orderProduct1.variants[0].price,
-          voucherDiscount: 0,
-          shippingFee: 30000,
-          totalAmount: orderProduct1.variants[0].finalPrice + 30000
+    await OrderReturn.findOneAndUpdate(
+      { code: rc.code },
+      {
+        $set: {
+          code: rc.code,
+          orderId: parentOrder._id,
+          customerId: parentOrder.customerId || undefined,
+          guestContactId: parentOrder.guestContactId || undefined,
+          status: rc.status,
+          reason: rc.reason,
+          evidenceUrls: ['https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&q=80'],
+          refundId: refundDoc?._id || undefined,
+          refundBreakdown: {
+            merchandiseNet: refundAmount,
+            shippingRefunded: 0,
+            total: refundAmount
+          },
+          items: [
+            {
+              orderItemId: returnItem.orderItemId,
+              productId: returnItem.productId,
+              productName: returnItem.nameSnapshot,
+              orderedQty: returnItem.quantity,
+              alreadyReturnedQty: 0,
+              requestedQty: returnItem.quantity,
+              refundAmount: refundAmount,
+              receivedQty: rc.receivedQty || 0,
+              quality: rc.quality || 'RESELLABLE'
+            }
+          ],
+          history: [
+            {
+              status: rc.status,
+              at: new Date(parentOrder.createdAt.getTime() + 48 * 3600 * 1000),
+              note: rc.rejectionNote || `Cập nhật trạng thái đổi trả: ${rc.status}`
+            }
+          ]
         }
-      }
-    },
-    { upsert: true }
-  );
-  console.log(`   ✅ [GUEST 3 - PENDING_ACTIVATION] Đã tạo đơn SHIPPED ORD-GUEST-PENDING-02 cho ${guestC.fullName}.`);
-
-  // 6.4 Khách vãng lai 4 (Guest D): Đã kích hoạt tài khoản thành công (ACTIVATED liên kết Customer 2)
-  await GuestContact.findOneAndUpdate(
-    { phone: '0901234567' },
-    {
-      $set: {
-        phone: '0901234567',
-        fullName: 'Trần Thu Trang (Khách đã kích hoạt)',
-        email: 'trang.tran@gmail.com',
-        activationStatus: 'ACTIVATED',
-        activatedAt: new Date(),
-        userId: custUser2._id,
-        customerId: customerProfile2._id,
-        phoneVerifiedAt: new Date()
-      }
-    },
-    { upsert: true }
-  );
-  console.log(`   ✅ [GUEST 4 - ACTIVATED] Đã tạo hồ sơ Guest ACTIVATED liên kết CustomerProfile2.`);
+      },
+      { upsert: true }
+    );
+  }
+  console.log(`   ✅ Đã phân bổ ${RETURN_CASES.length} yêu cầu đổi trả (RET-202610-001 đến 007) trên 7 đơn hàng thực tế.`);
 
   // 6.5 Đảm bảo Service Catalog (12 dịch vụ Y tế & Spa) được nạp
   await seedServiceCatalog();

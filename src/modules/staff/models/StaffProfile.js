@@ -11,6 +11,7 @@ const schema = new mongoose.Schema({
   },
   authorizedBranchIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch', index: true }],
   homeBranchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  hireDate: { type: Date },
   status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE', index: true },
   version: { type: Number, default: 1 }
 }, {

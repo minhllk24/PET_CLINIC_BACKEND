@@ -326,3 +326,43 @@ export const showReview = async (id, actor) => {
   await review.save();
   return formatReview(review, true);
 };
+
+export const getProductReviewStats = async (productId) => {
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return {
+      averageRating: 5.0,
+      totalReviews: 0,
+      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+  }
+
+  const reviews = await Review.find({
+    targetType: 'PRODUCT',
+    targetId: productId,
+    status: 'ACTIVE',
+    hidden: { $ne: true }
+  }).select('rating').lean();
+
+  if (reviews.length === 0) {
+    return {
+      averageRating: 5.0,
+      totalReviews: 0,
+      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+  }
+
+  const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let sum = 0;
+  for (const r of reviews) {
+    const star = Math.min(Math.max(Math.round(r.rating || 5), 1), 5);
+    breakdown[star] = (breakdown[star] || 0) + 1;
+    sum += Number(r.rating || 5);
+  }
+
+  const avg = Number((sum / reviews.length).toFixed(1));
+  return {
+    averageRating: avg,
+    totalReviews: reviews.length,
+    breakdown
+  };
+};

@@ -12,6 +12,8 @@ export const formatStaff = (profile, user = null) => {
   const u = user || profile.userId;
   const dto = {
     id: profile._id.toString(),
+    staffCode: profile.staffCode || null,
+    joinedAt: profile.createdAt ? profile.createdAt.toISOString() : null,
     staffSubRole: profile.staffSubRole,
     authorizedBranchIds: (profile.authorizedBranchIds || []).map((b) => (b?._id || b).toString()),
     status: profile.status || 'ACTIVE',
@@ -354,4 +356,40 @@ export const updateStaffBranches = async (id, { homeBranchId, authorizedBranchId
   await profile.save();
 
   return formatStaff(profile, user);
+};
+
+
+export const resetStaffPassword = async (id, data = {}, actor) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid staff ID');
+  }
+
+  let profile = await StaffProfile.findById(id).populate('userId');
+  let user = profile ? profile.userId : await User.findById(id);
+
+  if (!user && profile && profile.userId) {
+    user = await User.findById(profile.userId);
+  }
+
+  if (!user) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff user account not found');
+  }
+
+  const newPassword = (data.newPassword || 'PetClinic@2026!').trim();
+  if (newPassword.length < 8) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Password must be at least 8 characters');
+  }
+
+  user.passwordHash = await hashPassword(newPassword);
+  user.failedLoginAttempts = 0;
+  user.lockoutUntil = null;
+  await user.save();
+
+  return {
+    success: true,
+    message: 'Staff password reset successfully',
+    temporaryPassword: newPassword,
+    staffId: id,
+    username: user.username || user.phone
+  };
 };

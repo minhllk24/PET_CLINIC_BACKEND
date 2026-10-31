@@ -8485,6 +8485,22 @@ components:
               type: string
             password:
               type: string
+        staffCode:
+          type:
+          - string
+          - 'null'
+        joinedAt:
+          type:
+          - string
+          - 'null'
+        phone:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        accountStatus:
+          type: string
       additionalProperties: false
       required:
       - id

@@ -35,7 +35,10 @@ export const authenticate = (req, res, next) => {
     
     next();
   } catch (error) {
-    return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Token is invalid or expired'));
+    if (error.name === 'TokenExpiredError') {
+      return next(new AppError(401, 'Token expired', 'TOKEN_EXPIRED', 'Access token has expired'));
+    }
+    return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'Token is invalid'));
   }
 };
 

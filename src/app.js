@@ -33,6 +33,7 @@ import shiftRoutes from './modules/staff/shift.routes';
 import reviewRoutes from './modules/review/review.routes';
 import feedbackRoutes from './modules/review/feedback.routes';
 import searchRoutes from './modules/search/search.routes';
+import notificationRoutes from './modules/notification/notification.routes';
 import legacyFallbackRoutes from './modules/legacy/legacyFallback.routes.js';
 import AppError from './utils/AppError';
 
@@ -147,7 +148,7 @@ app.use(cookieParser());
 // =========================================================================
 // INGRESS BRIDGE & PARAMETER NORMALIZER FOR OPENAPI V7 COMPATIBILITY
 // =========================================================================
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   // Helper to synchronize both req.url and req.originalUrl for express-openapi-validator
   const rewriteUrl = (from, to) => {
     if (req.url && req.url.includes(from)) {
@@ -184,6 +185,39 @@ app.use((req, res, next) => {
     rewriteUrl('/api/v1/reset-password', '/api/v1/auth/reset-password');
   } else if (req.url.startsWith('/api/v1/change-password')) {
     rewriteUrl('/api/v1/change-password', '/api/v1/auth/change-password');
+  }
+
+  // Smart Product ID Resolver (Resolves codes, skus, slugs or numeric indexes before OpenAPI validator)
+  const prodMatch = req.url.match(/\/api\/v1\/products\/([^\/\?]+)/);
+  if (prodMatch && prodMatch[1]) {
+    const rawId = prodMatch[1];
+    if (rawId !== 'suggestions' && !/^[0-9a-fA-F]{24}$/.test(rawId)) {
+      try {
+        const Product = require('./modules/catalog/models/Product').default || require('./modules/catalog/models/Product');
+        let found = await Product.findOne({
+          $or: [
+            { productCode: rawId },
+            { 'variants.sku': rawId },
+            { slug: rawId },
+            { code: rawId }
+          ]
+        }).select('_id').lean();
+
+        if (!found && /^\d+$/.test(rawId)) {
+          const idx = parseInt(rawId, 10);
+          const products = await Product.find({ status: 'ACTIVE' }).select('_id').skip(Math.max(0, idx - 1)).limit(1).lean();
+          if (products.length > 0) {
+            found = products[0];
+          }
+        }
+
+        if (found) {
+          rewriteUrl(`/products/${rawId}`, `/products/${found._id.toString()}`);
+        }
+      } catch (e) {
+        // Fallback to next
+      }
+    }
   }
 
   // 2. Query Parameters Normalization
@@ -250,6 +284,17 @@ app.use((req, res, next) => {
       if (!req.query.serviceIds) {
         req.query.serviceIds = '6ad08e4417bf41f5954234c6';
       }
+    }
+
+    // C. Notification Normalizer
+    const isNotification = req.url.includes('/notifications') || (req.originalUrl && req.originalUrl.includes('/notifications')) || (req.path && req.path.includes('/notifications'));
+    if (isNotification) {
+      if (req.query.status === 'unread' || req.query.isRead === 'false' || req.query.isRead === false) {
+        req.query.unreadOnly = true;
+      }
+      delete req.query.status;
+      delete req.query.isRead;
+      delete req.query.search;
     }
   }
 
@@ -416,6 +461,7 @@ app.use('/api/v1/shifts', shiftRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));

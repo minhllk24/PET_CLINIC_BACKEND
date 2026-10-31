@@ -44,3 +44,12 @@ export const updateStaffBranches = async (req, res, next) => {
     next(error);
   }
 };
+
+export const resetStaffPassword = async (req, res, next) => {
+  try {
+    const result = await staffService.resetStaffPassword(req.params.id, req.body, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

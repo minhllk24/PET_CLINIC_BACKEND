@@ -1,4 +1,4 @@
-export const ACCESS_TOKEN_EXPIRY = '15m';
+export const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_TOKEN_EXPIRY || '15m';
 export const REFRESH_TOKEN_SHORT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const REFRESH_TOKEN_LONG_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 

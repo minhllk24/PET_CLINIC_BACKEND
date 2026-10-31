@@ -6,7 +6,7 @@ import Voucher from '../modules/order/models/Voucher.js';
 import Product from '../modules/catalog/models/Product.js';
 
 export const VOUCHER_SEEDS = [
-  // 1. Voucher giảm tiền mặt cho Đơn hàng Sản phẩm (Order Ecommerce)
+  // 1. Voucher giảm tiền mặt cho Đơn hàng Sản phẩm (Order Ecommerce) - Đang dùng
   {
     code: 'GIAM40K_DON150K',
     name: 'Giảm 40,000đ cho đơn hàng từ 150,000đ',
@@ -14,23 +14,23 @@ export const VOUCHER_SEEDS = [
     discountValue: 40000,
     minOrderAmount: 150000,
     scope: 'ORDER',
-    quota: 1000,
-    usedCount: 0,
+    quota: 500,
+    usedCount: 142,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
   },
-  // 2. Voucher giảm phần trăm có chặn trần (Capped Percentage)
+  // 2. Voucher giảm phần trăm có chặn trần - Sắp hết lượt
   {
     code: 'GIAM10_CAP50',
-    name: 'Giảm 10% tối đa 50,000đ cho đơn hàng',
+    name: 'Giảm 10% tối đa 50,000đ cho đơn hàng (Sắp hết lượt)',
     discountType: 'PERCENTAGE',
     discountValue: 10,
     maxDiscountAmount: 50000,
     minOrderAmount: 100000,
     scope: 'ORDER',
-    quota: 1000,
-    usedCount: 0,
+    quota: 500,
+    usedCount: 489,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
@@ -44,7 +44,7 @@ export const VOUCHER_SEEDS = [
     minOrderAmount: 0,
     scope: 'ORDER',
     quota: 1000,
-    usedCount: 0,
+    usedCount: 320,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
@@ -58,8 +58,8 @@ export const VOUCHER_SEEDS = [
     maxDiscountAmount: 100000,
     minOrderAmount: 0,
     scope: 'SERVICE',
-    quota: 1000,
-    usedCount: 0,
+    quota: 200,
+    usedCount: 85,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
@@ -72,8 +72,8 @@ export const VOUCHER_SEEDS = [
     discountValue: 50000,
     minOrderAmount: 200000,
     scope: 'SERVICE',
-    quota: 1000,
-    usedCount: 0,
+    quota: 300,
+    usedCount: 110,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
@@ -88,13 +88,13 @@ export const VOUCHER_SEEDS = [
     minOrderAmount: 0,
     scope: 'PRODUCT',
     scopeRefs: [],
-    quota: 1000,
-    usedCount: 0,
+    quota: 200,
+    usedCount: 45,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
   },
-  // 7. Voucher Test UI: Điều kiện đơn hàng cao (để FE test lỗi MIN_CONDITION_NOT_MET)
+  // 7. Voucher Test UI: Điều kiện đơn hàng cao
   {
     code: 'VIP100K_DON500K',
     name: 'Ưu đãi Khách VIP - Giảm 100,000đ cho đơn từ 500,000đ',
@@ -103,31 +103,31 @@ export const VOUCHER_SEEDS = [
     minOrderAmount: 500000,
     scope: 'ORDER',
     quota: 500,
-    usedCount: 0,
+    usedCount: 65,
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
   },
-  // 8. Voucher Test UI: Đã hết hạn (để FE test lỗi EXPIRED)
+  // 8. Voucher Test UI: Đã hết hạn (Hết hạn ngày 20/02/2026)
   {
-    code: 'EXPIRED_TEST',
-    name: 'Mã giảm giá đã hết hạn (Dành cho kiểm thử UI)',
+    code: 'TET2026_EXPIRED',
+    name: 'Mừng Xuân Bính Ngọ 2026 - Giảm 15% (Đã hết hạn)',
     discountType: 'PERCENTAGE',
     discountValue: 15,
     minOrderAmount: 0,
     scope: 'ORDER',
     quota: 100,
-    usedCount: 0,
+    usedCount: 38,
     status: 'ACTIVE',
-    effectiveFrom: new Date('2025-01-01T00:00:00.000Z'),
-    effectiveTo: new Date('2025-12-31T23:59:59.000Z'),
+    effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+    effectiveTo: new Date('2026-02-20T23:59:59.000Z'),
   },
-  // 9. Voucher Test UI: Đã hết lượt sử dụng (để FE test lỗi QUOTA_EXCEEDED)
+  // 9. Voucher Test UI: Đã hết số lượt (Cháy hàng)
   {
-    code: 'MAXOUT_TEST',
-    name: 'Mã giảm giá đã hết số lượt (Dành cho kiểm thử UI)',
+    code: 'HOTDEAL_MAXOUT',
+    name: 'Deal Khai Trương Siêu Khủng - Giảm 50,000đ (Đã hết lượt)',
     discountType: 'FIXED',
-    discountValue: 20000,
+    discountValue: 50000,
     minOrderAmount: 0,
     scope: 'ORDER',
     quota: 50,
@@ -135,6 +135,35 @@ export const VOUCHER_SEEDS = [
     status: 'ACTIVE',
     effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
     effectiveTo: new Date('2026-12-31T23:59:59.000Z'),
+  },
+  // 10. Voucher Flash Sale Khung Giờ Vàng
+  {
+    code: 'FLASHSALE50K',
+    name: '⚡ Flash Sale Giờ Vàng - Giảm 50.000đ cho đơn từ 120.000đ',
+    discountType: 'FIXED',
+    discountValue: 50000,
+    minOrderAmount: 120000,
+    scope: 'ORDER',
+    quota: 50,
+    usedCount: 28,
+    status: 'ACTIVE',
+    effectiveFrom: new Date('2026-10-31T00:00:00.000Z'),
+    effectiveTo: new Date('2026-10-31T23:59:59.000Z'),
+  },
+  // 11. Voucher Flash Sale Phụ kiện
+  {
+    code: 'FLASHACCESSORY',
+    name: '⚡ Flash Sale Phụ Kiện - Giảm 30% tối đa 70.000đ',
+    discountType: 'PERCENTAGE',
+    discountValue: 30,
+    maxDiscountAmount: 70000,
+    minOrderAmount: 100000,
+    scope: 'ORDER',
+    quota: 30,
+    usedCount: 12,
+    status: 'ACTIVE',
+    effectiveFrom: new Date('2026-10-31T00:00:00.000Z'),
+    effectiveTo: new Date('2026-10-31T23:59:59.000Z'),
   },
 ];
 
@@ -155,27 +184,12 @@ export const seedVouchers = async () => {
         dataToSave.scopeRefs = productScopeRefs;
       }
 
-      if (dataToSave.code === 'MAXOUT_TEST') {
-        // Special test voucher that must always have usedCount = quota
-        await Voucher.updateOne(
-          { code: dataToSave.code },
-          { $set: dataToSave },
-          { upsert: true }
-        );
-        console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (QUOTA_EXCEEDED test)`);
-      } else {
-        // Idempotent: do NOT overwrite existing usedCount with 0
-        const { usedCount, ...updateFields } = dataToSave;
-        await Voucher.updateOne(
-          { code: dataToSave.code },
-          {
-            $set: updateFields,
-            $setOnInsert: { usedCount: 0 }
-          },
-          { upsert: true }
-        );
-        console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (${dataToSave.scope})`);
-      }
+      await Voucher.updateOne(
+        { code: dataToSave.code },
+        { $set: dataToSave },
+        { upsert: true }
+      );
+      console.log(`[UPSERTED] Voucher: ${dataToSave.code.padEnd(16)} | ${dataToSave.name} (${dataToSave.usedCount}/${dataToSave.quota} lượt)`);
     }
 
     console.log('\n========================================================================');
