@@ -35,6 +35,7 @@ import InventoryStock from '../modules/inventory/models/InventoryStock.js';
 import Order from '../modules/order/models/Order.js';
 import OrderReturn from '../modules/order/models/OrderReturn.js';
 import OrderRefund from '../modules/order/models/OrderRefund.js';
+import Voucher from '../modules/order/models/Voucher.js';
 import Appointment from '../modules/booking/models/Appointment.js';
 import ServiceRecord from '../modules/execution/models/ServiceRecord.js';
 import { seedVouchers } from './voucherSeed.js';
@@ -1561,9 +1562,11 @@ export const runProductionUatSeed = async () => {
 
   // 6.5 Đảm bảo Service Catalog (12 dịch vụ Y tế & Spa) được nạp
   await seedServiceCatalog();
-  const medicalService = (await Service.findOne({ serviceType: 'MEDICAL' })) || (await Service.findOne());
+  const medicalService = (await Service.findOne({ code: 'MED01' })) || (await Service.findOne({ serviceType: 'MEDICAL' })) || (await Service.findOne());
   const groomingService = (await Service.findOne({ serviceType: 'GROOMING' })) || (await Service.findOne());
+  const nurseService = (await Service.findOne({ code: 'MED05' })) || (await Service.findOne({ requiredStaffRole: 'NURSE' }));
   const doctorAnProfile = staffProfileMap.get('doctor.an');
+  const nurseMaiProfile = staffProfileMap.get('nurse.mai') || staffProfileMap.get('nurse_q1');
   const groomerDatProfile = staffProfileMap.get('groomer.dat');
 
   // 6.6 Toàn bộ 7 trạng thái Lịch hẹn (Appointments)
@@ -1575,6 +1578,7 @@ export const runProductionUatSeed = async () => {
         serviceType: 'MEDICAL',
         service: medicalService,
         staff: doctorAnProfile,
+        reviewerStaffId: doctorAnProfile._id,
         customer: customerProfile1,
         pet: petBuddy,
         user: custUser1,
@@ -1583,15 +1587,18 @@ export const runProductionUatSeed = async () => {
       },
       {
         code: 'APT-20261026-0002',
-        status: 'PENDING_CONFIRMATION',
-        serviceType: 'GROOMING',
-        service: groomingService,
-        staff: groomerDatProfile,
+        status: 'IN_PROGRESS',
+        serviceType: 'MEDICAL',
+        service: nurseService || medicalService,
+        staff: nurseMaiProfile || doctorAnProfile,
+        reviewerStaffId: doctorAnProfile._id,
         customer: customerProfile1,
         pet: petLuna,
         user: custUser1,
-        startHoursOffset: 24,
-        depositStatus: 'NOT_REQUIRED'
+        startHoursOffset: 2,
+        depositStatus: 'NOT_REQUIRED',
+        execStatus: 'IN_PROGRESS',
+        hasReviewRecord: true
       },
       {
         code: 'APT-20261027-0003',
@@ -1599,6 +1606,7 @@ export const runProductionUatSeed = async () => {
         serviceType: 'MEDICAL',
         service: medicalService,
         staff: doctorAnProfile,
+        reviewerStaffId: doctorAnProfile._id,
         customer: customerProfile1,
         pet: petBuddy,
         user: custUser1,
@@ -1624,6 +1632,7 @@ export const runProductionUatSeed = async () => {
         serviceType: 'MEDICAL',
         service: medicalService,
         staff: doctorAnProfile,
+        reviewerStaffId: doctorAnProfile._id,
         customer: customerProfile1,
         pet: petBuddy,
         user: custUser1,
@@ -1638,6 +1647,7 @@ export const runProductionUatSeed = async () => {
         serviceType: 'MEDICAL',
         service: medicalService,
         staff: doctorAnProfile,
+        reviewerStaffId: doctorAnProfile._id,
         customer: customerProfile1,
         pet: petLuna,
         user: custUser1,
@@ -1676,6 +1686,7 @@ export const runProductionUatSeed = async () => {
             serviceType: apt.serviceType,
             paymentMethod: 'PAY_AT_STORE',
             status: apt.status,
+            reviewerStaffId: apt.reviewerStaffId || (apt.serviceType === 'MEDICAL' ? doctorAnProfile._id : null),
             scheduledStart: aptStart,
             scheduledEnd: aptEnd,
             scheduledDurationMinutes: 60,
@@ -1697,7 +1708,7 @@ export const runProductionUatSeed = async () => {
                 serviceType: apt.serviceType,
                 unitPrice,
                 durationMinutes: 60,
-                requiredStaffRole: apt.serviceType === 'MEDICAL' ? 'VETERINARIAN' : 'CARE_STAFF_GROOMER',
+                requiredStaffRole: apt.service.requiredStaffRole || (apt.serviceType === 'MEDICAL' ? 'VETERINARIAN' : 'CARE_STAFF_GROOMER'),
                 sequence: 1,
                 scheduledStart: aptStart,
                 scheduledEnd: aptEnd,
@@ -1723,6 +1734,39 @@ export const runProductionUatSeed = async () => {
         { upsert: true, new: true }
       );
 
+      // Nếu là dịch vụ Điều dưỡng chờ duyệt, tạo ServiceRecord WAITING_VET_REVIEW để Bác sĩ vào duyệt
+      if (apt.hasReviewRecord) {
+        const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
+        await ServiceRecord.findOneAndUpdate(
+          { appointmentId: savedApt._id },
+          {
+            $set: {
+              appointmentId: savedApt._id,
+              petId: apt.pet._id,
+              branchId: branch1._id,
+              serviceIds: [apt.service._id],
+              assignedStaffIds: [apt.staff._id],
+              reviewerStaffId: apt.reviewerStaffId || doctorAnProfile._id,
+              recordType: 'MEDICAL',
+              status: 'WAITING_VET_REVIEW',
+              actualStartAt: aptStart,
+              actualMaterials: invItem ? [
+                {
+                  inventoryItemId: invItem._id,
+                  quantity: 2,
+                  unit: 'cuộn',
+                  notes: 'Gạc tiệt trùng và cồn đỏ sát trùng'
+                }
+              ] : [],
+              professional: {
+                professionalNote: 'Điều dưỡng Hoàng Thị Mai đã hoàn tất vệ sinh và thay băng sạch sẽ cho bé. Đang chờ Bác sĩ duyệt và kê đơn thuốc.'
+              }
+            }
+          },
+          { upsert: true }
+        );
+      }
+
       // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt
       if (apt.hasServiceRecord) {
         await ServiceRecord.findOneAndUpdate(
@@ -1734,7 +1778,7 @@ export const runProductionUatSeed = async () => {
               branchId: branch1._id,
               serviceIds: [apt.service._id],
               assignedStaffIds: [apt.staff._id],
-              reviewerStaffId: apt.staff._id,
+              reviewerStaffId: apt.reviewerStaffId || apt.staff._id,
               recordType: 'MEDICAL',
               status: 'FINALIZED',
               actualStartAt: aptStart,

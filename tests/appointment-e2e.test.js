@@ -164,7 +164,7 @@ describe('Task 4.3: Appointment E2E & BookingRefund Lifecycle Suite', () => {
     it('cancels expired appointment holds, releases SlotReservation, and issues full refund', async () => {
       const mockExpiredApt = {
         _id: new mongoose.Types.ObjectId(),
-        status: 'PENDING_CONFIRMATION',
+        status: 'PENDING_PAYMENT',
         holdExpiresAt: new Date(Date.now() - 60000), // Expired 1 min ago
         pricing: { paidAmount: 60000 },
         cancel: null,

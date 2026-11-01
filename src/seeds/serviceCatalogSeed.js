@@ -215,20 +215,16 @@ export const seedServiceCatalog = async () => {
     },
     {
       code: 'MED05',
-      name: 'Tư vấn dinh dưỡng',
+      name: 'Thay băng & Chăm sóc vết thương',
       serviceType: 'MEDICAL',
-      category: 'Tư vấn',
-      description: 'Tư vấn chế độ ăn uống khoa học phù hợp độ tuổi và thể trạng',
-      basePrice: 0,
+      category: 'Điều dưỡng & Chăm sóc',
+      description: 'Thay băng, vệ sinh vết thương và chăm sóc y tế cơ bản do điều dưỡng thực hiện',
+      basePrice: 120000,
       durationMinutes: 30,
-      requiredStaffRole: 'VETERINARIAN',
-      bookingMode: 'CONTACT_ONLY',
-      contactInfo: {
-        hotline: '1900-PET-NUTRITION',
-        instruction: 'Báo giá sau tiếp nhận',
-      },
+      requiredStaffRole: 'NURSE',
+      bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [], // 0/3 bật
+      enabledBranchIndices: [0, 1, 2], // 3/3 bật
     },
   ];
 

@@ -13,7 +13,7 @@ import { processOutbox } from './outboxProcessor';
 export const processAppointmentHoldExpiries = async () => {
   const now = new Date();
   const expiredAppointments = await Appointment.find({
-    status: { $in: ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
+    status: 'PENDING_PAYMENT',
     $or: [
       { holdExpiresAt: { $lt: now } },
       { holdExpiresAt: null, createdAt: { $lt: new Date(Date.now() - 15 * 60000) } },

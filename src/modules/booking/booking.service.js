@@ -9,6 +9,7 @@ import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import Shift from '../staff/models/Shift';
 import StaffProfile from '../staff/models/StaffProfile';
 import GuestContact from '../customer/models/GuestContact';
+import ServiceRecord from '../execution/models/ServiceRecord';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import {
@@ -279,6 +280,137 @@ const selectBestStaff = async ({
 };
 
 /**
+ * Auto-assign Veterinarian reviewer for Medical Appointments (BR3)
+ * Rules:
+ * 1. Direct Vet in same appointment -> prioritize that Vet.
+ * 2. Only Nurse performed -> prioritize active Vet in same branch during current shift.
+ * 3. No Vet in current shift -> select active Vet in nearest upcoming shift.
+ * 4. Multiple Vets qualify -> select Vet with least pending review records (WAITING_VET_REVIEW).
+ * 5. No Vet shift exists at branch -> return null (Manager can manually assign).
+ */
+export const resolveVetReviewer = async ({
+  branchId,
+  segments = [],
+  scheduledStart,
+  scheduledEnd,
+  session = null,
+}) => {
+  // 1. Direct Vet in same appointment
+  const vetSegment = segments.find(
+    (s) => s.requiredStaffRole === 'VETERINARIAN' && s.assignedStaffId
+  );
+  if (vetSegment) {
+    return vetSegment.assignedStaffId;
+  }
+
+  const bId = new mongoose.Types.ObjectId(branchId);
+  const start = new Date(scheduledStart);
+  const end = new Date(scheduledEnd);
+
+  // 2. Active Vet in same branch during current shift
+  let currentShiftsQuery = Shift.find({
+    branchId: bId,
+    status: 'ACTIVE',
+    startAt: { $lte: start },
+    endAt: { $gte: end },
+  }).populate('staffId');
+
+  if (session) currentShiftsQuery = currentShiftsQuery.session(session);
+  const currentShifts = await currentShiftsQuery;
+
+  let eligibleStaff = [];
+  for (const shift of currentShifts) {
+    const profile = shift.staffId;
+    if (profile && profile.status === 'ACTIVE' && profile.staffSubRole === 'VETERINARIAN') {
+      if (!eligibleStaff.some((s) => s._id.toString() === profile._id.toString())) {
+        eligibleStaff.push(profile);
+      }
+    }
+  }
+
+  // 3. If no Vet in current shift, select Vet in nearest upcoming shift
+  if (eligibleStaff.length === 0) {
+    let nextShiftsQuery = Shift.find({
+      branchId: bId,
+      status: 'ACTIVE',
+      startAt: { $gte: start },
+    })
+      .sort({ startAt: 1 })
+      .populate('staffId');
+
+    if (session) nextShiftsQuery = nextShiftsQuery.session(session);
+    const nextShifts = await nextShiftsQuery;
+
+    if (nextShifts.length > 0) {
+      let earliestStartAt = null;
+      for (const shift of nextShifts) {
+        const profile = shift.staffId;
+        if (profile && profile.status === 'ACTIVE' && profile.staffSubRole === 'VETERINARIAN') {
+          if (!earliestStartAt) earliestStartAt = shift.startAt.getTime();
+          if (shift.startAt.getTime() === earliestStartAt) {
+            if (!eligibleStaff.some((s) => s._id.toString() === profile._id.toString())) {
+              eligibleStaff.push(profile);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 5. If still no Vet found
+  if (eligibleStaff.length === 0) {
+    return null;
+  }
+
+  // If only 1 Vet, return immediately
+  if (eligibleStaff.length === 1) {
+    return eligibleStaff[0]._id;
+  }
+
+  // 4. Multiple Vets -> Pick the one with least pending reviews (WAITING_VET_REVIEW)
+  const candidateStaffIds = eligibleStaff.map((s) => s._id);
+  const candidateUserIds = eligibleStaff.map((s) => s.userId).filter(Boolean);
+  const allReviewerIds = [...candidateStaffIds, ...candidateUserIds];
+
+  let pendingCounts = [];
+  try {
+    let agg = ServiceRecord.aggregate([
+      {
+        $match: {
+          status: 'WAITING_VET_REVIEW',
+          reviewerStaffId: { $in: allReviewerIds },
+        },
+      },
+      {
+        $group: {
+          _id: '$reviewerStaffId',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    if (session) agg = agg.session(session);
+    pendingCounts = await agg;
+  } catch (_e) {
+    pendingCounts = [];
+  }
+
+  const countMap = new Map();
+  if (Array.isArray(pendingCounts)) {
+    pendingCounts.forEach((pc) => {
+      if (pc && pc._id) countMap.set(pc._id.toString(), pc.count);
+    });
+  }
+
+  eligibleStaff.sort((a, b) => {
+    const countA = (countMap.get(a._id.toString()) || 0) + (a.userId ? (countMap.get(a.userId.toString()) || 0) : 0);
+    const countB = (countMap.get(b._id.toString()) || 0) + (b.userId ? (countMap.get(b.userId.toString()) || 0) : 0);
+    return countA - countB;
+  });
+
+  return eligibleStaff[0]._id;
+};
+
+/**
  * Public/Customer & Guest Appointment Creation
  */
 export const createAppointment = async (data, actor, guestLookupToken) => {
@@ -457,17 +589,25 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       const segStart = new Date(currentStart);
       const segEnd = new Date(currentStart.getTime() + duration * 60000);
 
-      // Verify concurrency capacity
+      // Verify concurrency capacity per service segment
       const sId = service._id.toString();
       const cfg = configMap.get(sId);
-      const capacity = Number(cfg.capacity) || 1;
+      const capacity = Number(cfg?.capacity) || 1;
 
+      const now = new Date();
       const concurrentCount = await Appointment.countDocuments({
         branchId: new mongoose.Types.ObjectId(branchId),
-        status: { $in: ['CONFIRMED', 'IN_PROGRESS', 'PENDING_CONFIRMATION', 'PENDING_PAYMENT'] },
-        scheduledStart: { $lt: segEnd },
-        scheduledEnd: { $gt: segStart },
-        'services.serviceId': service._id,
+        $or: [
+          { status: { $in: ['CONFIRMED', 'IN_PROGRESS'] } },
+          { status: 'PENDING_PAYMENT', holdExpiresAt: { $gt: now } },
+        ],
+        services: {
+          $elemMatch: {
+            serviceId: service._id,
+            scheduledStart: { $lt: segEnd },
+            scheduledEnd: { $gt: segStart },
+          },
+        },
       }).session(session);
 
       if (concurrentCount >= capacity) {
@@ -503,7 +643,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
           unitIndex: u,
           kind: 'STAFF',
           status: 'HELD',
-          holdExpiresAt: new Date(Date.now() + 10 * 60000), // 10 minutes hold
+          holdExpiresAt: new Date(Date.now() + 15 * 60000), // 15 minutes hold
         });
       }
 
@@ -564,7 +704,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
     const finalAmount = Math.max(0, subtotal - voucherDiscount);
 
     // 7. Payment & Deposit Logic (OpenAPI Canonical)
-    let status = 'PENDING_CONFIRMATION';
+    let status = 'CONFIRMED';
     let depositAmount = 0;
     let balanceAmount = 0;
     let paidAmount = 0;
@@ -580,7 +720,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         depositAmount = 0;
         balanceAmount = 0;
         paidAmount = 0;
-        status = 'PENDING_CONFIRMATION';
+        status = 'CONFIRMED';
         depositStatus = 'NOT_REQUIRED';
       } else {
         status = 'PENDING_PAYMENT';
@@ -593,14 +733,26 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       depositAmount = 0;
       balanceAmount = 0;
       paidAmount = finalAmount;
-      status = 'PENDING_CONFIRMATION';
+      status = 'CONFIRMED';
       paymentAmount = finalAmount;
       paymentKind = 'FULL';
       paymentStatus = 'PAID';
       depositStatus = 'NOT_REQUIRED';
     }
 
-    const holdExpiresAt = new Date(Date.now() + 10 * 60000); // 10-minute hold window
+    const holdExpiresAt = status === 'CONFIRMED' ? null : new Date(Date.now() + 15 * 60000); // 15-minute hold window for PENDING_PAYMENT
+
+    // 7.5 Auto-assign Veterinarian reviewer for Medical Appointments (BR3)
+    let reviewerStaffId = null;
+    if (primaryServiceType === 'MEDICAL') {
+      reviewerStaffId = await resolveVetReviewer({
+        branchId,
+        segments,
+        scheduledStart: new Date(slotStart),
+        scheduledEnd: currentStart,
+        session,
+      });
+    }
 
     // 8. Create Appointment
     const appointment = new Appointment({
@@ -634,6 +786,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       status,
       rescheduleCount: 0,
       holdExpiresAt,
+      reviewerStaffId,
       source: 'ONLINE',
       note: note || null,
       conditionDescription: conditionDescription || null,
@@ -643,9 +796,14 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
     await appointment.save({ session });
 
     // Link appointmentId to created slot reservations
+    const reservationUpdate = { appointmentId: appointment._id };
+    if (status === 'CONFIRMED') {
+      reservationUpdate.status = 'CONFIRMED';
+      reservationUpdate.holdExpiresAt = null;
+    }
     await safeUpdateReservations(
       { _id: { $in: reservationsToCreate.map((r) => r._id) } },
-      { $set: { appointmentId: appointment._id } },
+      { $set: reservationUpdate },
       session
     );
 
@@ -787,7 +945,7 @@ export const confirmAppointment = async (id, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
-    if (apt.status !== 'PENDING_CONFIRMATION') {
+    if (apt.status !== 'PENDING_CONFIRMATION' && apt.status !== 'PENDING_PAYMENT' && apt.status !== 'CONFIRMED') {
       throw new AppError(
         422,
         'UnprocessableEntity',
@@ -1455,12 +1613,18 @@ export const mockCompletePayment = async (prepaymentId, actor) => {
 
     if (payment.targetType === 'APPOINTMENT') {
       const apt = await Appointment.findById(payment.targetId).session(session);
-      if (apt && apt.status === 'PENDING_PAYMENT') {
+      if (apt && (apt.status === 'PENDING_PAYMENT' || apt.status === 'PENDING_CONFIRMATION')) {
         apt.pricing.paidAmount += payment.amount;
         apt.deposit.status = 'HELD';
-        apt.status = 'PENDING_CONFIRMATION';
-        apt.holdExpiresAt = new Date(Date.now() + 10 * 60000);
+        apt.status = 'CONFIRMED';
+        apt.holdExpiresAt = null;
         await apt.save({ session });
+
+        await safeUpdateReservations(
+          { appointmentId: apt._id },
+          { $set: { status: 'CONFIRMED', holdExpiresAt: null } },
+          session
+        );
       }
     }
 

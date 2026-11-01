@@ -6,6 +6,7 @@ import StaffProfile from '../staff/models/StaffProfile';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { applyServiceRecordDelta } from '../inventory/inventory.service';
+import { resolveVetReviewer } from '../booking/booking.service';
 
 const materialMap = (items = []) => {
   const result = new Map();
@@ -139,11 +140,21 @@ const requireExecutionStaff = async (actor, staffSubRole, branchId, session = nu
   }
 };
 
-const isAssignedToAppointment = (appointment, actorId) => (
-  (appointment.services || []).some((service) => (
-    service.assignedStaffId && service.assignedStaffId.toString() === actorId.toString()
-  ))
-);
+const isAssignedToAppointment = async (appointment, actorId) => {
+  if (!appointment || !appointment.services) return false;
+  let staffProfile = null;
+  try {
+    staffProfile = await StaffProfile.findOne({ userId: actorId }).select('_id');
+  } catch (_e) {
+    staffProfile = null;
+  }
+  return (appointment.services || []).some((service) => (
+    service.assignedStaffId && (
+      service.assignedStaffId.toString() === actorId.toString() ||
+      (staffProfile && service.assignedStaffId.toString() === staffProfile._id.toString())
+    )
+  ));
+};
 
 export const createRecord = async (data, actor) => {
   const appointment = await Appointment.findById(data.appointmentId);
@@ -156,6 +167,22 @@ export const createRecord = async (data, actor) => {
     notes: m.notes || null,
   });
 
+  const recordType = appointment.serviceType || data.serviceType || 'GROOMING';
+  let reviewerStaffId = appointment.reviewerStaffId || null;
+
+  if (recordType === 'MEDICAL' && !reviewerStaffId) {
+    reviewerStaffId = await resolveVetReviewer({
+      branchId: appointment.branchId,
+      segments: appointment.services || [],
+      scheduledStart: appointment.scheduledStart,
+      scheduledEnd: appointment.scheduledEnd,
+    });
+    if (reviewerStaffId) {
+      appointment.reviewerStaffId = reviewerStaffId;
+      await appointment.save();
+    }
+  }
+
   const record = new ServiceRecord({
     appointmentId: appointment._id,
     branchId: appointment.branchId,
@@ -163,8 +190,8 @@ export const createRecord = async (data, actor) => {
     petId: appointment.petId || null,
     serviceIds: (appointment.services || []).map((service) => service.serviceId),
     assignedStaffIds: (appointment.services || []).map((service) => service.assignedStaffId).filter(Boolean),
-    reviewerStaffId: appointment.reviewerStaffId || null,
-    recordType: appointment.serviceType || data.serviceType || 'GROOMING',
+    reviewerStaffId,
+    recordType,
     status: 'IN_PROGRESS',
     plannedMaterials: (data.plannedMaterials || []).map(normalizeMaterial),
     actualMaterials: (data.actualMaterials || data.plannedMaterials || []).map(normalizeMaterial),
@@ -278,15 +305,34 @@ export const updateMaterials = async (id, data, actor) => {
       if (actor.staffSubRole !== 'CARE_STAFF_GROOMER') {
         throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Care Staff/Groomer can update grooming materials');
       }
-      if (appointment && !isAssignedToAppointment(appointment, actor.id)) {
+      if (appointment && !(await isAssignedToAppointment(appointment, actor.id))) {
         throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Only assigned staff can edit materials');
       }
     } else if (record.recordType === 'MEDICAL') {
       if (appointment) {
+        let staffProfile = null;
+        try {
+          staffProfile = await StaffProfile.findOne({ userId: actor.id }).select('_id');
+        } catch (_e) {
+          staffProfile = null;
+        }
+
         const actorAssignedSegments = (appointment.services || []).filter(
-          s => s.assignedStaffId && s.assignedStaffId.toString() === actor.id.toString()
+          s => s.assignedStaffId && (
+            s.assignedStaffId.toString() === actor.id.toString() ||
+            (staffProfile && s.assignedStaffId.toString() === staffProfile._id.toString())
+          )
         );
-        const isReviewer = record.reviewerStaffId && record.reviewerStaffId.toString() === actor.id.toString();
+        const isReviewer = (
+          (record.reviewerStaffId && (
+            record.reviewerStaffId.toString() === actor.id.toString() ||
+            (staffProfile && record.reviewerStaffId.toString() === staffProfile._id.toString())
+          )) ||
+          (appointment.reviewerStaffId && (
+            appointment.reviewerStaffId.toString() === actor.id.toString() ||
+            (staffProfile && appointment.reviewerStaffId.toString() === staffProfile._id.toString())
+          ))
+        );
 
         if (actor.staffSubRole === 'NURSE') {
           const hasNurseSegment = actorAssignedSegments.some(s => s.requiredStaffRole === 'NURSE');
@@ -345,8 +391,23 @@ export const updateProfessional = async (id, data, actor) => {
     if (actor.staffSubRole !== 'VETERINARIAN') {
       throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Veterinarian can record clinical data');
     }
-    const isReviewerOrAssigned = (record.reviewerStaffId && record.reviewerStaffId.toString() === actor.id.toString()) ||
-      (record.assignedStaffIds || []).some(sid => sid.toString() === actor.id.toString());
+    let staffProfile = null;
+    try {
+      staffProfile = await StaffProfile.findOne({ userId: actor.id, staffSubRole: 'VETERINARIAN' }).select('_id');
+    } catch (_e) {
+      staffProfile = null;
+    }
+
+    const isReviewerOrAssigned = (
+      (record.reviewerStaffId && (
+        record.reviewerStaffId.toString() === actor.id.toString() ||
+        (staffProfile && record.reviewerStaffId.toString() === staffProfile._id.toString())
+      )) ||
+      (record.assignedStaffIds || []).some(sid => (
+        sid.toString() === actor.id.toString() ||
+        (staffProfile && sid.toString() === staffProfile._id.toString())
+      ))
+    );
     if (!isReviewerOrAssigned) {
       throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Only assigned Veterinarian or Reviewer can update clinical data');
     }
@@ -434,9 +495,28 @@ export const submitReview = async (id, data, actor) => {
   }
   await requireExecutionStaff(actor, 'NURSE', record.branchId);
   const appointment = await Appointment.findById(record.appointmentId);
-  if (!appointment || !isAssignedToAppointment(appointment, actor.id)) {
+  if (!appointment || !(await isAssignedToAppointment(appointment, actor.id))) {
     throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Only an assigned Nurse can submit this Medical record for review');
   }
+
+  // Ensure reviewerStaffId is assigned (BR3 auto-assignment)
+  if (!record.reviewerStaffId) {
+    let reviewerId = appointment.reviewerStaffId || null;
+    if (!reviewerId) {
+      reviewerId = await resolveVetReviewer({
+        branchId: record.branchId,
+        segments: appointment.services || [],
+        scheduledStart: appointment.scheduledStart,
+        scheduledEnd: appointment.scheduledEnd,
+      });
+      if (reviewerId) {
+        appointment.reviewerStaffId = reviewerId;
+        await appointment.save();
+      }
+    }
+    record.reviewerStaffId = reviewerId;
+  }
+
   if (data.expectedVersion !== undefined && data.expectedVersion !== record.version) {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Service record has been changed');
   }
@@ -477,12 +557,34 @@ export const finalizeRecord = async (id, data, actor) => {
         if (!['WAITING_VET_REVIEW', 'REOPENED'].includes(record.status)) {
           throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, 'Medical record is not ready for Veterinarian review');
         }
-        if (actor.staffSubRole !== 'VETERINARIAN' || !record.reviewerStaffId || record.reviewerStaffId.toString() !== actor.id.toString()) {
+
+        let staffProfile = null;
+        try {
+          staffProfile = await StaffProfile.findOne({
+            userId: actor.id,
+            staffSubRole: 'VETERINARIAN',
+          }).session(session).select('_id');
+        } catch (_e) {
+          staffProfile = null;
+        }
+
+        const matchesReviewer = (
+          (record.reviewerStaffId && (
+            record.reviewerStaffId.toString() === actor.id.toString() ||
+            (staffProfile && record.reviewerStaffId.toString() === staffProfile._id.toString())
+          )) ||
+          (appointment.reviewerStaffId && (
+            appointment.reviewerStaffId.toString() === actor.id.toString() ||
+            (staffProfile && appointment.reviewerStaffId.toString() === staffProfile._id.toString())
+          ))
+        );
+
+        if (actor.staffSubRole !== 'VETERINARIAN' || !matchesReviewer) {
           throw new AppError(403, 'Forbidden', ErrorCodes.MEDICAL_REVIEW_REQUIRED, 'Only the assigned Veterinarian reviewer can finalize this record');
         }
       } else {
         await requireExecutionStaff(actor, 'CARE_STAFF_GROOMER', record.branchId, session);
-        if (!isAssignedToAppointment(appointment, actor.id)) {
+        if (!(await isAssignedToAppointment(appointment, actor.id))) {
           throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Only assigned Care Staff/Groomer can finalize this record');
         }
       }
