@@ -35,6 +35,9 @@ import feedbackRoutes from './modules/review/feedback.routes';
 import searchRoutes from './modules/search/search.routes';
 import notificationRoutes from './modules/notification/notification.routes';
 import legacyFallbackRoutes from './modules/legacy/legacyFallback.routes.js';
+import adminContentRoutes from './modules/content/adminContent.routes.js';
+import publicContentRoutes from './modules/content/publicContent.routes.js';
+import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -555,9 +558,11 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Mount Public Content routes (Real MongoDB Blog, First Aid, Community, Rescue)
+app.use('/api/v1', publicContentRoutes);
+
 // Mount Legacy Fallback routes BEFORE OpenAPI Validator
-// Ensures legacy marketing, blogs, species, and first-aid routes respond immediately with 200 OK
-// without false 401/404 from OpenAPI route matching against /pets/{id}
+// Ensures legacy marketing, species, breeds, pricing matrix routes respond immediately
 app.use('/api/v1', legacyFallbackRoutes);
 
 // OpenAPI Validator
@@ -577,6 +582,9 @@ app.use(
       if (path.includes('/pets/breeds')) return true;
       if (path.includes('/flash-sales')) return true;
       if (path.includes('/adoptions')) return true;
+      if (path.includes('/community')) return true;
+      if (path.includes('/rescue')) return true;
+      if (path.includes('/dashboard')) return true;
       if (path.includes('/contacts')) return true;
       return false;
     },
@@ -677,6 +685,9 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin', adminContentRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/admin/dashboard', dashboardRoutes);
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));

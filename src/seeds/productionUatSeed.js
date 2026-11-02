@@ -39,6 +39,11 @@ import Voucher from '../modules/order/models/Voucher.js';
 import Appointment from '../modules/booking/models/Appointment.js';
 import ServiceRecord from '../modules/execution/models/ServiceRecord.js';
 import { seedVouchers } from './voucherSeed.js';
+import { seedContent } from './contentSeed.js';
+import Post from '../modules/content/models/Post.js';
+import CommunityPost from '../modules/content/models/CommunityPost.js';
+import RescuePet from '../modules/content/models/RescuePet.js';
+import AdoptionRequest from '../modules/content/models/AdoptionRequest.js';
 import { seedServiceCatalog } from './serviceCatalogSeed.js';
 import { runMigrateLegacyProducts } from './migrateLegacyProducts.js';
 
@@ -1921,6 +1926,12 @@ export const runProductionUatSeed = async () => {
   await seedVouchers();
 
   // ========================================================================
+  // BƯỚC 8: NẠP NỘI DUNG BLOG, SƠ CỨU, CỘNG ĐỒNG & CỨU HỘ NHẬN NUÔI
+  // ========================================================================
+  console.log('\n📝 Bước 8: Đồng bộ bài viết Blog, Sơ cứu y tế, Diễn đàn & Cứu hộ...');
+  await seedContent();
+
+  // ========================================================================
   // BÁO CÁO TỔNG KẾT
   // ========================================================================
   const finalBranchCount = await Branch.countDocuments({ status: 'ACTIVE' });
@@ -1932,6 +1943,10 @@ export const runProductionUatSeed = async () => {
   const finalRefundCount = await OrderRefund.countDocuments({});
   const finalAptCount = await Appointment.countDocuments({});
   const finalGuestCount = await GuestContact.countDocuments({});
+  const finalPostCount = await Post.countDocuments({});
+  const finalCommunityCount = await CommunityPost.countDocuments({});
+  const finalRescueCount = await RescuePet.countDocuments({});
+  const finalAdoptionCount = await AdoptionRequest.countDocuments({});
 
   console.log('\n========================================================================');
   console.log('🎉 TỔNG KẾT BỘ DỮ LIỆU THỰC TẾ (PRODUCTION UAT) ĐÃ HOÀN TẤT THÀNH CÔNG');
@@ -1945,6 +1960,10 @@ export const runProductionUatSeed = async () => {
   console.log(`| Hoàn tiền đổi trả (Refunds)       : ${String(finalRefundCount).padEnd(4)} hoàn tiền (Bao phủ PENDING & REFUNDED)`);
   console.log(`| Lịch hẹn mẫu (Appointments)       : ${String(finalAptCount).padEnd(4)} lịch (Bao phủ 7 trạng thái + Khách vãng lai)`);
   console.log(`| Khách vãng lai (GuestContacts)    : ${String(finalGuestCount).padEnd(4)} hồ sơ (Bao phủ 4 trường hợp Guest)`);
+  console.log(`| Bài viết Blog & Sơ cứu (Posts)    : ${String(finalPostCount).padEnd(4)} bài (Bao phủ Blog chuẩn SEO & Sơ cứu khẩn cấp)`);
+  console.log(`| Diễn đàn cộng đồng (Community)    : ${String(finalCommunityCount).padEnd(4)} bài (Bao phủ PENDING, APPROVED, REJECTED)`);
+  console.log(`| Thú cưng cứu hộ (RescuePets)      : ${String(finalRescueCount).padEnd(4)} bé (Bao phủ LOOKING_FOR_HOME & ADOPTED)`);
+  console.log(`| Đơn xin nhận nuôi (Adoptions)     : ${String(finalAdoptionCount).padEnd(4)} đơn (Bao phủ PENDING, APPROVED, REJECTED)`);
   console.log('========================================================================\n');
 
   return true;

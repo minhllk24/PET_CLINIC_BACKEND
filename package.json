@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "seed:demo": "babel-node src/seeds/demoUsersSeed.js",
     "seed:vouchers": "babel-node src/seeds/voucherSeed.js",
+    "seed:content": "babel-node src/seeds/contentSeed.js",
     "seed:uat": "babel-node src/seeds/uatSeed.js",
     "seed:uat-prod": "babel-node src/seeds/productionUatSeed.js",
     "seed:legacy-products": "babel-node src/seeds/migrateLegacyProducts.js",
