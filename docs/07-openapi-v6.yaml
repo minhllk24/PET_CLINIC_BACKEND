@@ -2210,6 +2210,23 @@ paths:
         schema:
           $ref: '#/components/schemas/ObjectId'
       - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+                noShowReason:
+                  type: string
+                  maxLength: 500
+                note:
+                  type: string
+                  maxLength: 500
       responses:
         '200':
           description: Appointment
@@ -2372,7 +2389,7 @@ paths:
         in: path
         required: true
         schema:
-          $ref: '#/components/schemas/ObjectId'
+          type: string
       responses:
         '200':
           description: Record
@@ -2477,6 +2494,26 @@ paths:
         schema:
           type: string
       - name: transactionType
+        in: query
+        schema:
+          type: string
+      - name: sourceType
+        in: query
+        schema:
+          type: string
+      - name: sourceId
+        in: query
+        schema:
+          type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: fromDate
+        in: query
+        schema:
+          type: string
+      - name: toDate
         in: query
         schema:
           type: string
@@ -9012,6 +9049,44 @@ components:
           - $ref: '#/components/schemas/ObjectId'
           - type: 'null'
           description: Pet reference when available; petSnapshot remains the historical snapshot.
+        prepaymentId:
+          oneOf:
+          - $ref: '#/components/schemas/ObjectId'
+          - type: 'null'
+        reviewerStaffId:
+          oneOf:
+          - $ref: '#/components/schemas/ObjectId'
+          - type: 'null'
+        noShowWarning:
+          type: boolean
+        cancel:
+          oneOf:
+          - type: object
+            additionalProperties: false
+            properties:
+              actorId:
+                type:
+                - string
+                - 'null'
+              by:
+                type:
+                - string
+                - 'null'
+              at:
+                type:
+                - string
+                - 'null'
+              reason:
+                type:
+                - string
+                - 'null'
+              hoursBeforeStart:
+                type: number
+              prepaidOutcome:
+                type:
+                - string
+                - 'null'
+          - type: 'null'
       additionalProperties: false
       required:
       - id
@@ -9096,6 +9171,10 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/ObjectId'
+        code:
+          type:
+          - string
+          - 'null'
         appointmentId:
           $ref: '#/components/schemas/ObjectId'
         petId:
@@ -9145,6 +9224,10 @@ components:
         version:
           type: integer
           minimum: 0
+        reviewerStaffId:
+          oneOf:
+          - $ref: '#/components/schemas/ObjectId'
+          - type: 'null'
       additionalProperties: false
       required:
       - id
@@ -9229,6 +9312,15 @@ components:
           minimum: 0
         lowStock:
           type: boolean
+        lowStockThreshold:
+          type: number
+          minimum: 0
+          default: 0
+        thresholdConfigured:
+          type: boolean
+        version:
+          type: integer
+          minimum: 0
       additionalProperties: false
       required:
       - branchId
@@ -9282,6 +9374,68 @@ components:
           type:
           - integer
           - 'null'
+        branchName:
+          type:
+          - string
+          - 'null'
+        branchCode:
+          type:
+          - string
+          - 'null'
+        actorName:
+          type:
+          - string
+          - 'null'
+        actorRole:
+          type:
+          - string
+          - 'null'
+        isSystemActor:
+          type: boolean
+        referenceCode:
+          type:
+          - string
+          - 'null'
+        sourceCode:
+          type:
+          - string
+          - 'null'
+        serviceRecordId:
+          type:
+          - string
+          - 'null'
+        serviceRecordCode:
+          type:
+          - string
+          - 'null'
+        items:
+          type: array
+          items:
+            type: object
+        transferId:
+          type:
+          - string
+          - 'null'
+        transferLeg:
+          type:
+          - string
+          - 'null'
+        fromBranchId:
+          type:
+          - string
+          - 'null'
+        toBranchId:
+          type:
+          - string
+          - 'null'
+        fromBranchName:
+          type:
+          - string
+          - 'null'
+        toBranchName:
+          type:
+          - string
+          - 'null'
       additionalProperties: false
       required:
       - id
@@ -9323,6 +9477,9 @@ components:
         reason:
           type: string
           minLength: 3
+        lowStockThreshold:
+          type: number
+          minimum: 0
       additionalProperties: false
       required:
       - branchId
@@ -9344,6 +9501,12 @@ components:
         reason:
           type: string
           minLength: 3
+        destinationLowStockThreshold:
+          type: number
+          minimum: 0
+        lowStockThreshold:
+          type: number
+          minimum: 0
       additionalProperties: false
       required:
       - fromBranchId
@@ -9584,6 +9747,7 @@ components:
       type: string
       enum:
       - MANUAL
+      - SERVICE_RECORD
       - SERVICE_RECORD_REVISION
       - ORDER
       - TRANSFER
@@ -9916,6 +10080,10 @@ components:
           - 'null'
         status:
           $ref: '#/components/schemas/OrderReturnStatus'
+        statusMessage:
+          type:
+          - string
+          - 'null'
         items:
           type: array
           items:
@@ -11294,22 +11462,25 @@ components:
       properties:
         serviceId:
           $ref: '#/components/schemas/ObjectId'
-          description: Bat buoc khi finalize mot segment lan dau; bo qua khi ServiceRecord da REOPENED va tat ca segment
-            da COMPLETED.
         expectedVersion:
           type: integer
           minimum: 0
-      required:
-      - expectedVersion
-      oneOf:
-      - required:
-        - serviceId
-        - expectedVersion
-      - required:
-        - expectedVersion
-        not:
-          required:
-          - serviceId
+        reason:
+          type:
+          - string
+          - 'null'
+        actualMaterials:
+          type: array
+          items:
+            type: object
+        materials:
+          type: array
+          items:
+            type: object
+        professional:
+          type:
+          - object
+          - 'null'
       description: 'Initial finalize/segment completion: gui serviceId. Reopen correction: omit serviceId and finalize the
         already-completed encounter using expectedVersion.'
     AppointmentRequestPage:

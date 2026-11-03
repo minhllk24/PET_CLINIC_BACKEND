@@ -164,6 +164,27 @@ export const formatAppointment = (apt) => {
       : null;
   }
 
+  // No-show 30-minute warning: CONFIRMED, >= 30 mins past scheduledStart, no segment started
+  const allNotStarted = (doc.services || []).every(
+    (s) => !s.executionStatus || s.executionStatus === 'NOT_STARTED'
+  );
+  const elapsedMs = doc.scheduledStart ? Date.now() - new Date(doc.scheduledStart).getTime() : -1;
+  res.noShowWarning = Boolean(
+    doc.status === 'CONFIRMED' && allNotStarted && elapsedMs >= 30 * 60 * 1000
+  );
+
+  // Cancel / No-show metadata when present
+  if (doc.cancel && (doc.cancel.by || doc.cancel.reason || doc.cancel.at)) {
+    res.cancel = {
+      by: doc.cancel.by || null,
+      at: doc.cancel.at ? new Date(doc.cancel.at).toISOString() : null,
+      actorId: doc.cancel.actorId ? (doc.cancel.actorId._id || doc.cancel.actorId).toString() : null,
+      reason: doc.cancel.reason || null,
+      hoursBeforeStart: typeof doc.cancel.hoursBeforeStart === 'number' ? doc.cancel.hoursBeforeStart : 0,
+      prepaidOutcome: doc.cancel.prepaidOutcome || null,
+    };
+  }
+
   return res;
 };
 
@@ -1433,7 +1454,33 @@ export const cancelOverride = async (id, data, actor) => {
 /**
  * Mark No-Show (Receptionist / Manager / Admin)
  */
-export const markNoShow = async (id, actor) => {
+export const markNoShow = async (id, actorOrReason, maybeReason) => {
+  let actor = null;
+  let reason = 'Customer no-show';
+
+  if (typeof actorOrReason === 'string' && actorOrReason.trim()) {
+    reason = actorOrReason.trim();
+    actor = maybeReason || null;
+  } else if (actorOrReason && typeof actorOrReason === 'object') {
+    if (actorOrReason.id || actorOrReason._id || actorOrReason.systemRole || actorOrReason.role) {
+      actor = actorOrReason;
+      if (typeof maybeReason === 'string' && maybeReason.trim()) {
+        reason = maybeReason.trim();
+      } else if (maybeReason && typeof maybeReason === 'object') {
+        const extracted = maybeReason.reason || maybeReason.noShowReason || maybeReason.note;
+        if (typeof extracted === 'string' && extracted.trim()) {
+          reason = extracted.trim();
+        }
+      }
+    } else {
+      const extracted = actorOrReason.reason || actorOrReason.noShowReason || actorOrReason.note;
+      if (typeof extracted === 'string' && extracted.trim()) {
+        reason = extracted.trim();
+      }
+      actor = maybeReason || null;
+    }
+  }
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -1454,7 +1501,7 @@ export const markNoShow = async (id, actor) => {
       by: 'SYSTEM',
       at: new Date(),
       actorId: actor ? (actor.id || actor._id) : null,
-      reason: 'Customer no-show',
+      reason,
       hoursBeforeStart: 0,
       prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED',
     };

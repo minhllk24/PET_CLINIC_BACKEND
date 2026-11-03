@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 export const INVENTORY_TRANSACTION_TYPES = Object.freeze(['RECEIPT', 'ISSUE', 'ADJUSTMENT', 'TRANSFER']);
-export const INVENTORY_SOURCE_TYPES = Object.freeze(['MANUAL', 'SERVICE_RECORD_REVISION', 'ORDER', 'TRANSFER']);
+export const INVENTORY_SOURCE_TYPES = Object.freeze(['MANUAL', 'SERVICE_RECORD', 'SERVICE_RECORD_REVISION', 'ORDER', 'TRANSFER']);
 export const INVENTORY_TRANSFER_LEGS = Object.freeze(['OUT', 'IN']);
 
 const schema = new mongoose.Schema({
@@ -24,7 +24,9 @@ const schema = new mongoose.Schema({
   reason: { type: String, required: true, trim: true },
   sourceType: { type: String, enum: INVENTORY_SOURCE_TYPES, default: 'MANUAL', required: true },
   sourceId: { type: mongoose.Schema.Types.Mixed, default: null },
+  referenceCode: { type: String, default: null },
   recordVersion: { type: Number, default: null },
+  items: { type: Array, default: [] },
   transferId: { type: mongoose.Schema.Types.ObjectId, default: null },
   transferLeg: { type: String, enum: [...INVENTORY_TRANSFER_LEGS, null], default: null },
   idempotencyKey: { type: String, default: null }
@@ -60,7 +62,7 @@ schema.index(
   {
     unique: true,
     partialFilterExpression: {
-      sourceType: 'SERVICE_RECORD_REVISION',
+      sourceType: { $in: ['SERVICE_RECORD', 'SERVICE_RECORD_REVISION'] },
       sourceId: { $type: 'objectId' },
       recordVersion: { $type: 'number' }
     }

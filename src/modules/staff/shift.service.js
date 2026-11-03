@@ -177,6 +177,32 @@ export const createShift = async (data, actor = null) => {
   await shift.save();
   shift.staffId = staff; // for formatShift subRole
 
+  if (staff.staffSubRole === 'VETERINARIAN' && mongoose.connection.readyState === 1) {
+    try {
+      const ServiceRecord = mongoose.models.ServiceRecord || require('../execution/models/ServiceRecord').default || require('../execution/models/ServiceRecord');
+      await ServiceRecord.updateMany(
+        {
+          branchId: branch._id,
+          recordType: 'MEDICAL',
+          status: { $in: ['IN_PROGRESS', 'WAITING_VET_REVIEW'] },
+          reviewerStaffId: null,
+        },
+        { $set: { reviewerStaffId: staff._id } }
+      );
+      await Appointment.updateMany(
+        {
+          branchId: branch._id,
+          serviceType: 'MEDICAL',
+          status: { $in: ['CONFIRMED', 'IN_PROGRESS'] },
+          reviewerStaffId: null,
+        },
+        { $set: { reviewerStaffId: staff._id } }
+      );
+    } catch (_e) {
+      // Non-blocking auto-assignment
+    }
+  }
+
   return formatShift(shift);
 };
 

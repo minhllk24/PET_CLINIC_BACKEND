@@ -189,7 +189,11 @@ export const cancelOverride = async (req, res, next) => {
 
 export const markNoShow = async (req, res, next) => {
   try {
-    const appointment = await bookingService.markNoShow(req.params.id, req.actor);
+    const appointment = await bookingService.markNoShow(
+      req.params.id,
+      req.actor,
+      req.body
+    );
     res.json(appointment);
   } catch (error) {
     next(error);

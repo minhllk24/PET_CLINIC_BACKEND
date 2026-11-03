@@ -3,6 +3,7 @@ import InventoryStock from '../src/modules/inventory/models/InventoryStock';
 import InventoryTransaction from '../src/modules/inventory/models/InventoryTransaction';
 import {
   applyMovementInSession,
+  applyServiceRecordDelta,
   formatInventoryStock,
   formatInventoryTransaction,
   getBranchInventorySummary,
@@ -315,5 +316,57 @@ describe('Inventory V7 invariants', () => {
       lowStockItems: 1, // only the item with quantity 3 (0 < 3 <= 5 and thresholdConfigured)
       outOfStockItems: 1 // only the item with quantity 0
     });
+  });
+  it('formats SERVICE_RECORD transaction with referenceCode and serviceRecordId for Inventory History Reference column', () => {
+    const txId = new mongoose.Types.ObjectId();
+    const srId = new mongoose.Types.ObjectId();
+    const formatted = formatInventoryTransaction({
+      _id: txId,
+      branchId: branchA,
+      inventoryItemId,
+      transactionType: 'ISSUE',
+      beforeQty: 20,
+      changeQty: -2,
+      afterQty: 18,
+      actorId: SYSTEM_ACTOR_ID,
+      reason: 'Xu?t v?t t? ti?u hao h? s? d?ch v? SR-20261031-0001',
+      createdAt: new Date('2026-10-31T00:00:00.000Z'),
+      sourceType: 'SERVICE_RECORD',
+      sourceId: srId,
+      referenceCode: 'SR-20261031-0001',
+      recordVersion: 1,
+      items: [
+        { inventoryItemId, sku: 'MAT-001', name: 'G?c ti?t tr?ng', unit: 'cu?n', quantity: 2, beforeQty: 20, changeQty: -2, afterQty: 18 }
+      ]
+    });
+
+    expect(formatted).toMatchObject({
+      id: txId.toString(),
+      transactionType: 'ISSUE',
+      sourceType: 'SERVICE_RECORD',
+      sourceId: srId.toString(),
+      referenceCode: 'SR-20261031-0001',
+      sourceCode: 'SR-20261031-0001',
+      serviceRecordId: srId.toString(),
+      serviceRecordCode: 'SR-20261031-0001',
+      recordVersion: 1
+    });
+    expect(formatted.items).toHaveLength(1);
+    expect(formatted.items[0]).toMatchObject({ quantity: 2, changeQty: -2 });
+  });
+
+  it('applyServiceRecordDelta returns empty array when no actual materials are consumed (deltas are empty or zero)', async () => {
+    const createSpy = jest.spyOn(InventoryTransaction, 'create');
+    const res = await applyServiceRecordDelta({
+      session: fakeSession,
+      serviceRecordId: new mongoose.Types.ObjectId(),
+      serviceRecordCode: 'SR-20261031-0005',
+      recordVersion: 1,
+      branchId: branchA,
+      deltas: [{ inventoryItemId, delta: 0 }],
+      actorId: SYSTEM_ACTOR_ID
+    });
+    expect(res).toEqual([]);
+    expect(createSpy).not.toHaveBeenCalled();
   });
 });

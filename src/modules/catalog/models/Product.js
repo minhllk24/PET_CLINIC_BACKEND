@@ -54,7 +54,23 @@ const schema = new mongoose.Schema({
   },
   variants: {
     type: [variantSchema],
-    validate: [v => Array.isArray(v) && v.length > 0, 'Product must have at least one variant'],
+    validate: [
+      {
+        validator: function (v) {
+          return Array.isArray(v) && v.length > 0;
+        },
+        message: 'Product must have at least one variant'
+      },
+      {
+        validator: function (v) {
+          if (this && this.productType === 'VARIANT') {
+            return Array.isArray(v) && v.length >= 2;
+          }
+          return true;
+        },
+        message: 'Sản phẩm có biến thể (VARIANT) phải có từ 2 biến thể trở lên'
+      }
+    ],
   },
   nextSkuSeq: { type: Number, default: 1 },
   status: { type: String, enum: ['ACTIVE', 'INACTIVE', 'ARCHIVED'], default: 'ACTIVE', index: true },

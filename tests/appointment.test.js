@@ -555,5 +555,69 @@ describe('Priority P0 Appointment Management & Time Slot Engine Suite', () => {
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('CANCELLED');
     });
+
+    it('computes noShowWarning = true when CONFIRMED appointment is >= 30 mins overdue and accepts custom no-show reason', async () => {
+      const overdueStart = new Date(Date.now() - 35 * 60000);
+      const overdueEnd = new Date(Date.now() + 25 * 60000);
+      const validMockSegment = {
+        serviceId: new mongoose.Types.ObjectId(service1Id),
+        serviceName: 'General Consultation',
+        serviceType: 'MEDICAL',
+        variantLabel: null,
+        unitPrice: 150000,
+        durationMinutes: 60,
+        requiredStaffRole: 'VETERINARIAN',
+        bookingMode: 'BOOKABLE',
+        sequence: 1,
+        scheduledStart: overdueStart,
+        scheduledEnd: overdueEnd,
+        assignedStaffId: new mongoose.Types.ObjectId(staffId),
+        executionStatus: 'NOT_STARTED',
+      };
+
+      const overdueApt = {
+        _id: new mongoose.Types.ObjectId(),
+        code: 'APT-NOSHOW-WARN',
+        customerId: new mongoose.Types.ObjectId(customerId),
+        branchId: new mongoose.Types.ObjectId(branchId),
+        status: 'CONFIRMED',
+        paymentMethod: 'ONLINE_MOCK',
+        scheduledStart: overdueStart,
+        scheduledEnd: overdueEnd,
+        scheduledDurationMinutes: 60,
+        services: [validMockSegment],
+      };
+
+      const formattedOverdue = bookingService.formatAppointment(overdueApt);
+      expect(formattedOverdue.noShowWarning).toBe(true);
+
+      const noShowResult = bookingService.formatAppointment({
+        ...overdueApt,
+        status: 'NO_SHOW',
+        cancel: {
+          by: 'STAFF',
+          at: new Date(),
+          reason: 'Khách báo bận đột xuất không đến kịp',
+          prepaidOutcome: null,
+        },
+      });
+
+      const markNoShowSpy = jest.spyOn(bookingService, 'markNoShow').mockResolvedValue(noShowResult);
+
+      const res = await request(app)
+        .post(`/api/v1/appointments/${overdueApt._id}/no-show`)
+        .set('Authorization', `Bearer ${receptionistToken}`)
+        .set('Idempotency-Key', 'test-noshow-reason-001')
+        .send({ reason: 'Khách báo bận đột xuất không đến kịp' });
+
+      expect(res.status).toBe(200);
+      expect(markNoShowSpy).toHaveBeenCalledWith(
+        overdueApt._id.toString(),
+        expect.anything(),
+        expect.objectContaining({ reason: 'Khách báo bận đột xuất không đến kịp' })
+      );
+      expect(res.body.status).toBe('NO_SHOW');
+      expect(res.body.cancel.reason).toBe('Khách báo bận đột xuất không đến kịp');
+    });
   });
 });

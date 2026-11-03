@@ -32,6 +32,7 @@ import Product from '../modules/catalog/models/Product.js';
 import Service from '../modules/catalog/models/Service.js';
 import InventoryItem from '../modules/inventory/models/InventoryItem.js';
 import InventoryStock from '../modules/inventory/models/InventoryStock.js';
+import InventoryTransaction from '../modules/inventory/models/InventoryTransaction.js';
 import Order from '../modules/order/models/Order.js';
 import OrderReturn from '../modules/order/models/OrderReturn.js';
 import OrderRefund from '../modules/order/models/OrderRefund.js';
@@ -1742,10 +1743,12 @@ export const runProductionUatSeed = async () => {
       // Nếu là dịch vụ Điều dưỡng chờ duyệt, tạo ServiceRecord WAITING_VET_REVIEW để Bác sĩ vào duyệt
       if (apt.hasReviewRecord) {
         const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
+        const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
         await ServiceRecord.findOneAndUpdate(
           { appointmentId: savedApt._id },
           {
             $set: {
+              code: srCode,
               appointmentId: savedApt._id,
               petId: apt.pet._id,
               branchId: branch1._id,
@@ -1772,12 +1775,15 @@ export const runProductionUatSeed = async () => {
         );
       }
 
-      // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt
+      // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt + 1 giao dịch ISSUE chính
       if (apt.hasServiceRecord) {
-        await ServiceRecord.findOneAndUpdate(
+        const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
+        const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
+        const savedSr = await ServiceRecord.findOneAndUpdate(
           { appointmentId: savedApt._id },
           {
             $set: {
+              code: srCode,
               appointmentId: savedApt._id,
               petId: apt.pet._id,
               branchId: branch1._id,
@@ -1786,16 +1792,64 @@ export const runProductionUatSeed = async () => {
               reviewerStaffId: apt.reviewerStaffId || apt.staff._id,
               recordType: 'MEDICAL',
               status: 'FINALIZED',
+              recordVersion: 1,
               actualStartAt: aptStart,
               actualEndAt: aptEnd,
+              finalizedAt: aptEnd,
+              actualMaterials: invItem ? [
+                {
+                  inventoryItemId: invItem._id,
+                  quantity: 1,
+                  unit: invItem.unit || 'lọ',
+                  notes: 'Vật tư tiêu hao thực tế khi khám và xử lý vết thương'
+                }
+              ] : [],
               professional: {
                 diagnosis: 'Viêm da dị ứng nhẹ vùng cổ, đã xử lý sát trùng và kê thuốc bôi.',
                 treatmentPlan: 'Bôi dung dịch sát trùng Betadine 2 lần/ngày, uống vitamin dưỡng lông trong 7 ngày.'
               }
             }
           },
-          { upsert: true }
+          { upsert: true, new: true }
         );
+
+        if (savedSr && invItem) {
+          await InventoryTransaction.findOneAndUpdate(
+            {
+              sourceType: 'SERVICE_RECORD',
+              sourceId: savedSr._id,
+              recordVersion: 1
+            },
+            {
+              $set: {
+                branchId: branch1._id,
+                inventoryItemId: invItem._id,
+                transactionType: 'ISSUE',
+                quantityDelta: -1,
+                unitCost: 0,
+                sourceType: 'SERVICE_RECORD',
+                sourceId: savedSr._id,
+                referenceCode: srCode,
+                recordVersion: 1,
+                items: [
+                  {
+                    inventoryItemId: invItem._id,
+                    sku: invItem.sku || '',
+                    itemName: invItem.name || '',
+                    unit: invItem.unit || 'lọ',
+                    quantity: 1,
+                    quantityDelta: -1,
+                    notes: 'Vật tư tiêu hao thực tế khi khám và xử lý vết thương'
+                  }
+                ],
+                actorId: doctorAnProfile.userId || null,
+                reason: `Hồ sơ thực hiện dịch vụ ${srCode} finalize v1`,
+                occurredAt: aptEnd
+              }
+            },
+            { upsert: true }
+          );
+        }
       }
     }
     console.log(`   ✅ Đã tạo ${APPOINTMENT_SEEDS.length} lịch hẹn thành viên (PENDING_PAYMENT, PENDING_CONFIRMATION, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW).`);

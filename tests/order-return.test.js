@@ -680,5 +680,26 @@ describe('Priority P0 Order & Priority P1 Return/Refund Suite', () => {
         targetId: pendingOrder._id
       }));
     });
+
+    it('includes Vietnamese statusMessage in formatted OrderReturn across statuses', () => {
+      const baseReturn = {
+        _id: new mongoose.Types.ObjectId(),
+        code: 'RET-MSG-001',
+        orderId: new mongoose.Types.ObjectId(),
+        status: 'REQUESTED',
+        items: [{
+          orderItemId: new mongoose.Types.ObjectId().toString(),
+          requestedQty: 1,
+          refundAmount: 50000,
+        }],
+        refundBreakdown: { merchandiseNet: 50000, shippingRefunded: 0, total: 50000 },
+      };
+
+      const formattedReq = returnService.formatOrderReturn(baseReturn);
+      expect(formattedReq.statusMessage).toContain('đang chờ cửa hàng tiếp nhận');
+
+      const formattedCompleted = returnService.formatOrderReturn({ ...baseReturn, status: 'COMPLETED' });
+      expect(formattedCompleted.statusMessage).toContain('Đã hoàn tất trả hàng và hoàn tiền');
+    });
   });
 });

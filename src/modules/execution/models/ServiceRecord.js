@@ -4,10 +4,13 @@ const materialSchema = new mongoose.Schema({
   inventoryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'InventoryItem', required: true },
   quantity: { type: Number, required: true, min: 0 },
   unit: { type: String, default: null },
-  notes: { type: String, default: null }
+  notes: { type: String, default: null },
+  isDefault: { type: Boolean, default: true },
+  isExtra: { type: Boolean, default: false }
 }, { _id: false });
 
 const schema = new mongoose.Schema({
+  code: { type: String, unique: true, sparse: true, trim: true, index: true },
   appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true, unique: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null },
@@ -36,6 +39,7 @@ const schema = new mongoose.Schema({
   reopenReason: { type: String, default: null },
   actualStartAt: { type: Date, default: Date.now },
   actualEndAt: { type: Date, default: null },
+  finalizedAt: { type: Date, default: null },
   version: { type: Number, default: 1, min: 1 }
 }, { timestamps: true });
 

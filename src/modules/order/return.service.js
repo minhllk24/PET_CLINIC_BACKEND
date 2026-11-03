@@ -11,6 +11,43 @@ import { receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
+const RETURN_STATUS_MESSAGES = {
+  REQUESTED: 'Yêu cầu trả hàng/hoàn tiền đã được gửi và đang chờ cửa hàng tiếp nhận.',
+  PROCESSING: 'Cửa hàng đang kiểm tra thông tin và xử lý yêu cầu trả hàng của bạn.',
+  RECEIVED: 'Cửa hàng đã nhận được sản phẩm trả về và đang chờ Quản lý phê duyệt hoàn tiền.',
+  APPROVED: 'Yêu cầu trả hàng/hoàn tiền đã được phê duyệt, đang tiến hành hoàn tiền.',
+  REJECTED: 'Yêu cầu trả hàng/hoàn tiền đã bị từ chối.',
+  CANCELLED: 'Yêu cầu trả hàng/hoàn tiền đã được hủy.',
+  COMPLETED: 'Đã hoàn tất trả hàng và hoàn tiền cho yêu cầu của bạn.'
+};
+
+const notifyReturnStatusSafe = async ({ customerId, orderCode, returnId, returnCode, status, amount, note }) => {
+  if (!customerId) return;
+  if (mongoose.connection.readyState !== 1) return;
+  try {
+    const Notification = mongoose.models.Notification || require('../notification/models/Notification').default || require('../notification/models/Notification');
+    if (!Notification || typeof Notification.create !== 'function') return;
+    const baseMsg = RETURN_STATUS_MESSAGES[status] || `Trạng thái yêu cầu trả hàng: ${status}`;
+    const detail = note ? ` (${note})` : '';
+    await Notification.create({
+      recipientId: customerId,
+      type: 'REFUND_UPDATE',
+      title: `Cập nhật yêu cầu trả hàng ${returnCode || ''}`.trim(),
+      body: `${baseMsg}${orderCode ? ` [Đơn hàng ${orderCode}]` : ''}${detail}`,
+      read: false,
+      metadata: {
+        returnId: returnId ? returnId.toString() : null,
+        returnCode: returnCode || null,
+        orderCode: orderCode || null,
+        status,
+        amount: typeof amount === 'number' ? amount : undefined
+      }
+    });
+  } catch (_e) {
+    // Non-blocking notification
+  }
+};
+
 export const formatOrderReturn = (ret, parentOrder = null) => {
   const obj = typeof ret.toObject === 'function' ? ret.toObject() : ret;
   let allowedActions = [];
@@ -31,6 +68,7 @@ export const formatOrderReturn = (ret, parentOrder = null) => {
     orderCode: obj.orderCode || parentOrder?.code || null,
     fulfillmentBranchId: obj.fulfillmentBranchId?.toString() || parentOrder?.fulfillmentBranchId?.toString() || null,
     status: obj.status,
+    statusMessage: RETURN_STATUS_MESSAGES[obj.status] || null,
     items: (obj.items || []).map((item) => ({
       orderItemId: item.orderItemId.toString(),
       productName: item.productName,
@@ -202,6 +240,14 @@ export const createReturn = async (data, actor, guestToken) => {
     await orderReturn.save({ session });
     await session.commitTransaction();
     session.endSession();
+    await notifyReturnStatusSafe({
+      customerId: orderReturn.customerId,
+      orderCode: freshOrder.code,
+      returnId: orderReturn._id,
+      returnCode: orderReturn.code,
+      status: 'REQUESTED',
+      amount: totalMerchandiseNet
+    });
     return orderReturn;
   } catch (error) {
     await session.abortTransaction();
@@ -329,6 +375,12 @@ export const processReturn = async (returnId, actor) => {
     actorId: actor ? (actor.id || actor._id) : undefined
   });
   await ret.save();
+  await notifyReturnStatusSafe({
+    customerId: ret.customerId,
+    returnId: ret._id,
+    returnCode: ret.code,
+    status: 'PROCESSING'
+  });
   return ret;
 };
 
@@ -358,6 +410,13 @@ export const receiveReturn = async (returnId, receiveData = {}, actor) => {
     note: receiveData.note || 'Đã kiểm hàng tại kho'
   });
   await ret.save();
+  await notifyReturnStatusSafe({
+    customerId: ret.customerId,
+    returnId: ret._id,
+    returnCode: ret.code,
+    status: 'RECEIVED',
+    note: receiveData.note
+  });
   return ret;
 };
 
@@ -495,6 +554,15 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
 
     await session.commitTransaction();
     session.endSession();
+    await notifyReturnStatusSafe({
+      customerId: ret.customerId,
+      orderCode: order.code,
+      returnId: ret._id,
+      returnCode: ret.code,
+      status: 'APPROVED',
+      amount: finalRefund,
+      note: approveData.note
+    });
     return ret;
   } catch (error) {
     await session.abortTransaction();
@@ -543,6 +611,14 @@ export const rejectReturn = async (returnId, rejectData = {}, actor) => {
 
     await session.commitTransaction();
     session.endSession();
+    await notifyReturnStatusSafe({
+      customerId: ret.customerId,
+      orderCode: order?.code,
+      returnId: ret._id,
+      returnCode: ret.code,
+      status: 'REJECTED',
+      note: rejectData.reason || rejectData.note
+    });
     return ret;
   } catch (error) {
     await session.abortTransaction();
@@ -653,6 +729,13 @@ export const processOrderRefund = async (refundId, actor) => {
           note: 'Refund completed'
         });
         await ret.save({ session });
+        await notifyReturnStatusSafe({
+          customerId: ret.customerId,
+          returnId: ret._id,
+          returnCode: ret.code,
+          status: 'COMPLETED',
+          amount: refund.amount
+        });
       }
     }
 

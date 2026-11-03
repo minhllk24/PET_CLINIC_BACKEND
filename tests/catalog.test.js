@@ -819,8 +819,50 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
       expect(res.body.success).toBe(true);
       expect(res.body.id).toBe('pet_clinic/products/test-image-123');
     });
+    it('createProduct rejects VARIANT product with fewer than 2 variants (throws 422)', async () => {
+      jest.spyOn(Category, 'findById').mockResolvedValue({ _id: new mongoose.Types.ObjectId(categoryId), status: 'ACTIVE' });
+
+      await expect(
+        catalogService.createProduct({
+          name: 'Sản phẩm biến thể chỉ có 1 phân loại',
+          categoryId,
+          productType: 'VARIANT',
+          variants: [
+            { label: 'Túi 1kg', price: 100000 }
+          ]
+        }, { systemRole: 'ADMIN' })
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('từ 2 biến thể trở lên')
+      });
+    });
+
+    it('updateProduct rejects VARIANT product when resulting variants count is less than 2 (throws 422)', async () => {
+      const mockProduct = {
+        _id: new mongoose.Types.ObjectId(productId),
+        productCode: 'SP-000777',
+        name: 'Sản phẩm biến thể lỗi',
+        productType: 'VARIANT',
+        variants: [],
+        save: jest.fn().mockResolvedValue(true)
+      };
+      jest.spyOn(Product, 'findById').mockResolvedValue(mockProduct);
+      jest.spyOn(Product, 'findOne').mockResolvedValue(null);
+      jest.spyOn(InventoryItem, 'findOne').mockResolvedValue({ _id: new mongoose.Types.ObjectId(inventoryItemId) });
+
+      await expect(
+        catalogService.updateProduct(
+          productId,
+          { variants: [{ label: 'Chỉ 1 biến thể', price: 90000 }] },
+          { systemRole: 'ADMIN' }
+        )
+      ).rejects.toMatchObject({
+        status: 422,
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: expect.stringContaining('từ 2 biến thể trở lên')
+      });
+    });
   });
 
 });
-
-

@@ -541,6 +541,10 @@ export const createProduct = async (data, actor) => {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm đơn giản (SIMPLE) chỉ được có tối đa 1 biến thể');
   }
 
+  if (productType === 'VARIANT' && variants.length < 2) {
+    throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm có biến thể (VARIANT) phải có từ 2 biến thể trở lên');
+  }
+
   if (!mongoose.isValidObjectId(categoryId)) {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Invalid categoryId');
   }
@@ -814,6 +818,10 @@ export const updateProduct = async (id, data, actor) => {
 
     if (product.productType === 'SIMPLE' && updatedVariants.length > 1) {
       throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm đơn giản (SIMPLE) chỉ được có tối đa 1 biến thể');
+    }
+
+    if (product.productType === 'VARIANT' && updatedVariants.length < 2) {
+      throw new AppError(422, 'UnprocessableEntity', ErrorCodes.VALIDATION_ERROR, 'Sản phẩm có biến thể (VARIANT) phải có từ 2 biến thể trở lên');
     }
 
     const checkLabelSet = new Set();
