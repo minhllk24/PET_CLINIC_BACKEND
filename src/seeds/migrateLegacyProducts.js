@@ -67,56 +67,70 @@ export const runMigrateLegacyProducts = async () => {
 
   for (const p of legacyProducts) {
     const catId = categoryMap.get(p.categorySlug);
-    const sku = `${p.code}-01`;
-
-    // 4.1 Upsert InventoryItem
-    const invItem = await InventoryItem.findOneAndUpdate(
-      { sku },
+    const sourceVariants = Array.isArray(p.variants) && p.variants.length > 0 ? p.variants : [
       {
-        $set: {
-          sku,
-          name: `${p.name} (Tiêu chuẩn)`,
-          kind: 'PRODUCT',
-          unit: 'Cái',
-          status: 'ACTIVE'
-        }
-      },
-      { upsert: true, new: true }
-    );
-
-    // 4.2 Cấp tồn kho cho cả 3 chi nhánh
-    for (const br of branches) {
-      const qty = br.code === 'BR-000001' ? 100 : (br.code === 'BR-000002' ? 50 : 30);
-      await InventoryStock.findOneAndUpdate(
-        { branchId: br._id, inventoryItemId: invItem._id },
-        {
-          $set: {
-            branchId: br._id,
-            inventoryItemId: invItem._id,
-            quantity: qty,
-            lowStockThreshold: 10,
-            thresholdConfigured: true,
-            version: 1
-          }
-        },
-        { upsert: true }
-      );
-    }
-
-    // 4.3 Chuẩn bị biến thể chuẩn (1 variant theo giá gốc)
-    const variants = [
-      {
-        sku,
+        sku: `${p.code}-01`,
         label: 'Tiêu chuẩn',
         price: p.price,
         discountPercent: 0,
-        finalPrice: p.price,
-        inventoryItemId: invItem._id,
-        status: 'ACTIVE'
+        finalPrice: p.price
       }
     ];
 
-    // 4.4 Upsert Product document
+    const formattedVariants = [];
+    for (let seq = 0; seq < sourceVariants.length; seq++) {
+      const v = sourceVariants[seq];
+      const sku = v.sku || `${p.code}-${String(seq + 1).padStart(2, '0')}`;
+      const finalPrice = v.finalPrice || Math.round(v.price * (1 - (v.discountPercent || 0) / 100));
+
+      // 4.1 Upsert InventoryItem
+      const invItem = await InventoryItem.findOneAndUpdate(
+        { sku },
+        {
+          $set: {
+            sku,
+            name: `${p.name} (${v.label})`,
+            category: p.categorySlug,
+            kind: 'PRODUCT',
+            unit: 'Cái',
+            status: 'ACTIVE'
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      // 4.2 Cấp tồn kho cho cả 3 chi nhánh
+      for (const br of branches) {
+        const qty = br.code === 'BR-000001' ? 100 : (br.code === 'BR-000002' ? 50 : 30);
+        await InventoryStock.findOneAndUpdate(
+          { branchId: br._id, inventoryItemId: invItem._id },
+          {
+            $set: {
+              branchId: br._id,
+              inventoryItemId: invItem._id,
+              quantity: qty,
+              lowStockThreshold: 10,
+              thresholdConfigured: true,
+              version: 1
+            }
+          },
+          { upsert: true }
+        );
+      }
+
+      formattedVariants.push({
+        sku,
+        label: v.label,
+        price: v.price,
+        discountPercent: v.discountPercent || 0,
+        finalPrice,
+        inventoryItemId: invItem._id,
+        status: 'ACTIVE'
+      });
+    }
+
+    // 4.3 Upsert Product document
+    const productType = p.productType || (formattedVariants.length > 1 ? 'VARIANT' : 'SIMPLE');
     await Product.findOneAndUpdate(
       { productCode: p.code },
       {
@@ -124,13 +138,13 @@ export const runMigrateLegacyProducts = async () => {
           productCode: p.code,
           name: p.name,
           categoryId: catId,
-          productType: 'SIMPLE',
+          productType,
           usageType: 'SALE',
           status: 'ACTIVE',
           origin: 'Chính hãng',
           description: p.description,
           images: p.images,
-          variants
+          variants: formattedVariants
         }
       },
       { upsert: true, new: true }

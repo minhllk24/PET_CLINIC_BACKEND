@@ -784,13 +784,18 @@ export const runProductionUatSeed = async () => {
       origin: 'Pháp',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&q=80', isPrimary: true },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=600&q=80', isPrimary: false }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Hỗ trợ duy trì cân nặng lý tưởng, tăng cường sức khỏe da lông và hệ tiêu hóa cho giống chó nhỏ từ 10 tháng đến 8 tuổi.',
       variants: [
         { label: 'Túi 2kg', price: 340000, discountPercent: 5 },
-        { label: 'Túi 8kg', price: 1150000, discountPercent: 10 }
+        { label: 'Túi 8kg', price: 1150000, discountPercent: 10 },
+        { label: 'Bao 15kg', price: 1980000, discountPercent: 12 }
       ]
     },
     {
@@ -800,13 +805,18 @@ export const runProductionUatSeed = async () => {
       origin: 'Thái Lan',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=600&q=80', isPrimary: true },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&q=80', isPrimary: false }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1561948955-570b270e7c36?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Bổ sung Omega 3, 6 và kẽm giúp lông bóng mượt, cung cấp đủ độ ẩm phòng ngừa sỏi thận cho mèo.',
       variants: [
         { label: 'Gói 85g', price: 18000, discountPercent: 0 },
-        { label: 'Hộp 12 gói (85g)', price: 200000, discountPercent: 8 }
+        { label: 'Hộp 12 gói (85g)', price: 200000, discountPercent: 8 },
+        { label: 'Thùng 24 gói (85g)', price: 380000, discountPercent: 12 }
       ]
     },
     {
@@ -814,13 +824,20 @@ export const runProductionUatSeed = async () => {
       name: 'Cát đậu nành hữu cơ xả bồn cầu Cature Tofu Clumping Litter',
       categorySlug: 'do-dung-thiet-yeu',
       origin: 'Mỹ',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Vón hút nhanh chóng sau 3 giây, 99.5% không bụi, khử mùi tự nhiên 100% phân hủy sinh học có thể xả bồn cầu.',
       variants: [
-        { label: 'Túi 6L (2.4kg)', price: 135000, discountPercent: 0 }
+        { label: 'Túi 6L (2.4kg)', price: 135000, discountPercent: 0 },
+        { label: 'Túi 12L (4.8kg)', price: 255000, discountPercent: 5 },
+        { label: 'Thùng 4 túi (9.6kg)', price: 490000, discountPercent: 10 }
       ]
     },
     {
@@ -830,12 +847,18 @@ export const runProductionUatSeed = async () => {
       origin: 'Áo',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1527526029430-319f10814151?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Hiệu quả bảo vệ vượt trội kéo dài 12 tuần chỉ với 1 viên duy nhất, an toàn cho chó mang thai và cho con bú.',
       variants: [
         { label: 'Cho chó 4.5 - 10kg', price: 650000, discountPercent: 0 },
-        { label: 'Cho chó 10 - 20kg', price: 720000, discountPercent: 0 }
+        { label: 'Cho chó 10 - 20kg', price: 720000, discountPercent: 0 },
+        { label: 'Cho chó 20 - 40kg', price: 850000, discountPercent: 5 }
       ]
     },
     {
@@ -845,54 +868,80 @@ export const runProductionUatSeed = async () => {
       origin: 'Đài Loan',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1527526029430-319f10814151?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1527526029430-319f10814151?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Chiết xuất từ thiên nhiên giúp diệt khuẩn, lưu hương thơm dễ chịu tới 10 ngày, khử sạch mùi hôi cơ thể thú cưng.',
       variants: [
-        { label: 'Chai SOS Xanh dương (Sáng lông)', price: 110000, discountPercent: 0 },
-        { label: 'Chai SOS Nâu đỏ (Dưỡng màu lông)', price: 110000, discountPercent: 0 }
+        { label: 'Chai 530ml - Lông trắng', price: 120000, discountPercent: 0 },
+        { label: 'Chai 530ml - Lông màu & nâu đỏ', price: 120000, discountPercent: 0 },
+        { label: 'Chai 530ml - Diệt khuẩn & trị ve rận', price: 135000, discountPercent: 5 }
       ]
     },
     {
       code: 'SP-KONG-TOY-006',
-      name: 'Đồ chơi gặm cao su tự nhiên siêu bền KONG Classic Dog Toy',
+      name: 'Đồ chơi nhai gặm cao su thiên nhiên cao cấp cho Chó KONG Classic',
       categorySlug: 'do-choi',
       origin: 'Mỹ',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1535294435445-d7249524ef2e?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
-      description: 'Kích thích vận động trí não, chống cắn phá đồ đạc trong nhà, có thể nhồi hạt hoặc bơ đậu phộng vào bên trong.',
+      description: 'Chất liệu cao su thiên nhiên siêu bền, kích thích bản năng nhai gặm, có thể nhét thức ăn hoặc bơ đậu phộng vào bên trong.',
       variants: [
-        { label: 'Size M (Cho chó 7 - 16kg)', price: 215000, discountPercent: 5 }
+        { label: 'Size S (Dưới 9kg)', price: 190000, discountPercent: 0 },
+        { label: 'Size M (7 - 16kg)', price: 260000, discountPercent: 5 },
+        { label: 'Size L (13 - 30kg)', price: 340000, discountPercent: 8 }
       ]
     },
     {
       code: 'SP-ALFALFA-007',
-      name: 'Cỏ khô Alfalfa tự nhiên giàu đạm và canxi cho Thỏ & Bọ Ú',
+      name: 'Cỏ khô dinh dưỡng Alfalfa Hay cho Thỏ, Bọ và Chuột Lang',
       categorySlug: 'thuc-an',
       origin: 'Úc',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
-      description: 'Cỏ khô xanh thơm, chứa hàm lượng chất xơ cao hỗ trợ mài răng và kích thích tiêu hóa khỏe mạnh.',
+      description: 'Giàu protein, chất xơ và canxi cần thiết cho quá trình mài răng tự nhiên và phát triển khung xương của thú cưng nhỏ.',
       variants: [
-        { label: 'Gói 500g', price: 95000, discountPercent: 0 }
+        { label: 'Gói 500g', price: 75000, discountPercent: 0 },
+        { label: 'Gói 1kg', price: 135000, discountPercent: 5 },
+        { label: 'Bao 2.5kg', price: 290000, discountPercent: 10 }
       ]
     },
     {
       code: 'SP-RIO-BIRD-008',
-      name: 'Hạt dinh dưỡng hỗn hợp đa hạt phong phú cho Vẹt & Chim cảnh Rio',
+      name: 'Thức ăn hạt cao cấp cho Vẹt và Chim Cảnh RIO Daily Feed',
       categorySlug: 'thuc-an',
       origin: 'Đức',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Tập hợp các loại hạt ngũ cốc, hạt kê và khoáng chất cần thiết giúp chim cảnh hót hay, mượt lông.',
       variants: [
-        { label: 'Hộp 500g', price: 88000, discountPercent: 0 }
+        { label: 'Hộp 500g', price: 88000, discountPercent: 0 },
+        { label: 'Hộp 1kg', price: 160000, discountPercent: 5 }
       ]
     },
     {
@@ -900,13 +949,20 @@ export const runProductionUatSeed = async () => {
       name: 'Gel dinh dưỡng bổ sung 12 loại Vitamin thiết yếu cho Mèo GimCat Paste',
       categorySlug: 'cham-soc-suc-khoe',
       origin: 'Đức',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1561948955-570b270e7c36?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Tăng cường hệ miễn dịch tự nhiên, bồi bổ cho mèo biếng ăn, ốm dậy hoặc mèo con đang phát triển.',
       variants: [
-        { label: 'Tuýp 50g', price: 165000, discountPercent: 0 }
+        { label: 'Tuýp 50g', price: 165000, discountPercent: 0 },
+        { label: 'Tuýp 100g', price: 290000, discountPercent: 5 },
+        { label: 'Tuýp 200g', price: 520000, discountPercent: 10 }
       ]
     },
     {
@@ -916,11 +972,17 @@ export const runProductionUatSeed = async () => {
       origin: 'Việt Nam',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Chất liệu bông PP mềm mại, nâng niu giấc ngủ cho thú cưng, đáy chống thấm nước và chống xê dịch.',
       variants: [
         { label: 'Size S (Dưới 5kg)', price: 190000, discountPercent: 0 },
+        { label: 'Size M (5 - 10kg)', price: 240000, discountPercent: 5 },
         { label: 'Size L (Dưới 15kg)', price: 290000, discountPercent: 10 }
       ]
     },
@@ -931,12 +993,18 @@ export const runProductionUatSeed = async () => {
       origin: 'Hàn Quốc',
       productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Chất liệu vải Oxford thoáng khí êm ái, viền dạ quang phát sáng an toàn khi đi dạo ban đêm.',
       variants: [
         { label: 'Size S (Dưới 6kg)', price: 125000, discountPercent: 0 },
-        { label: 'Size M (6 - 14kg)', price: 165000, discountPercent: 5 }
+        { label: 'Size M (6 - 14kg)', price: 165000, discountPercent: 5 },
+        { label: 'Size L (14 - 25kg)', price: 210000, discountPercent: 8 }
       ]
     },
     {
@@ -944,18 +1012,24 @@ export const runProductionUatSeed = async () => {
       name: 'Cần câu mèo gắn chuông lông vũ kích thích vận động Funny Cat Stick',
       categorySlug: 'do-choi',
       origin: 'Nhật Bản',
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=600&q=80', isPrimary: true }
+        { id: 'img-1', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 2 },
+        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
+        { id: 'img-5', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 4 },
+        { id: 'img-6', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 5 }
       ],
       description: 'Cán sợi carbon dẻo dai đàn hồi cao, gắn lông vũ tự nhiên và chuông nhỏ thu hút sự chú ý của mèo.',
       variants: [
-        { label: 'Chiều dài 90cm', price: 45000, discountPercent: 0 }
+        { label: 'Cần đơn 90cm', price: 45000, discountPercent: 0 },
+        { label: 'Bộ cần + 3 đầu lông vũ thay thế', price: 85000, discountPercent: 10 }
       ]
     }
   ];
 
-  const seededProducts = [];
+    const seededProducts = [];
   for (const p of REALISTIC_PRODUCTS) {
     const catId = categoryMap.get(p.categorySlug);
 
