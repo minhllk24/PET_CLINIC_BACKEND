@@ -388,11 +388,13 @@ export const formatOrder = (order) => {
   }
 
   const formattedItems = (obj.items || []).map((item) => ({
-    orderItemId: item.orderItemId.toString(),
+    orderItemId: item.orderItemId ? item.orderItemId.toString() : item.productId.toString(),
     productId: item.productId.toString(),
     ...(item.variantId ? { variantId: item.variantId.toString() } : {}),
     ...(item.skuSnapshot ? { skuSnapshot: item.skuSnapshot } : {}),
     name: item.nameSnapshot,
+    image: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
+    photoUrl: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
     unitPrice: item.unitPrice,
     quantity: item.quantity,
     lineSubtotal: item.lineSubtotal,
@@ -402,9 +404,10 @@ export const formatOrder = (order) => {
   }));
 
   const result = {
-    id: obj._id.toString(),
-    order_id: obj._id.toString(),
-    code: obj.code,
+    id: obj.code || obj._id.toString(),
+    _id: obj._id.toString(),
+    order_id: obj.code || obj._id.toString(),
+    code: obj.code || obj._id.toString(),
     order_code: obj.code,
     order_status: obj.status,
     total_amount: obj.pricing ? obj.pricing.totalAmount : undefined,
