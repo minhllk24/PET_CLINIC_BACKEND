@@ -8,6 +8,8 @@ import { attachOutOfStockFlag, getActiveBranchIds } from './stockAvailability.se
 import { generateProductCode, formatVariantSku, calculateFinalPrice } from './skuGenerator.service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
+import legacyPlaceholderImages from './legacyPlaceholderImages';
+import curatedLegacyImages from './curatedLegacyImages';
 
 // Helper: chuyển chuỗi thành slug
 const slugify = (text) => {
@@ -73,6 +75,23 @@ export const formatProduct = (prod) => {
   if (!prod) return null;
   const obj = typeof prod.toObject === 'function' ? prod.toObject() : { ...prod };
 
+  // These URLs were inserted as generic animal photos by the legacy seed.
+  // Match both product code and exact URL so unrelated or user-added images survive.
+  const placeholders = new Set(legacyPlaceholderImages[obj.productCode] || []);
+  let images = Array.isArray(obj.images)
+    ? obj.images.filter((img) => !placeholders.has(typeof img === 'string' ? img : img?.url))
+    : [];
+  const curated = curatedLegacyImages[obj.productCode];
+  const imageUrls = images.map((img) => typeof img === 'string' ? img : img?.url);
+  // Only replace an unmodified legacy set; never overwrite a gallery edited by staff.
+  if (curated && imageUrls.length &&
+      imageUrls.every((url) => curated.oldUrls.includes(url)) &&
+      curated.oldUrls.every((url) => imageUrls.includes(url))) {
+    images = curated.images;
+  }
+  const primaryImage = images.find((img) => img?.isPrimary) || images[0];
+  const primaryImageUrl = typeof primaryImage === 'string' ? primaryImage : primaryImage?.url || null;
+
   const variants = Array.isArray(obj.variants) ? obj.variants.map(formatProductVariant) : [];
 
   let minPrice = 0;
@@ -102,13 +121,9 @@ export const formatProduct = (prod) => {
     categoryName,
     origin: obj.origin || null,
     expiryInfo: obj.expiryInfo || null,
-    images: Array.isArray(obj.images) ? obj.images : [],
-    thumbnailUrl: (Array.isArray(obj.images) && obj.images.length > 0)
-      ? (obj.images.find((img) => img.isPrimary)?.url || obj.images[0]?.url || null)
-      : null,
-    image: (Array.isArray(obj.images) && obj.images.length > 0)
-      ? (obj.images.find((img) => img.isPrimary)?.url || obj.images[0]?.url || null)
-      : null,
+    images,
+    thumbnailUrl: primaryImageUrl,
+    image: primaryImageUrl,
     productType: obj.productType || 'SIMPLE',
     usageType: obj.usageType || 'SALE',
     variants,
