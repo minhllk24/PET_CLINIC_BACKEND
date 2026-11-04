@@ -528,6 +528,7 @@ app.use(async (req, res, next) => {
       }
       delete req.body.branch_id;
       delete req.body.order_value;
+      delete req.body.orderValue;
     }
 
     // Orders Checkout Ingress Normalizer
