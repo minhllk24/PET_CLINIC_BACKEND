@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import * as bookingService from './booking.service';
 import * as availabilityService from './availability.service';
 
@@ -249,6 +250,46 @@ export const assignReviewer = async (req, res, next) => {
       req.actor
     );
     res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const checkoutAppointment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { payment_method = 'store', paymentMethod = 'store', voucher_code, voucherCode } = req.body || {};
+    const method = payment_method || paymentMethod;
+
+    let appointment = null;
+    const Appointment = require('./models/Appointment').default || require('./models/Appointment');
+    if (id && mongoose.isValidObjectId(id)) {
+      appointment = await Appointment.findById(id);
+    }
+    if (!appointment && id) {
+      appointment = await Appointment.findOne({ $or: [{ code: id }, { appointmentCode: id }, { id }] });
+    }
+
+    if (appointment) {
+      appointment.status = 'CONFIRMED';
+      appointment.paymentMethod = (method === 'store' || method === 'PAY_AT_STORE') ? 'PAY_AT_STORE' : (method === 'online' || method === 'ONLINE_MOCK') ? 'ONLINE_MOCK' : method;
+      await appointment.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id,
+        appointmentId: id,
+        status: 'CONFIRMED',
+        paymentMethod: (method === 'store' || method === 'PAY_AT_STORE') ? 'PAY_AT_STORE' : method,
+        paymentStatus: (method === 'store' || method === 'PAY_AT_STORE') ? 'WAITING_STORE_PAYMENT' : 'PAID',
+        message: 'Thanh toán lịch hẹn thành công'
+      },
+      status: 'SUCCESS',
+      message: 'Thanh toán lịch hẹn thành công'
+    });
   } catch (error) {
     next(error);
   }

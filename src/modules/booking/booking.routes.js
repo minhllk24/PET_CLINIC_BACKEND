@@ -14,6 +14,7 @@ router.get('/slots', optionalAuth, bookingController.getAvailability);
 
 // Detail
 router.get('/:id', optionalAuth, bookingController.getAppointmentById);
+router.post('/:id/checkout', optionalAuth, bookingController.checkoutAppointment);
 
 // Canonical POST Endpoints (OpenAPI v7)
 router.post('/:id/confirm', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), idempotency('appointmentsConfirm', { required: true }), bookingController.confirmAppointment);

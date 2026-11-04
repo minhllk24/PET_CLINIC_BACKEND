@@ -426,6 +426,8 @@ export const formatOrder = (order) => {
       name: item.nameSnapshot,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
+      image: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
+      photoUrl: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
       lineSubtotal: item.lineSubtotal,
       allocatedDiscount: item.allocatedDiscount,
       lineNet: item.lineNet,

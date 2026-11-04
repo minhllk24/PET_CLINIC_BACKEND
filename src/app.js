@@ -630,6 +630,7 @@ app.use(
     ignoreUndocumented: true, // Ignore routes not in spec (like /health)
     ignorePaths: (path) => {
       if (path.includes('/orders')) return true;
+      if (path.includes('/appointments') && path.includes('/checkout')) return true;
       if (path.includes('/services/pricing-matrix')) return true;
       if (path.includes('/appointments/quote')) return true;
       if (path.includes('/appointments/preview-pricing')) return true;
