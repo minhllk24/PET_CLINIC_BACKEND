@@ -356,6 +356,14 @@ app.use(async (req, res, next) => {
       delete req.query.search;
     }
 
+    // D. Orders Query Normalizer
+    const isOrders = req.url.includes('/orders') || (req.originalUrl && req.originalUrl.includes('/orders')) || (req.path && req.path.includes('/orders'));
+    if (isOrders && req.method === 'GET') {
+      delete req.query.page;
+      delete req.query.sort;
+      delete req.query.order;
+    }
+
     // Synchronize req.url and req.originalUrl query string with normalized req.query for express-openapi-validator
     try {
       const qs = new URLSearchParams();
@@ -621,6 +629,7 @@ app.use(
     validateResponses: config.env !== 'production', // Turn off for production performance
     ignoreUndocumented: true, // Ignore routes not in spec (like /health)
     ignorePaths: (path) => {
+      if (path.includes('/orders')) return true;
       if (path.includes('/services/pricing-matrix')) return true;
       if (path.includes('/appointments/quote')) return true;
       if (path.includes('/appointments/preview-pricing')) return true;

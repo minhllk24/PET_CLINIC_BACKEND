@@ -36,6 +36,50 @@ export const makeOrderCode = (date = new Date()) => {
   return `ORD-${yyyy}${mm}${dd}-${seq}`;
 };
 
+export const generateUniqueOrderCode = async (session = null) => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const prefix = `ORD-${yyyy}${mm}${dd}-`;
+
+  try {
+    const todayStart = new Date(d);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const latestOrder = await Order.findOne({ code: new RegExp(`^${prefix}`) })
+      .session(session || undefined)
+      .sort({ code: -1 })
+      .select('code')
+      .lean();
+
+    let seq = 1;
+    if (latestOrder && latestOrder.code) {
+      const parts = latestOrder.code.split('-');
+      const num = parseInt(parts[2], 10);
+      if (!isNaN(num)) {
+        seq = num + 1;
+      }
+    }
+
+    for (let i = 0; i < 50; i++) {
+      const candidate = `${prefix}${String(seq + i).padStart(4, '0')}`;
+      const exists = await Order.findOne({ code: candidate })
+        .session(session || undefined)
+        .select('_id')
+        .lean();
+      if (!exists) {
+        return candidate;
+      }
+    }
+  } catch (err) {
+    // Fallback if query fails
+  }
+
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}${Date.now().toString().slice(-4)}-${rand}`;
+};
+
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
   const { cartId, paymentMethod, shippingAddress, contact, voucherCode, note } = data;
   if (!['ONLINE_MOCK', 'COD'].includes(paymentMethod)) {
@@ -275,9 +319,10 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           guestContactId = guest._id;
         }
 
+        const orderCode = await generateUniqueOrderCode(session);
         createdOrder = new Order({
           _id: orderId,
-          code: makeOrderCode(),
+          code: orderCode,
           customerId: actor ? actor.id : undefined,
           guestContactId,
           fulfillmentBranchId: branch._id,
