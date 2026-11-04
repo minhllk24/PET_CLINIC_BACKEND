@@ -342,9 +342,31 @@ export const formatOrder = (order) => {
     allowedActions.push('REQUEST_RETURN');
   }
 
+  const formattedItems = (obj.items || []).map((item) => ({
+    orderItemId: item.orderItemId.toString(),
+    productId: item.productId.toString(),
+    ...(item.variantId ? { variantId: item.variantId.toString() } : {}),
+    ...(item.skuSnapshot ? { skuSnapshot: item.skuSnapshot } : {}),
+    name: item.nameSnapshot,
+    unitPrice: item.unitPrice,
+    quantity: item.quantity,
+    lineSubtotal: item.lineSubtotal,
+    allocatedDiscount: item.allocatedDiscount,
+    lineNet: item.lineNet,
+    returnedQty: item.returnedQty || 0
+  }));
+
   const result = {
     id: obj._id.toString(),
+    order_id: obj._id.toString(),
     code: obj.code,
+    order_code: obj.code,
+    order_status: obj.status,
+    total_amount: obj.pricing ? obj.pricing.totalAmount : undefined,
+    shipping_fee: obj.pricing ? obj.pricing.shippingFee : undefined,
+    discount_amount: obj.pricing ? obj.pricing.voucherDiscount : undefined,
+    created_at: obj.createdAt,
+    order_items: formattedItems,
     customerId: obj.customerId ? obj.customerId.toString() : null,
     fulfillmentBranchId: obj.fulfillmentBranchId.toString(),
     status: obj.status,
@@ -407,7 +429,13 @@ export const formatOrder = (order) => {
 };
 
 export const getOrderById = async (orderId, actor, guestToken) => {
-  const order = await Order.findById(orderId);
+  let order = null;
+  if (orderId && mongoose.Types.ObjectId.isValid(orderId)) {
+    order = await Order.findById(orderId);
+  }
+  if (!order && orderId) {
+    order = await Order.findOne({ code: String(orderId) });
+  }
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
 
   // Verify ownership / access permission
@@ -482,7 +510,23 @@ export const listOrders = async (query = {}, actor) => {
   }
 
   if (actor.systemRole === 'CUSTOMER') {
-    filter.customerId = actor.id;
+    let customerIds = [actor.id];
+    try {
+      const Customer = require('../customer/models/Customer').default || require('../customer/models/Customer');
+      const customerProfile = await Customer.findOne({ userId: actor.id }).lean();
+      if (customerProfile) {
+        customerIds.push(customerProfile._id.toString());
+      }
+    } catch {}
+
+    const orConditions = [
+      { customerId: { $in: customerIds } }
+    ];
+    if (actor.phone) {
+      orConditions.push({ 'contactSnapshot.phone': actor.phone });
+      orConditions.push({ 'shippingAddress.phone': actor.phone });
+    }
+    filter.$or = orConditions;
   } else if (actor.systemRole === 'STAFF') {
     const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
     filter.fulfillmentBranchId = { $in: staffBranches };

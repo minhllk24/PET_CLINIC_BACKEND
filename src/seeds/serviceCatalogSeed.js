@@ -71,7 +71,7 @@ export const seedServiceCatalog = async () => {
         { label: 'L (20-30kg)', minWeightKg: 20, maxWeightKg: 30, price: 200000 },
       ],
       status: 'ACTIVE',
-      enabledBranchIndices: [0, 1], // 2/3 bật
+      enabledBranchIndices: [0, 1, 2], // 2/3 bật
     },
     {
       code: 'GRM02',
@@ -87,7 +87,7 @@ export const seedServiceCatalog = async () => {
         { label: 'Từ 75.000đ', minWeightKg: 0, maxWeightKg: 10, price: 75000 },
       ],
       status: 'ACTIVE',
-      enabledBranchIndices: [0, 1], // 2/3 bật
+      enabledBranchIndices: [0, 1, 2], // 2/3 bật
     },
     {
       code: 'MED01',
@@ -100,7 +100,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'VETERINARIAN',
       bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [0], // 1/3 bật
+      enabledBranchIndices: [0, 1, 2], // 1/3 bật
     },
     {
       code: 'MED02',
@@ -113,7 +113,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'VETERINARIAN',
       bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [0], // 1/3 bật
+      enabledBranchIndices: [0, 1, 2], // 1/3 bật
     },
     {
       code: 'MED06',
@@ -126,7 +126,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'VETERINARIAN',
       bookingMode: 'REQUEST_ONLY',
       status: 'ACTIVE',
-      enabledBranchIndices: [], // 0/3 bật
+      enabledBranchIndices: [0, 1, 2], // 0/3 bật
     },
     {
       code: 'MED07',
@@ -143,7 +143,7 @@ export const seedServiceCatalog = async () => {
         instruction: 'Báo giá sau tiếp nhận',
       },
       status: 'ACTIVE',
-      enabledBranchIndices: [], // 0/3 bật
+      enabledBranchIndices: [0, 1, 2], // 0/3 bật
     },
     {
       code: 'GRM03',
@@ -156,7 +156,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'CARE_STAFF_GROOMER',
       bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [0], // 1/3 bật
+      enabledBranchIndices: [0, 1, 2], // 1/3 bật
     },
     {
       code: 'GRM04',
@@ -169,7 +169,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'CARE_STAFF_GROOMER',
       bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [0, 1], // 2/3 bật
+      enabledBranchIndices: [0, 1, 2], // 2/3 bật
     },
     {
       code: 'MED03',
@@ -182,7 +182,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'VETERINARIAN',
       bookingMode: 'REQUEST_ONLY',
       status: 'ACTIVE',
-      enabledBranchIndices: [0], // 1/3 bật
+      enabledBranchIndices: [0, 1, 2], // 1/3 bật
     },
     {
       code: 'MED04',
@@ -195,7 +195,7 @@ export const seedServiceCatalog = async () => {
       requiredStaffRole: 'VETERINARIAN',
       bookingMode: 'BOOKABLE',
       status: 'ACTIVE',
-      enabledBranchIndices: [0, 2], // 2/3 bật
+      enabledBranchIndices: [0, 1, 2], // 2/3 bật
     },
     {
       code: 'GRM05',
@@ -211,7 +211,7 @@ export const seedServiceCatalog = async () => {
         { label: 'Từ 120.000đ', minWeightKg: 0, maxWeightKg: 10, price: 120000 },
       ],
       status: 'ACTIVE',
-      enabledBranchIndices: [1], // 1/3 bật
+      enabledBranchIndices: [0, 1, 2], // 1/3 bật
     },
     {
       code: 'MED05',

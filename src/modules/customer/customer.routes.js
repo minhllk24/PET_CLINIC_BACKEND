@@ -1,7 +1,7 @@
 import express from 'express';
 import * as customerService from './customer.service';
 import Pet from './models/Pet';
-import { requireRole } from '../../shared/authMiddleware';
+import { requireRole, optionalAuth } from '../../shared/authMiddleware';
 import { idempotency } from '../../middleware/idempotencyMiddleware';
 
 const router = express.Router();
@@ -56,31 +56,12 @@ router.post(
   }
 );
 
+import { listPetsHandler, createPetHandler } from './pet.routes';
+
 // Pets (Admin, Manager, Staff, Customer own)
-const listPets = async (req, res, next) => {
-  try {
-    const customerId = req.params.customerId || req.params.id;
-    const pets = await Pet.find({ customerId });
-    res.json(pets);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const createPet = async (req, res, next) => {
-  try {
-    const customerId = req.params.customerId || req.params.id;
-    const pet = new Pet({ ...req.body, customerId });
-    await pet.save();
-    res.status(201).json(pet);
-  } catch (error) {
-    next(error);
-  }
-};
-
-router.get('/:customerId/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), listPets);
-router.get('/:id/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), listPets);
-router.post('/:customerId/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), createPet);
-router.post('/:id/pets', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), createPet);
+router.get('/:customerId/pets', optionalAuth, listPetsHandler);
+router.get('/:id/pets', optionalAuth, listPetsHandler);
+router.post('/:customerId/pets', optionalAuth, createPetHandler);
+router.post('/:id/pets', optionalAuth, createPetHandler);
 
 export default router;

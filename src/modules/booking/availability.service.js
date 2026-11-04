@@ -187,10 +187,10 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
   const configMap = new Map();
   configs.forEach((c) => configMap.set(c.serviceId.toString(), c));
 
-  // If any service is missing config or disabled, no slots available
+  // If any service is explicitly configured as disabled, no slots available (BF10)
   for (const s of orderedServices) {
     const config = configMap.get(s._id.toString());
-    if (!config || !config.enabled) {
+    if (config && config.enabled === false) {
       return {
         serviceIds: normalizedServiceIds,
         branchId,
@@ -199,6 +199,9 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         scheduledDurationMinutes,
         slots: [],
       };
+    }
+    if (!config) {
+      configMap.set(s._id.toString(), { enabled: true, capacity: 2, availability: [] });
     }
   }
 
@@ -391,7 +394,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         );
       });
 
-      if (availableStaff.length === 0) {
+      if (staffShifts.length > 0 && availableStaff.length === 0) {
         staffUnavailable = true;
       }
 

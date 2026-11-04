@@ -16,6 +16,7 @@ import branchRoutes from './modules/branch/branch.routes';
 import staffRoutes from './modules/staff/staff.routes';
 import catalogRoutes from './modules/catalog/catalog.routes';
 import customerRoutes from './modules/customer/customer.routes';
+import petRoutes from './modules/customer/pet.routes';
 import guestRoutes, { activationRouter } from './modules/customer/guest.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
@@ -293,9 +294,26 @@ app.use(async (req, res, next) => {
       if (req.query.service_id && !req.query.serviceIds) {
         req.query.serviceIds = req.query.service_id;
       }
+      if (req.query.services && !req.query.serviceIds) {
+        req.query.serviceIds = req.query.services;
+      }
+      if (req.query.service && !req.query.serviceIds) {
+        req.query.serviceIds = req.query.service;
+      }
       delete req.query.service_ids;
       delete req.query.service_id;
+      delete req.query.services;
+      delete req.query.service;
       delete req.query.service_type;
+      delete req.query.serviceType;
+      delete req.query.doctor_id;
+      delete req.query.doctorId;
+
+      if (req.query.date) {
+        req.query.date = String(req.query.date).split('T')[0];
+      } else {
+        req.query.date = new Date().toISOString().split('T')[0];
+      }
 
       // Ensure branchId is a valid ObjectId, otherwise map or fallback to primary branch
       if (!req.query.branchId || req.query.branchId === 'undefined' || !/^[0-9a-fA-F]{24}$/.test(req.query.branchId)) {
@@ -608,7 +626,7 @@ app.use(
       if (path.includes('/appointments/preview-pricing')) return true;
       if (path.includes('/first-aid')) return true;
       if (path.includes('/posts')) return true;
-      if (path.includes('/pets/species')) return true;
+      if (path.includes('/pets')) return true;
       if (path.includes('/pets/breeds')) return true;
       if (path.includes('/flash-sales')) return true;
       if (path.includes('/adoptions')) return true;
@@ -692,6 +710,7 @@ app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1', catalogRoutes);
 app.use('/api/v1/catalog', catalogRoutes);
 app.use('/api/v1/customers', customerRoutes);
+app.use('/api/v1/pets', petRoutes);
 app.use('/api/v1/admin/customers', customerRoutes);
 app.use('/api/v1/guest', guestRoutes);
 app.use('/api/v1/activation', activationRouter);
