@@ -50,5 +50,56 @@ export default {
         "sortOrder": 2
       }
     ]
+  },
+  "SP-LEG-071": {
+    "oldUrls": [
+      "https://www.petmart.vn/wp-content/uploads/2025/04/thuc-an-cho-meo-con-vi-ca-ngu-jireho-tuna-kitten.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2025/04/thuc-an-cho-meo-con-vi-ca-ngu-jireho-tuna-kitten2.jpg"
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://bizweb.dktcdn.net/100/605/361/products/artboard-1.png?v=1759739695237",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://bizweb.dktcdn.net/thumb/large/100/605/361/products/jireho-12.jpg?v=1779864847163",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/ikgj7935_67271f42c8a34e349d08838930f1cf44_large.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  "SP-LEG-091": {
+    "oldUrls": [
+      "https://www.petmart.vn/wp-content/uploads/2025/04/thuc-an-cho-cho-moi-lua-tuoi-vi-thit-vit-jireho-duck.jpg"
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://khopetshop.net/assets/images/products/07072025045115_1876.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://khopetshop.net/assets/images/products/07072025045500_29831.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://bizweb.dktcdn.net/100/605/361/products/jireho-04.jpg?v=1779864603053",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
   }
 };

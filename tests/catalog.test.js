@@ -259,6 +259,21 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
       expect([200, 400]).toContain(prodRes.status);
     });
 
+    it('passes frontend category and pagination filters to the product service', async () => {
+      const list = jest.spyOn(catalogService, 'listProducts').mockResolvedValue({
+        items: [], total: 112, totalItems: 112, totalRows: 112,
+        page: 2, totalPages: 6, limit: 20, nextCursor: null,
+      });
+      const res = await request(app).get('/api/v1/products').query({
+        category_id: categoryId, page: 2, limit: 20, sort: 'price_asc', filter: 'food',
+      });
+      expect(res.status).toBe(200);
+      expect(list).toHaveBeenCalledWith(expect.objectContaining({
+        categoryId, page: 2, limit: 20, sort: 'PRICE_ASC', q: 'food',
+      }), null);
+      expect(res.body).toMatchObject({ totalRows: 112, totalPages: 6, page: 2 });
+    });
+
     it('POST /api/v1/products returns 409 Conflict when SKU already exists', async () => {
       jest.spyOn(IdempotencyKey, 'findOne').mockResolvedValue(null);
       jest.spyOn(IdempotencyKey, 'findOneAndUpdate').mockResolvedValue({});
@@ -657,9 +672,55 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
       expect(mockQueryChain.limit).toHaveBeenCalledWith(11);
       expect(result.total).toBe(25);
       expect(result.totalItems).toBe(25);
+      expect(result.totalRows).toBe(25);
       expect(result.page).toBe(2);
       expect(result.totalPages).toBe(3);
       expect(result.limit).toBe(10);
+    });
+
+    it('reports public sale product counts per category', async () => {
+      const foodId = new mongoose.Types.ObjectId();
+      const toyId = new mongoose.Types.ObjectId();
+      const categories = [
+        { _id: foodId, name: 'Food', slug: 'food', status: 'ACTIVE' },
+        { _id: toyId, name: 'Toys', slug: 'toys', status: 'ACTIVE' },
+      ];
+      const chain = { sort: jest.fn().mockReturnThis(), limit: jest.fn().mockResolvedValue(categories) };
+      jest.spyOn(Category, 'find').mockReturnValue(chain);
+      jest.spyOn(Category, 'countDocuments').mockResolvedValue(2);
+      const aggregate = jest.spyOn(Product, 'aggregate').mockResolvedValue([{ _id: foodId, count: 42 }]);
+
+      const result = await catalogService.listCategories();
+      expect(result.items.map((item) => item.products_count)).toEqual([42, 0]);
+      expect(aggregate).toHaveBeenCalledWith([
+        { $match: { categoryId: { $in: [foodId, toyId] }, status: 'ACTIVE', usageType: { $in: ['SALE', 'SHARED'] } } },
+        { $group: { _id: '$categoryId', count: { $sum: 1 } } },
+      ]);
+    });
+
+    it('does not report a false zero total when the product count fails', async () => {
+      jest.spyOn(Product, 'find').mockReturnValue({});
+      jest.spyOn(Product, 'countDocuments').mockRejectedValue(new Error('count failed'));
+      await expect(catalogService.listProducts()).rejects.toThrow('count failed');
+    });
+
+    it('applies the selected category to both counting and fetching products', async () => {
+      const chain = {
+        sort: jest.fn().mockReturnThis(), skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([]),
+      };
+      const find = jest.spyOn(Product, 'find').mockReturnValue(chain);
+      const count = jest.spyOn(Product, 'countDocuments').mockResolvedValue(25);
+      jest.spyOn(stockAvailabilityService, 'attachOutOfStockFlag').mockImplementation(async (items) => items);
+      const result = await catalogService.listProducts({ categoryId, page: 2, limit: 20 });
+      const filter = expect.objectContaining({
+        categoryId: new mongoose.Types.ObjectId(categoryId),
+        status: 'ACTIVE', usageType: { $in: ['SALE', 'SHARED'] },
+      });
+      expect(count).toHaveBeenCalledWith(filter);
+      expect(find).toHaveBeenCalledWith(filter);
+      expect(chain.skip).toHaveBeenCalledWith(20);
+      expect(result).toMatchObject({ totalRows: 25, totalPages: 2, page: 2 });
     });
   });
 

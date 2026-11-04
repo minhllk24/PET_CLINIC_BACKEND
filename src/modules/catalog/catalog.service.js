@@ -124,6 +124,11 @@ export const formatProduct = (prod) => {
     images,
     thumbnailUrl: primaryImageUrl,
     image: primaryImageUrl,
+    imageUrl: primaryImageUrl,
+    product_images: images.map((img) => ({
+      image_url: typeof img === 'string' ? img : img.url,
+      is_primary: typeof img === 'object' && img !== null ? Boolean(img.isPrimary) : img === primaryImage,
+    })),
     productType: obj.productType || 'SIMPLE',
     usageType: obj.usageType || 'SALE',
     variants,
@@ -183,11 +188,7 @@ export const listCategories = async (params = {}, actor = null) => {
 
   let totalItems = 0;
   if (mongoose.connection.readyState === 1 || Category.countDocuments?._isMockFunction) {
-    try {
-      totalItems = await Category.countDocuments(query);
-    } catch (e) {
-      totalItems = 0;
-    }
+    totalItems = await Category.countDocuments(query);
   }
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
@@ -215,7 +216,19 @@ export const listCategories = async (params = {}, actor = null) => {
     nextCursor = encodeCursor(items[items.length - 1]._id);
   }
 
-  const formattedItems = items.map(formatCategory);
+  const categoryIds = items.map((item) => item._id).filter(Boolean);
+  let categoryCounts = new Map();
+  if (categoryIds.length && (mongoose.connection.readyState === 1 || Product.aggregate?._isMockFunction)) {
+    const counts = await Product.aggregate([
+      { $match: { categoryId: { $in: categoryIds }, status: 'ACTIVE', usageType: { $in: ['SALE', 'SHARED'] } } },
+      { $group: { _id: '$categoryId', count: { $sum: 1 } } }
+    ]);
+    categoryCounts = new Map(counts.map(({ _id, count }) => [String(_id), count]));
+  }
+  const formattedItems = items.map((item) => ({
+    ...formatCategory(item),
+    products_count: categoryCounts.get(String(item._id)) || 0
+  }));
 
   return {
     items: formattedItems,
@@ -332,7 +345,7 @@ export const archiveCategory = async (id, actor) => {
 
 export const listProducts = async (params = {}, actor = null) => {
   if (mongoose.connection.readyState !== 1 && !Product.find?._isMockFunction) {
-    return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
+    return { items: [], total: 0, totalItems: 0, totalRows: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
   }
   const {
     q,
@@ -439,11 +452,7 @@ export const listProducts = async (params = {}, actor = null) => {
   // Tổng số bản ghi thỏa mãn điều kiện (chuẩn xác 100% bao gồm cả filter inStock)
   let totalItems = 0;
   if (mongoose.connection.readyState === 1 || Product.countDocuments?._isMockFunction) {
-    try {
-      totalItems = await Product.countDocuments(query);
-    } catch (e) {
-      totalItems = 0;
-    }
+    totalItems = await Product.countDocuments(query);
   }
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
@@ -490,6 +499,7 @@ export const listProducts = async (params = {}, actor = null) => {
     items,
     total: totalItems,
     totalItems,
+    totalRows: totalItems,
     page: parsedPage || 1,
     totalPages,
     limit: parsedLimit,

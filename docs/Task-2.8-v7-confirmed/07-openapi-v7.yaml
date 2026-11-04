@@ -10790,6 +10790,10 @@ components:
           - type: 'null'
         status:
           $ref: '#/components/schemas/ActiveStatus'
+        products_count:
+          type: integer
+          minimum: 0
+          description: Number of active SALE or SHARED products directly in this category.
       additionalProperties: false
       required:
       - id
@@ -10979,6 +10983,31 @@ components:
             anyOf:
             - type: string
             - $ref: '#/components/schemas/ProductImage'
+        thumbnailUrl:
+          type:
+          - string
+          - 'null'
+        image:
+          type:
+          - string
+          - 'null'
+        imageUrl:
+          type:
+          - string
+          - 'null'
+        product_images:
+          type: array
+          items:
+            type: object
+            properties:
+              image_url:
+                type: string
+              is_primary:
+                type: boolean
+            required:
+            - image_url
+            - is_primary
+            additionalProperties: false
         variants:
           type: array
           minItems: 1
@@ -11077,6 +11106,9 @@ components:
           type: integer
         total:
           type: integer
+        totalRows:
+          type: integer
+          description: Alias of totalItems for customer frontend compatibility.
         page:
           type: integer
         totalPages:

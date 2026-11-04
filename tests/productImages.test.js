@@ -17,6 +17,8 @@ describe('legacy product images', () => {
     expect(result.images).toEqual([...original.images, added]);
     expect(result.thumbnailUrl).toBe(original.images[0].url);
     expect(result.image).toBe(result.thumbnailUrl);
+    expect(result.imageUrl).toBe(result.thumbnailUrl);
+    expect(result.product_images[0]).toEqual({ image_url: original.images[0].url, is_primary: true });
     expect(format('OTHER', [old]).images).toEqual([old]);
   });
 
