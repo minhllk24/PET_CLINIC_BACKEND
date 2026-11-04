@@ -127,12 +127,15 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     if (!variant || variant.status !== 'ACTIVE' || !variant.inventoryItemId) {
       throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product variant is not purchasable');
     }
+    const prodImg = product.images?.find((i) => i.isPrimary)?.url || product.images?.[0]?.url || product.image || product.thumbnailUrl || null;
     resolvedItems.push({
       productId: item.productId,
       variantId: item.variantId,
       inventoryItemId: variant.inventoryItemId,
       nameSnapshot: `${product.name} - ${variant.label}`,
       skuSnapshot: variant.sku,
+      image: prodImg,
+      photoUrl: prodImg,
       quantity: item.quantity,
       unitPrice: variant.finalPrice || variant.price
     });
@@ -283,6 +286,8 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
             variantId: item.variantId,
             nameSnapshot: item.nameSnapshot,
             skuSnapshot: item.skuSnapshot,
+            image: item.image,
+            photoUrl: item.photoUrl,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             lineSubtotal,
@@ -488,6 +493,29 @@ export const getOrderById = async (orderId, actor, guestToken) => {
   }
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
 
+  if (order && order.items && order.items.length && mongoose.connection?.readyState === 1) {
+    try {
+      const productIds = order.items.map((it) => it.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const Product = require('../catalog/models/Product').default || require('../catalog/models/Product');
+        const products = await Product.find({ _id: { $in: productIds } }).select('_id images image thumbnailUrl').lean();
+      const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+      order.items.forEach((it) => {
+        if (!it.image && it.productId) {
+          const p = productMap.get(it.productId.toString());
+          if (p) {
+            const img = p.images?.find((i) => i.isPrimary)?.url || p.images?.[0]?.url || p.image || p.thumbnailUrl;
+            if (img) {
+              it.image = img;
+              it.photoUrl = img;
+            }
+          }
+        }
+      });
+      }
+    } catch {}
+  }
+
   // Verify ownership / access permission
   if (!actor && !guestToken) {
     throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view order details');
@@ -628,6 +656,37 @@ export const listOrders = async (query = {}, actor) => {
     const lastItem = orders[orders.length - 1];
     nextCursor = lastItem._id.toString();
   }
+
+    // Enrich orders with actual product images from Product catalog
+  try {
+    if (mongoose.connection?.readyState === 1) {
+      const allProductIds = [];
+      orders.forEach((o) => {
+        (o.items || []).forEach((it) => {
+          if (it.productId && !it.image) allProductIds.push(it.productId);
+        });
+      });
+      if (allProductIds.length > 0) {
+      const Product = require('../catalog/models/Product').default || require('../catalog/models/Product');
+      const products = await Product.find({ _id: { $in: allProductIds } }).select('_id images image thumbnailUrl').lean();
+      const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+      orders.forEach((o) => {
+        (o.items || []).forEach((it) => {
+          if (!it.image && it.productId) {
+            const p = productMap.get(it.productId.toString());
+            if (p) {
+              const img = p.images?.find((i) => i.isPrimary)?.url || p.images?.[0]?.url || p.image || p.thumbnailUrl;
+              if (img) {
+                it.image = img;
+                it.photoUrl = img;
+              }
+            }
+          }
+        });
+      });
+      }
+    }
+  } catch {}
 
   return {
     items: orders.map(formatOrder),
