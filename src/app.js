@@ -164,7 +164,9 @@ app.use(async (req, res, next) => {
   };
 
   // 1. URL Path Rewrites (Route Aliasing & Backward Compatibility)
-  if (req.url.startsWith('/api/v1/appointments/slots')) {
+  if (req.url.startsWith('/api/v1/appointments/my-history')) {
+    rewriteUrl('/api/v1/appointments/my-history', '/api/v1/appointments');
+  } else if (req.url.startsWith('/api/v1/appointments/slots')) {
     rewriteUrl('/api/v1/appointments/slots', '/api/v1/availability');
   } else if (req.url.startsWith('/api/v1/cart') && !req.url.startsWith('/api/v1/cart/items') && !req.url.startsWith('/api/v1/carts')) {
     if (req.method === 'POST' && (req.path === '/api/v1/cart' || req.path === '/cart')) {

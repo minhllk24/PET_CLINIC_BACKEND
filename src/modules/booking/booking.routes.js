@@ -11,6 +11,7 @@ router.post('/', optionalAuth, idempotency('appointmentsCreate', { required: tru
 
 // Availability Slot Query Alias for Frontend (GET /appointments/slots)
 router.get('/slots', optionalAuth, bookingController.getAvailability);
+router.get('/my-history', optionalAuth, bookingController.listAppointments);
 
 // Detail
 router.get('/:id', optionalAuth, bookingController.getAppointmentById);
