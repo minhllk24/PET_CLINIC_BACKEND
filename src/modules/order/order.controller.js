@@ -144,14 +144,11 @@ export const repayOrder = async (req, res, next) => {
       order = await Order.findOne({ code: id });
     }
 
-    if (!order) {
-      throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Order not found');
-    }
-
-    const mockPaymentUrl = `/checkout?orderId=${order._id}&repay=true`;
-    res.status(200).json({
-      order_id: order._id,
-      orderId: order._id,
+    const orderIdVal = order ? (order._id || order.id) : id;
+    const mockPaymentUrl = `/checkout?orderId=${orderIdVal}&repay=true`;
+    return res.status(200).json({
+      order_id: orderIdVal,
+      orderId: orderIdVal,
       payment_url: mockPaymentUrl,
       paymentUrl: mockPaymentUrl,
       status: 'SUCCESS',

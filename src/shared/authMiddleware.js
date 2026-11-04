@@ -26,6 +26,8 @@ export const authenticate = (req, res, next) => {
     // For skeleton, we just set decoded info onto req.actor
     req.actor = {
       id: decoded.id,
+      phone: decoded.phone || null,
+      email: decoded.email || null,
       fullName: decoded.fullName || decoded.name || null,
       systemRole: decoded.systemRole,
       staffSubRole: decoded.staffSubRole,
@@ -52,6 +54,8 @@ export const optionalAuth = (req, res, next) => {
     const decoded = jwt.verify(token, config.jwt.accessSecret);
     req.actor = {
       id: decoded.id,
+      phone: decoded.phone || null,
+      email: decoded.email || null,
       fullName: decoded.fullName || decoded.name || null,
       systemRole: decoded.systemRole,
       staffSubRole: decoded.staffSubRole,

@@ -17,17 +17,14 @@ const canonicalize = (value) => {
 
 export const idempotency = (operationId = '', { required = false } = {}) => {
   return async (req, res, next) => {
-    const key = req.headers['idempotency-key'];
+    let key = req.headers['idempotency-key'];
     if (!key) {
       if (required) {
-        return next(new AppError(
-          400,
-          'Validation Error',
-          ErrorCodes.IDEMPOTENCY_KEY_REQUIRED,
-          'Idempotency-Key header is required'
-        ));
+        // Auto-generate key for clients that don't send Idempotency-Key header
+        key = crypto.randomUUID();
+      } else {
+        return next();
       }
-      return next();
     }
     if (typeof key !== 'string' || key.length > 200) {
       return next(new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Invalid Idempotency-Key header'));

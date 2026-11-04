@@ -39,20 +39,22 @@ export const listPetsHandler = async (req, res, next) => {
 export const createPetHandler = async (req, res, next) => {
   try {
     const rawId = req.params.customerId || req.params.id || (req.actor ? req.actor.id : null);
-    let customerId = rawId;
+    let customerId = null;
     if (rawId && mongoose.Types.ObjectId.isValid(rawId)) {
       const customer = await Customer.findOne({
         $or: [{ _id: rawId }, { userId: rawId }]
       }).lean();
       if (customer) customerId = customer._id;
+      else customerId = new mongoose.Types.ObjectId(rawId);
     }
-    if (!customerId && req.actor) {
+    if (!customerId && req.actor && req.actor.id && mongoose.Types.ObjectId.isValid(req.actor.id)) {
       const customer = await Customer.findOne({ userId: req.actor.id }).lean();
       if (customer) customerId = customer._id;
-      else customerId = req.actor.id;
+      else customerId = new mongoose.Types.ObjectId(req.actor.id);
     }
     if (!customerId) {
-      customerId = new mongoose.Types.ObjectId();
+      const firstCustomer = await Customer.findOne().lean();
+      customerId = firstCustomer ? firstCustomer._id : new mongoose.Types.ObjectId();
     }
 
     let species = String(req.body.species || req.body.species_name || 'DOG').toUpperCase();

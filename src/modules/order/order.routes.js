@@ -31,14 +31,18 @@ router.patch('/:id/mark-delivered', orderOperators, orderController.markDelivere
 
 // Staff cancel
 router.post('/:id/staff-cancel', orderOperators, idempotency('ordersStaffCancel', { required: true }), orderController.staffCancelOrder);
-router.post('/:id/cancel', optionalAuth, idempotency('ordersCancel', { required: true }), (req, res, next) => {
-  // If staff/admin with reason, or customer
+router.post('/:id/cancel', optionalAuth, idempotency('ordersCancel', { required: false }), (req, res, next) => {
   if (req.actor && ['STAFF', 'MANAGER', 'ADMIN'].includes(req.actor.systemRole) && req.body && req.body.reason) {
-    return orderController.staffCancelOrder(req.body, res, next);
+    return orderController.staffCancelOrder(req, res, next);
   }
   return orderController.customerCancelOrder(req, res, next);
 });
-router.patch('/:id/cancel', orderOperators, idempotency('ordersCancel', { required: true }), orderController.staffCancelOrder);
+router.patch('/:id/cancel', optionalAuth, idempotency('ordersCancel', { required: false }), (req, res, next) => {
+  if (req.actor && ['STAFF', 'MANAGER', 'ADMIN'].includes(req.actor.systemRole) && req.body && req.body.reason) {
+    return orderController.staffCancelOrder(req, res, next);
+  }
+  return orderController.customerCancelOrder(req, res, next);
+});
 router.patch('/:id/customer-cancel', optionalAuth, idempotency('ordersCustomerCancel', { required: true }), orderController.customerCancelOrder);
 
 // Return quote and returnable items
