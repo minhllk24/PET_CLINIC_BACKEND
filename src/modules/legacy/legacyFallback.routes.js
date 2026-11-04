@@ -459,6 +459,7 @@ router.post(['/appointments/quote', '/appointments/preview-pricing'], optionalAu
         subtotal,
         voucherDiscount,
         finalAmount,
+        total: finalAmount,
         depositType: 'PERCENTAGE',
         depositValue: 30,
         depositAmount,
