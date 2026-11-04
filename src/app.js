@@ -273,6 +273,12 @@ app.use(async (req, res, next) => {
       delete req.query.category;
     }
 
+        // Branches Normalizer
+    const isBranches = req.url.includes('/branches') || (req.originalUrl && req.originalUrl.includes('/branches')) || (req.path && req.path.includes('/branches'));
+    if (isBranches) {
+      delete req.query.status;
+    }
+
     // B. Availability Normalizer
     const isAvailability = req.url.includes('/availability') || (req.originalUrl && req.originalUrl.includes('/availability')) || (req.path && req.path.includes('/availability'));
     if (isAvailability) {
@@ -303,9 +309,21 @@ app.use(async (req, res, next) => {
         }
       }
 
-      // Ensure serviceIds exists to satisfy OpenAPI validation
+      // Ensure serviceIds exists and maps any slugs/dummy strings to 24-char ObjectId
       if (!req.query.serviceIds || req.query.serviceIds === 'undefined') {
-        req.query.serviceIds = '6ad08e4417bf41f5954234c6';
+        req.query.serviceIds = '6ad08e4517bf41f5954234c8';
+      } else {
+        const ids = String(req.query.serviceIds).split(',');
+        req.query.serviceIds = ids.map(id => {
+          const str = String(id).trim();
+          if (/^[0-9a-fA-F]{24}$/.test(str)) return str;
+          if (str === 'general-checkup' || str.includes('exam') || str.includes('kham') || str.includes('clinic')) return '6ad08e4517bf41f5954234c8';
+          if (str === 'vaccine' || str === 'deworming' || str.includes('tiem') || str.includes('giun')) return '6ad08e4517bf41f5954234c9';
+          if (str === 'bath' || str.includes('tam') || str.includes('say')) return '6ad08e4417bf41f5954234c6';
+          if (str === 'trim' || str.includes('tia') || str.includes('long')) return '6ad08e4517bf41f5954234cc';
+          if (str === 'ear-cleaning' || str.includes('tai')) return '6ad08e4517bf41f5954234cd';
+          return '6ad08e4517bf41f5954234c8';
+        }).join(',');
       }
     }
 
@@ -416,7 +434,18 @@ app.use(async (req, res, next) => {
       delete req.body.service_id;
 
       if (!req.body.serviceIds || !req.body.serviceIds.length) {
-        req.body.serviceIds = ['6ad08e4417bf41f5954234c6'];
+        req.body.serviceIds = ['6ad08e4517bf41f5954234c8'];
+      } else {
+        req.body.serviceIds = req.body.serviceIds.map(id => {
+          const str = String(id).trim();
+          if (/^[0-9a-fA-F]{24}$/.test(str)) return str;
+          if (str === 'general-checkup' || str.includes('exam') || str.includes('kham') || str.includes('clinic')) return '6ad08e4517bf41f5954234c8';
+          if (str === 'vaccine' || str === 'deworming' || str.includes('tiem') || str.includes('giun')) return '6ad08e4517bf41f5954234c9';
+          if (str === 'bath' || str.includes('tam') || str.includes('say')) return '6ad08e4417bf41f5954234c6';
+          if (str === 'trim' || str.includes('tia') || str.includes('long')) return '6ad08e4517bf41f5954234cc';
+          if (str === 'ear-cleaning' || str.includes('tai')) return '6ad08e4517bf41f5954234cd';
+          return '6ad08e4517bf41f5954234c8';
+        });
       }
 
       if (!req.body.slotStart && req.body.appointmentDate && req.body.startTime) {
