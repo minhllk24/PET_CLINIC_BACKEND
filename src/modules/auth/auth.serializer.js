@@ -41,8 +41,12 @@ export const formatMe = (user) => {
 export const formatAuthTokens = ({ accessToken, refreshToken, expiresIn = 900, user }) => {
   const result = {
     accessToken,
+    access_token: accessToken,
+    token: accessToken,
     refreshToken: refreshToken || '',
+    refresh_token: refreshToken || '',
     expiresIn,
+    expires_in: expiresIn,
   };
 
   if (user) {
