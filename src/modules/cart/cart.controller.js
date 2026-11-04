@@ -12,7 +12,10 @@ export const formatCartResponse = async (cartDoc) => {
   const products = await Product.find({ _id: { $in: productIds } }).lean();
   const prodMap = new Map(products.map(p => [p._id.toString(), p]));
 
-  doc.items = doc.items.map(item => {
+  doc.items = doc.items.filter(item => {
+    const prod = prodMap.get(item.productId ? item.productId.toString() : '');
+    return Boolean(prod && prod.name);
+  }).map(item => {
     const prod = prodMap.get(item.productId ? item.productId.toString() : '') || {};
     const variant = Array.isArray(prod.variants)
       ? (prod.variants.find(v => v._id.toString() === (item.variantId || '').toString()) || prod.variants[0] || {})
