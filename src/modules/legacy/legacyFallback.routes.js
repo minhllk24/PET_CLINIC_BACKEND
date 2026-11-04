@@ -35,32 +35,36 @@ router.get('/first-aid/categories', (req, res) => {
 });
 
 router.get(['/first-aid/guides', '/first-aid/guides/all'], (req, res) => {
+  const items = [
+    {
+      id: 'fa-g-1',
+      title: 'Cách sơ cứu chó mèo bị hóc dị vật khẩn cấp',
+      slug: 'cach-so-cuu-cho-meo-bi-hoc-di-vat',
+      category: 'Sơ cứu khẩn cấp',
+      excerpt: 'Hướng dẫn nhanh các bước kiểm tra đường thở và thủ thuật đẩy dị vật cho thú cưng.',
+      content: 'Khi thú cưng có biểu hiện khó thở, cào vào miệng, hãy giữ bình tĩnh và mở miệng kiểm tra...',
+      thumbnail: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'fa-g-2',
+      title: 'Xử lý khẩn cấp khi thú cưng bị ngộ độc thực phẩm',
+      slug: 'xu-ly-khan-cap-khi-thu-cung-bi-ngo-doc-thuc-pham',
+      category: 'Sơ cứu khẩn cấp',
+      excerpt: 'Nhận biết triệu chứng trúng độc thức ăn lạ, sô-cô-la và các bước sơ cứu trước khi đến bác sĩ.',
+      content: 'Không tự ý cho uống thuốc giải độc nếu chưa xác định được nguồn gốc độc tố...',
+      thumbnail: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=800&q=80',
+      createdAt: new Date().toISOString(),
+    },
+  ];
   res.status(200).json({
     success: true,
     data: {
-      items: [
-        {
-          id: 'fa-g-1',
-          title: 'Cách sơ cứu chó mèo bị hóc dị vật khẩn cấp',
-          slug: 'cach-so-cuu-cho-meo-bi-hoc-di-vat',
-          category: 'Sơ cứu khẩn cấp',
-          excerpt: 'Hướng dẫn nhanh các bước kiểm tra đường thở và thủ thuật đẩy dị vật cho thú cưng.',
-          content: 'Khi thú cưng có biểu hiện khó thở, cào vào miệng, hãy giữ bình tĩnh và mở miệng kiểm tra...',
-          thumbnail: '/assets/customer/images/first-aid/guide-1.png',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'fa-g-2',
-          title: 'Xử lý khẩn cấp khi thú cưng bị ngộ độc thực phẩm',
-          slug: 'xu-ly-khan-cap-khi-thu-cung-bi-ngo-doc-thuc-pham',
-          category: 'Sơ cứu khẩn cấp',
-          excerpt: 'Nhận biết triệu chứng trúng độc thức ăn lạ, sô-cô-la và các bước sơ cứu trước khi đến bác sĩ.',
-          content: 'Không tự ý cho uống thuốc giải độc nếu chưa xác định được nguồn gốc độc tố...',
-          thumbnail: '/assets/customer/images/first-aid/guide-2.png',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      total: 2,
+      items,
+      guides: items,
+      posts: items,
+      total: items.length,
+      totalRows: items.length,
     },
   });
 });
@@ -79,12 +83,64 @@ router.get('/first-aid/guides/:slug', (req, res) => {
 });
 
 // 3. Cứu hộ & Nhận nuôi (Rescue & Adoptions)
-router.get('/adoptions/pets', (req, res) => {
+router.get(['/adoptions/pets', '/rescue/pets'], (req, res) => {
+  const items = [
+    {
+      _id: 'sample-rescue-1',
+      petCode: 'RESCUE-DOG-001',
+      petName: 'Bé Đậu',
+      name: 'Bé Đậu',
+      species: 'DOG',
+      breed: 'Chó cỏ lai vàng',
+      gender: 'MALE',
+      ageDescription: '8 tháng tuổi',
+      healthStatus: 'Sức khỏe tốt, đã tiêm 2 mũi vắc-xin 7 bệnh và xổ giun định kỳ.',
+      rescueStory: 'Bé bị bỏ rơi trong thùng xốp trước cửa chi nhánh Dr. Pet Bình Thạnh trong đêm mưa bão. Đội ngũ bác sĩ đã tiếp nhận, hồi sức và chăm sóc bé phục hồi hoàn toàn.',
+      images: [
+        'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=800&q=80',
+      ],
+      status: 'LOOKING_FOR_HOME',
+    },
+    {
+      _id: 'sample-rescue-2',
+      petCode: 'RESCUE-CAT-002',
+      petName: 'Bé Mây',
+      name: 'Bé Mây',
+      species: 'CAT',
+      breed: 'Mèo tam thể mắt ngọc',
+      gender: 'FEMALE',
+      ageDescription: '5 tháng tuổi',
+      healthStatus: 'Rất nhanh nhẹn, tinh nghịch, tai mắt sạch sẽ, đã tiêm phòng 3 bệnh mèo.',
+      rescueStory: 'Bé đi lạc vào tầng hầm chung cư Quận 7 và được cư dân đưa đến nhờ Dr. Pet cưu mang tìm tổ ấm yêu thương.',
+      images: [
+        'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+      ],
+      status: 'LOOKING_FOR_HOME',
+    },
+    {
+      _id: 'sample-rescue-3',
+      petCode: 'RESCUE-DOG-003',
+      petName: 'Bé Vàng',
+      name: 'Bé Vàng',
+      species: 'DOG',
+      breed: 'Chó Vàng Phú Quốc lai',
+      gender: 'MALE',
+      ageDescription: '14 tháng tuổi',
+      healthStatus: 'Thể lực rất sung mãn, đã tiêm phòng dại và gắn microchip định danh.',
+      rescueStory: 'Bé từng bị kẹt chân vào hàng rào sắt, được Dr. Pet giải cứu và phẫu thuật lành lặn. Bé đã được một gia đình tại Quận 2 nhận nuôi ấm êm.',
+      images: [
+        'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=80',
+      ],
+      status: 'ADOPTED',
+    },
+  ];
   res.status(200).json({
     success: true,
     data: {
-      items: [],
-      total: 0,
+      items,
+      pets: items,
+      total: items.length,
+      totalRows: items.length,
     },
   });
 });

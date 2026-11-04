@@ -139,3 +139,4 @@ router.patch('/:id', optionalAuth, updatePetHandler);
 router.delete('/:id', optionalAuth, deletePetHandler);
 
 export default router;
+

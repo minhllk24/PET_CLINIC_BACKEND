@@ -83,7 +83,10 @@ export const contentService = {
 
     return {
       items,
+      posts: items,
+      guides: items,
       total,
+      totalRows: total,
       page: Number(page),
       limit: Number(limit),
       totalPages: Math.ceil(total / Number(limit)) || 1,
@@ -175,7 +178,14 @@ export const contentService = {
   },
 
   async getPostBySlugPublic(slug) {
-    const post = await Post.findOne({ slug, status: 'PUBLISHED' }).populate('authorId', 'fullName');
+    const query = {
+      $or: [
+        { slug },
+        ...(mongoose.Types.ObjectId.isValid(slug) ? [{ _id: slug }] : []),
+      ],
+      status: 'PUBLISHED',
+    };
+    const post = await Post.findOne(query).populate('authorId', 'fullName');
     if (!post) {
       throw new AppError(404, 'Bài viết không tồn tại hoặc chưa được xuất bản', 'NOT_FOUND');
     }
@@ -433,9 +443,15 @@ export const contentService = {
     return { success: true, message: 'Đã xóa hồ sơ thú cưng cứu hộ' };
   },
 
-  async getRescuePetsPublic({ species, page = 1, limit = 10 }) {
-    const query = { status: 'LOOKING_FOR_HOME' };
-    if (species) query.species = species;
+  async getRescuePetsPublic({ species, status, page = 1, limit = 50 }) {
+    const query = {};
+    if (status && status !== 'all') {
+      const normalizedStatus = status.toUpperCase() === 'WAITING' ? 'LOOKING_FOR_HOME' : status.toUpperCase();
+      query.status = normalizedStatus;
+    }
+    if (species && species !== 'all') {
+      query.species = species.toUpperCase();
+    }
 
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
     const [total, items] = await Promise.all([
@@ -449,7 +465,9 @@ export const contentService = {
 
     return {
       items,
+      pets: items,
       total,
+      totalRows: total,
       page: Number(page),
       limit: Number(limit),
       totalPages: Math.ceil(total / Number(limit)) || 1,
@@ -461,12 +479,22 @@ export const contentService = {
   // =========================================================================
 
   async createAdoptionRequest(data, actor = null) {
-    const { rescuePetId, fullName, phone, email, address, housingType, hasPetExperience, message } = data;
+    const rescuePetId = data.rescuePetId || data.adoption_pet_id || data.petId;
+    const fullName = data.fullName || data.full_name;
+    const phone = data.phone;
+    const email = data.email || 'customer@example.com';
+    const address = data.address;
+    const housingType = data.housingType || data.housing_type || 'HOUSE';
+    const hasPetExperience = data.hasPetExperience ?? data.has_pet_experience ?? true;
+    const message = data.message || data.reason || '';
+
     if (!rescuePetId || !fullName || !phone || !email || !address) {
       throw new AppError(400, 'Vui lòng điền đầy đủ các thông tin cá nhân và bé muốn nhận nuôi', 'VALIDATION_ERROR');
     }
 
-    const pet = await RescuePet.findById(rescuePetId);
+    const pet = mongoose.Types.ObjectId.isValid(rescuePetId)
+      ? await RescuePet.findById(rescuePetId)
+      : await RescuePet.findOne({ petCode: rescuePetId });
     if (!pet) {
       throw new AppError(404, 'Không tìm thấy bé thú cưng cần nhận nuôi', 'NOT_FOUND');
     }
