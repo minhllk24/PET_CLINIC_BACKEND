@@ -134,7 +134,12 @@ export const checkVariantPurchasable = async (productId, variantId, requestedQua
     );
   }
 
-  const variant = product.variants.id ? product.variants.id(variantId) : product.variants.find(v => v._id.toString() === variantId.toString());
+  let variant = null;
+  if (!variantId && Array.isArray(product.variants) && product.variants.length > 0) {
+    variant = product.variants.find(v => v.status === 'ACTIVE') || product.variants[0];
+  } else if (variantId && Array.isArray(product.variants)) {
+    variant = product.variants.id ? product.variants.id(variantId) : product.variants.find(v => v._id.toString() === variantId.toString());
+  }
   if (!variant || variant.status !== 'ACTIVE') {
     throw new AppError(
       422,

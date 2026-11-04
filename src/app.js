@@ -616,6 +616,7 @@ app.use(
       if (path.includes('/rescue')) return true;
       if (path.includes('/dashboard')) return true;
       if (path.includes('/contacts')) return true;
+      if (path.includes('/repay')) return true;
       return false;
     },
     validateSecurity: {

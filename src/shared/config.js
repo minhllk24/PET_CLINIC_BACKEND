@@ -47,7 +47,7 @@ const config = {
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 mins default
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    max: parseInt(process.env.RATE_LIMIT_MAX || '2000', 10),
   },
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,

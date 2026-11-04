@@ -14,6 +14,7 @@ router.get('/', optionalAuth, orderController.listOrders);
 router.get('/stats', optionalAuth, orderController.getOrderStats);
 router.get('/summary', optionalAuth, orderController.getOrderStats);
 router.get('/:id', optionalAuth, orderController.getOrder);
+router.post('/:id/repay', optionalAuth, orderController.repayOrder);
 
 // Order actions (OpenAPI POST + PATCH backwards-compat)
 router.post('/:id/confirm', orderOperators, orderController.confirmOrder);

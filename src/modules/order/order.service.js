@@ -42,9 +42,32 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Order paymentMethod must be ONLINE_MOCK or COD');
   }
 
-  const query = actor ? { _id: cartId, customerId: actor.id } : { _id: cartId, tokenHash: guestToken };
-  const cart = await Cart.findOne(query);
-  if (!cart || cart.items.length === 0) {
+  const cartQuery = cartId
+    ? (actor ? { _id: cartId, customerId: actor.id } : { _id: cartId, tokenHash: guestToken })
+    : (actor ? { customerId: actor.id } : { tokenHash: guestToken });
+
+  let cart = await Cart.findOne(cartQuery);
+  if (!cart && actor && cartId) {
+    cart = await Cart.findOne({ customerId: actor.id });
+  }
+  if (!cart && guestToken && cartId) {
+    cart = await Cart.findOne({ tokenHash: guestToken });
+  }
+
+  if ((!cart || !cart.items || cart.items.length === 0) && Array.isArray(data.items) && data.items.length > 0) {
+    cart = new Cart({
+      customerId: actor ? actor.id : undefined,
+      tokenHash: guestToken,
+      items: data.items.map(item => ({
+        productId: item.productId || item.product_id || item.id,
+        variantId: item.variantId || item.variant_id,
+        quantity: item.qty || item.quantity || 1,
+        price: item.price || 0
+      }))
+    });
+  }
+
+  if (!cart || !cart.items || cart.items.length === 0) {
     throw new AppError(400, 'Validation Error', 'EMPTY_CART', 'Cart is empty or not found');
   }
 
@@ -130,7 +153,15 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     let createdOrder;
     try {
       await session.withTransaction(async () => {
-        const currentCart = await Cart.findOne(query).session(session);
+        let currentCart = null;
+        if (cart._id) {
+          currentCart = await Cart.findById(cart._id).session(session);
+        } else {
+          currentCart = await Cart.findOne(cartQuery).session(session);
+        }
+        if (!currentCart && cart) {
+          currentCart = cart;
+        }
         if (!currentCart || currentCart.items.length === 0) {
           throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Cart has already been checked out');
         }

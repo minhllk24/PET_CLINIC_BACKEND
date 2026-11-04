@@ -126,3 +126,38 @@ export const createAdminOrder = async (req, res, next) => {
   }
 };
 
+
+import Order from './models/Order';
+import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
+
+export const repayOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod = 'online', returnUrl } = req.body || {};
+
+    let order = null;
+    if (id && id.match(/^[0-9a-fA-F]{24}$/)) {
+      order = await Order.findById(id);
+    }
+    if (!order && id) {
+      order = await Order.findOne({ code: id });
+    }
+
+    if (!order) {
+      throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Order not found');
+    }
+
+    const mockPaymentUrl = `/checkout?orderId=${order._id}&repay=true`;
+    res.status(200).json({
+      order_id: order._id,
+      orderId: order._id,
+      payment_url: mockPaymentUrl,
+      paymentUrl: mockPaymentUrl,
+      status: 'SUCCESS',
+      message: 'Tạo yêu cầu thanh toán lại thành công'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
