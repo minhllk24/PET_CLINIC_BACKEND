@@ -255,6 +255,29 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     }
   }
 
+  // If no explicit Shift records exist for this date, default to the active staff of this branch
+  // working standard opening hours (branchOpenMinutes to branchCloseMinutes)
+  if (staffShifts.length === 0) {
+    let branchStaff = await StaffProfile.find({
+      $or: [
+        { homeBranchId: new mongoose.Types.ObjectId(branchId) },
+        { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
+      ],
+      status: 'ACTIVE',
+    });
+    if (branchStaff.length === 0) {
+      branchStaff = await StaffProfile.find({ status: 'ACTIVE' });
+    }
+    for (const profile of branchStaff) {
+      staffShifts.push({
+        staffId: profile._id.toString(),
+        subRole: profile.staffSubRole,
+        startMins: branchOpenMinutes,
+        endMins: branchCloseMinutes,
+      });
+    }
+  }
+
   // 6. Fetch Existing Appointments and Holds on this date
   const now = new Date();
   const existingAppointments = await Appointment.find({
@@ -411,7 +434,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         );
       });
 
-      if (staffShifts.length > 0 && availableStaff.length === 0) {
+      if (availableStaff.length === 0) {
         staffUnavailable = true;
       }
 
@@ -457,31 +480,6 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
       availableSlots.push(slotData);
     } else if (includeFull) {
       availableSlots.push(slotData);
-    }
-  }
-
-  if (availableSlots.length === 0) {
-    const defaultHours = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
-    for (const timeStr of defaultHours) {
-      const [h, m] = timeStr.split(':').map(Number);
-      const startMins = h * 60 + m;
-      const endMins = startMins + scheduledDurationMinutes;
-      availableSlots.push({
-        start: createDateTimeISO(date, timeStr),
-        end: createDateTimeISO(date, minutesToTime(endMins)),
-        bookedCount: 0,
-        heldCount: 0,
-        occupiedCount: 0,
-        totalCount: 3,
-        remaining: 3,
-        status: 'AVAILABLE',
-        timezone: 'Asia/Ho_Chi_Minh',
-        segments: [{
-          serviceId: normalizedServiceIds[0],
-          start: createDateTimeISO(date, timeStr),
-          end: createDateTimeISO(date, minutesToTime(endMins))
-        }]
-      });
     }
   }
 
