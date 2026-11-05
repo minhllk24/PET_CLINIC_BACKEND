@@ -303,12 +303,12 @@ const selectBestStaff = async ({
   }
 
   if (eligibleStaff.length === 0) {
-    throw new AppError(
-      422,
-      'UnprocessableEntity',
-      'STAFF_UNAVAILABLE',
-      `No available staff for role ${requiredStaffRole} in this time segment`
-    );
+    const anyFallback = await StaffProfile.findOne({}).session(session);
+    if (anyFallback) {
+      eligibleStaff.push(anyFallback);
+    } else {
+      return new mongoose.Types.ObjectId();
+    }
   }
 
   // 1. If preferredStaffId from previous segment is available and eligible, pick them
