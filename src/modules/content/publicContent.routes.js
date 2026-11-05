@@ -74,26 +74,28 @@ router.get(['/posts/:id/comments', '/community/posts/:id/comments', '/public/pos
 });
 
 router.post(['/posts/:id/comments', '/community/posts/:id/comments', '/public/posts/:id/comments'], (req, res) => {
-  const { content } = req.body;
+  const { content, author, avatar } = req.body || {};
   res.status(201).json({
     success: true,
     data: {
       id: `cmt-${Date.now()}`,
       content: content || '',
-      author: req.user?.fullName || req.user?.name || 'Bạn',
+      author: author || req.user?.fullName || req.user?.name || 'Bạn',
+      avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
       createdAt: new Date().toISOString(),
     },
   });
 });
 
 router.post(['/posts/comments/:commentId/reply', '/public/posts/comments/:commentId/reply'], (req, res) => {
-  const { content } = req.body;
+  const { content, author, avatar } = req.body || {};
   res.status(201).json({
     success: true,
     data: {
       id: `reply-${Date.now()}`,
       content: content || '',
-      author: req.user?.fullName || req.user?.name || 'Bạn',
+      author: author || req.user?.fullName || req.user?.name || 'Bạn',
+      avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
       createdAt: new Date().toISOString(),
     },
   });
