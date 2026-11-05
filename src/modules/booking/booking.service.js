@@ -9,6 +9,7 @@ import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import Shift from '../staff/models/Shift';
 import StaffProfile from '../staff/models/StaffProfile';
 import GuestContact from '../customer/models/GuestContact';
+import Pet from '../customer/models/Pet';
 import ServiceRecord from '../execution/models/ServiceRecord';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
@@ -119,11 +120,29 @@ export const formatAppointment = (apt) => {
     res.contactSnapshot = doc.contactSnapshot || null;
   }
   if (doc.petId !== undefined) {
-    res.petId = doc.petId ? (doc.petId._id || doc.petId).toString() : null;
+    if (doc.petId && typeof doc.petId === 'object' && (doc.petId.name || doc.petId._id)) {
+      res.petId = (doc.petId._id || doc.petId).toString();
+      if (!doc.petSnapshot && doc.petId.name) {
+        res.petSnapshot = {
+          name: doc.petId.name,
+          species: doc.petId.species || 'DOG',
+          breed: doc.petId.breed || '',
+          gender: doc.petId.gender || 'UNKNOWN',
+          ageYears: doc.petId.ageYears || 0,
+          weightKg: doc.petId.weightKg || 0,
+          healthStatus: doc.petId.healthStatus || 'NORMAL',
+          medicalNotes: doc.petId.medicalNotes || '',
+          photoUrl: doc.petId.photoUrl || null,
+        };
+      }
+    } else {
+      res.petId = doc.petId ? (doc.petId._id || doc.petId).toString() : null;
+    }
   }
   if (doc.petSnapshot !== undefined) {
-    res.petSnapshot = doc.petSnapshot || null;
+    res.petSnapshot = doc.petSnapshot || res.petSnapshot || null;
   }
+  res.pet = res.petSnapshot || null;
   if (doc.customerSnapshot !== undefined) {
     res.customerSnapshot = doc.customerSnapshot || null;
   }
@@ -856,6 +875,29 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       });
     }
 
+    // Resolve pet snapshot if petId was provided
+    let petSnapshot = pet || null;
+    if (petId && !petSnapshot && mongoose.Types.ObjectId.isValid(petId)) {
+      try {
+        const petDoc = await Pet.findById(petId).session(session);
+        if (petDoc) {
+          petSnapshot = {
+            name: petDoc.name,
+            species: petDoc.species || 'DOG',
+            breed: petDoc.breed || '',
+            gender: petDoc.gender || 'UNKNOWN',
+            ageYears: petDoc.ageYears || 0,
+            weightKg: petDoc.weightKg || 0,
+            healthStatus: petDoc.healthStatus || 'NORMAL',
+            medicalNotes: petDoc.medicalNotes || '',
+            photoUrl: petDoc.photoUrl || null,
+          };
+        }
+      } catch {
+        // Gracefully ignore error and keep petSnapshot
+      }
+    }
+
     // 8. Create Appointment
     const appointment = new Appointment({
       code: generateAppointmentCode(),
@@ -863,7 +905,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       guestContactId: guestContactId || null,
       contactSnapshot: contactSnapshot || null,
       petId: petId || null,
-      petSnapshot: pet || null,
+      petSnapshot: petSnapshot || null,
       customerSnapshot: isCustomer && actor ? { name: actor.name, phone: actor.phone } : null,
       branchId,
       serviceType: primaryServiceType,
@@ -1000,7 +1042,7 @@ export const getAppointments = async (filters = {}, actor) => {
   }
 
   const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
-  const appointments = await Appointment.find(query).sort({ scheduledStart: -1 }).limit(limit);
+  const appointments = await Appointment.find(query).populate('petId').sort({ scheduledStart: -1 }).limit(limit);
 
   return {
     items: appointments.map(formatAppointment),
@@ -1016,7 +1058,7 @@ export const getAppointmentById = async (id, actor, guestToken) => {
     throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'Invalid appointment ID');
   }
 
-  const appointment = await Appointment.findById(id);
+  const appointment = await Appointment.findById(id).populate('petId');
   if (!appointment) {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
   }
