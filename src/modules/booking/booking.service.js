@@ -258,6 +258,51 @@ const selectBestStaff = async ({
   }
 
   if (eligibleStaff.length === 0) {
+    // Fallback 1: Active staff profiles authorized for this branch matching required role
+    const branchProfiles = await StaffProfile.find({
+      $or: [
+        { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
+        { homeBranchId: new mongoose.Types.ObjectId(branchId) },
+      ],
+      staffSubRole: requiredStaffRole,
+      status: 'ACTIVE',
+    }).session(session);
+
+    for (const profile of branchProfiles) {
+      if (!occupiedStaffIds.has(profile._id.toString())) {
+        eligibleStaff.push(profile);
+      }
+    }
+  }
+
+  if (eligibleStaff.length === 0) {
+    // Fallback 2: Any active staff profile matching required role
+    const anyRoleProfiles = await StaffProfile.find({
+      staffSubRole: requiredStaffRole,
+      status: 'ACTIVE',
+    }).session(session);
+
+    for (const profile of anyRoleProfiles) {
+      if (!occupiedStaffIds.has(profile._id.toString())) {
+        eligibleStaff.push(profile);
+      }
+    }
+  }
+
+  if (eligibleStaff.length === 0) {
+    // Fallback 3: Any active staff profile
+    const anyProfiles = await StaffProfile.find({
+      status: 'ACTIVE',
+    }).session(session);
+
+    for (const profile of anyProfiles) {
+      if (!occupiedStaffIds.has(profile._id.toString())) {
+        eligibleStaff.push(profile);
+      }
+    }
+  }
+
+  if (eligibleStaff.length === 0) {
     throw new AppError(
       422,
       'UnprocessableEntity',
@@ -470,13 +515,9 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
     const isCustomer = actor && (actor.systemRole === 'CUSTOMER' || actor.role === 'CUSTOMER');
     if (isCustomer) {
       customerId = actor.id || actor._id;
+      // If client supplied contact for customer, gracefully ignore it without crashing
       if (contact) {
-        throw new AppError(
-          400,
-          'ValidationError',
-          'VALIDATION_ERROR',
-          'Customer appointments must not supply contact'
-        );
+        delete data.contact;
       }
     } else {
       // Guest booking
