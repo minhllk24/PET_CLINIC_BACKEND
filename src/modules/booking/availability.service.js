@@ -94,6 +94,10 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     }
   }
 
+  if (branch) {
+    branchId = branch._id.toString();
+  }
+
   if (!branch || branch.status !== 'ACTIVE') {
     return {
       serviceIds: normalizedServiceIds,
@@ -321,6 +325,38 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         }
       }
     }
+  }
+
+  // Also extract active SlotReservations for that date
+  const minUnit = Math.floor(startOfDay.getTime() / (15 * 60000));
+  const maxUnit = Math.floor(endOfDay.getTime() / (15 * 60000));
+  let activeReservations = [];
+  if (mongoose.connection.readyState === 1) {
+    try {
+      activeReservations = await SlotReservation.find({
+        branchId: new mongoose.Types.ObjectId(branchId),
+        status: { $in: ['HELD', 'CONFIRMED'] },
+        slotStartUnit: { $gte: minUnit, $lte: maxUnit },
+        $or: [{ holdExpiresAt: { $gt: now } }, { holdExpiresAt: null }],
+      });
+    } catch {
+      activeReservations = [];
+    }
+  }
+
+  for (const res of activeReservations) {
+    const resStartMs = res.slotStartUnit * 15 * 60000;
+    const resEndMs = resStartMs + 15 * 60000;
+    const segStartMins = Math.floor((resStartMs - startOfDay.getTime()) / 60000);
+    const segEndMins = Math.floor((resEndMs - startOfDay.getTime()) / 60000);
+    occupiedSegments.push({
+      appointmentId: res.appointmentId ? res.appointmentId.toString() : null,
+      serviceId: res.serviceId ? res.serviceId.toString() : null,
+      assignedStaffId: res.staffId ? res.staffId.toString() : null,
+      startMins: segStartMins,
+      endMins: segEndMins,
+      isHold: res.status === 'HELD',
+    });
   }
 
   // 7. Extract Blocked Windows from configs

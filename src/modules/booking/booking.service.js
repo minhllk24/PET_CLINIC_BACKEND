@@ -244,6 +244,46 @@ const selectBestStaff = async ({
     .populate('staffId')
     .session(session);
 
+  // Find staff who already have active appointments or slot reservations during [segStart, segEnd]
+  const busyAptStaff = await Appointment.distinct('services.assignedStaffId', {
+    status: { $in: ['CONFIRMED', 'IN_PROGRESS', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
+    services: {
+      $elemMatch: {
+        scheduledStart: { $lt: segEnd },
+        scheduledEnd: { $gt: segStart },
+      },
+    },
+  }).session(session);
+
+  const slotStartUnit = Math.floor(segStart.getTime() / (15 * 60000));
+  const unitsNeeded = Math.ceil((segEnd.getTime() - segStart.getTime()) / (15 * 60000));
+  const busySlotUnits = [];
+  for (let u = 0; u < unitsNeeded; u++) {
+    busySlotUnits.push(slotStartUnit + u);
+  }
+
+  let busyResStaff = [];
+  if (mongoose.connection.readyState === 1) {
+    try {
+      busyResStaff = await SlotReservation.distinct('staffId', {
+        status: { $in: ['HELD', 'CONFIRMED'] },
+        slotStartUnit: { $in: busySlotUnits },
+        $or: [
+          { holdExpiresAt: { $gt: new Date() } },
+          { holdExpiresAt: null },
+        ],
+      }).session(session);
+    } catch {
+      busyResStaff = [];
+    }
+  }
+
+  const unavailableStaffSet = new Set([
+    ...occupiedStaffIds,
+    ...busyAptStaff.map((id) => id?.toString()).filter(Boolean),
+    ...busyResStaff.map((id) => id?.toString()).filter(Boolean),
+  ]);
+
   const eligibleStaff = [];
   for (const shift of shifts) {
     const profile = shift.staffId;
@@ -251,7 +291,7 @@ const selectBestStaff = async ({
       profile &&
       profile.status === 'ACTIVE' &&
       profile.staffSubRole === requiredStaffRole &&
-      !occupiedStaffIds.has(profile._id.toString())
+      !unavailableStaffSet.has(profile._id.toString())
     ) {
       eligibleStaff.push(profile);
     }
@@ -269,7 +309,7 @@ const selectBestStaff = async ({
     }).session(session);
 
     for (const profile of branchProfiles) {
-      if (!occupiedStaffIds.has(profile._id.toString())) {
+      if (!unavailableStaffSet.has(profile._id.toString())) {
         eligibleStaff.push(profile);
       }
     }
@@ -283,7 +323,7 @@ const selectBestStaff = async ({
     }).session(session);
 
     for (const profile of anyRoleProfiles) {
-      if (!occupiedStaffIds.has(profile._id.toString())) {
+      if (!unavailableStaffSet.has(profile._id.toString())) {
         eligibleStaff.push(profile);
       }
     }
@@ -296,19 +336,19 @@ const selectBestStaff = async ({
     }).session(session);
 
     for (const profile of anyProfiles) {
-      if (!occupiedStaffIds.has(profile._id.toString())) {
+      if (!unavailableStaffSet.has(profile._id.toString())) {
         eligibleStaff.push(profile);
       }
     }
   }
 
   if (eligibleStaff.length === 0) {
-    const anyFallback = await StaffProfile.findOne({}).session(session);
-    if (anyFallback) {
-      eligibleStaff.push(anyFallback);
-    } else {
-      return new mongoose.Types.ObjectId();
-    }
+    throw new AppError(
+      409,
+      'Conflict',
+      'SLOT_UNAVAILABLE',
+      `Khung giờ này tất cả nhân viên phụ trách vai trò ${requiredStaffRole || 'chuyên môn'} đã kín lịch. Vui lòng chọn khung giờ khác.`
+    );
   }
 
   // 1. If preferredStaffId from previous segment is available and eligible, pick them
