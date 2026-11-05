@@ -74,7 +74,7 @@ router.get(['/posts/:id/comments', '/community/posts/:id/comments', '/public/pos
 });
 
 router.post(['/posts/:id/comments', '/community/posts/:id/comments', '/public/posts/:id/comments'], (req, res) => {
-  const { content, author, avatar } = req.body || {};
+  const { content, author, avatar, userId } = req.body || {};
   res.status(201).json({
     success: true,
     data: {
@@ -82,13 +82,14 @@ router.post(['/posts/:id/comments', '/community/posts/:id/comments', '/public/po
       content: content || '',
       author: author || req.user?.fullName || req.user?.name || 'Bạn',
       avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
+      userId: userId || req.user?._id || req.user?.id || '',
       createdAt: new Date().toISOString(),
     },
   });
 });
 
 router.post(['/posts/comments/:commentId/reply', '/public/posts/comments/:commentId/reply'], (req, res) => {
-  const { content, author, avatar } = req.body || {};
+  const { content, author, avatar, userId, replyTo } = req.body || {};
   res.status(201).json({
     success: true,
     data: {
@@ -96,6 +97,8 @@ router.post(['/posts/comments/:commentId/reply', '/public/posts/comments/:commen
       content: content || '',
       author: author || req.user?.fullName || req.user?.name || 'Bạn',
       avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
+      userId: userId || req.user?._id || req.user?.id || '',
+      replyTo: replyTo || '',
       createdAt: new Date().toISOString(),
     },
   });
