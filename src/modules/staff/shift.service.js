@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Shift from './models/Shift';
 import StaffProfile from './models/StaffProfile';
+import User from '../../models/User';
 import Branch from '../branch/models/Branch';
 import Appointment from '../booking/models/Appointment';
 import AppError from '../../utils/AppError';
@@ -138,7 +139,15 @@ export const createShift = async (data, actor = null) => {
     }
   }
 
-  // 2. Validate StaffProfile & Branch authorization
+  // 2. Validate StaffProfile & Branch authorization (Managers do not require shifts)
+  if (mongoose.Types.ObjectId.isValid(staffId) && (mongoose.connection.readyState === 1 || User.findById?._isMockFunction)) {
+    const userQuery = User.findById(staffId);
+    const user = userQuery && typeof userQuery.select === 'function' ? await userQuery.select('systemRole') : await userQuery;
+    if (user && user.systemRole === 'MANAGER') {
+      throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Quản lý không cần phân ca làm việc (Managers do not require shifts)');
+    }
+  }
+
   const staff = await StaffProfile.findById(staffId);
   if (!staff || staff.status !== 'ACTIVE') {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Active staff profile not found');

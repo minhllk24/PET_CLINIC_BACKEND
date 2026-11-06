@@ -77,7 +77,7 @@ export const calculateMaterialDelta = (previous = [], current = []) => {
   })).filter((entry) => entry.delta !== 0);
 };
 
-export const formatServiceRecord = (rec) => {
+export const formatServiceRecord = (rec, enrichment = null) => {
   if (!rec) return null;
   const doc = rec.toObject ? rec.toObject() : rec;
   const idStr = (doc._id || doc.id).toString();
@@ -98,6 +98,9 @@ export const formatServiceRecord = (rec) => {
   if (doc.petId) {
     res.petId = (doc.petId._id || doc.petId).toString();
   }
+  if (doc.customerId) {
+    res.customerId = (doc.customerId._id || doc.customerId).toString();
+  }
   if (doc.serviceIds && Array.isArray(doc.serviceIds)) {
     res.serviceIds = doc.serviceIds.map(s => (s._id || s).toString());
   }
@@ -117,24 +120,44 @@ export const formatServiceRecord = (rec) => {
     res.finalizedAt = doc.finalizedAt ? new Date(doc.finalizedAt).toISOString() : null;
   }
 
+  const rawDate = doc.actualStartAt || doc.createdAt;
+  if (rawDate) {
+    res.createdAt = new Date(rawDate).toISOString();
+    res.date = new Date(rawDate).toISOString();
+  }
+
   // plannedMaterials
   if (doc.plannedMaterials) {
-    res.plannedMaterials = doc.plannedMaterials.map(m => ({
-      inventoryItemId: (m.inventoryItemId?._id || m.inventoryItemId).toString(),
-      quantity: Number(m.quantity || 0),
-      unit: m.unit || 'cái',
-      isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : true,
-    }));
+    res.plannedMaterials = doc.plannedMaterials.map(m => {
+      const matId = (m.inventoryItemId?._id || m.inventoryItemId).toString();
+      const itemInfo = enrichment?.itemMap?.get(matId);
+      return {
+        inventoryItemId: matId,
+        quantity: Number(m.quantity || 0),
+        unit: m.unit || itemInfo?.unit || 'cái',
+        isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : true,
+        name: itemInfo?.name || null,
+        itemName: itemInfo?.name || null,
+        sku: itemInfo?.sku || null,
+      };
+    });
   }
 
   // actualMaterials
   if (doc.actualMaterials) {
-    res.actualMaterials = doc.actualMaterials.map(m => ({
-      inventoryItemId: (m.inventoryItemId?._id || m.inventoryItemId || m.materialId).toString(),
-      actualQuantity: Number(m.actualQuantity !== undefined ? m.actualQuantity : (m.quantity || 0)),
-      unit: m.unit || 'cái',
-      isExtra: Boolean(m.isExtra),
-    }));
+    res.actualMaterials = doc.actualMaterials.map(m => {
+      const matId = (m.inventoryItemId?._id || m.inventoryItemId || m.materialId).toString();
+      const itemInfo = enrichment?.itemMap?.get(matId);
+      return {
+        inventoryItemId: matId,
+        actualQuantity: Number(m.actualQuantity !== undefined ? m.actualQuantity : (m.quantity || 0)),
+        unit: m.unit || itemInfo?.unit || 'cái',
+        isExtra: Boolean(m.isExtra),
+        name: itemInfo?.name || null,
+        itemName: itemInfo?.name || null,
+        sku: itemInfo?.sku || null,
+      };
+    });
   }
 
   // professional
@@ -144,7 +167,152 @@ export const formatServiceRecord = (rec) => {
     res.professional = null;
   }
 
+  // Enrichment fields for FE table display
+  const pet = res.petId ? enrichment?.petMap?.get(res.petId) : null;
+  res.petName = doc.petName || pet?.name || doc.petId?.name || null;
+  res.pet = doc.pet || (pet ? {
+    id: pet._id.toString(),
+    name: pet.name,
+    species: pet.species,
+    breed: pet.breed || null,
+    weightKg: pet.weightKg || null,
+    avatarUrl: pet.avatarUrl || null,
+  } : (doc.petId?.name ? { id: res.petId, name: doc.petId.name } : null));
+
+  const customer = res.customerId ? enrichment?.customerMap?.get(res.customerId) : null;
+  res.customerName = doc.customerName || customer?.fullName || doc.customerId?.fullName || null;
+  res.customerPhone = doc.customerPhone || customer?.phone || doc.customerId?.phone || null;
+  res.customer = doc.customer || (customer ? {
+    id: customer._id.toString(),
+    fullName: customer.fullName,
+    phone: customer.phone,
+    email: customer.email || null,
+  } : null);
+
+  const branch = res.branchId ? enrichment?.branchMap?.get(res.branchId) : null;
+  res.branchName = doc.branchName || branch?.name || doc.branchId?.name || null;
+  res.branch = doc.branch || (branch ? {
+    id: branch._id.toString(),
+    code: branch.code,
+    name: branch.name,
+  } : null);
+
+  const services = (res.serviceIds || []).map((sId) => enrichment?.serviceMap?.get(sId)).filter(Boolean);
+  res.services = doc.services || services.map((s) => ({
+    id: s._id.toString(),
+    code: s.code || null,
+    name: s.name,
+    serviceType: s.serviceType || null,
+    basePrice: s.basePrice || 0,
+  }));
+  res.serviceNames = doc.serviceNames || services.map((s) => s.name);
+  res.serviceName = doc.serviceName || (res.serviceNames.length > 0 ? res.serviceNames.join(', ') : null);
+
+  const assignedStaff = (res.assignedStaffIds || []).map((sId) => enrichment?.staffMap?.get(sId)).filter(Boolean);
+  res.assignedStaff = doc.assignedStaff || assignedStaff;
+  res.primaryStaff = doc.primaryStaff || assignedStaff[0] || null;
+  res.primaryStaffName = doc.primaryStaffName || doc.staffName || assignedStaff[0]?.fullName || null;
+  res.staffName = res.primaryStaffName;
+
+  const reviewer = res.reviewerStaffId ? enrichment?.staffMap?.get(res.reviewerStaffId) : null;
+  res.reviewerStaff = doc.reviewerStaff || reviewer || null;
+  res.reviewerName = doc.reviewerName || reviewer?.fullName || null;
+
   return res;
+};
+
+export const enrichServiceRecords = async (items = []) => {
+  if (!items || items.length === 0 || mongoose.connection.readyState !== 1) {
+    return items.map((it) => formatServiceRecord(it));
+  }
+
+  try {
+    const Pet = mongoose.models.Pet || (await import('../customer/models/Pet.js')).default;
+    const Customer = mongoose.models.Customer || (await import('../customer/models/Customer.js')).default;
+    const Service = mongoose.models.Service || (await import('../catalog/models/Service.js')).default;
+    const Branch = mongoose.models.Branch || (await import('../branch/models/Branch.js')).default;
+    const StaffProfile = mongoose.models.StaffProfile || (await import('../staff/models/StaffProfile.js')).default;
+    const User = mongoose.models.User || (await import('../../models/User.js')).default;
+    const InventoryItem = mongoose.models.InventoryItem || (await import('../inventory/models/InventoryItem.js')).default;
+
+    const petIds = new Set();
+    const customerIds = new Set();
+    const serviceIds = new Set();
+    const branchIds = new Set();
+    const staffIds = new Set();
+    const itemIds = new Set();
+
+    for (const item of items) {
+      const doc = item.toObject ? item.toObject() : item;
+      if (doc.petId) petIds.add((doc.petId._id || doc.petId).toString());
+      if (doc.customerId) customerIds.add((doc.customerId._id || doc.customerId).toString());
+      if (doc.branchId) branchIds.add((doc.branchId._id || doc.branchId).toString());
+      if (doc.reviewerStaffId) staffIds.add((doc.reviewerStaffId._id || doc.reviewerStaffId).toString());
+      (doc.serviceIds || []).forEach((s) => s && serviceIds.add((s._id || s).toString()));
+      (doc.assignedStaffIds || []).forEach((s) => s && staffIds.add((s._id || s).toString()));
+      (doc.plannedMaterials || []).forEach((m) => {
+        const id = m.inventoryItemId || m.materialId;
+        if (id) itemIds.add((id._id || id).toString());
+      });
+      (doc.actualMaterials || []).forEach((m) => {
+        const id = m.inventoryItemId || m.materialId;
+        if (id) itemIds.add((id._id || id).toString());
+      });
+    }
+
+    const [pets, customers, services, branches, staffProfiles, users, invItems] = await Promise.all([
+      petIds.size > 0 ? Pet.find({ _id: { $in: Array.from(petIds) } }).lean() : [],
+      customerIds.size > 0 ? Customer.find({ _id: { $in: Array.from(customerIds) } }).lean() : [],
+      serviceIds.size > 0 ? Service.find({ _id: { $in: Array.from(serviceIds) } }).lean() : [],
+      branchIds.size > 0 ? Branch.find({ _id: { $in: Array.from(branchIds) } }).lean() : [],
+      staffIds.size > 0 ? StaffProfile.find({ _id: { $in: Array.from(staffIds) } }).populate('userId').lean() : [],
+      staffIds.size > 0 ? User.find({ _id: { $in: Array.from(staffIds) } }).lean() : [],
+      itemIds.size > 0 ? InventoryItem.find({ _id: { $in: Array.from(itemIds) } }).lean() : [],
+    ]);
+
+    const petMap = new Map(pets.map((p) => [p._id.toString(), p]));
+    const customerMap = new Map(customers.map((c) => [c._id.toString(), c]));
+    const serviceMap = new Map(services.map((s) => [s._id.toString(), s]));
+    const branchMap = new Map(branches.map((b) => [b._id.toString(), b]));
+    const itemMap = new Map(invItems.map((i) => [i._id.toString(), i]));
+
+    const staffMap = new Map();
+    users.forEach((u) => {
+      const details = {
+        id: u._id.toString(),
+        userId: u._id.toString(),
+        fullName: u.fullName || u.username,
+        staffSubRole: u.staffSubRole || null,
+        staffCode: u.staffCode || null,
+      };
+      staffMap.set(u._id.toString(), details);
+    });
+    staffProfiles.forEach((sp) => {
+      const u = sp.userId;
+      const details = {
+        id: sp._id.toString(),
+        userId: (u?._id || u || '').toString(),
+        fullName: u?.fullName || 'Nhân viên',
+        staffSubRole: sp.staffSubRole,
+        staffCode: sp.staffCode || u?.staffCode || null,
+      };
+      staffMap.set(sp._id.toString(), details);
+      if (details.userId) staffMap.set(details.userId, details);
+    });
+
+    const enrichment = {
+      petMap,
+      customerMap,
+      serviceMap,
+      branchMap,
+      staffMap,
+      itemMap,
+    };
+
+    return items.map((it) => formatServiceRecord(it, enrichment));
+  } catch (_e) {
+    return items.map((it) => formatServiceRecord(it));
+  }
 };
 
 export const formatServiceRecordRevision = (rev) => {
@@ -266,7 +434,8 @@ export const createRecord = async (data, actor) => {
     professional: {}
   });
   await record.save();
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const listRecords = async (query = {}, actor = {}) => {
@@ -326,9 +495,10 @@ export const listRecords = async (query = {}, actor = {}) => {
   const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
 
   const items = await ServiceRecord.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+  const enrichedItems = await enrichServiceRecords(items);
 
   return {
-    items: items.map(formatServiceRecord),
+    items: enrichedItems,
     nextCursor: null,
   };
 };
@@ -388,7 +558,8 @@ export const getRecordById = async (id, actor = {}) => {
     }
   }
 
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const updateMaterials = async (id, data, actor) => {
@@ -475,7 +646,8 @@ export const updateMaterials = async (id, data, actor) => {
   record.version += 1;
   await record.save();
 
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const updateProfessional = async (id, data, actor) => {
@@ -540,7 +712,8 @@ export const updateProfessional = async (id, data, actor) => {
   record.version += 1;
   await record.save();
 
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const reopenRecord = async (id, data, actor) => {
@@ -572,7 +745,8 @@ export const reopenRecord = async (id, data, actor) => {
   record.version += 1;
   await record.save();
 
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const getRevisions = async (id, actor = {}) => {
@@ -710,7 +884,8 @@ export const submitReview = async (id, data = {}, actor) => {
     }
   }
 
-  return formatServiceRecord(record);
+  const enriched = await enrichServiceRecords([record]);
+  return enriched[0] || formatServiceRecord(record);
 };
 
 export const finalizeRecord = async (id, data = {}, actor) => {

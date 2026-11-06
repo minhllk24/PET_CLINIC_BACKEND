@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import User from '../models/User.js';
 import AppError from '../utils/AppError';
 import config from './config';
 
@@ -9,7 +11,7 @@ const extractToken = (req) => {
   return null;
 };
 
-export const authenticate = (req, res, next) => {
+export const authenticate = async (req, res, next) => {
   if (req.actor) {
     return next();
   }
@@ -34,6 +36,31 @@ export const authenticate = (req, res, next) => {
       assignedBranchIds: decoded.assignedBranchIds || [],
       authorizedBranchIds: decoded.authorizedBranchIds || [],
     };
+
+    // Dynamic live sync from DB for fresh permissions and lock check
+    if (mongoose.connection.readyState === 1 && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
+      try {
+        const liveUser = await User.findById(decoded.id)
+          .select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil')
+          .lean();
+        if (liveUser) {
+          if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
+            return next(new AppError(403, 'Forbidden', 'ACCOUNT_BLOCKED', 'Tài khoản của bạn đã bị khóa'));
+          }
+          if (liveUser.accountStatus === 'PENDING_ACTIVATION') {
+            return next(new AppError(403, 'Forbidden', 'ACCOUNT_NOT_ACTIVATED', 'Tài khoản chưa được kích hoạt'));
+          }
+          req.actor.systemRole = liveUser.systemRole || req.actor.systemRole;
+          req.actor.staffSubRole = liveUser.staffSubRole || req.actor.staffSubRole;
+          if (Array.isArray(liveUser.assignedBranchIds)) {
+            req.actor.assignedBranchIds = liveUser.assignedBranchIds.map((b) => (b?._id || b).toString());
+            req.actor.authorizedBranchIds = req.actor.assignedBranchIds;
+          }
+        }
+      } catch (_e) {
+        // Fallback to token claims
+      }
+    }
     
     next();
   } catch (error) {

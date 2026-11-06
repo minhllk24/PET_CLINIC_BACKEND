@@ -1,21 +1,43 @@
 import mongoose from 'mongoose';
 import StaffProfile from './models/StaffProfile';
 import User from '../../models/User';
+import Branch from '../branch/models/Branch';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { hashPassword } from '../../utils/passwordHelpers';
+import * as managerService from './manager.service';
 
 /**
- * Format pure DTO for Staff Response (strictly adhering to OpenAPI StaffProfile schema)
+ * Format pure DTO for Staff Response (strictly adhering to OpenAPI StaffProfile schema, enriched for UI)
  */
-export const formatStaff = (profile, user = null) => {
+export const formatStaff = (profile, user = null, branchMap = null) => {
   const u = user || profile.userId;
+  const authorizedIds = (profile.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
+  const homeBranchIdStr = profile.homeBranchId ? (profile.homeBranchId?._id || profile.homeBranchId).toString() : null;
+
+  const assignedBranches = authorizedIds.map((bId) => {
+    if (branchMap && branchMap.has(bId)) {
+      const br = branchMap.get(bId);
+      return { id: bId, code: br.code || null, name: br.name || null };
+    }
+    return { id: bId, code: null, name: null };
+  });
+
+  const homeBranch = homeBranchIdStr && branchMap && branchMap.has(homeBranchIdStr)
+    ? { id: homeBranchIdStr, code: branchMap.get(homeBranchIdStr).code || null, name: branchMap.get(homeBranchIdStr).name || null }
+    : (homeBranchIdStr ? { id: homeBranchIdStr, code: null, name: null } : null);
+
   const dto = {
     id: profile._id.toString(),
     staffCode: profile.staffCode || null,
     joinedAt: profile.createdAt ? profile.createdAt.toISOString() : null,
     staffSubRole: profile.staffSubRole,
-    authorizedBranchIds: (profile.authorizedBranchIds || []).map((b) => (b?._id || b).toString()),
+    role: profile.staffSubRole,
+    authorizedBranchIds: authorizedIds,
+    assignedBranchIds: authorizedIds,
+    assignedBranches,
+    homeBranchId: homeBranchIdStr,
+    homeBranch,
     status: profile.status || 'ACTIVE',
   };
 
@@ -38,11 +60,6 @@ export const formatStaff = (profile, user = null) => {
   if (u?.accountStatus) {
     dto.accountStatus = u.accountStatus;
   }
-  if (profile.homeBranchId) {
-    dto.homeBranchId = (profile.homeBranchId?._id || profile.homeBranchId).toString();
-  } else {
-    dto.homeBranchId = null;
-  }
   if (profile.staffCode || u?.staffCode) {
     dto.staffCode = profile.staffCode || u?.staffCode;
   }
@@ -59,8 +76,14 @@ export const formatStaff = (profile, user = null) => {
  * List Staff with server-side filtering, cursor/pagination, and RBAC (OpenAPI StaffPage)
  */
 export const listStaff = async (query = {}, actor = null) => {
-  const { branchId, staffSubRole, role, limit = 20, cursor } = query;
-  const effectiveRole = staffSubRole || role;
+  const { branchId, staffSubRole, role, limit = 20, cursor, includeManagers } = query;
+  const effectiveRole = (staffSubRole || role || '').toUpperCase();
+
+  // If query is specifically requesting MANAGER role, delegate to managerService
+  if (effectiveRole === 'MANAGER') {
+    return managerService.listManagers(query, actor);
+  }
+
   const filter = {};
 
   if (actor) {
@@ -93,7 +116,7 @@ export const listStaff = async (query = {}, actor = null) => {
     ];
   }
 
-  if (effectiveRole) {
+  if (effectiveRole && effectiveRole !== 'STAFF') {
     filter.staffSubRole = effectiveRole;
   }
 
@@ -117,15 +140,53 @@ export const listStaff = async (query = {}, actor = null) => {
     nextCursor = nextItem._id.toString();
   }
 
+  // Collect branch IDs for batch enrichment
+  const branchIds = new Set();
+  profiles.forEach((p) => {
+    (p.authorizedBranchIds || []).forEach((b) => branchIds.add((b?._id || b).toString()));
+    if (p.homeBranchId) branchIds.add((p.homeBranchId?._id || p.homeBranchId).toString());
+  });
+
+  const branchMap = new Map();
+  if (branchIds.size > 0 && mongoose.connection.readyState === 1) {
+    try {
+      const branches = await Branch.find({ _id: { $in: Array.from(branchIds) } }).lean();
+      branches.forEach((b) => branchMap.set(b._id.toString(), b));
+    } catch (_e) {}
+  }
+
+  const staffItems = profiles.map((item) => formatStaff(item, item.userId, branchMap));
+
+  // If Admin views staff list without role filter or explicitly requests managers, include Managers
+  let finalItems = staffItems;
+  let finalTotalCount = totalCount;
+
+  if (
+    actor &&
+    actor.systemRole === 'ADMIN' &&
+    (!effectiveRole || includeManagers === 'true' || includeManagers === true) &&
+    includeManagers !== 'false' &&
+    !cursor &&
+    (mongoose.connection.readyState === 1 || User.find?._isMockFunction)
+  ) {
+    try {
+      const mgrResult = await managerService.listManagers({ branchId, search: query.search, limit: 100 }, actor);
+      if (mgrResult && mgrResult.items && mgrResult.items.length > 0) {
+        finalItems = [...mgrResult.items, ...staffItems];
+        finalTotalCount += mgrResult.totalCount || mgrResult.items.length;
+      }
+    } catch (_e) {}
+  }
+
   return {
-    items: profiles.map((item) => formatStaff(item, item.userId)),
-    totalCount,
+    items: finalItems,
+    totalCount: finalTotalCount,
     nextCursor,
   };
 };
 
 /**
- * Get Staff Profile by ID
+ * Get Staff Profile by ID (supports both StaffProfile and Manager User ID)
  */
 export const getStaffById = async (id, actor = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -138,6 +199,11 @@ export const getStaffById = async (id, actor = null) => {
   }
 
   if (!profile) {
+    // Check if ID is a Manager User account
+    const managerUser = await User.findOne({ _id: id, systemRole: 'MANAGER' });
+    if (managerUser) {
+      return managerService.getManagerById(id, actor);
+    }
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
   }
 
@@ -161,13 +227,33 @@ export const getStaffById = async (id, actor = null) => {
     }
   }
 
-  return formatStaff(profile, profile.userId);
+  // Branch map for enrichment
+  const branchIds = (profile.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
+  if (profile.homeBranchId) branchIds.push((profile.homeBranchId?._id || profile.homeBranchId).toString());
+  const branchMap = new Map();
+  if (branchIds.length > 0 && mongoose.connection.readyState === 1) {
+    try {
+      const branches = await Branch.find({ _id: { $in: branchIds } }).lean();
+      branches.forEach((b) => branchMap.set(b._id.toString(), b));
+    } catch (_e) {}
+  }
+
+  return formatStaff(profile, profile.userId, branchMap);
 };
 
 /**
- * Create Staff User + Profile Atomically (conforming to OpenAPI StaffCreate)
+ * Create Staff User + Profile Atomically (supports automatic delegation to managerService for MANAGER role)
  */
 export const createStaff = async (data, actor = null) => {
+  // If role is MANAGER, delegate directly to createManager
+  if (
+    (data.systemRole && data.systemRole.toUpperCase() === 'MANAGER') ||
+    (data.staffSubRole && data.staffSubRole.toUpperCase() === 'MANAGER') ||
+    (data.role && data.role.toUpperCase() === 'MANAGER')
+  ) {
+    return managerService.createManager(data, actor);
+  }
+
   const {
     fullName,
     email,
@@ -283,8 +369,15 @@ export const updateStaff = async (id, data, actor = null) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Invalid staff ID');
   }
 
-  const profile = await StaffProfile.findById(id).populate('userId');
+  let profile = await StaffProfile.findById(id).populate('userId');
   if (!profile) {
+    profile = await StaffProfile.findOne({ userId: id }).populate('userId');
+  }
+  if (!profile) {
+    const managerUser = await User.findOne({ _id: id, systemRole: 'MANAGER' });
+    if (managerUser) {
+      return managerService.updateManager(id, data, actor);
+    }
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
   }
 
@@ -320,18 +413,28 @@ export const updateStaff = async (id, data, actor = null) => {
 /**
  * Update Staff Branch assignments (conforming to OpenAPI StaffBranchesWrite)
  */
-export const updateStaffBranches = async (id, { homeBranchId, authorizedBranchIds = [] }, actor = null) => {
+export const updateStaffBranches = async (id, payload, actor = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Invalid staff ID');
   }
 
-  if (!authorizedBranchIds || authorizedBranchIds.length === 0) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'authorizedBranchIds must contain at least 1 branch');
+  const { homeBranchId, authorizedBranchIds = [], assignedBranchIds = [] } = payload;
+  const rawBranches = authorizedBranchIds.length > 0 ? authorizedBranchIds : assignedBranchIds;
+
+  let profile = await StaffProfile.findById(id).populate('userId');
+  if (!profile) {
+    profile = await StaffProfile.findOne({ userId: id }).populate('userId');
+  }
+  if (!profile) {
+    const managerUser = await User.findOne({ _id: id, systemRole: 'MANAGER' });
+    if (managerUser) {
+      return managerService.updateManagerBranches(id, payload, actor);
+    }
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
   }
 
-  const profile = await StaffProfile.findById(id).populate('userId');
-  if (!profile) {
-    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
+  if (!rawBranches || rawBranches.length === 0) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'authorizedBranchIds must contain at least 1 branch');
   }
 
   const user = profile.userId;

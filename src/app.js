@@ -42,6 +42,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import adminUsersRoutes from './modules/admin/adminUsers.routes.js';
 import shiftTemplateRoutes from './modules/branch/shiftTemplate.routes.js';
 import flashSaleRoutes from './modules/flash-sale/flashSale.routes.js';
+import managerRoutes from './modules/staff/manager.routes.js';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -198,6 +199,10 @@ app.use(async (req, res, next) => {
     rewriteUrl('/api/v1/auth/guest-otp', '/api/v1/guest/lookup/otp');
   } else if (req.url.startsWith('/api/v1/auth/activate-guest')) {
     rewriteUrl('/api/v1/auth/activate-guest', '/api/v1/activation/complete');
+  } else if (req.url.startsWith('/api/v1/staff') && req.method === 'POST') {
+    if (req.body && (req.body.systemRole === 'MANAGER' || req.body.staffSubRole === 'MANAGER' || req.body.role === 'MANAGER')) {
+      rewriteUrl('/api/v1/staff', '/api/v1/managers');
+    }
   }
 
   // Smart Product ID Resolver (Resolves codes, skus, slugs or numeric indexes before OpenAPI validator)
@@ -283,6 +288,16 @@ app.use(async (req, res, next) => {
     const isBranches = req.url.includes('/branches') || (req.originalUrl && req.originalUrl.includes('/branches')) || (req.path && req.path.includes('/branches'));
     if (isBranches) {
       delete req.query.status;
+    }
+
+    // Staff Query Normalizer
+    const isStaff = req.url.includes('/staff') || (req.originalUrl && req.originalUrl.includes('/staff')) || (req.path && req.path.includes('/staff'));
+    if (isStaff) {
+      if (req.query.role && !req.query.staffSubRole) {
+        req.query.staffSubRole = req.query.role;
+      }
+      delete req.query.role;
+      delete req.query.includeManagers;
     }
 
     // B. Availability Normalizer
@@ -656,11 +671,12 @@ app.use(
       if (path.includes('/shift-templates')) return true;
       if (path.includes('/contacts')) return true;
       if (path.includes('/repay')) return true;
+      if (path.includes('/managers')) return true;
       return false;
     },
     validateSecurity: {
       handlers: {
-        bearerAuth: (req, scopes, schema) => {
+        bearerAuth: async (req, scopes, schema) => {
           const authHeader = req.headers.authorization;
           if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
           const token = authHeader.split(' ')[1];
@@ -675,6 +691,28 @@ app.use(
               assignedBranchIds: decoded.assignedBranchIds || [],
               authorizedBranchIds: decoded.authorizedBranchIds || []
             };
+
+            const mongoose = require('mongoose');
+            if (mongoose.connection.readyState === 1 && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
+              try {
+                const User = require('./models/User').default || require('./models/User');
+                const liveUser = await User.findById(decoded.id)
+                  .select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil')
+                  .lean();
+                if (liveUser) {
+                  if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
+                    return false;
+                  }
+                  req.actor.systemRole = liveUser.systemRole || req.actor.systemRole;
+                  req.actor.staffSubRole = liveUser.staffSubRole || req.actor.staffSubRole;
+                  if (Array.isArray(liveUser.assignedBranchIds)) {
+                    req.actor.assignedBranchIds = liveUser.assignedBranchIds.map((b) => (b?._id || b).toString());
+                    req.actor.authorizedBranchIds = req.actor.assignedBranchIds;
+                  }
+                }
+              } catch (_e) {}
+            }
+
             return true;
           } catch (e) {
             return false;
@@ -757,6 +795,8 @@ app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/admin/users', adminUsersRoutes);
+app.use('/api/v1/managers', managerRoutes);
+app.use('/api/v1/admin/managers', managerRoutes);
 app.use('/api/v1/shift-templates', shiftTemplateRoutes);
 app.use('/api/v1/flash-sales', flashSaleRoutes);
 app.use('/api/v1/admin', adminContentRoutes);

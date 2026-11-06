@@ -1825,6 +1825,7 @@ export const runProductionUatSeed = async () => {
             $set: {
               code: srCode,
               appointmentId: savedApt._id,
+              customerId: savedApt.customerId,
               petId: apt.pet._id,
               branchId: branch1._id,
               serviceIds: [apt.service._id],
@@ -1860,6 +1861,7 @@ export const runProductionUatSeed = async () => {
             $set: {
               code: srCode,
               appointmentId: savedApt._id,
+              customerId: savedApt.customerId,
               petId: apt.pet._id,
               branchId: branch1._id,
               serviceIds: [apt.service._id],
