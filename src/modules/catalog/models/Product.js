@@ -73,6 +73,8 @@ const schema = new mongoose.Schema({
     ],
   },
   nextSkuSeq: { type: Number, default: 1 },
+  ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
+  ratingCount: { type: Number, default: 0, min: 0 },
   status: { type: String, enum: ['ACTIVE', 'INACTIVE', 'ARCHIVED'], default: 'ACTIVE', index: true },
   archivedAt: { type: Date, default: null },
 }, { timestamps: true });

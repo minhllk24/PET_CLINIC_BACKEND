@@ -15,7 +15,11 @@ const orderItemSchema = new mongoose.Schema({
   lineNet: Number,
   returnReservedQty: { type: Number, default: 0 },
   returnedQty: { type: Number, default: 0 },
-  refundedNet: { type: Number, default: 0 }
+  refundedNet: { type: Number, default: 0 },
+  flashSaleId: { type: mongoose.Schema.Types.ObjectId, ref: 'FlashSale', default: null },
+  flashSaleApplied: { type: Boolean, default: false },
+  flashSaleOriginalPrice: { type: Number, default: null },
+  flashSaleQuotaReleased: { type: Boolean, default: false }
 });
 
 const schema = new mongoose.Schema({

@@ -157,6 +157,7 @@ describe('Integration Test: Content Studio, Community & Rescue (CM-01..15)', () 
         species: 'CAT',
         healthStatus: 'Khỏe mạnh, đã tiêm phòng dại',
         rescueStory: 'Được cứu hộ từ bờ kênh',
+        images: ['https://cdn.petclinic.vn/rescue/miu.jpg'],
         supportPartnerId: 'partner-01',
         supportPartnerName: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
         ownershipType: 'PARTNER_MAINTAINED',

@@ -3,6 +3,7 @@ import Feedback from './models/Feedback';
 import Customer from '../customer/models/Customer';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
+import { sendFeedbackReplyEmail } from '../../shared/emailOutbox.service';
 
 const ALLOWED_TRANSITIONS = {
   NEW: ['READ', 'PROCESSING', 'REJECTED'],
@@ -198,29 +199,69 @@ export const replyFeedback = async (id, data = {}, actor = {}) => {
   const subject = data.subject || `[Dr.Pet Clinic] Phản hồi yêu cầu: ${feedback.subject}`;
   const now = new Date();
 
-  feedback.responseMessage = message.trim();
-  feedback.replyDelivery = {
+  // Send email through real EmailOutbox service
+  const recipientEmail = feedback.email || feedback.customerEmail || data.toEmail;
+  const emailResult = await sendFeedbackReplyEmail({
+    to: recipientEmail,
     subject,
     message: message.trim(),
-    deliveryStatus: 'SENT',
-    sentAt: now,
-    sentBy: actor.id,
-    providerMessageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-  };
-
-  // If status is not completed, auto transition to PROCESSED or targetStatus
-  const nextStatus = data.status || (['NEW', 'READ', 'PROCESSING'].includes(feedback.status) ? 'PROCESSED' : feedback.status);
-  feedback.status = nextStatus;
-  feedback.processedBy = actor.id;
-  feedback.processedAt = now;
-
-  feedback.statusHistory = feedback.statusHistory || [];
-  feedback.statusHistory.push({
-    status: nextStatus,
-    notes: `Sent email reply: "${subject}"`,
+    feedbackId: feedback._id,
     actorId: actor.id,
-    at: now,
+    idempotencyKey: data.idempotencyKey,
+    forceFail: Boolean(data.simulateEmailFailure),
   });
+
+  feedback.responseMessage = message.trim();
+
+  if (emailResult.success) {
+    feedback.replyDelivery = {
+      subject,
+      message: message.trim(),
+      deliveryStatus: 'SENT',
+      sentAt: now,
+      sentBy: actor.id,
+      providerMessageId: emailResult.providerMessageId,
+      outboxId: emailResult.outbox?._id,
+      errorMessage: null,
+    };
+
+    const nextStatus = data.status || (['NEW', 'READ', 'PROCESSING'].includes(feedback.status) ? 'PROCESSED' : feedback.status);
+    feedback.status = nextStatus;
+    feedback.processedBy = actor.id;
+    feedback.processedAt = now;
+
+    feedback.statusHistory = feedback.statusHistory || [];
+    feedback.statusHistory.push({
+      status: nextStatus,
+      notes: `Sent email reply: "${subject}" (MessageId: ${emailResult.providerMessageId})`,
+      actorId: actor.id,
+      at: now,
+    });
+  } else {
+    // Delivery failed: BE-FIX-04 requires deliveryStatus=FAILED and status keeps PROCESSING (no false success)
+    feedback.replyDelivery = {
+      subject,
+      message: message.trim(),
+      deliveryStatus: 'FAILED',
+      failedAt: now,
+      sentBy: actor.id,
+      providerMessageId: null,
+      errorMessage: emailResult.error || 'Email sending failed',
+      outboxId: emailResult.outbox?._id,
+    };
+
+    // Keep status as PROCESSING
+    feedback.status = 'PROCESSING';
+    feedback.processedBy = actor.id;
+
+    feedback.statusHistory = feedback.statusHistory || [];
+    feedback.statusHistory.push({
+      status: 'PROCESSING',
+      notes: `Failed to deliver email reply: ${emailResult.error || 'Unknown error'}`,
+      actorId: actor.id,
+      at: now,
+    });
+  }
 
   await feedback.save();
   return formatFeedback(feedback);

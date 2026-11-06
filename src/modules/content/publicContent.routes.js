@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { authenticate, optionalAuth } from '../../shared/authMiddleware.js';
 import * as contentController from './content.controller.js';
+import { getRescuePartnersList, getRescueStationsList, getEmergencyHotline } from './content.service.js';
 
 const router = express.Router();
 
@@ -70,58 +71,38 @@ router.post('/community/posts/:id/unlike', authenticate, contentController.unlik
 // =========================================================================
 // 3. RESCUE PETS & ADOPTIONS
 // =========================================================================
-router.get(['/rescue/partners', '/public/rescue/partners'], (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: [
-      { id: 'partner-01', code: 'SGT', name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time', phone: '0901234561', location: 'TP. Hồ Chí Minh' },
-      { id: 'partner-02', code: 'SAR', name: 'Nhóm Cứu Hộ Động Vật SAR', phone: '0901234562', location: 'TP. Hồ Chí Minh' },
-      { id: 'partner-03', code: 'MAYT', name: 'Mái Ấm Yêu Thương Pet Shelter', phone: '0901234563', location: 'Bình Dương' },
-      { id: 'partner-04', code: 'TCNL', name: 'Trạm Cứu Trợ Động Vật Nông Lâm', phone: '0901234564', location: 'TP. Thủ Đức' },
-      { id: 'partner-05', code: 'HPR', name: 'Hanoi Pet Rescue (Chi nhánh miền Nam)', phone: '0901234565', location: 'TP. Hồ Chí Minh' },
-      { id: 'partner-06', code: 'DCHLT', name: 'Đội Cứu Hộ Động Vật Lang Thang VN', phone: '0901234566', location: 'Đồng Nai' },
-    ],
-  });
+router.get(['/rescue/partners', '/public/rescue/partners'], async (req, res, next) => {
+  try {
+    const [partners, emergencyHotline] = await Promise.all([
+      getRescuePartnersList(),
+      getEmergencyHotline(),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: partners,
+      emergencyHotline,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get(['/rescue/pets', '/adoptions/pets', '/public/rescue/pets'], contentController.getRescuePetsPublic);
 router.get(['/rescue/pets/:id', '/public/rescue/pets/:id'], contentController.getRescuePetById);
-router.get(['/rescue/stations', '/public/rescue/stations'], (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: [
-      {
-        id: 'station-1',
-        station_id: 'station-1',
-        name: 'Vietnam Animal Welfare Association (VAWA)',
-        station_name: 'Vietnam Animal Welfare Association (VAWA)',
-        fanpage_url: 'https://www.facebook.com/vawa.org/',
-        address: '675B Nguyễn Kiệm, Phường 9, Quận Phú Nhuận, TP.HCM',
-        phone: '0901234567',
-        status: 'active',
-      },
-      {
-        id: 'station-2',
-        station_id: 'station-2',
-        name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
-        station_name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
-        fanpage_url: 'https://www.facebook.com/savesgt',
-        address: 'Foster House, TP. Hồ Chí Minh',
-        phone: '0912345678',
-        status: 'active',
-      },
-      {
-        id: 'station-3',
-        station_id: 'station-3',
-        name: 'Nhóm cứu hộ Sân Nhà Nhiều Chó',
-        station_name: 'Nhóm cứu hộ Sân Nhà Nhiều Chó',
-        fanpage_url: 'https://www.facebook.com/Sannhanhieucho',
-        address: 'Hà Nội & TP. Hồ Chí Minh',
-        phone: '0923456789',
-        status: 'active',
-      },
-    ],
-  });
+router.get(['/rescue/stations', '/public/rescue/stations'], async (req, res, next) => {
+  try {
+    const [stations, emergencyHotline] = await Promise.all([
+      getRescueStationsList(),
+      getEmergencyHotline(),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: stations,
+      emergencyHotline,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post(['/rescue/requests', '/adoptions/requests'], optionalAuth, contentController.createAdoptionRequest);

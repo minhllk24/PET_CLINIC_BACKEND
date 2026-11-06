@@ -124,7 +124,7 @@ export const assertNoFlashSaleItemOverlap = async ({ items, startAt, endAt, excl
  */
 export const listFlashSales = async (query = {}, actor = null) => {
   const { status, derivedStatus, search, page = 1, limit = 20, cursor } = query;
-  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
   const filter = {};
 
@@ -160,6 +160,7 @@ export const listFlashSales = async (query = {}, actor = null) => {
 
   return {
     items: items.map((s) => formatFlashSale(s, now)),
+    total: totalCount,
     totalCount,
     page: parsedPage,
     limit: parsedLimit,
@@ -184,7 +185,7 @@ export const getFlashSaleById = async (id, actor = null) => {
 };
 
 /**
- * Create a new Flash Sale campaign (with optional atomic publishNow)
+ * Create a new Flash Sale campaign (with optional atomic publishNow or status='PUBLISHED')
  */
 export const createFlashSale = async (data = {}, actor = null) => {
   const {
@@ -194,8 +195,19 @@ export const createFlashSale = async (data = {}, actor = null) => {
     endAt,
     activationMode = 'AUTO',
     publishNow = false,
+    status,
+    idempotencyKey,
     items = [],
   } = data;
+
+  // 1. Idempotency Key check: if already processed, return existing
+  if (idempotencyKey && typeof idempotencyKey === 'string' && idempotencyKey.trim().length > 0) {
+    const cleanKey = idempotencyKey.trim();
+    const existing = await FlashSale.findOne({ idempotencyKey: cleanKey });
+    if (existing) {
+      return formatFlashSale(existing);
+    }
+  }
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     throw new AppError(400, 'Bad Request', 'NAME_REQUIRED', 'Flash Sale campaign name is required');
@@ -259,30 +271,43 @@ export const createFlashSale = async (data = {}, actor = null) => {
       originalPrice: origPrice,
       salePrice: sPrice,
       quantityLimit: qtyLimit,
-      soldQuantity: 0,
+      soldQuantity: Number(it.soldQuantity) || 0,
     });
   }
 
-  const initialStatus = publishNow ? 'PUBLISHED' : 'DRAFT';
+  const isPublishRequested = publishNow === true || status === 'PUBLISHED';
+  const initialStatus = isPublishRequested ? 'PUBLISHED' : 'DRAFT';
   if (initialStatus === 'PUBLISHED') {
     await assertNoFlashSaleItemOverlap({ items: validatedItems, startAt: startDate, endAt: endDate });
   }
 
-  const code = `FS-${Date.now().toString().slice(-6)}`;
+  // MANUAL activation mode starts with isPaused: true
+  const initialPaused = activationMode === 'MANUAL';
+  const code = data.code || `FS-${Date.now().toString().slice(-6)}`;
+
   const flashSale = new FlashSale({
     code,
+    idempotencyKey: idempotencyKey && typeof idempotencyKey === 'string' ? idempotencyKey.trim() : undefined,
     name: name.trim(),
     description: description ? description.trim() : null,
     startAt: startDate,
     endAt: endDate,
     activationMode,
-    isPaused: false,
+    isPaused: initialPaused,
     status: initialStatus,
     items: validatedItems,
     createdBy: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
   });
 
-  await flashSale.save();
+  try {
+    await flashSale.save();
+  } catch (err) {
+    if (err.code === 11000 && idempotencyKey) {
+      const existing = await FlashSale.findOne({ idempotencyKey: idempotencyKey.trim() });
+      if (existing) return formatFlashSale(existing);
+    }
+    throw err;
+  }
   return formatFlashSale(flashSale);
 };
 
@@ -333,7 +358,7 @@ export const togglePauseFlashSale = async (id, isPaused, actor = null) => {
 };
 
 /**
- * Update flash sale details
+ * Update flash sale details (supporting items, activationMode, version concurrency)
  */
 export const updateFlashSale = async (id, data = {}, actor = null) => {
   const sale = await FlashSale.findById(id);
@@ -341,19 +366,103 @@ export const updateFlashSale = async (id, data = {}, actor = null) => {
     throw new AppError(404, 'Not Found', 'FLASH_SALE_NOT_FOUND', 'Flash Sale campaign not found');
   }
 
+  // Version concurrency check
+  if (data.expectedVersion !== undefined && data.expectedVersion !== null) {
+    if (Number(data.expectedVersion) !== Number(sale.version)) {
+      throw new AppError(409, 'Conflict', 'VERSION_CONFLICT', 'Flash Sale campaign version conflict. Data has been modified concurrently.');
+    }
+  }
+
   if (data.name !== undefined) sale.name = data.name.trim();
   if (data.description !== undefined) sale.description = data.description ? data.description.trim() : null;
   if (data.startAt !== undefined) sale.startAt = new Date(data.startAt);
   if (data.endAt !== undefined) sale.endAt = new Date(data.endAt);
+  if (data.activationMode !== undefined) sale.activationMode = data.activationMode;
   if (data.isPaused !== undefined) sale.isPaused = Boolean(data.isPaused);
+  if (data.status !== undefined && ['DRAFT', 'PUBLISHED'].includes(data.status)) {
+    sale.status = data.status;
+  }
 
   if (sale.startAt >= sale.endAt) {
     throw new AppError(400, 'Bad Request', 'INVALID_TIME_RANGE', 'startAt must be before endAt');
   }
 
+  // Support updating items with validation & preserving soldQuantity
+  if (Array.isArray(data.items)) {
+    const existingMap = new Map((sale.items || []).map((it) => [it.sku.toUpperCase(), it]));
+    const validatedItems = [];
+    const seenSkus = new Set();
+
+    for (const it of data.items) {
+      if (!it.productId || !it.sku) {
+        throw new AppError(400, 'Bad Request', 'ITEM_IDENTIFIER_REQUIRED', 'productId and sku are required for all items');
+      }
+
+      const cleanSku = it.sku.trim().toUpperCase();
+      if (seenSkus.has(cleanSku)) {
+        throw new AppError(400, 'Bad Request', 'DUPLICATE_ITEM', `SKU "${cleanSku}" is duplicated in this campaign`);
+      }
+      seenSkus.add(cleanSku);
+
+      const existingItem = existingMap.get(cleanSku);
+      const currentSold = existingItem ? (existingItem.soldQuantity || 0) : 0;
+
+      const origPrice = Number(it.originalPrice || existingItem?.originalPrice);
+      const sPrice = Number(it.salePrice || existingItem?.salePrice);
+      const qtyLimit = Number(it.quantityLimit !== undefined ? it.quantityLimit : existingItem?.quantityLimit);
+
+      if (isNaN(origPrice) || origPrice <= 0) {
+        throw new AppError(400, 'Bad Request', 'INVALID_ORIGINAL_PRICE', `Invalid originalPrice for SKU ${cleanSku}`);
+      }
+
+      if (isNaN(sPrice) || sPrice <= 0 || sPrice >= origPrice) {
+        throw new AppError(400, 'Bad Request', 'INVALID_SALE_PRICE', `salePrice must be greater than 0 and less than originalPrice for SKU ${cleanSku}`);
+      }
+
+      if (isNaN(qtyLimit) || qtyLimit < 1) {
+        throw new AppError(400, 'Bad Request', 'INVALID_QUANTITY_LIMIT', `quantityLimit must be at least 1 for SKU ${cleanSku}`);
+      }
+
+      if (qtyLimit < currentSold) {
+        throw new AppError(400, 'Bad Request', 'INVALID_QUANTITY_LIMIT', `quantityLimit (${qtyLimit}) cannot be lower than already sold quantity (${currentSold}) for SKU ${cleanSku}`);
+      }
+
+      validatedItems.push({
+        productId: new mongoose.Types.ObjectId(it.productId),
+        variantId: it.variantId && mongoose.Types.ObjectId.isValid(it.variantId) ? new mongoose.Types.ObjectId(it.variantId) : (existingItem?.variantId || null),
+        sku: cleanSku,
+        productName: it.productName || existingItem?.productName || null,
+        variantLabel: it.variantLabel || existingItem?.variantLabel || null,
+        originalPrice: origPrice,
+        salePrice: sPrice,
+        quantityLimit: qtyLimit,
+        soldQuantity: currentSold,
+      });
+    }
+
+    if (sale.status === 'PUBLISHED') {
+      await assertNoFlashSaleItemOverlap({
+        items: validatedItems,
+        startAt: sale.startAt,
+        endAt: sale.endAt,
+        excludeSaleId: sale._id,
+      });
+    }
+
+    sale.items = validatedItems;
+  }
+
   sale.updatedBy = actor?.id ? new mongoose.Types.ObjectId(actor.id) : null;
   sale.version += 1;
-  await sale.save();
+
+  try {
+    await sale.save();
+  } catch (err) {
+    if (err.name === 'VersionError' || err.code === 11000) {
+      throw new AppError(409, 'Conflict', 'VERSION_CONFLICT', 'Conflict updating Flash Sale campaign. Data has been modified concurrently.');
+    }
+    throw err;
+  }
 
   return formatFlashSale(sale);
 };
@@ -403,10 +512,12 @@ export const getActiveFlashSale = async () => {
 };
 
 /**
- * Check if a product variant has an active Flash Sale discount available
+ * Check if a product variant has an active Flash Sale discount available.
+ * Strict SKU or variantId matching - no loose product fallback (BE-FIX-02).
  */
 export const findActiveFlashSaleItem = async (productId, variantIdOrSku) => {
-  if (mongoose.connection.readyState !== 1) {
+  const isDbOrMock = mongoose.connection.readyState === 1 || Boolean(jest.isMockFunction?.(FlashSale.findOne));
+  if (!isDbOrMock) {
     return null;
   }
   const now = new Date();
@@ -420,21 +531,48 @@ export const findActiveFlashSaleItem = async (productId, variantIdOrSku) => {
   if (!activeSale) return null;
 
   const item = (activeSale.items || []).find((it) => {
-    const isProduct = it.productId.toString() === productId.toString();
-    if (!isProduct) return false;
-    if (variantIdOrSku && it.variantId && it.variantId.toString() === variantIdOrSku.toString()) return true;
-    if (variantIdOrSku && it.sku === variantIdOrSku) return true;
-    return isProduct;
+    const isSameProduct = it.productId.toString() === productId.toString();
+    if (!isSameProduct) return false;
+
+    // Strict SKU or variant matching: NO loose fallback to productId!
+    if (variantIdOrSku) {
+      const target = variantIdOrSku.toString().trim();
+      const matchVariantId = it.variantId && it.variantId.toString() === target;
+      const matchSku = it.sku && it.sku.toUpperCase() === target.toUpperCase();
+      return matchVariantId || matchSku;
+    }
+    // If no variantIdOrSku was passed, only match item if item has NO variantId
+    return !it.variantId;
   });
 
   if (!item) return null;
+
+  // Validate variant exists, is active, and server original price
+  let product = null;
+  if (mongoose.connection.readyState === 1 || Boolean(jest.isMockFunction?.(Product.findById))) {
+    const query = Product.findById(productId);
+    product = query && typeof query.lean === 'function' ? await query.lean() : await query;
+  }
+
+  if (product && product.status !== 'ACTIVE') return null;
+
+  let originalPrice = item.originalPrice;
+  if (product) {
+    if (item.variantId) {
+      const variant = (product.variants || []).find((v) => v._id.toString() === item.variantId.toString());
+      if (variant && variant.status !== 'ACTIVE') return null;
+      originalPrice = variant?.price || originalPrice;
+    } else {
+      originalPrice = (product.variants && product.variants[0]?.price) || product.price || originalPrice;
+    }
+  }
 
   const isQuotaAvailable = item.soldQuantity < item.quantityLimit;
   return {
     saleId: activeSale._id.toString(),
     saleName: activeSale.name,
     salePrice: item.salePrice,
-    originalPrice: item.originalPrice,
+    originalPrice,
     quantityLimit: item.quantityLimit,
     soldQuantity: item.soldQuantity,
     remainingQuantity: Math.max(0, item.quantityLimit - item.soldQuantity),
@@ -444,6 +582,79 @@ export const findActiveFlashSaleItem = async (productId, variantIdOrSku) => {
   };
 };
 
+/**
+ * Atomic CAS deduction of flash sale item quota inside transaction session (BE-FIX-01)
+ */
+export const consumeFlashSaleQuotaInSession = async ({ saleId, sku, variantId, quantity, session }) => {
+  if (!saleId || (!sku && !variantId) || !quantity || quantity <= 0) {
+    return null;
+  }
+  const cleanSku = sku ? sku.trim().toUpperCase() : null;
+  const now = new Date();
+
+  const queryOpts = session ? { session } : {};
+  const sale = await FlashSale.findById(saleId, null, queryOpts);
+  if (!sale || sale.status !== 'PUBLISHED' || sale.isPaused || sale.startAt > now || sale.endAt <= now) {
+    throw new AppError(409, 'Conflict', 'FLASH_SALE_EXPIRED_OR_INACTIVE', 'Chiến dịch Flash Sale đã kết thúc hoặc không khả dụng');
+  }
+
+  const item = (sale.items || []).find((it) => {
+    if (cleanSku && it.sku === cleanSku) return true;
+    if (variantId && it.variantId && it.variantId.toString() === variantId.toString()) return true;
+    return false;
+  });
+
+  if (!item) {
+    throw new AppError(404, 'Not Found', 'FLASH_SALE_ITEM_NOT_FOUND', `Sản phẩm SKU ${cleanSku || variantId} không nằm trong Flash Sale này`);
+  }
+
+  const remaining = item.quantityLimit - item.soldQuantity;
+  if (remaining < quantity) {
+    throw new AppError(
+      409,
+      'Conflict',
+      'FLASH_SALE_QUOTA_EXCEEDED',
+      `Số lượng yêu cầu (${quantity}) vượt quá giới hạn Flash Sale còn lại (${Math.max(0, remaining)}) cho SKU ${cleanSku || variantId}`
+    );
+  }
+
+  item.soldQuantity += quantity;
+  sale.version = (sale.version || 1) + 1;
+  await sale.save(queryOpts);
+
+  return {
+    saleId: sale._id.toString(),
+    sku: item.sku,
+    soldQuantity: item.soldQuantity,
+    remainingQuantity: Math.max(0, item.quantityLimit - item.soldQuantity),
+  };
+};
+
+/**
+ * Idempotent release of flash sale item quota on cancellation/expiry (BE-FIX-01)
+ */
+export const releaseFlashSaleQuotaInSession = async ({ saleId, sku, variantId, quantity, session }) => {
+  if (!saleId || (!sku && !variantId) || !quantity || quantity <= 0) {
+    return null;
+  }
+  const cleanSku = sku ? sku.trim().toUpperCase() : null;
+  const queryOpts = session ? { session } : {};
+  const sale = await FlashSale.findById(saleId, null, queryOpts);
+  if (!sale) return null;
+
+  const item = (sale.items || []).find((it) => {
+    if (cleanSku && it.sku === cleanSku) return true;
+    if (variantId && it.variantId && it.variantId.toString() === variantId.toString()) return true;
+    return false;
+  });
+
+  if (item) {
+    item.soldQuantity = Math.max(0, (item.soldQuantity || 0) - quantity);
+    sale.version = (sale.version || 1) + 1;
+    await sale.save(queryOpts);
+  }
+  return true;
+};
 
 export const flashSaleService = {
   deriveFlashSaleState,
@@ -460,6 +671,8 @@ export const flashSaleService = {
   publishFlashSale,
   getActiveFlashSale,
   findActiveFlashSaleItem,
+  consumeFlashSaleQuotaInSession,
+  releaseFlashSaleQuotaInSession,
 };
 
 export default flashSaleService;

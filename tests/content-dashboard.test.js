@@ -143,6 +143,7 @@ describe('Task 4.8: Content Management & Real-data Dashboard (Phase 1, 2, 3)', (
         ageDescription: '5 tháng tuổi',
         healthStatus: 'Khỏe mạnh, đã tiêm 1 mũi',
         rescueStory: 'Được tìm thấy gần công viên...',
+        images: ['https://cdn.petclinic.vn/rescue/miu.jpg'],
       });
 
       expect(pet.petCode).toBe('RES-0006');

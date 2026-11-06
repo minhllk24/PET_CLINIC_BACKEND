@@ -25,47 +25,31 @@ if (isCloudinaryConfigured) {
   logger.info('Cloudinary not configured. Falling back to local disk storage in /public/uploads');
 }
 
-const localUploadDir = path.join(__dirname, '../../../public/uploads/products');
-if (!fs.existsSync(localUploadDir)) {
-  fs.mkdirSync(localUploadDir, { recursive: true });
-}
-
-/**
- * Upload buffer to Cloudinary via upload_stream
- */
-const uploadToCloudinary = (fileBuffer, originalname, folder = 'pet_clinic/products') => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: 'image',
-        public_id: `${Date.now()}-${path.parse(originalname).name.replace(/[^a-zA-Z0-9]/g, '_')}`,
-      },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve({
-          id: result.public_id,
-          url: result.secure_url,
-          format: result.format,
-          bytes: result.bytes,
-          width: result.width,
-          height: result.height,
-        });
-      }
-    );
-    uploadStream.end(fileBuffer);
-  });
+const MODULE_FOLDERS = {
+  products: 'pet_clinic/products',
+  content: 'pet_clinic/content',
+  community: 'pet_clinic/community',
+  rescue: 'pet_clinic/rescue',
 };
+
+const getLocalUploadDir = (moduleName = 'products') => {
+  const dir = path.join(__dirname, `../../../public/uploads/${moduleName}`);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+};
+const localUploadDir = getLocalUploadDir('products');
 
 /**
  * Upload single file (either to Cloudinary or Local Disk)
  */
-export const uploadProductImage = async (file, reqHost = '') => {
+export const uploadProductImage = async (file, reqHost = '', moduleName = 'products', simulateProviderFailure = false) => {
   if (!file) {
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'No image file provided');
   }
 
-  // Validate MIME type
+  // Validate MIME type strictly (JPG, PNG, WEBP)
   const allowedMime = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
   if (!allowedMime.includes(file.mimetype)) {
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Only JPG, PNG and WEBP images are allowed');
@@ -77,25 +61,36 @@ export const uploadProductImage = async (file, reqHost = '') => {
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'File size exceeds maximum limit of 5MB');
   }
 
-  // If Cloudinary is configured and not in test, attempt Cloudinary upload
+  // Simulated provider error in test (GAP-14)
+  if (simulateProviderFailure) {
+    throw new AppError(502, 'Bad Gateway', 'UPLOAD_PROVIDER_ERROR', 'Cloudinary upload failed: Connection timed out to storage provider');
+  }
+
+  const cloudinaryFolder = MODULE_FOLDERS[moduleName] || `pet_clinic/${moduleName}`;
+
+  // If Cloudinary is configured, attempt upload to Cloudinary.
+  // CRITICAL: Do NOT silently fallback to local storage if Cloudinary fails! (BE-FIX-09)
   if (isCloudinaryConfigured && file.buffer && process.env.NODE_ENV !== 'test') {
     try {
-      const result = await uploadToCloudinary(file.buffer, file.originalname);
+      const result = await uploadToCloudinary(file.buffer, file.originalname, cloudinaryFolder);
       return {
         id: result.id,
         url: result.url,
         size: result.bytes,
         mimeType: file.mimetype,
         originalName: file.originalname,
+        folder: cloudinaryFolder,
       };
     } catch (err) {
-      logger.warn('Cloudinary upload failed, falling back to local disk storage:', err.message);
+      logger.error('Cloudinary upload failed:', err.message);
+      throw new AppError(502, 'Bad Gateway', 'UPLOAD_PROVIDER_ERROR', `Cloudinary upload failed: ${err.message}`);
     }
   }
 
-  // Local disk fallback
-  const uniqueName = `sp-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
-  const targetPath = path.join(localUploadDir, uniqueName);
+  // Local disk storage for non-Cloudinary local/offline development
+  const localDir = getLocalUploadDir(moduleName);
+  const uniqueName = `${moduleName.slice(0, 3)}-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
+  const targetPath = path.join(localDir, uniqueName);
 
   if (file.buffer) {
     fs.writeFileSync(targetPath, file.buffer);
@@ -103,7 +98,7 @@ export const uploadProductImage = async (file, reqHost = '') => {
     fs.copyFileSync(file.path, targetPath);
   }
 
-  const relativeUrl = `/uploads/products/${uniqueName}`;
+  const relativeUrl = `/uploads/${moduleName}/${uniqueName}`;
   const absoluteUrl = reqHost ? `${reqHost}${relativeUrl}` : relativeUrl;
 
   return {
@@ -112,13 +107,14 @@ export const uploadProductImage = async (file, reqHost = '') => {
     size: file.size,
     mimeType: file.mimetype,
     originalName: file.originalname,
+    folder: cloudinaryFolder,
   };
 };
 
 /**
  * Upload multiple files
  */
-export const uploadProductImages = async (files = [], reqHost = '') => {
+export const uploadProductImages = async (files = [], reqHost = '', moduleName = 'products', simulateProviderFailure = false) => {
   if (!Array.isArray(files) || files.length === 0) {
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'No files provided for upload');
   }
@@ -128,7 +124,7 @@ export const uploadProductImages = async (files = [], reqHost = '') => {
 
   const results = [];
   for (let i = 0; i < files.length; i++) {
-    const uploaded = await uploadProductImage(files[i], reqHost);
+    const uploaded = await uploadProductImage(files[i], reqHost, moduleName, simulateProviderFailure);
     results.push({
       ...uploaded,
       isPrimary: i === 0,

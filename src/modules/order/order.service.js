@@ -13,6 +13,7 @@ import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
 import { validateVoucherEligibility, calculateDiscount, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
+import { findActiveFlashSaleItem, consumeFlashSaleQuotaInSession, releaseFlashSaleQuotaInSession } from '../flash-sale/flashSale.service';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -129,13 +130,29 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     }
     const prodImg = product.images?.find((i) => i.isPrimary)?.url || product.images?.[0]?.url || product.image || product.thumbnailUrl || null;
     let effectiveUnitPrice = variant.finalPrice || variant.price;
+    let appliedFlashSale = null;
     try {
-      const { findActiveFlashSaleItem } = require('../flash-sale/flashSale.service');
       const fsItem = await findActiveFlashSaleItem(item.productId, item.variantId || variant.sku);
       if (fsItem && fsItem.isQuotaAvailable && fsItem.salePrice < effectiveUnitPrice) {
+        if (item.quantity > fsItem.remainingQuantity) {
+          throw new AppError(
+            409,
+            'Conflict',
+            'FLASH_SALE_QUOTA_EXCEEDED',
+            `Số lượng yêu cầu (${item.quantity}) vượt quá giới hạn Flash Sale còn lại (${fsItem.remainingQuantity}) cho SKU ${variant.sku}`
+          );
+        }
         effectiveUnitPrice = fsItem.salePrice;
+        appliedFlashSale = {
+          saleId: fsItem.saleId,
+          originalPrice: fsItem.originalPrice,
+          salePrice: fsItem.salePrice,
+          remainingQuantity: fsItem.remainingQuantity,
+        };
       }
-    } catch {}
+    } catch (fsErr) {
+      if (fsErr.statusCode === 409) throw fsErr;
+    }
 
     resolvedItems.push({
       productId: item.productId,
@@ -146,7 +163,8 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       image: prodImg,
       photoUrl: prodImg,
       quantity: item.quantity,
-      unitPrice: effectiveUnitPrice
+      unitPrice: effectiveUnitPrice,
+      flashSale: appliedFlashSale,
     });
   }
 
@@ -242,6 +260,19 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           });
         }
 
+        // Consume Flash Sale quota atomically with CAS in session
+        for (const rItem of resolvedItems) {
+          if (rItem.flashSale && rItem.flashSale.saleId) {
+            await consumeFlashSaleQuotaInSession({
+              saleId: rItem.flashSale.saleId,
+              sku: rItem.skuSnapshot,
+              variantId: rItem.variantId,
+              quantity: rItem.quantity,
+              session,
+            });
+          }
+        }
+
         const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
         let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
         const isFreeShipVoucher = appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING');
@@ -302,6 +333,10 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
             lineSubtotal,
             allocatedDiscount,
             lineNet,
+            flashSaleId: item.flashSale ? item.flashSale.saleId : null,
+            flashSaleApplied: Boolean(item.flashSale),
+            flashSaleOriginalPrice: item.flashSale ? item.flashSale.originalPrice : null,
+            flashSaleQuotaReleased: false,
             returnReservedQty: 0,
             returnedQty: 0,
             refundedNet: 0
@@ -949,6 +984,23 @@ export const cancelOrder = async (orderId, actor, reason = 'Cancelled', isCustom
         targetId: order._id,
         session
       });
+    }
+
+    // Restore flash sale quota idempotently
+    if (Array.isArray(order.items)) {
+      for (const it of order.items) {
+        if (it.flashSaleId && it.flashSaleApplied && !it.flashSaleQuotaReleased) {
+          await releaseFlashSaleQuotaInSession({
+            saleId: it.flashSaleId,
+            sku: it.skuSnapshot,
+            variantId: it.variantId,
+            quantity: it.quantity,
+            session,
+          });
+          it.flashSaleQuotaReleased = true;
+        }
+      }
+      await order.save({ session });
     }
 
     await session.commitTransaction();

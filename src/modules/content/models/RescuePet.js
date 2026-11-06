@@ -12,6 +12,8 @@ const rescuePetSchema = new mongoose.Schema({
   supportNeeds: { type: String, trim: true, default: null },
   supportPartnerId: { type: String, trim: true, default: null },
   supportPartnerName: { type: String, trim: true, default: null },
+  supportPartnerPhone: { type: String, trim: true, default: null },
+  supportPartnerUrl: { type: String, trim: true, default: null },
   ownershipType: {
     type: String,
     enum: ['PARTNER_MAINTAINED', 'DR_PET_LEGACY'],

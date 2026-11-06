@@ -1,17 +1,22 @@
 import mongoose from 'mongoose';
 
 const communityPostSchema = new mongoose.Schema({
+  postCode: { type: String, trim: true },
   title: { type: String, required: true, trim: true },
   content: { type: String, required: true },
   type: {
     type: String,
-    enum: ['KHOANH_KHAC', 'HOI_DAP', 'MEO_VAT', 'KINH_NGHIEM'],
+    enum: ['KHOANH_KHAC', 'HOI_DAP', 'MEO_VAT', 'KINH_NGHIEM', 'GENERAL', 'DISCUSSION', 'SHARE'],
     default: 'KHOANH_KHAC',
     index: true,
   },
   typeLabel: { type: String, default: 'Khoảnh khắc' },
   imageUrls: [{ type: String, trim: true }],
-  authorCustomerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
+  images: [{ type: String, trim: true }],
+  tags: [{ type: String, trim: true }],
+  authorCustomerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: false, index: true },
+  authorUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  authorRole: { type: String, default: 'CUSTOMER' },
   authorNameSnapshot: { type: String, required: true, trim: true },
   authorAvatarSnapshot: { type: String, default: null },
   status: {

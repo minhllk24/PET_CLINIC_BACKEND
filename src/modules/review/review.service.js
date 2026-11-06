@@ -3,8 +3,48 @@ import Review from './models/Review';
 import Customer from '../customer/models/Customer';
 import Order from '../order/models/Order';
 import Appointment from '../booking/models/Appointment';
+import Product from '../catalog/models/Product';
+import Service from '../catalog/models/Service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
+
+/**
+ * Recompute and synchronize ratingAvg and ratingCount on Product or Service (BE-FIX-07)
+ */
+export const recalculateTargetRating = async (targetType, targetId) => {
+  if (!targetType || !targetId) return null;
+  if (mongoose.connection.readyState !== 1) {
+    return { ratingAvg: 0, ratingCount: 0 };
+  }
+  const targetIdObj = mongoose.Types.ObjectId.isValid(targetId) ? new mongoose.Types.ObjectId(targetId) : targetId;
+  const stats = await Review.aggregate([
+    {
+      $match: {
+        targetType: targetType.toUpperCase(),
+        targetId: targetIdObj,
+        status: 'ACTIVE',
+        hidden: { $ne: true },
+      },
+    },
+    {
+      $group: {
+        _id: '$targetId',
+        avgRating: { $avg: '$rating' },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const ratingAvg = stats.length > 0 ? Math.round(stats[0].avgRating * 10) / 10 : 0;
+  const ratingCount = stats.length > 0 ? stats[0].count : 0;
+
+  if (targetType.toUpperCase() === 'PRODUCT') {
+    await Product.updateOne({ _id: targetIdObj }, { $set: { ratingAvg, ratingCount } });
+  } else if (targetType.toUpperCase() === 'SERVICE') {
+    await Service.updateOne({ _id: targetIdObj }, { $set: { ratingAvg, ratingCount } });
+  }
+  return { ratingAvg, ratingCount };
+};
 
 export const formatReview = (rev, forAdmin = false) => {
   if (!rev) return null;
@@ -153,6 +193,7 @@ export const createReview = async (data, actor) => {
   });
 
   await review.save();
+  await recalculateTargetRating(review.targetType, review.targetId);
   return formatReview(review, false);
 };
 
@@ -169,7 +210,7 @@ export const listReviews = async (query = {}, actor = {}) => {
     filter.targetId = query.targetId;
   }
 
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 20));
 
   const items = await Review.find(filter)
     .sort({ createdAt: -1 })
@@ -178,6 +219,8 @@ export const listReviews = async (query = {}, actor = {}) => {
 
   return {
     items: items.map(r => formatReview(r, false)),
+    total: items.length,
+    totalCount: items.length,
     nextCursor: null,
   };
 };
@@ -222,6 +265,7 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
   return {
     items: items.map(r => formatReview(r, true)),
     total,
+    totalCount: total,
     totalRows: total,
     page,
     limit,
@@ -299,6 +343,7 @@ export const updateReview = async (id, data, actor) => {
   }
 
   await review.save();
+  await recalculateTargetRating(review.targetType, review.targetId);
   return formatReview(review, false);
 };
 
@@ -325,6 +370,7 @@ export const deleteReview = async (id, actor) => {
 
   review.status = 'DELETED';
   await review.save();
+  await recalculateTargetRating(review.targetType, review.targetId);
   return { message: 'Review deleted successfully' };
 };
 
@@ -346,7 +392,12 @@ export const hideReview = async (id, data = {}, actor) => {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Đánh giá này đã ở trạng thái bị ẩn');
   }
 
-  const reason = data.reason || data.hiddenReason || 'Hidden by moderator';
+  const rawReason = data.reason || data.hiddenReason || '';
+  const reason = rawReason.trim();
+  if (!reason) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Lý do ẩn đánh giá là bắt buộc (reason is required)');
+  }
+
   review.hidden = true;
   review.status = 'HIDDEN';
   review.hiddenReason = reason;
@@ -362,6 +413,7 @@ export const hideReview = async (id, data = {}, actor) => {
   });
 
   await review.save();
+  await recalculateTargetRating(review.targetType, review.targetId);
   return formatReview(review, true);
 };
 
@@ -398,6 +450,7 @@ export const showReview = async (id, actor) => {
   });
 
   await review.save();
+  await recalculateTargetRating(review.targetType, review.targetId);
   return formatReview(review, true);
 };
 

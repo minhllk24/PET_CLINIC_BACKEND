@@ -34,11 +34,13 @@ const schema = new mongoose.Schema({
   replyDelivery: {
     subject: { type: String, default: null },
     message: { type: String, default: null },
-    deliveryStatus: { type: String, enum: ['SENT', 'FAILED', null], default: null },
+    deliveryStatus: { type: String, enum: ['SENT', 'FAILED', 'QUEUED', null], default: null },
     sentAt: { type: Date, default: null },
+    failedAt: { type: Date, default: null },
     sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     providerMessageId: { type: String, default: null },
     errorMessage: { type: String, default: null },
+    outboxId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmailOutbox', default: null },
   },
 }, { timestamps: true });
 

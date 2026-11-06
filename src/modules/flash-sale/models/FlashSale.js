@@ -61,6 +61,13 @@ const flashSaleSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    idempotencyKey: {
+      type: String,
+      sparse: true,
+      unique: true,
+      index: true,
+      trim: true,
+    },
     name: {
       type: String,
       required: true,

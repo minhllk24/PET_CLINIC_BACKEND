@@ -128,6 +128,15 @@ export const createCommunityPost = async (req, res, next) => {
   }
 };
 
+export const createCommunityPostAdmin = async (req, res, next) => {
+  try {
+    const post = await contentService.createCommunityPostAdmin(req.body, req.actor);
+    res.status(201).json({ success: true, data: post, message: 'Tạo bài đăng cộng đồng thành công' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getCommunityPostsAdmin = async (req, res, next) => {
   try {
     const data = await contentService.getCommunityPostsAdmin(req.query);

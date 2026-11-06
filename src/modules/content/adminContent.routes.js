@@ -15,9 +15,10 @@ router.patch('/posts/:id/status', requireRole(['ADMIN', 'MANAGER']), contentCont
 router.delete('/posts/:id', requireRole(['ADMIN']), contentController.deletePost);
 
 // =========================================================================
-// 2. COMMUNITY POSTS MODERATION
+// 2. COMMUNITY POSTS MODERATION & CREATION (BE-FIX-06)
 // =========================================================================
 router.get('/community/posts', requireRole(['ADMIN', 'MANAGER']), contentController.getCommunityPostsAdmin);
+router.post('/community/posts', requireRole(['ADMIN', 'MANAGER']), contentController.createCommunityPostAdmin);
 router.patch('/community/posts/:id/moderate', requireRole(['ADMIN', 'MANAGER']), contentController.moderateCommunityPost);
 router.delete('/community/posts/:id', requireRole(['ADMIN']), contentController.deleteCommunityPost);
 

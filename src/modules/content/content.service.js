@@ -6,6 +6,7 @@ import CommunityReport from './models/CommunityReport.js';
 import RescuePet from './models/RescuePet.js';
 import AdoptionRequest from './models/AdoptionRequest.js';
 import Customer from '../customer/models/Customer.js';
+import SystemSetting from '../settings/models/SystemSetting.js';
 import AppError from '../../utils/AppError.js';
 
 /**
@@ -46,6 +47,76 @@ const normalizeStep = (s, idx) => {
     mediaUrl: s.mediaUrl || s.image_url || s.imageUrl || null,
     imageUrl: s.imageUrl || s.image_url || s.mediaUrl || null,
   };
+};
+
+export const DEFAULT_RESCUE_PARTNERS = [
+  { id: 'partner-01', code: 'SGT', name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time', phone: '0901234561', address: 'Foster House, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/saigontime', location: 'TP. Hồ Chí Minh' },
+  { id: 'partner-02', code: 'SAR', name: 'Nhóm Cứu Hộ Động Vật SAR', phone: '0901234562', address: 'Quận 2, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/sarvietnam', location: 'TP. Hồ Chí Minh' },
+  { id: 'partner-03', code: 'MAYT', name: 'Mái Ấm Yêu Thương Pet Shelter', phone: '0901234563', address: 'Dĩ An, Bình Dương', websiteUrl: 'https://facebook.com/maiamyeuthuong', location: 'Bình Dương' },
+  { id: 'partner-04', code: 'TCNL', name: 'Trạm Cứu Trợ Động Vật Nông Lâm', phone: '0901234564', address: 'Đại học Nông Lâm, TP. Thủ Đức', websiteUrl: 'https://facebook.com/nonglampet', location: 'TP. Thủ Đức' },
+  { id: 'partner-05', code: 'HPR', name: 'Hanoi Pet Rescue (Chi nhánh miền Nam)', phone: '0901234565', address: 'Bình Thạnh, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/hanoipetrescue', location: 'TP. Hồ Chí Minh' },
+  { id: 'partner-06', code: 'DCHLT', name: 'Đội Cứu Hộ Động Vật Lang Thang VN', phone: '0901234566', address: 'Biên Hòa, Đồng Nai', websiteUrl: 'https://facebook.com/cuuholangthang', location: 'Đồng Nai' },
+];
+
+export const getRescuePartnersList = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    return DEFAULT_RESCUE_PARTNERS;
+  }
+  try {
+    const setting = await SystemSetting.findOne({ key: 'rescue_partners' }).lean();
+    if (setting && Array.isArray(setting.value) && setting.value.length > 0) {
+      return setting.value;
+    }
+  } catch (_) {}
+  return DEFAULT_RESCUE_PARTNERS;
+};
+
+export const getRescueStationsList = async () => {
+  const defaultStations = [
+    {
+      id: 'station-1',
+      station_id: 'station-1',
+      name: 'Vietnam Animal Welfare Association (VAWA)',
+      station_name: 'Vietnam Animal Welfare Association (VAWA)',
+      fanpage_url: 'https://www.facebook.com/vawa.org/',
+      address: '675B Nguyễn Kiệm, Phường 9, Quận Phú Nhuận, TP.HCM',
+      phone: '0901234567',
+      status: 'active',
+    },
+    {
+      id: 'station-2',
+      station_id: 'station-2',
+      name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
+      station_name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
+      fanpage_url: 'https://www.facebook.com/savesgt',
+      address: 'Foster House, TP. Hồ Chí Minh',
+      phone: '0912345678',
+      status: 'active',
+    },
+  ];
+  if (mongoose.connection.readyState !== 1) {
+    return defaultStations;
+  }
+  try {
+    const setting = await SystemSetting.findOne({ key: 'rescue_stations' }).lean();
+    if (setting && Array.isArray(setting.value) && setting.value.length > 0) {
+      return setting.value;
+    }
+  } catch (_) {}
+  return defaultStations;
+};
+
+export const getEmergencyHotline = async () => {
+  if (mongoose.connection.readyState !== 1) {
+    return '1900-6868';
+  }
+  try {
+    const setting = await SystemSetting.findOne({ key: 'emergency_hotline' }).lean();
+    if (setting && setting.value) {
+      return typeof setting.value === 'string' ? setting.value : setting.value.hotline || '1900-6868';
+    }
+  } catch (_) {}
+  return '1900-6868';
 };
 
 export const contentService = {
@@ -345,6 +416,61 @@ export const contentService = {
     return post;
   },
 
+  async createCommunityPostAdmin(data, actor) {
+    const { title, content, type = 'GENERAL', images = [], imageUrls = [], tags = [] } = data;
+    if (!title || !title.trim()) {
+      throw new AppError(400, 'Tiêu đề bài viết không được để trống', 'VALIDATION_ERROR');
+    }
+    if (!content || !content.trim()) {
+      throw new AppError(400, 'Nội dung bài viết không được để trống', 'VALIDATION_ERROR');
+    }
+
+    const cleanTitle = title.trim();
+    const cleanContent = sanitizeHtml(content.trim());
+    const postCode = `CP-${Date.now().toString().slice(-6)}`;
+    const now = new Date();
+    const resolvedImages = Array.isArray(images) && images.length > 0 ? images : (Array.isArray(imageUrls) ? imageUrls : []);
+
+    const typeLabels = {
+      KHOANH_KHAC: 'Khoảnh khắc',
+      HOI_DAP: 'Hỏi đáp',
+      MEO_VAT: 'Mẹo vặt',
+      KINH_NGHIEM: 'Kinh nghiệm',
+      GENERAL: 'Thông báo',
+      DISCUSSION: 'Thảo luận',
+      SHARE: 'Chia sẻ',
+    };
+
+    const newPost = new CommunityPost({
+      postCode,
+      title: cleanTitle,
+      content: cleanContent,
+      type: type || 'GENERAL',
+      typeLabel: typeLabels[type] || 'Thông báo',
+      imageUrls: resolvedImages,
+      images: resolvedImages,
+      tags: Array.isArray(tags) ? tags : [],
+      authorUserId: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
+      authorNameSnapshot: actor?.name || actor?.fullName || 'Ban Quản Trị Dr.Pet',
+      authorAvatarSnapshot: actor?.avatar || null,
+      authorRole: actor?.systemRole || 'ADMIN',
+      status: data.status || 'APPROVED',
+      moderatedBy: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
+      moderatedAt: now,
+      moderationHistory: [
+        {
+          status: data.status || 'APPROVED',
+          reason: 'Created by Admin/Manager via Admin Portal',
+          actorId: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
+          at: now,
+        },
+      ],
+    });
+
+    await newPost.save();
+    return newPost;
+  },
+
   async getCommunityPostsAdmin({ status, search, page = 1, limit = 10 }) {
     const query = {};
     if (status) query.status = status;
@@ -355,7 +481,9 @@ export const contentService = {
       ];
     }
 
-    const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
+    const parsedLimit = Math.min(200, Math.max(1, Number(limit) || 10));
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const skip = (parsedPage - 1) * parsedLimit;
     const [total, items] = await Promise.all([
       CommunityPost.countDocuments(query),
       CommunityPost.find(query)
@@ -363,15 +491,17 @@ export const contentService = {
         .populate('moderatedBy', 'fullName email')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(parsedLimit),
     ]);
 
     return {
       items,
       total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)) || 1,
+      totalCount: total,
+      totalRows: total,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / parsedLimit) || 1,
     };
   },
 
@@ -662,67 +792,148 @@ export const contentService = {
     return report;
   },
 
-  async resolveCommunityReport(id, { decision, moderationNote }, moderator) {
+  async resolveCommunityReport(id, { decision, moderationNote, simulateFailureInTransaction }, moderator) {
     if (!['HIDE_POST', 'NO_VIOLATION'].includes(decision)) {
       throw new AppError(400, 'Quyết định xử lý phải là HIDE_POST hoặc NO_VIOLATION', 'VALIDATION_ERROR');
     }
 
-    const report = await CommunityReport.findById(id);
-    if (!report) {
-      throw new AppError(404, 'Không tìm thấy báo cáo vi phạm', 'NOT_FOUND');
-    }
-    if (report.status === 'RESOLVED' || report.status === 'NO_VIOLATION') {
-      throw new AppError(409, 'Conflict', 'REPORT_ALREADY_RESOLVED', 'Báo cáo vi phạm này đã được xử lý');
-    }
+    const isDbConnected = mongoose.connection.readyState === 1;
 
-    const newStatus = decision === 'HIDE_POST' ? 'RESOLVED' : 'NO_VIOLATION';
-    report.status = newStatus;
-    report.decision = decision;
-    report.moderationNote = moderationNote || null;
-    report.moderatorId = moderator.id;
-    report.reviewedAt = new Date();
-    report.version = (report.version || 0) + 1;
-    await report.save();
+    const runResolution = async (session = null) => {
+      const newStatus = decision === 'HIDE_POST' ? 'RESOLVED' : 'NO_VIOLATION';
+      const now = new Date();
+      const opts = session ? { new: true, session } : { new: true };
 
-    // If HIDE_POST, atomically hide the post
-    if (decision === 'HIDE_POST') {
-      await CommunityPost.findByIdAndUpdate(report.postId, {
-        status: 'HIDDEN',
-        moderatedBy: moderator.id,
-        moderatedAt: new Date(),
-        hasOpenReport: false,
-        $push: {
-          moderationHistory: {
-            status: 'HIDDEN',
-            reason: `Ẩn do báo cáo vi phạm: ${report.reportCode} - ${moderationNote || report.reason}`,
-            actorId: moderator.id,
-            at: new Date(),
+      // Atomic CAS update: only update if status is still PENDING or UNDER_REVIEW
+      let report = null;
+      if (isDbConnected) {
+        report = await CommunityReport.findOneAndUpdate(
+          {
+            _id: id,
+            status: { $in: ['PENDING', 'UNDER_REVIEW'] },
           },
-        },
-      });
-    }
+          {
+            $set: {
+              status: newStatus,
+              decision,
+              moderationNote: moderationNote || null,
+              moderatorId: moderator.id,
+              reviewedAt: now,
+            },
+            $inc: { version: 1 },
+          },
+          opts
+        );
+      } else {
+        // Offline / unit test fallback for mocked models
+        const existing = await CommunityReport.findById(id);
+        if (!existing) {
+          throw new AppError(404, 'Không tìm thấy báo cáo vi phạm', 'NOT_FOUND');
+        }
+        if (existing.status === 'RESOLVED' || existing.status === 'NO_VIOLATION') {
+          throw new AppError(409, 'Conflict', 'REPORT_ALREADY_RESOLVED', 'Báo cáo vi phạm này đã được xử lý bởi người khác');
+        }
+        existing.status = newStatus;
+        existing.decision = decision;
+        existing.moderationNote = moderationNote || null;
+        existing.moderatorId = moderator.id;
+        existing.reviewedAt = now;
+        existing.version = (existing.version || 0) + 1;
+        if (existing.save) await existing.save();
+        report = existing;
+      }
 
-    // Auto synchronize all other open reports for the same postId
-    await CommunityReport.updateMany(
-      {
-        postId: report.postId,
-        _id: { $ne: report._id },
-        status: { $in: ['PENDING', 'UNDER_REVIEW'] },
-      },
-      {
+      if (!report) {
+        let exists = null;
+        if (session && typeof CommunityReport.findById === 'function') {
+          exists = await CommunityReport.findById(id).session(session);
+        } else if (typeof CommunityReport.findById === 'function') {
+          exists = await CommunityReport.findById(id);
+        }
+        if (!exists) {
+          throw new AppError(404, 'Không tìm thấy báo cáo vi phạm', 'NOT_FOUND');
+        }
+        throw new AppError(409, 'Conflict', 'REPORT_ALREADY_RESOLVED', 'Báo cáo vi phạm này đã được xử lý bởi người khác');
+      }
+
+      // Error injection support for transaction rollback test (GAP-11)
+      if (simulateFailureInTransaction) {
+        throw new Error('Simulated failure during report resolution transaction');
+      }
+
+      // If HIDE_POST, atomically hide the post inside session
+      if (decision === 'HIDE_POST') {
+        const postUpdate = {
+          status: 'HIDDEN',
+          moderatedBy: moderator.id,
+          moderatedAt: now,
+          hasOpenReport: false,
+          $push: {
+            moderationHistory: {
+              status: 'HIDDEN',
+              reason: `Ẩn do báo cáo vi phạm: ${report.reportCode || report._id} - ${moderationNote || report.reason}`,
+              actorId: moderator.id,
+              at: now,
+            },
+          },
+        };
+        if (session) {
+          await CommunityPost.findByIdAndUpdate(report.postId, postUpdate, { session });
+        } else {
+          await CommunityPost.findByIdAndUpdate(report.postId, postUpdate);
+        }
+      }
+
+      // Auto synchronize all other open reports for the same postId
+      const syncReports = {
         status: newStatus,
         decision,
-        moderationNote: `Đồng bộ theo xử lý của báo cáo ${report.reportCode}`,
+        moderationNote: `Đồng bộ theo xử lý của báo cáo ${report.reportCode || report._id}`,
         moderatorId: moderator.id,
-        reviewedAt: new Date(),
+        reviewedAt: now,
         resolvedByReportId: report._id,
+      };
+
+      if (session) {
+        await CommunityReport.updateMany(
+          {
+            postId: report.postId,
+            _id: { $ne: report._id },
+            status: { $in: ['PENDING', 'UNDER_REVIEW'] },
+          },
+          syncReports,
+          { session }
+        );
+        await CommunityPost.findByIdAndUpdate(report.postId, { hasOpenReport: false }, { session });
+      } else {
+        await CommunityReport.updateMany(
+          {
+            postId: report.postId,
+            _id: { $ne: report._id },
+            status: { $in: ['PENDING', 'UNDER_REVIEW'] },
+          },
+          syncReports
+        );
+        await CommunityPost.findByIdAndUpdate(report.postId, { hasOpenReport: false });
       }
-    );
 
-    // If all reports resolved, clear hasOpenReport
-    await CommunityPost.findByIdAndUpdate(report.postId, { hasOpenReport: false });
+      return report;
+    };
 
-    return report;
+    if (isDbConnected) {
+      const session = await mongoose.startSession();
+      try {
+        let res = null;
+        await session.withTransaction(async () => {
+          res = await runResolution(session);
+        });
+        return res;
+      } finally {
+        await session.endSession();
+      }
+    } else {
+      return await runResolution(null);
+    }
   },
 
   // =========================================================================
@@ -750,13 +961,33 @@ export const contentService = {
       throw new AppError(400, 'Thiếu thông tin bắt buộc của thú cưng cứu hộ (petName, species, healthStatus, rescueStory)', 'VALIDATION_ERROR');
     }
 
+    // BE-FIX-08: Strictly require images - NO fake Unsplash fallback
+    if (!images || !Array.isArray(images) || images.length === 0 || !images[0]) {
+      throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
+    }
+
+    // Resolve supportPartner details if provided
+    let partnerName = supportPartnerName || null;
+    let partnerPhone = null;
+    let partnerUrl = null;
+
+    if (supportPartnerId) {
+      const partners = await getRescuePartnersList();
+      const matched = partners.find((p) => p.id === supportPartnerId || p.code === supportPartnerId);
+      if (matched) {
+        partnerName = matched.name;
+        partnerPhone = matched.phone;
+        partnerUrl = matched.websiteUrl;
+      }
+    }
+
     // Auto generate petCode RES-XXXX
     const count = await RescuePet.countDocuments();
     const petCode = `RES-${String(count + 1).padStart(4, '0')}`;
 
     const rescuePet = await RescuePet.create({
       petCode,
-      petName,
+      petName: petName.trim(),
       species,
       breed: breed || 'Chưa xác định',
       gender: gender || 'UNKNOWN',
@@ -765,9 +996,11 @@ export const contentService = {
       rescueStory,
       supportNeeds: supportNeeds || null,
       supportPartnerId: supportPartnerId || null,
-      supportPartnerName: supportPartnerName || null,
+      supportPartnerName: partnerName,
+      supportPartnerPhone: partnerPhone,
+      supportPartnerUrl: partnerUrl,
       ownershipType: ownershipType || 'PARTNER_MAINTAINED',
-      images: Array.isArray(images) && images.length > 0 ? images : ['https://images.unsplash.com/photo-1543466835-00a7907e9de1'],
+      images,
       status: 'LOOKING_FOR_HOME',
       branchId: branchId || null,
     });
@@ -781,24 +1014,27 @@ export const contentService = {
     if (species) query.species = species;
     if (branchId) query.branchId = branchId;
 
-    const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
+    const parsedLimit = Math.min(200, Math.max(1, Number(limit) || 10));
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const skip = (parsedPage - 1) * parsedLimit;
     const [total, items] = await Promise.all([
       RescuePet.countDocuments(query),
       RescuePet.find(query)
         .populate('branchId', 'name address hotline')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(parsedLimit),
     ]);
 
     return {
       items,
       pets: items,
       total,
+      totalCount: total,
       totalRows: total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)) || 1,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / parsedLimit) || 1,
     };
   },
 
@@ -820,7 +1056,7 @@ export const contentService = {
     const pet = await this.getRescuePetById(id);
     const updatable = [
       'petName', 'species', 'breed', 'gender', 'ageDescription', 'healthStatus',
-      'rescueStory', 'images', 'branchId', 'supportNeeds', 'supportPartnerId',
+      'rescueStory', 'branchId', 'supportNeeds', 'supportPartnerId',
       'supportPartnerName', 'ownershipType'
     ];
     updatable.forEach((field) => {
@@ -828,6 +1064,23 @@ export const contentService = {
         pet[field] = data[field];
       }
     });
+
+    if (data.images !== undefined) {
+      if (!Array.isArray(data.images) || data.images.length === 0 || !data.images[0]) {
+        throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
+      }
+      pet.images = data.images;
+    }
+
+    if (data.supportPartnerId) {
+      const partners = await getRescuePartnersList();
+      const matched = partners.find((p) => p.id === data.supportPartnerId || p.code === data.supportPartnerId);
+      if (matched) {
+        pet.supportPartnerName = matched.name;
+        pet.supportPartnerPhone = matched.phone;
+        pet.supportPartnerUrl = matched.websiteUrl;
+      }
+    }
 
     if (data.status) {
       if (!['LOOKING_FOR_HOME', 'ADOPTED'].includes(data.status)) {

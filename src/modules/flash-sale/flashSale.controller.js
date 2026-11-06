@@ -20,7 +20,11 @@ export const getFlashSaleById = async (req, res, next) => {
 
 export const createFlashSale = async (req, res, next) => {
   try {
-    const result = await flashSaleService.createFlashSale(req.body, req.actor);
+    const payload = {
+      ...req.body,
+      idempotencyKey: req.headers['idempotency-key'] || req.body?.idempotencyKey,
+    };
+    const result = await flashSaleService.createFlashSale(payload, req.actor);
     res.status(201).json(result);
   } catch (err) {
     next(err);
@@ -29,7 +33,19 @@ export const createFlashSale = async (req, res, next) => {
 
 export const updateFlashSale = async (req, res, next) => {
   try {
-    const result = await flashSaleService.updateFlashSale(req.params.id, req.body, req.actor);
+    const ifMatch = req.headers['if-match'];
+    let parsedVersion = req.body?.expectedVersion ?? req.body?.version;
+    if (ifMatch) {
+      const cleaned = ifMatch.replace(/["\s]/g, '');
+      const parsed = parseInt(cleaned, 10);
+      if (!isNaN(parsed)) parsedVersion = parsed;
+    }
+
+    const payload = {
+      ...req.body,
+      expectedVersion: parsedVersion,
+    };
+    const result = await flashSaleService.updateFlashSale(req.params.id, payload, req.actor);
     res.json(result);
   } catch (err) {
     next(err);
