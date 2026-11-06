@@ -36,4 +36,12 @@ router.patch('/:id/status', requireRole(['MANAGER', 'ADMIN']), async (req, res, 
   } catch (error) { next(error); }
 });
 
+// Manager / Admin reply feedback via email/outbox - MOD-06..08
+router.post('/:id/reply', requireRole(['MANAGER', 'ADMIN']), async (req, res, next) => {
+  try {
+    const feedback = await feedbackService.replyFeedback(req.params.id, req.body, req.actor);
+    res.json(feedback);
+  } catch (error) { next(error); }
+});
+
 export default router;

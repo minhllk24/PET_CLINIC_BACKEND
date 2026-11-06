@@ -97,4 +97,20 @@ router.get(
   bookingController.getServiceOccupancy
 );
 
+// ================= SHIFT TEMPLATES (OPS-03) =================
+router.get(
+  '/:branchId/shift-templates',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  branchController.listShiftTemplates
+);
+
+router.post(
+  '/:branchId/shift-templates',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  idempotency('shiftTemplatesCreate', { required: false }),
+  branchController.createShiftTemplate
+);
+
 export default router;

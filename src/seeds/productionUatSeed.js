@@ -41,6 +41,7 @@ import Appointment from '../modules/booking/models/Appointment.js';
 import ServiceRecord from '../modules/execution/models/ServiceRecord.js';
 import { seedVouchers } from './voucherSeed.js';
 import { seedContent } from './contentSeed.js';
+import { seedFlashSales } from './flashSaleSeed.js';
 import Post from '../modules/content/models/Post.js';
 import CommunityPost from '../modules/content/models/CommunityPost.js';
 import RescuePet from '../modules/content/models/RescuePet.js';
@@ -2058,6 +2059,9 @@ export const runProductionUatSeed = async () => {
   // ========================================================================
   console.log('\n📝 Bước 8: Đồng bộ bài viết Blog, Sơ cứu y tế, Diễn đàn & Cứu hộ...');
   await seedContent();
+
+  console.log('\n⚡ Bước 9: Đồng bộ chiến dịch Flash Sale đủ 5 trạng thái...');
+  await seedFlashSales();
 
   // ========================================================================
   // BÁO CÁO TỔNG KẾT

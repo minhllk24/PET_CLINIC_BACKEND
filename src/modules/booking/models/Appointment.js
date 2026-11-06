@@ -4,6 +4,7 @@ const serviceSegmentSchema = new mongoose.Schema({
   serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
   serviceName: { type: String, required: true },
   serviceType: { type: String, required: true, enum: ['GROOMING', 'MEDICAL'] },
+  petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', default: null },
   variantLabel: { type: String, default: null },
   unitPrice: { type: Number, required: true, default: 0 },
   durationMinutes: { type: Number, required: true },
@@ -22,6 +23,13 @@ const serviceSegmentSchema = new mongoose.Schema({
   scheduledStart: { type: Date, required: true },
   scheduledEnd: { type: Date, required: true },
   assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'StaffProfile', required: true },
+  checkInStatus: {
+    type: String,
+    enum: ['PENDING', 'ARRIVED'],
+    default: 'PENDING',
+  },
+  checkedInAt: { type: Date, default: null },
+  checkedInBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   executionStatus: {
     type: String,
     enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'],
@@ -42,7 +50,9 @@ const schema = new mongoose.Schema(
     petSnapshot: { type: Object, default: null },
     customerSnapshot: { type: Object, default: null },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-    serviceType: { type: String, required: true, enum: ['GROOMING', 'MEDICAL'] },
+    serviceType: { type: String, required: true, enum: ['GROOMING', 'MEDICAL', 'MIXED'] },
+    checkInStatus: { type: String, enum: ['PENDING', 'ARRIVED'], default: 'PENDING' },
+    checkedInAt: { type: Date, default: null },
     paymentMethod: {
       type: String,
       required: true,

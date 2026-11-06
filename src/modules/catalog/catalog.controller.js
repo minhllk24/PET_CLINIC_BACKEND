@@ -104,6 +104,15 @@ export const restoreProduct = async (req, res, next) => {
   }
 };
 
+export const deleteProduct = async (req, res, next) => {
+  try {
+    const result = await catalogService.deleteProduct(req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ================= VARIANT CONTROLLER =================
 
 export const addVariant = async (req, res, next) => {

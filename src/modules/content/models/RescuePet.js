@@ -4,11 +4,20 @@ const rescuePetSchema = new mongoose.Schema({
   petCode: { type: String, required: true, unique: true, index: true, uppercase: true, trim: true },
   petName: { type: String, required: true, trim: true },
   species: { type: String, enum: ['DOG', 'CAT', 'OTHER'], required: true, index: true },
-  breed: { type: String, required: true, trim: true },
+  breed: { type: String, trim: true, default: 'Chưa xác định' },
   gender: { type: String, enum: ['MALE', 'FEMALE', 'UNKNOWN'], default: 'UNKNOWN' },
-  ageDescription: { type: String, required: true, trim: true }, // ví dụ: "4 tháng tuổi", "1.5 tuổi"
+  ageDescription: { type: String, trim: true, default: null }, // ví dụ: "4 tháng tuổi", "1.5 tuổi"
   healthStatus: { type: String, required: true, trim: true }, // ví dụ: "Đã triệt sản, tiêm phòng 2 mũi"
   rescueStory: { type: String, required: true },
+  supportNeeds: { type: String, trim: true, default: null },
+  supportPartnerId: { type: String, trim: true, default: null },
+  supportPartnerName: { type: String, trim: true, default: null },
+  ownershipType: {
+    type: String,
+    enum: ['PARTNER_MAINTAINED', 'DR_PET_LEGACY'],
+    default: 'PARTNER_MAINTAINED',
+    index: true,
+  },
   images: [{ type: String, required: true }],
   status: {
     type: String,

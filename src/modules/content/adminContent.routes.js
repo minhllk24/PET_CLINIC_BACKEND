@@ -36,4 +36,11 @@ router.delete('/rescue/pets/:id', requireRole(['ADMIN']), contentController.dele
 router.get('/rescue/requests', requireRole(['ADMIN', 'MANAGER']), contentController.getAdoptionRequestsAdmin);
 router.patch('/rescue/requests/:id/review', requireRole(['ADMIN', 'MANAGER']), contentController.reviewAdoptionRequest);
 
+// =========================================================================
+// 5. COMMUNITY VIOLATION REPORTS MODERATION (MOD-09..12)
+// =========================================================================
+router.get('/reports', requireRole(['ADMIN', 'MANAGER']), contentController.getCommunityReportsAdmin);
+router.get('/reports/:id', requireRole(['ADMIN', 'MANAGER']), contentController.getCommunityReportById);
+router.patch('/reports/:id/resolve', requireRole(['ADMIN', 'MANAGER']), contentController.resolveCommunityReport);
+
 export default router;

@@ -265,3 +265,89 @@ export const getMyAdoptionRequests = async (req, res, next) => {
     next(err);
   }
 };
+
+
+// =========================================================================
+// 5. COMMUNITY COMMENTS, REPLIES, REACTIONS & VIOLATION REPORTS
+// =========================================================================
+
+export const addCommunityComment = async (req, res, next) => {
+  try {
+    const comment = await contentService.addCommunityComment(req.params.id, req.body, req.actor);
+    res.status(201).json({ success: true, data: comment });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addCommentReply = async (req, res, next) => {
+  try {
+    const comment = await contentService.addCommentReply(req.params.id, req.body, req.actor);
+    res.status(201).json({ success: true, data: comment });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getCommunityComments = async (req, res, next) => {
+  try {
+    const data = await contentService.getCommunityComments(req.params.id, req.query);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const likeCommunityPost = async (req, res, next) => {
+  try {
+    const result = await contentService.likeCommunityPost(req.params.id, req.actor);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const unlikeCommunityPost = async (req, res, next) => {
+  try {
+    const result = await contentService.unlikeCommunityPost(req.params.id, req.actor);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const reportCommunityPost = async (req, res, next) => {
+  try {
+    const report = await contentService.reportCommunityPost(req.params.id, req.body, req.actor);
+    res.status(201).json({ success: true, data: report, message: 'Báo cáo vi phạm đã được gửi tới đội ngũ kiểm duyệt.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getCommunityReportsAdmin = async (req, res, next) => {
+  try {
+    const data = await contentService.getCommunityReportsAdmin(req.query);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getCommunityReportById = async (req, res, next) => {
+  try {
+    const report = await contentService.getCommunityReportById(req.params.id);
+    res.status(200).json({ success: true, data: report });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resolveCommunityReport = async (req, res, next) => {
+  try {
+    const report = await contentService.resolveCommunityReport(req.params.id, req.body, req.actor);
+    res.status(200).json({ success: true, data: report, message: 'Xử lý báo cáo vi phạm thành công.' });
+  } catch (err) {
+    next(err);
+  }
+};

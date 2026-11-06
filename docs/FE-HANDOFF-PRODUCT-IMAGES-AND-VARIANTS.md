@@ -251,3 +251,4 @@ Khi gọi API `GET /api/v1/products/:id` hoặc `GET /api/v1/products/SP-LEG-099
 - [ ] Cột ảnh thumbnail bên trái hiển thị đủ 6 ảnh, cuộn mượt mà, hover/click đổi ảnh lớn chính xác.
 - [ ] Thêm vào giỏ hàng (`Thêm vào giỏ` hoặc `Mua ngay`) nhận đúng biến thể và đơn giá đã chọn.
 - [ ] Chạy `npm run build` trên Frontend không phát sinh lỗi cú pháp hay TypeScript/Vite error.
+

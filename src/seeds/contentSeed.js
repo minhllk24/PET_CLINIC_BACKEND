@@ -67,8 +67,8 @@ export const FIRST_AID_GUIDES_SEED = [
   {
     title: 'Cách sơ cứu chó mèo bị hóc dị vật khẩn cấp',
     postType: 'FIRST_AID',
-    category: 'Sơ cứu khẩn cấp',
-    emergencyPhone: '1900-PET-HELP (1900-738-4357)',
+    category: 'tai-nan',
+    emergencyPhone: '0901234567',
     excerpt: 'Hướng dẫn nhanh các bước kiểm tra đường thở và thủ thuật Heimlich đẩy dị vật cứu mạng thú cưng khi bị nghẹt thở đột ngột.',
     content: `Khi thú cưng hóc xương, nuốt bóng đồ chơi hoặc dị vật nghẽn khí quản, thời gian vàng để cấp cứu chỉ tính bằng phút.\n\n### Các bước thao tác sơ cứu khẩn cấp:`,
     steps: [
@@ -103,8 +103,8 @@ export const FIRST_AID_GUIDES_SEED = [
   {
     title: 'Xử lý khẩn cấp khi thú cưng bị ngộ độc thực phẩm lạ hoặc hóa chất',
     postType: 'FIRST_AID',
-    category: 'Sơ cứu khẩn cấp',
-    emergencyPhone: '1900-PET-HELP (1900-738-4357)',
+    category: 'tai-nan',
+    emergencyPhone: '0901234567',
     excerpt: 'Nhận biết triệu chứng trúng độc thức ăn lạ (sô-cô-la, nho khô, hành tỏi), bả chuột, thuốc trừ sâu và các bước sơ cứu trước khi đến bác sĩ.',
     content: `Trúng độc là một trong những ca cấp cứu nguy kịch nhất tại phòng khám thú y Dr. Pet's House.\n\n### Nguyên tắc xử lý sơ cứu:`,
     steps: [
@@ -139,8 +139,8 @@ export const FIRST_AID_GUIDES_SEED = [
   {
     title: 'Hướng dẫn băng bó và cầm máu vết thương hở cho thú cưng',
     postType: 'FIRST_AID',
-    category: 'Chăm sóc vết thương',
-    emergencyPhone: '1900-PET-HELP (1900-738-4357)',
+    category: 'chan-thuong',
+    emergencyPhone: '0901234567',
     excerpt: 'Kỹ thuật sát trùng, ép gạc cầm máu tại chỗ và băng bó vô khuẩn khi thú cưng bị cắn xé hoặc rách da do tai nạn.',
     content: `Chấn thương ngoài da chảy máu cần được can thiệp kịp thời để tránh sốc mất máu và nhiễm trùng mô mềm.\n\n### Quy trình băng bó sơ cứu:`,
     steps: [

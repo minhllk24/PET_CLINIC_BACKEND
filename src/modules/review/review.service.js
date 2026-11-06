@@ -15,14 +15,35 @@ export const formatReview = (rev, forAdmin = false) => {
   const res = {
     id: (doc._id || doc.id).toString(),
     targetType: doc.targetType || 'PRODUCT',
-    targetId: (doc.targetId?._id || doc.targetId).toString(),
+    targetId: (doc.targetId?._id || doc.targetId)?.toString() || null,
+    targetName: doc.targetName || (doc.targetId && doc.targetId.name ? doc.targetId.name : null),
+    sourceType: doc.sourceType || 'ORDER',
+    sourceId: doc.sourceId ? (doc.sourceId._id || doc.sourceId).toString() : null,
+    sourceCode: doc.sourceCode || (doc.sourceId && (doc.sourceId.orderCode || doc.sourceId.code) ? (doc.sourceId.orderCode || doc.sourceId.code) : null),
     rating: Number(doc.rating || 5),
     comment: doc.comment || '',
     anonymous: isAnon,
     displayName: (isAnon && !forAdmin) ? null : (doc.displayName || 'Khách hàng'),
     hidden: Boolean(doc.hidden),
+    status: doc.status || (doc.hidden ? 'HIDDEN' : 'ACTIVE'),
     createdAt: new Date(doc.createdAt || Date.now()).toISOString(),
   };
+
+  if (doc.staffReply && doc.staffReply.text) {
+    res.staffReply = {
+      text: doc.staffReply.text,
+      repliedBy: doc.staffReply.repliedBy ? doc.staffReply.repliedBy.toString() : null,
+      repliedAt: doc.staffReply.repliedAt ? new Date(doc.staffReply.repliedAt).toISOString() : null,
+    };
+  }
+
+  if (forAdmin) {
+    res.hiddenReason = doc.hiddenReason || null;
+    res.hiddenBy = doc.hiddenBy ? doc.hiddenBy.toString() : null;
+    res.hiddenAt = doc.hiddenAt ? new Date(doc.hiddenAt).toISOString() : null;
+    res.moderationHistory = doc.moderationHistory || [];
+    res.version = doc.version || 0;
+  }
 
   return res;
 };
@@ -167,16 +188,44 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
   if (query.targetType) filter.targetType = query.targetType;
   if (query.targetId) filter.targetId = query.targetId;
   if (query.status) filter.status = query.status;
+  if (query.rating) filter.rating = Number(query.rating);
+  if (query.fromDate || query.toDate) {
+    filter.createdAt = {};
+    if (query.fromDate) filter.createdAt.$gte = new Date(query.fromDate);
+    if (query.toDate) filter.createdAt.$lte = new Date(query.toDate);
+  }
+  if (query.search) {
+    filter.$or = [
+      { comment: { $regex: query.search, $options: 'i' } },
+      { displayName: { $regex: query.search, $options: 'i' } },
+    ];
+  }
 
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 20));
+  const skip = (page - 1) * limit;
 
-  const items = await Review.find(filter)
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .lean();
+  let queryBuilder = Review.find(filter).sort({ createdAt: -1 });
+  if (typeof queryBuilder.skip === 'function') {
+    queryBuilder = queryBuilder.skip(skip);
+  }
+  const items = await queryBuilder.limit(limit).lean();
+
+  let total = Array.isArray(items) ? items.length : 0;
+  if (typeof Review.countDocuments === 'function') {
+    try {
+      const counted = await Review.countDocuments(filter);
+      if (typeof counted === 'number') total = counted;
+    } catch (_) {}
+  }
 
   return {
     items: items.map(r => formatReview(r, true)),
+    total,
+    totalRows: total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit) || 1,
     nextCursor: null,
   };
 };
@@ -293,11 +342,24 @@ export const hideReview = async (id, data = {}, actor) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
 
+  if (review.hidden || review.status === 'HIDDEN') {
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Đánh giá này đã ở trạng thái bị ẩn');
+  }
+
+  const reason = data.reason || data.hiddenReason || 'Hidden by moderator';
   review.hidden = true;
   review.status = 'HIDDEN';
-  review.hiddenReason = data.reason || 'Hidden by moderator';
+  review.hiddenReason = reason;
   review.hiddenBy = actor.id;
   review.hiddenAt = new Date();
+  review.version = (review.version || 0) + 1;
+  review.moderationHistory = review.moderationHistory || [];
+  review.moderationHistory.push({
+    action: 'HIDE',
+    reason,
+    actorId: actor.id,
+    at: new Date(),
+  });
 
   await review.save();
   return formatReview(review, true);
@@ -317,11 +379,60 @@ export const showReview = async (id, actor) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
 
+  if (!review.hidden && review.status === 'ACTIVE') {
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Đánh giá này đang ở trạng thái hiển thị');
+  }
+
   review.hidden = false;
   review.status = 'ACTIVE';
   review.hiddenReason = null;
   review.hiddenBy = null;
   review.hiddenAt = null;
+  review.version = (review.version || 0) + 1;
+  review.moderationHistory = review.moderationHistory || [];
+  review.moderationHistory.push({
+    action: 'SHOW',
+    reason: 'Shown by moderator',
+    actorId: actor.id,
+    at: new Date(),
+  });
+
+  await review.save();
+  return formatReview(review, true);
+};
+
+export const replyReview = async (id, data = {}, actor) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid review ID');
+  }
+
+  if (!['ADMIN', 'MANAGER', 'STAFF', 'VET', 'GROOMER', 'NURSE', 'RECEPTIONIST'].includes(actor.systemRole)) {
+    throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Staff or Admin can reply to reviews');
+  }
+
+  const review = await Review.findById(id);
+  if (!review) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
+  }
+
+  const text = data.replyText || data.text || data.staffReply;
+  if (!text || !text.trim()) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Reply text is required');
+  }
+
+  review.staffReply = {
+    text: text.trim(),
+    repliedBy: actor.id,
+    repliedAt: new Date(),
+  };
+
+  review.moderationHistory = review.moderationHistory || [];
+  review.moderationHistory.push({
+    action: 'REPLY',
+    reason: `Staff replied: "${text.trim().slice(0, 50)}"`,
+    actorId: actor.id,
+    at: new Date(),
+  });
 
   await review.save();
   return formatReview(review, true);

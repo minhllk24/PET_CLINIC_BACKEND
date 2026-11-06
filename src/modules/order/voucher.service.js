@@ -33,9 +33,19 @@ export const formatVoucherResponse = (voucher) => {
 };
 
 /**
- * Pure calculation helper for voucher discount
+ * Pure calculation helper for voucher discount.
+ * Supports both ({ voucher, subtotal }) and (voucher, subtotal) signatures.
  */
-export const calculateDiscount = ({ voucher, subtotal }) => {
+export const calculateDiscount = (voucherOrObj, directSubtotal) => {
+  let voucher, subtotal;
+  if (voucherOrObj && typeof voucherOrObj === 'object' && voucherOrObj.voucher !== undefined) {
+    voucher = voucherOrObj.voucher;
+    subtotal = voucherOrObj.subtotal;
+  } else {
+    voucher = voucherOrObj;
+    subtotal = directSubtotal;
+  }
+
   if (!voucher || !subtotal || subtotal <= 0) return 0;
 
   let discount = 0;
@@ -52,17 +62,39 @@ export const calculateDiscount = ({ voucher, subtotal }) => {
 };
 
 /**
- * Validate voucher eligibility without consuming quota
+ * Validate voucher eligibility without consuming quota.
+ * Resilient to both object ({ code, scope, subtotal, ... }) and direct arguments.
  */
-export const validateVoucherEligibility = async ({
-  code,
-  scope,
-  subtotal = 0,
-  cartId,
-  serviceIds,
-  branchId,
-  customerId
-}) => {
+export const validateVoucherEligibility = async (arg1, arg2) => {
+  let code, scope, subtotal, cartId, serviceIds, branchId, customerId;
+
+  if (arg1 && typeof arg1 === 'object' && (arg1.code || arg1.voucher)) {
+    code = arg1.code || (arg1.voucher?.code);
+    scope = arg1.scope || arg1.orderType;
+    subtotal = arg1.subtotal !== undefined ? arg1.subtotal : (arg1.orderTotal || 0);
+    cartId = arg1.cartId;
+    serviceIds = arg1.serviceIds;
+    branchId = arg1.branchId;
+    customerId = arg1.customerId || arg1.userId;
+  } else if (typeof arg1 === 'string') {
+    code = arg1;
+    if (arg2 && typeof arg2 === 'object') {
+      scope = arg2.scope || arg2.orderType;
+      subtotal = arg2.subtotal !== undefined ? arg2.subtotal : (arg2.orderTotal || 0);
+      cartId = arg2.cartId;
+      serviceIds = arg2.serviceIds;
+      branchId = arg2.branchId;
+      customerId = arg2.customerId || arg2.userId;
+    }
+  } else if (arg1 && typeof arg1 === 'object' && arg1._id) {
+    // Passed a voucher document directly
+    code = arg1.code;
+    if (arg2 && typeof arg2 === 'object') {
+      scope = arg2.scope || arg2.orderType;
+      subtotal = arg2.subtotal !== undefined ? arg2.subtotal : (arg2.orderTotal || 0);
+      customerId = arg2.customerId || arg2.userId;
+    }
+  }
   if (!code || typeof code !== 'string') {
     return {
       code: code || '',

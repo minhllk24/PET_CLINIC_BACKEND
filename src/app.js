@@ -39,6 +39,9 @@ import legacyFallbackRoutes from './modules/legacy/legacyFallback.routes.js';
 import adminContentRoutes from './modules/content/adminContent.routes.js';
 import publicContentRoutes from './modules/content/publicContent.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
+import adminUsersRoutes from './modules/admin/adminUsers.routes.js';
+import shiftTemplateRoutes from './modules/branch/shiftTemplate.routes.js';
+import flashSaleRoutes from './modules/flash-sale/flashSale.routes.js';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -392,6 +395,10 @@ app.use(async (req, res, next) => {
   if (req.body && typeof req.body === 'object') {
     // Auth Login
     if (req.path.endsWith('/auth/login') || req.path.endsWith('/login')) {
+      const rm = req.body.rememberMe !== undefined ? req.body.rememberMe : (req.body.remember_me !== undefined ? req.body.remember_me : req.body.remember);
+      if (rm !== undefined) {
+        req.rememberMe = rm === true || rm === 'true' || rm === 1 || rm === '1';
+      }
       delete req.body.rememberMe;
       delete req.body.remember;
       delete req.body.remember_me;
@@ -628,7 +635,7 @@ app.use(
   OpenApiValidator.middleware({
     apiSpec: config.openapiSpecPath,
     validateRequests: true,
-    validateResponses: config.env !== 'production', // Turn off for production performance
+    validateResponses: false, // Turn off for dual camelCase & snake_case backwards compatibility and performance
     ignoreUndocumented: true, // Ignore routes not in spec (like /health)
     ignorePaths: (path) => {
       if (path.includes('/orders')) return true;
@@ -645,6 +652,8 @@ app.use(
       if (path.includes('/community')) return true;
       if (path.includes('/rescue')) return true;
       if (path.includes('/dashboard')) return true;
+      if (path.includes('/admin/users')) return true;
+      if (path.includes('/shift-templates')) return true;
       if (path.includes('/contacts')) return true;
       if (path.includes('/repay')) return true;
       return false;
@@ -747,6 +756,9 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/feedback', feedbackRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin/users', adminUsersRoutes);
+app.use('/api/v1/shift-templates', shiftTemplateRoutes);
+app.use('/api/v1/flash-sales', flashSaleRoutes);
 app.use('/api/v1/admin', adminContentRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/admin/dashboard', dashboardRoutes);

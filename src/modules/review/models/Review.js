@@ -16,6 +16,18 @@ const schema = new mongoose.Schema({
   hiddenBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   hiddenAt: { type: Date, default: null },
   status: { type: String, enum: ['ACTIVE', 'HIDDEN', 'DELETED'], default: 'ACTIVE', index: true },
+  staffReply: {
+    text: { type: String, default: null },
+    repliedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    repliedAt: { type: Date, default: null },
+  },
+  moderationHistory: [{
+    action: { type: String, required: true },
+    reason: { type: String, default: null },
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    at: { type: Date, default: Date.now },
+  }],
+  version: { type: Number, default: 0 },
 }, { timestamps: true });
 
 schema.index(

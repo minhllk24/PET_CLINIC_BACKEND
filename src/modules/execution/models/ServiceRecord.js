@@ -11,10 +11,11 @@ const materialSchema = new mongoose.Schema({
 
 const schema = new mongoose.Schema({
   code: { type: String, unique: true, sparse: true, trim: true, index: true },
-  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true, unique: true },
+  appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', required: true, index: true },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null },
   petId: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet', default: null },
+  segmentGroupKey: { type: String, default: null },
   serviceIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
   assignedStaffIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   reviewerStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -42,5 +43,10 @@ const schema = new mongoose.Schema({
   finalizedAt: { type: Date, default: null },
   version: { type: Number, default: 1, min: 1 }
 }, { timestamps: true });
+
+schema.index(
+  { appointmentId: 1, petId: 1, recordType: 1, segmentGroupKey: 1 },
+  { unique: true, sparse: false, name: 'appointment_pet_recordtype_segment_idx' }
+);
 
 export default mongoose.models.ServiceRecord || mongoose.model('ServiceRecord', schema);

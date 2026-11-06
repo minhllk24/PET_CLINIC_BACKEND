@@ -247,3 +247,32 @@ export const unblockCustomer = async (id, data = {}, actor = {}) => {
 
   return formatCustomerDetail(customer);
 };
+
+
+export const lookupCustomerByPhone = async (phone, actor = null) => {
+  if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
+    throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Phone parameter is required');
+  }
+
+  const cleanPhone = phone.trim();
+  const customer = await Customer.findOne({
+    $or: [{ phone: cleanPhone }, { contactPhone: cleanPhone }]
+  });
+
+  if (!customer) {
+    const user = await User.findOne({ phone: cleanPhone, systemRole: 'CUSTOMER' });
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user._id.toString(),
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email || null,
+      activationStatus: user.accountStatus === 'ACTIVE' ? 'ACTIVATED' : 'NO_ACCOUNT',
+      hasAccount: true,
+    };
+  }
+
+  return formatCustomerDetail(customer);
+};

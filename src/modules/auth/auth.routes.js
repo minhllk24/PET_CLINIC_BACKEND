@@ -22,5 +22,8 @@ router.post('/logout', authenticate, authController.logout);
 router.post('/change-password', authenticate, authController.changePassword);
 router.get('/me', authenticate, authController.getMe);
 router.put('/me', authenticate, authController.updateMe);
+router.patch('/me', authenticate, authController.updateMe);
+router.put('/profile', authenticate, authController.updateMe);
+router.patch('/profile', authenticate, authController.updateMe);
 
 export default router;

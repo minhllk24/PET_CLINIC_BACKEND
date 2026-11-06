@@ -42,7 +42,11 @@ export const errorHandler = (err, req, res, next) => {
   }
   
   if (err.status === 403) {
-    error = new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, err.message);
+    const customCode = err.code || (error && error.code);
+    const resolvedCode = customCode && customCode !== 'INTERNAL_SERVER_ERROR' && customCode !== 'INTERNAL_ERROR'
+      ? customCode
+      : ErrorCodes.AUTHORIZATION_ERROR;
+    error = new AppError(403, err.title || error.title || 'Forbidden', resolvedCode, err.message || error.message || 'Forbidden');
   }
 
   if (err.status === 400 && err.errors) {

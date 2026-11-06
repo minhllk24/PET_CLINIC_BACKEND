@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Branch from './models/Branch';
+import ShiftTemplate from './models/ShiftTemplate';
 import { getNextSequence } from '../../models/Counter';
 import AppError from '../../utils/AppError';
 
@@ -134,7 +135,12 @@ export const updateBranch = async (id, data, actor = null) => {
   if (data.name !== undefined) branch.name = data.name;
   if (data.address !== undefined) branch.address = data.address;
   if (data.phone !== undefined) branch.phone = data.phone;
-  if (data.status !== undefined) branch.status = data.status;
+  if (data.status !== undefined) {
+    if (actor && actor.systemRole !== 'ADMIN') {
+      throw new AppError(403, 'Forbidden', 'FORBIDDEN_OPERATION', 'Only ADMIN can change branch status');
+    }
+    branch.status = data.status;
+  }
   if (data.openingHours !== undefined) branch.openingHours = data.openingHours;
   if (data.holidays !== undefined) branch.holidays = data.holidays;
 
@@ -170,4 +176,127 @@ export const activateBranch = async (id, actor = null) => {
   branch.status = 'ACTIVE';
   await branch.save();
   return formatBranchResponse(branch);
+};
+
+// ================= SHIFT TEMPLATES CRUD (OPS-03) =================
+
+export const formatShiftTemplate = (tpl) => {
+  const doc = tpl.toObject ? tpl.toObject() : tpl;
+  return {
+    id: (doc._id || doc.id).toString(),
+    branchId: (doc.branchId?._id || doc.branchId).toString(),
+    code: doc.code || null,
+    name: doc.name,
+    startTime: doc.startTime,
+    endTime: doc.endTime,
+    daysOfWeek: doc.daysOfWeek || [],
+    status: doc.status || 'ACTIVE',
+    version: doc.version || 1,
+    createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
+    updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
+  };
+};
+
+export const listShiftTemplates = async (branchId, query = {}, actor = null) => {
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (branchId && !assignedIds.includes(branchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'You do not have access to shift templates of this branch');
+    }
+  }
+
+  const filter = {};
+  if (branchId) {
+    filter.branchId = new mongoose.Types.ObjectId(branchId);
+  }
+  if (query.status) {
+    filter.status = query.status.toUpperCase();
+  }
+
+  const templates = await ShiftTemplate.find(filter).sort({ startTime: 1 });
+  return templates.map(formatShiftTemplate);
+};
+
+export const createShiftTemplate = async (branchId, data, actor = null) => {
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (branchId && !assignedIds.includes(branchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'You cannot create shift templates for this branch');
+    }
+  }
+
+  let code = data.code ? data.code.trim().toUpperCase() : null;
+  if (!code) {
+    code = `SFT-${Date.now().toString().slice(-4)}`;
+  }
+
+  const template = new ShiftTemplate({
+    branchId: new mongoose.Types.ObjectId(branchId),
+    code,
+    name: data.name,
+    startTime: data.startTime,
+    endTime: data.endTime,
+    daysOfWeek: data.daysOfWeek || [1, 2, 3, 4, 5, 6, 0],
+    status: data.status || 'ACTIVE',
+  });
+
+  await template.save();
+  return formatShiftTemplate(template);
+};
+
+export const getShiftTemplateById = async (id, actor = null) => {
+  const template = await ShiftTemplate.findById(id);
+  if (!template) {
+    throw new AppError(404, 'Not Found', 'SHIFT_TEMPLATE_NOT_FOUND', 'Shift template not found');
+  }
+
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (!assignedIds.includes(template.branchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'Access denied to this shift template');
+    }
+  }
+
+  return formatShiftTemplate(template);
+};
+
+export const updateShiftTemplate = async (id, data, actor = null) => {
+  const template = await ShiftTemplate.findById(id);
+  if (!template) {
+    throw new AppError(404, 'Not Found', 'SHIFT_TEMPLATE_NOT_FOUND', 'Shift template not found');
+  }
+
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (!assignedIds.includes(template.branchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'Access denied to this shift template');
+    }
+  }
+
+  if (data.name !== undefined) template.name = data.name;
+  if (data.code !== undefined) template.code = data.code.toUpperCase().trim();
+  if (data.startTime !== undefined) template.startTime = data.startTime;
+  if (data.endTime !== undefined) template.endTime = data.endTime;
+  if (data.daysOfWeek !== undefined) template.daysOfWeek = data.daysOfWeek;
+  if (data.status !== undefined) template.status = data.status.toUpperCase();
+
+  await template.save();
+  return formatShiftTemplate(template);
+};
+
+export const deleteShiftTemplate = async (id, actor = null) => {
+  const template = await ShiftTemplate.findById(id);
+  if (!template) {
+    throw new AppError(404, 'Not Found', 'SHIFT_TEMPLATE_NOT_FOUND', 'Shift template not found');
+  }
+
+  if (actor && actor.systemRole === 'MANAGER') {
+    const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());
+    if (!assignedIds.includes(template.branchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'AUTHORIZATION_ERROR', 'Access denied to this shift template');
+    }
+  }
+
+  await ShiftTemplate.findByIdAndDelete(id);
+  return { success: true, message: 'Shift template deleted successfully' };
 };

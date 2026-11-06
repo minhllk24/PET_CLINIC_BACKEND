@@ -128,6 +128,15 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product variant is not purchasable');
     }
     const prodImg = product.images?.find((i) => i.isPrimary)?.url || product.images?.[0]?.url || product.image || product.thumbnailUrl || null;
+    let effectiveUnitPrice = variant.finalPrice || variant.price;
+    try {
+      const { findActiveFlashSaleItem } = require('../flash-sale/flashSale.service');
+      const fsItem = await findActiveFlashSaleItem(item.productId, item.variantId || variant.sku);
+      if (fsItem && fsItem.isQuotaAvailable && fsItem.salePrice < effectiveUnitPrice) {
+        effectiveUnitPrice = fsItem.salePrice;
+      }
+    } catch {}
+
     resolvedItems.push({
       productId: item.productId,
       variantId: item.variantId,
@@ -137,7 +146,7 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       image: prodImg,
       photoUrl: prodImg,
       quantity: item.quantity,
-      unitPrice: variant.finalPrice || variant.price
+      unitPrice: effectiveUnitPrice
     });
   }
 
@@ -409,10 +418,9 @@ export const formatOrder = (order) => {
   }));
 
   const result = {
-    id: obj.code || obj._id.toString(),
-    _id: obj._id.toString(),
-    order_id: obj.code || obj._id.toString(),
-    code: obj.code || obj._id.toString(),
+    id: obj._id ? obj._id.toString() : (obj.id ? obj.id.toString() : obj.code),
+    order_id: obj.code || (obj._id ? obj._id.toString() : undefined),
+    code: obj.code || (obj._id ? obj._id.toString() : undefined),
     order_code: obj.code,
     order_status: obj.status,
     total_amount: obj.pricing ? obj.pricing.totalAmount : undefined,
@@ -474,6 +482,10 @@ export const formatOrder = (order) => {
       method: obj.paymentMethod,
       status: obj.status === 'CANCELLED' ? 'CANCELLED' : (obj.status === 'COMPLETED' ? 'PAID' : 'PENDING')
     } : undefined),
+    carrier: obj.carrier || null,
+    trackingNumber: obj.trackingNumber || null,
+    statusNote: obj.statusNote || null,
+    paymentProvider: obj.paymentProvider || (obj.paymentMethod === 'ONLINE_MOCK' ? 'MOCK_GATEWAY' : null),
     deliveredAt: deliveredAtDate ? deliveredAtDate.toISOString() : null,
     returnWindowEndsAt: returnWindowEndsAtDate ? returnWindowEndsAtDate.toISOString() : null,
     allowedActions,
@@ -801,11 +813,15 @@ export const shipOrder = async (orderId, shipData = {}, actor) => {
   }
 
   order.status = 'SHIPPED';
+  if (shipData.carrier) order.carrier = shipData.carrier;
+  if (shipData.trackingNumber) order.trackingNumber = shipData.trackingNumber;
+  if (shipData.statusNote) order.statusNote = shipData.statusNote;
+
   order.statusHistory.push({
     status: 'SHIPPED',
     at: new Date(),
     actorId: actor ? (actor.id || actor._id) : undefined,
-    note: shipData.trackingNumber ? `Carrier: ${shipData.carrier || 'N/A'}, Tracking: ${shipData.trackingNumber}` : undefined
+    note: shipData.trackingNumber ? `Carrier: ${shipData.carrier || 'N/A'}, Tracking: ${shipData.trackingNumber}` : (shipData.statusNote || undefined)
   });
   await order.save();
   return order;
@@ -1089,8 +1105,11 @@ export const quoteAdminOrder = async (data, actor) => {
 
   if (actor && actor.systemRole !== 'ADMIN') {
     const allowedBranches = ((actor.systemRole === 'MANAGER' ? actor.assignedBranchIds : actor.authorizedBranchIds) || []).map((b) => b.toString());
-    if (allowedBranches.length > 0 && !allowedBranches.includes(fulfillmentBranchId.toString())) {
-      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You are not authorized for this branch');
+    if (allowedBranches.length === 0) {
+      throw new AppError(403, 'Forbidden', 'BRANCH_SCOPE_EMPTY', 'Staff/Manager does not have any assigned branch');
+    }
+    if (!allowedBranches.includes(fulfillmentBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'BRANCH_ACCESS_DENIED', 'You are not authorized for this branch');
     }
   }
 
@@ -1247,8 +1266,11 @@ export const createAdminOrder = async (data, actor) => {
 
   if (actor && actor.systemRole !== 'ADMIN') {
     const allowedBranches = ((actor.systemRole === 'MANAGER' ? actor.assignedBranchIds : actor.authorizedBranchIds) || []).map((b) => b.toString());
-    if (allowedBranches.length > 0 && !allowedBranches.includes(fulfillmentBranchId.toString())) {
-      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'You are not authorized for this branch');
+    if (allowedBranches.length === 0) {
+      throw new AppError(403, 'Forbidden', 'BRANCH_SCOPE_EMPTY', 'Staff/Manager does not have any assigned branch');
+    }
+    if (!allowedBranches.includes(fulfillmentBranchId.toString())) {
+      throw new AppError(403, 'Forbidden', 'BRANCH_ACCESS_DENIED', 'You are not authorized for this branch');
     }
   }
 

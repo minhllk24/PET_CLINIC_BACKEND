@@ -88,6 +88,29 @@ const showHandler = async (req, res, next) => {
 router.post('/:id/show', requireRole(['MANAGER', 'ADMIN']), idempotency('reviewsShow', { required: false }), showHandler);
 router.patch('/:id/show', requireRole(['MANAGER', 'ADMIN']), idempotency('reviewsShow', { required: false }), showHandler);
 
+// Toggle visibility (Manager/Admin) - MOD-03
+router.patch('/:id/visibility', requireRole(['MANAGER', 'ADMIN']), async (req, res, next) => {
+  try {
+    const isVisible = req.body.isVisible ?? req.body.visible ?? (req.body.status === 'ACTIVE');
+    const result = isVisible
+      ? await reviewService.showReview(req.params.id, req.actor)
+      : await reviewService.hideReview(req.params.id, req.body, req.actor);
+    res.json(result);
+  } catch (error) { next(error); }
+});
+
+// Reply to review (Staff/Admin) - MOD-04
+router.post(
+  '/:id/reply',
+  requireRole(['STAFF', 'VET', 'GROOMER', 'NURSE', 'RECEPTIONIST', 'MANAGER', 'ADMIN']),
+  async (req, res, next) => {
+    try {
+      const result = await reviewService.replyReview(req.params.id, req.body, req.actor);
+      res.json(result);
+    } catch (error) { next(error); }
+  }
+);
+
 // Compatibility route for Frontend: GET /api/v1/reviews/target/product/:productId
 router.get('/target/product/:productId', optionalAuth, async (req, res, next) => {
   try {

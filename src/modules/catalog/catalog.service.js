@@ -912,6 +912,54 @@ export const restoreProduct = async (id, actor) => {
   return getProductById(product._id, actor);
 };
 
+export const deleteProduct = async (id, actor) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  }
+
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Product not found');
+  }
+
+  // OPS-02: Chỉ xóa khi ARCHIVED
+  if (product.status !== 'ARCHIVED') {
+    throw new AppError(409, 'Conflict', 'PRODUCT_NOT_ARCHIVED', 'Sản phẩm phải được lưu trữ (ARCHIVED) trước khi có thể xóa vĩnh viễn');
+  }
+
+  const objId = new mongoose.Types.ObjectId(id);
+
+  // 1. Order reference
+  const orderRef = await Order.findOne({ 'items.productId': objId });
+  if (orderRef) {
+    throw new AppError(409, 'Conflict', 'PRODUCT_IN_USE', `Không thể xóa vĩnh viễn sản phẩm vì đã có đơn hàng tham chiếu (${orderRef.code || orderRef._id}). Vui lòng giữ ở trạng thái ARCHIVED.`);
+  }
+
+  // 2. Inventory record / stock reference
+  const InventoryRecordModel = mongoose.models.InventoryRecord || mongoose.models.InventoryStock;
+  if (InventoryRecordModel) {
+    const stockRef = await InventoryRecordModel.findOne({
+      $or: [{ productId: objId }, { 'items.productId': objId }],
+      quantityOnHand: { $gt: 0 },
+    });
+    if (stockRef) {
+      throw new AppError(409, 'Conflict', 'PRODUCT_IN_USE', 'Không thể xóa vĩnh viễn sản phẩm vì vẫn còn tồn kho tại chi nhánh.');
+    }
+  }
+
+  // 3. Inventory transaction reference
+  const InventoryTxModel = mongoose.models.InventoryTransaction;
+  if (InventoryTxModel) {
+    const txRef = await InventoryTxModel.findOne({ 'items.productId': objId });
+    if (txRef) {
+      throw new AppError(409, 'Conflict', 'PRODUCT_IN_USE', 'Không thể xóa vĩnh viễn sản phẩm vì đã có giao dịch xuất nhập kho lịch sử.');
+    }
+  }
+
+  await Product.findByIdAndDelete(id);
+  return { success: true, message: 'Sản phẩm đã được xóa vĩnh viễn thành công', id: id.toString() };
+};
+
 // ================= VARIANT OPERATIONS =================
 
 export const addVariant = async (productId, data, actor) => {

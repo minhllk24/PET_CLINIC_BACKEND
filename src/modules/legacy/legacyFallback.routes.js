@@ -11,15 +11,19 @@ const router = express.Router();
  * sơ cứu và danh mục thú cưng nhằm ngăn chặn lỗi 404 trên Console trình duyệt.
  */
 
+import * as flashSaleService from '../flash-sale/flashSale.service.js';
+
 // 1. Flash Sale
-router.get('/flash-sales/active', (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: {
-      sale: null,
-      products: [],
-    },
-  });
+router.get('/flash-sales/active', async (req, res, next) => {
+  try {
+    const result = await flashSaleService.getActiveFlashSale();
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 2. Sơ cứu thú cưng (First Aid)

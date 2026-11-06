@@ -60,10 +60,30 @@ router.get(['/posts/:slug', '/public/posts/:slug'], (req, res, next) => {
 // =========================================================================
 router.get(['/community/posts', '/public/community/posts'], contentController.getCommunityPostsPublic);
 router.post('/community/posts', authenticate, contentController.createCommunityPost);
+router.get('/community/posts/:id/comments', contentController.getCommunityComments);
+router.post('/community/posts/:id/comments', authenticate, contentController.addCommunityComment);
+router.post('/community/comments/:id/replies', authenticate, contentController.addCommentReply);
+router.post('/community/posts/:id/reports', authenticate, contentController.reportCommunityPost);
+router.post('/community/posts/:id/like', authenticate, contentController.likeCommunityPost);
+router.post('/community/posts/:id/unlike', authenticate, contentController.unlikeCommunityPost);
 
 // =========================================================================
 // 3. RESCUE PETS & ADOPTIONS
 // =========================================================================
+router.get(['/rescue/partners', '/public/rescue/partners'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: [
+      { id: 'partner-01', code: 'SGT', name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time', phone: '0901234561', location: 'TP. Hồ Chí Minh' },
+      { id: 'partner-02', code: 'SAR', name: 'Nhóm Cứu Hộ Động Vật SAR', phone: '0901234562', location: 'TP. Hồ Chí Minh' },
+      { id: 'partner-03', code: 'MAYT', name: 'Mái Ấm Yêu Thương Pet Shelter', phone: '0901234563', location: 'Bình Dương' },
+      { id: 'partner-04', code: 'TCNL', name: 'Trạm Cứu Trợ Động Vật Nông Lâm', phone: '0901234564', location: 'TP. Thủ Đức' },
+      { id: 'partner-05', code: 'HPR', name: 'Hanoi Pet Rescue (Chi nhánh miền Nam)', phone: '0901234565', location: 'TP. Hồ Chí Minh' },
+      { id: 'partner-06', code: 'DCHLT', name: 'Đội Cứu Hộ Động Vật Lang Thang VN', phone: '0901234566', location: 'Đồng Nai' },
+    ],
+  });
+});
+
 router.get(['/rescue/pets', '/adoptions/pets', '/public/rescue/pets'], contentController.getRescuePetsPublic);
 router.get(['/rescue/pets/:id', '/public/rescue/pets/:id'], contentController.getRescuePetById);
 router.get(['/rescue/stations', '/public/rescue/stations'], (req, res) => {

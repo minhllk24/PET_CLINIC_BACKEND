@@ -145,6 +145,10 @@ export const login = async ({ identifier, phone, username, password, rememberMe 
     throw new AppError(403, 'Forbidden', 'ACCOUNT_DEACTIVATED', 'Account is deactivated.');
   }
 
+  if (user.accountStatus === 'PENDING_ACTIVATION') {
+    throw new AppError(403, 'Forbidden', 'ACCOUNT_NOT_ACTIVATED', 'Account is not activated yet. Please verify OTP.');
+  }
+
   // Check temporary lockout (auto-clear for customer or 0905555555 during demo/UAT)
   if (user.phone === '0905555555' || user.systemRole === 'CUSTOMER') {
     user.lockedUntil = null;
@@ -858,16 +862,28 @@ export const updateMe = async (userId, { fullName, email, avatarUrl }, meta = {}
     user.fullName = trimmed;
   }
 
-  if (email !== undefined && email !== null) {
-    const trimmedEmail = email.toLowerCase().trim();
-    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
-      throw new AppError(400, 'Bad Request', 'INVALID_EMAIL', 'Please provide a valid email address');
+  if (email !== undefined) {
+    if (email === null || email === '') {
+      user.email = null;
+      try {
+        const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+        await CustomerModel.updateOne({ userId: user._id }, { contactEmail: null, email: null });
+      } catch (err) {}
+    } else {
+      const trimmedEmail = email.toLowerCase().trim();
+      if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+        throw new AppError(400, 'Bad Request', 'INVALID_EMAIL', 'Please provide a valid email address');
+      }
+      const duplicate = await User.findOne({ email: trimmedEmail, _id: { $ne: user._id } });
+      if (duplicate) {
+        throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Email is already taken by another account');
+      }
+      user.email = trimmedEmail;
+      try {
+        const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+        await CustomerModel.updateOne({ userId: user._id }, { contactEmail: trimmedEmail, email: trimmedEmail });
+      } catch (err) {}
     }
-    const duplicate = await User.findOne({ email: trimmedEmail, _id: { $ne: user._id } });
-    if (duplicate) {
-      throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Email is already taken by another account');
-    }
-    user.email = trimmedEmail;
   }
 
   if (avatarUrl !== undefined) {

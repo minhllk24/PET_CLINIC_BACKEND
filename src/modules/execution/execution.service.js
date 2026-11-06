@@ -254,14 +254,15 @@ export const createRecord = async (data, actor) => {
     appointmentId: appointment._id,
     branchId: appointment.branchId,
     customerId: appointment.customerId || null,
-    petId: appointment.petId || null,
-    serviceIds: (appointment.services || []).map((service) => service.serviceId),
-    assignedStaffIds: (appointment.services || []).map((service) => service.assignedStaffId).filter(Boolean),
+    petId: data.petId || appointment.petId || null,
+    segmentGroupKey: data.segmentGroupKey || null,
+    serviceIds: data.serviceIds || (appointment.services || []).map((service) => service.serviceId),
+    assignedStaffIds: data.assignedStaffIds || (appointment.services || []).map((service) => service.assignedStaffId).filter(Boolean),
     reviewerStaffId,
     recordType,
     status: 'IN_PROGRESS',
     plannedMaterials: (data.plannedMaterials || []).map(normalizeMaterial),
-    actualMaterials: (data.actualMaterials || data.plannedMaterials || []).map(normalizeMaterial),
+    actualMaterials: (data.actualMaterials || []).map(normalizeMaterial),
     professional: {}
   });
   await record.save();
@@ -940,7 +941,21 @@ export const finalizeRecord = async (id, data = {}, actor) => {
         record.version += 1;
         await saveWithSession(record, session);
 
-        if (appointment.status !== 'COMPLETED') {
+        // SR-04: Only mark appointment COMPLETED when ALL segments and ALL service records are finalized
+        let otherRecords = [];
+        try {
+          let otherRecordsQuery = ServiceRecord.find({
+            appointmentId: appointment._id,
+            _id: { $ne: record._id },
+          });
+          otherRecordsQuery = withSession(otherRecordsQuery, session);
+          otherRecords = await otherRecordsQuery;
+        } catch (_e) {
+          otherRecords = [];
+        }
+
+        const allRecordsFinalized = otherRecords.every((r) => r.status === 'FINALIZED');
+        if (allSegmentsComplete && allRecordsFinalized && appointment.status !== 'COMPLETED') {
           appointment.status = 'COMPLETED';
           if (typeof appointment.save === 'function') {
             await saveWithSession(appointment, session);

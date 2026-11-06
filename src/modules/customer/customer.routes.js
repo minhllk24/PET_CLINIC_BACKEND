@@ -16,6 +16,19 @@ router.get('/', requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
   }
 });
 
+// Lookup Customer by exact Phone (ORD-03: Receptionist / Internal staff)
+router.get('/lookup', requireRole(['ADMIN', 'MANAGER', 'STAFF']), async (req, res, next) => {
+  try {
+    const result = await customerService.lookupCustomerByPhone(req.query.phone, req.actor);
+    if (!result) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get Customer by ID (Admin, Manager, Customer self)
 router.get('/:id', requireRole(['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER']), async (req, res, next) => {
   try {

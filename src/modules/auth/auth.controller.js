@@ -44,7 +44,11 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const meta = getMeta(req);
-    const { accessToken, refreshToken, expiresAt, user } = await authService.login(req.body, meta);
+    const loginPayload = {
+      ...req.body,
+      rememberMe: req.rememberMe !== undefined ? req.rememberMe : req.body?.rememberMe,
+    };
+    const { accessToken, refreshToken, expiresAt, user } = await authService.login(loginPayload, meta);
     setRefreshCookie(res, refreshToken, expiresAt);
     return sendSuccess(res, formatAuthTokens({
       accessToken,

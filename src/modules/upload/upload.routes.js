@@ -22,7 +22,6 @@ const conditionalMulter = (req, res, next) => {
 
 /**
  * POST /api/v1/uploads/products
- * Hỗ trợ upload ảnh sản phẩm (single hoặc multiple, field name là "files" hoặc "file" hoặc "images")
  */
 router.post(
   '/products',
@@ -33,8 +32,39 @@ router.post(
 );
 
 /**
+ * POST /api/v1/uploads/content (Articles, First Aid)
+ */
+router.post(
+  '/content',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  conditionalMulter,
+  uploadController.uploadProductImages
+);
+
+/**
+ * POST /api/v1/uploads/community (Member forum uploads)
+ */
+router.post(
+  '/community',
+  authenticate,
+  conditionalMulter,
+  uploadController.uploadProductImages
+);
+
+/**
+ * POST /api/v1/uploads/rescue (Partner & Rescue pet uploads)
+ */
+router.post(
+  '/rescue',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  conditionalMulter,
+  uploadController.uploadProductImages
+);
+
+/**
  * DELETE /api/v1/uploads/products/:imageId(*)
- * Xóa ảnh sản phẩm khỏi Cloudinary hoặc local disk
  */
 router.delete(
   '/products/:imageId(*)',

@@ -37,6 +37,7 @@ router.get('/products/:id/review-stats', optionalAuth, async (req, res, next) =>
   } catch (error) { next(error); }
 });
 router.patch('/products/:id', authenticate, requireRole(['ADMIN']), catalogController.updateProduct);
+router.delete('/products/:id', authenticate, requireRole(['ADMIN']), catalogController.deleteProduct);
 router.post('/products/:id/archive', authenticate, requireRole(['ADMIN']), idempotency('productsArchive'), catalogController.archiveProduct);
 router.post('/products/:id/restore', authenticate, requireRole(['ADMIN']), idempotency('productsRestore'), catalogController.restoreProduct);
 

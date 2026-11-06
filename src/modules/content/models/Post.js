@@ -3,8 +3,23 @@ import mongoose from 'mongoose';
 const stepSchema = new mongoose.Schema({
   stepNumber: { type: Number, required: true },
   title: { type: String, required: true, trim: true },
-  instruction: { type: String, required: true, trim: true },
+  instruction: { type: String, trim: true, default: '' },
+  description: { type: String, trim: true, default: '' },
   mediaUrl: { type: String, default: null },
+  imageUrl: { type: String, default: null },
+}, { _id: false });
+
+const contentBlockSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['PARAGRAPH', 'HEADING', 'IMAGE', 'QUOTE', 'LIST'],
+    default: 'PARAGRAPH',
+  },
+  text: { type: String, default: null },
+  html: { type: String, default: null },
+  imageUrl: { type: String, default: null },
+  caption: { type: String, default: null },
+  alt: { type: String, default: null },
 }, { _id: false });
 
 const postSchema = new mongoose.Schema({
@@ -20,6 +35,9 @@ const postSchema = new mongoose.Schema({
   category: { type: String, required: true, trim: true, index: true },
   excerpt: { type: String, trim: true, default: '' },
   content: { type: String, required: true },
+  contentBlocks: [contentBlockSchema],
+  layoutType: { type: String, enum: ['STANDARD', 'FEATURED'], default: 'STANDARD' },
+  hashtags: [{ type: String, trim: true }],
   thumbnailUrl: { type: String, default: null },
   isFeatured: { type: Boolean, default: false },
   status: {
@@ -33,7 +51,13 @@ const postSchema = new mongoose.Schema({
   likesCount: { type: Number, default: 0 },
   
   // Các trường chuyên dụng cho Cẩm nang Sơ cứu (First Aid)
-  emergencyPhone: { type: String, default: '1900-PET-HELP' },
+  urgencyLevel: { type: String, enum: ['NORMAL', 'URGENT'], default: 'NORMAL' },
+  heroTitle: { type: String, trim: true, default: null },
+  stepBadges: [{ type: String, trim: true }],
+  videoUrl: { type: String, default: null },
+  videoTitle: { type: String, default: null },
+  videoDescriptionHtml: { type: String, default: null },
+  emergencyPhone: { type: String, default: '0901234567' },
   steps: [stepSchema],
   publishedAt: { type: Date, default: null },
 }, {

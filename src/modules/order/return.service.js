@@ -69,16 +69,22 @@ export const formatOrderReturn = (ret, parentOrder = null) => {
     fulfillmentBranchId: obj.fulfillmentBranchId?.toString() || parentOrder?.fulfillmentBranchId?.toString() || null,
     status: obj.status,
     statusMessage: RETURN_STATUS_MESSAGES[obj.status] || null,
-    items: (obj.items || []).map((item) => ({
-      orderItemId: item.orderItemId.toString(),
-      productName: item.productName,
-      orderedQty: item.orderedQty,
-      alreadyReturnedQty: item.alreadyReturnedQty || 0,
-      requestedQty: item.requestedQty,
-      receivedQty: item.receivedQty !== undefined ? item.receivedQty : item.requestedQty,
-      quality: item.quality || 'RESELLABLE',
-      refundAmount: item.refundAmount
-    })),
+    items: (obj.items || []).map((item) => {
+      const isReceivedOrLater = ['RECEIVED', 'APPROVED', 'COMPLETED'].includes(obj.status);
+      return {
+        orderItemId: item.orderItemId.toString(),
+        productName: item.productName,
+        orderedQty: item.orderedQty,
+        alreadyReturnedQty: item.alreadyReturnedQty || 0,
+        requestedQty: item.requestedQty,
+        receivedQty: isReceivedOrLater ? (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty) : (item.receivedQty !== undefined ? item.receivedQty : null),
+        approvedQty: isReceivedOrLater ? (item.approvedQty !== undefined ? item.approvedQty : (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty)) : null,
+        restockedQty: isReceivedOrLater ? (item.restockedQty !== undefined ? item.restockedQty : (item.quality === 'DAMAGED' || item.quality === 'EXPIRED' ? 0 : (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty))) : null,
+        quality: isReceivedOrLater ? (item.quality || 'RESELLABLE') : (item.quality || null),
+        damageReason: item.damageReason || null,
+        refundAmount: item.refundAmount
+      };
+    }),
     reason: obj.reason,
     evidenceUrls: obj.evidenceUrls || [],
     refundBreakdown: {
