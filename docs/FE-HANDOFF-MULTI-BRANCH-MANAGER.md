@@ -1,110 +1,87 @@
-# TÀI LIỆU HÀN GẮN & TÍCH HỢP FRONTEND (FE HANDOFF)
-## Module Quản Lý Nhiều Chi Nhánh (Multi-Branch Manager) & Làm Sạch Dữ Liệu Hồ Sơ Dịch Vụ (Service Record Data Enrichment)
+# TÀI LIỆU HÀN GẮN & BÀN GIAO FRONTEND (FE HANDOFF - CẬP NHẬT LẦN 2)
+## Module Quản Lý Nhiều Chi Nhánh (Multi-Branch Manager), Bảo Mật Fail-Closed Live Sync & Nghiệm Thu Dữ Liệu Hồ Sơ Dịch Vụ Thật
 
-> **Dành cho:** Frontend Engineering Team  
-> **Phiên bản API:** V7  
-> **Trạng thái BE:** Đã hoàn thành triển khai & 100% Automated Test Pass  
-> **Mục tiêu:** Cung cấp chi tiết endpoint, payload mẫu, cấu trúc phản hồi và hướng dẫn hiển thị giao diện cho module Quản lý nhiều chi nhánh và màn hình Hồ sơ dịch vụ.
+> **Dành cho:** Frontend Engineering Team (`DR_PETS_HOUSE_ANGULAR`)  
+> **Phiên bản API Backend:** `v7.0` (Canonical REST & RFC 9457)  
+> **Môi trường Database:** MongoDB Atlas (`pet_clinic_v2`)  
+> **Trạng thái BE:** Đã giải quyết triệt để 5 nhóm phản hồi & 100% Automated + Live DB Test PASS  
 
 ---
 
 ### MỤC LỤC
-1. [Tổng Quan Kiến Trúc & Thiết Kế Linh Hoạt](#1-tổng-quan-kiến-trúc--thiết-kế-linh-hoạt)
-2. [Chi Tiết API Quản Lý (Manager APIs)](#2-chi-tiết-api-quản-lý-manager-apis)
-   - [2.1 Tạo Tài Khoản Quản Lý Mới](#21-tạo-tài-khoản-quản-lý-mới)
-   - [2.2 Lấy Danh Sách Quản Lý](#22-lấy-danh-sách-quản-lý)
-   - [2.3 Lấy Chi Tiết Quản Lý](#23-lấy-chi-tiết-quản-lý)
-   - [2.4 Cập Nhật Thông Tin Quản Lý](#24-cập-nhật-thông-tin-quản-lý)
-   - [2.5 Cập Nhật Danh Sách Chi Nhánh Phụ Trách](#25-cập-nhật-danh-sách-chi-nhánh-phụ-trách)
-   - [2.6 Đặt Lại Mật Khẩu Quản Lý (Admin Reset Password)](#26-đặt-lại-mật-khẩu-quản-lý-admin-reset-password)
-3. [Tích Hợp Trong Module Nhân Sự Hiện Có (`/api/v1/staff`)](#3-tích-hợp-trong-module-nhân-sự-hiện-có-apiv1staff)
-4. [Cơ Chế Phân Quyền & Dynamic Scope Sync](#4-cơ-chế-phân-quyền--dynamic-scope-sync)
-5. [Giải Quyết Dữ Liệu Hồ Sơ Dịch Vụ (Service Record Data Enrichment)](#5-giải-quyết-dữ-liệu-hồ-sơ-dịch-vụ-service-record-data-enrichment)
-6. [Tài Khoản Test & Kịch Bản Kiểm Thử E2E](#6-tài-khoản-test--kịch-bản-kiểm-thử-e2e)
+1. [Giải Quyết 5 Nhóm Phản Hồi Từ Frontend](#1-giải-quyết-5-nhóm-phản-hồi-từ-frontend)
+2. [Chi Tiết API Quản Lý Đã Chuẩn Hóa](#2-chi-tiết-api-quản-lý-đã-chuẩn-hóa)
+3. [Cơ Chế Phân Quyền & Dynamic Live Sync (Fail-Closed)](#3-cơ-chế-phân-quyền--dynamic-live-sync-fail-closed)
+4. [Bằng Chứng Dữ Liệu Hồ Sơ Dịch Vụ Thật Trên MongoDB Atlas](#4-bằng-chứng-dữ-liệu-hồ-sơ-dịch-vụ-thật-trên-mongodb-atlas)
+5. [Phân Trang Hợp Nhất Nhân Sự + Quản Lý (`/api/v1/staff`)](#5-phân-trang-hợp-nhất-nhân-sự--quản-lý-apiv1staff)
+6. [Thông Tin Bàn Giao Môi Trường & Bằng Chứng Nghiệm Thu UAT](#6-thông-tin-bàn-giao-môi-trường--bằng-chứng-nghiệm-thu-uat)
 
 ---
 
-## 1. Tổng Quan Kiến Trúc & Thiết Kế Linh Hoạt
+## 1. Giải Quyết 5 Nhóm Phản Hồi Từ Frontend
 
-Backend đã triển khai mô hình **Hybrid Bridge** cho phép FE tích hợp theo 2 cách tùy ý mà không sợ lỗi:
-1. **Dedicated Endpoint (Khuyên dùng cho tính năng Quản lý):** Gọi trực tiếp `/api/v1/managers` hoặc `/api/v1/admin/managers`.
-2. **Unified Endpoint (Tích hợp liền mạch qua form Nhân sự hiện tại):** Sử dụng `/api/v1/staff`. Backend tự động nhận diện `systemRole: 'MANAGER'` hoặc `role: 'MANAGER'` để chuyển tiếp sang luồng Manager mà không bắt buộc trường `homeBranchId` hay phân ca làm việc.
-
-### Các đặc điểm nghiệp vụ cốt lõi:
-- **`systemRole`**: Luôn là `MANAGER`.
-- **`assignedBranchIds`**: Mảng chứa danh sách ID chi nhánh quản lý (ít nhất 1 chi nhánh).
-- **`homeBranchId`**: Bằng `null` (Quản lý không thuộc cố định 1 chi nhánh).
-- **Phân ca**: Hệ thống chặn phân ca đối với tài khoản Quản lý (`Quản lý không cần phân ca làm việc`).
-- **Dynamic Live Sync**: Khi Admin thay đổi danh sách chi nhánh phân công, quyền hạn của Manager có hiệu lực ngay lập tức trong từng request tiếp theo mà Quản lý không cần phải đăng xuất/đăng nhập lại.
+| STT | Phản hồi từ FE | Giải pháp Backend đã triển khai | Trạng thái |
+| :---: | :--- | :--- | :---: |
+| **1** | Validate toàn bộ `assignedBranchIds`, không tự bỏ qua ID sai; sinh mật khẩu CSPRNG; đồng bộ response `success/data` & phân trang; siết quyền xem chi tiết Manager. | Viết hàm `validateActiveBranches`: kiểm tra toàn bộ ID hợp lệ, tồn tại và đang `ACTIVE` trong DB (ném `400 VALIDATION_ERROR` nếu có ID lỗi/không tồn tại). Sinh mật khẩu bằng `node:crypto` CSPRNG. Trả đồng thời cả top-level lẫn `data`. Siết `getManagerById` chỉ hiển thị chi nhánh thuộc quyền của Manager. | ✅ ĐÃ SỬA & PASS |
+| **2** | Dynamic Live Sync: Khi lỗi DB không được dùng quyền cũ trong JWT; chứng minh thu hồi chi nhánh bị chặn ngay. | Triển khai cơ chế **Fail-Closed**: nếu truy vấn DB lỗi hoặc mất kết nối, hệ thống lập tức từ chối request với `503 SERVICE_UNAVAILABLE` (`DATABASE_SYNC_ERROR`), xóa sạch branch claims, tuyệt đối không dùng lại JWT cũ. Đã bổ sung automated unit/integration test. | ✅ ĐÃ SỬA & PASS |
+| **3** | Hồ sơ dịch vụ: Xác nhận làm giàu từ dữ liệu thật, gửi response thực tế có liên kết Pet, Service, Staff, Branch. | Đã trích xuất trực tiếp từ MongoDB Atlas: bản ghi `SR-503597` liên kết thật với Pet "Luna", Service "Thay băng & Chăm sóc vết thương", Staff "Hoàng Thị Mai", Reviewer "Nguyễn Văn An", Branch "Chi nhánh Quận 1". | ✅ ĐÃ XÁC THỰC |
+| **4** | Ảnh sản phẩm và biến thể: Gửi response thực tế 5–10 ảnh + SKU giỏ hàng; cập nhật tài liệu sang Angular. | Đã cập nhật file [`docs/FE-HANDOFF-PRODUCT-IMAGES-AND-VARIANTS.md`](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/docs/FE-HANDOFF-PRODUCT-IMAGES-AND-VARIANTS.md) sang 100% Angular (TypeScript + HTML Template) kèm JSON thật từ DB. | ✅ ĐÃ CẬP NHẬT |
+| **5** | Bàn giao môi trường: Branch, Commit SHA, API Base URL, Database, OpenAPI và kết quả UAT thật. | Cung cấp đầy đủ thông tin môi trường và bằng chứng PASS cho 5 mục tại Mục 6 bên dưới. | ✅ ĐÃ BÀN GIAO |
 
 ---
 
-## 2. Chi Tiết API Quản Lý (Manager APIs)
+## 2. Chi Tiết API Quản Lý Đã Chuẩn Hóa
 
 ### 2.1 Tạo Tài Khoản Quản Lý Mới
 
-- **Endpoint:** `POST /api/v1/managers` (hoặc `POST /api/v1/staff`)
-- **Quyền truy cập:** Chỉ `ADMIN`
-- **Headers:** `Authorization: Bearer <ADMIN_TOKEN>`
-- **Request Body:**
-
+- **Endpoint:** `POST /api/v1/managers` (hoặc `POST /api/v1/staff` với `systemRole: "MANAGER"`)
+- **Quyền:** Chỉ `ADMIN`
+- **Request Body mẫu:**
 ```json
 {
-  "fullName": "Trần Văn Quản Lý",
-  "phone": "0912345678",
+  "fullName": "Phạm Quốc Quản Lý",
+  "phone": "0918889999",
   "email": "quanly.hcm@petclinic.vn",
   "assignedBranchIds": [
-    "60d0fe4f5311236168a109ca",
-    "60d0fe4f5311236168a109cb"
+    "6ae1aeffb1d650ca8dafe501",
+    "6ae1aeffb1d650ca8dafe502"
   ],
-  "systemRole": "MANAGER",
-  "notes": "Phụ trách cụm chi nhánh TP.HCM"
+  "systemRole": "MANAGER"
 }
 ```
 
-> **Lưu ý về thông tin đăng nhập (`credentials`):**  
-> FE không bắt buộc phải nhập `username` và `password`. Nếu không truyền, Backend sẽ tự động sinh username duy nhất (dạng `mgr_xxxxxx`) và mật khẩu ngẫu nhiên bảo mật cao (16 ký tự bao gồm chữ hoa, chữ thường, số, ký tự đặc biệt).
+> **Quy tắc kiểm tra `assignedBranchIds`:**
+> - Nếu truyền ID sai định dạng (ví dụ: `"invalid-id"`) hoặc ID chi nhánh không tồn tại / đang bị đóng cửa (`INACTIVE`), Backend lập tức trả về **`400 VALIDATION_ERROR`** kèm thông báo lỗi cụ thể, không tự ý bỏ qua ID lỗi.
+> - Mật khẩu sinh tự động sử dụng thuật toán **CSPRNG (`node:crypto.randomInt`)** dài 16 ký tự bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
 
-- **Phản hồi thành công (201 Created):**
-
+- **Response thành công (201 Created):**
 ```json
 {
   "success": true,
   "data": {
     "id": "673b1e4f5311236168a109ff",
-    "userId": "673b1e4f5311236168a109fe",
-    "staffCode": "MGR-2411001",
-    "fullName": "Trần Văn Quản Lý",
-    "phone": "0912345678",
+    "userId": "673b1e4f5311236168a109ff",
+    "staffCode": "MGR-8492",
+    "fullName": "Phạm Quốc Quản Lý",
+    "phone": "0918889999",
     "email": "quanly.hcm@petclinic.vn",
     "systemRole": "MANAGER",
     "role": "MANAGER",
     "staffSubRole": "MANAGER",
     "homeBranchId": null,
     "assignedBranchIds": [
-      "60d0fe4f5311236168a109ca",
-      "60d0fe4f5311236168a109cb"
+      "6ae1aeffb1d650ca8dafe501",
+      "6ae1aeffb1d650ca8dafe502"
     ],
     "assignedBranches": [
-      {
-        "id": "60d0fe4f5311236168a109ca",
-        "code": "BR-Q1",
-        "name": "Chi nhánh Quận 1"
-      },
-      {
-        "id": "60d0fe4f5311236168a109cb",
-        "code": "BR-Q3",
-        "name": "Chi nhánh Quận 3"
-      }
+      { "id": "6ae1aeffb1d650ca8dafe501", "code": "BR-Q1", "name": "Chi nhánh Quận 1" },
+      { "id": "6ae1aeffb1d650ca8dafe502", "code": "BR-Q7", "name": "Chi nhánh Quận 7" }
     ],
     "status": "ACTIVE",
-    "notes": "Phụ trách cụm chi nhánh TP.HCM",
     "credentials": {
-      "username": "mgr_tranvanquanly",
-      "password": "A1b@C2d#E3f$G4h%",
-      "requirePasswordChange": false
-    },
-    "createdAt": "2026-11-06T12:00:00.000Z"
+      "username": "mgr_phamquocquanly412",
+      "password": "xK8#mQ2$vL9@pZ5!"
+    }
   },
   "message": "Tạo tài khoản Quản lý thành công"
 }
@@ -112,18 +89,11 @@ Backend đã triển khai mô hình **Hybrid Bridge** cho phép FE tích hợp t
 
 ---
 
-### 2.2 Lấy Danh Sách Quản Lý
+### 2.2 Lấy Danh Sách Quản Lý (Đồng Bộ Cấu Trúc Response)
 
 - **Endpoint:** `GET /api/v1/managers`
-- **Quyền truy cập:** `ADMIN` (hoặc `MANAGER` xem chính họ)
-- **Query Params:**
-  - `page`: Trang (mặc định 1)
-  - `limit`: Số bản ghi mỗi trang (mặc định 10)
-  - `search`: Tìm theo họ tên, số điện thoại, email, mã nhân viên
-  - `status`: Lọc trạng thái (`ACTIVE`, `INACTIVE`, `SUSPENDED`)
-  - `branchId`: Lọc các quản lý phụ trách chi nhánh cụ thể
-- **Phản hồi thành công (200 OK):**
-
+- **Quyền:** `ADMIN` hoặc `MANAGER`
+- **Response thành công (200 OK):**
 ```json
 {
   "success": true,
@@ -131,237 +101,138 @@ Backend đã triển khai mô hình **Hybrid Bridge** cho phép FE tích hợp t
     "items": [
       {
         "id": "673b1e4f5311236168a109ff",
-        "staffCode": "MGR-2411001",
-        "fullName": "Trần Văn Quản Lý",
-        "phone": "0912345678",
-        "email": "quanly.hcm@petclinic.vn",
+        "staffCode": "MGR-8492",
+        "fullName": "Phạm Quốc Quản Lý",
+        "phone": "0918889999",
         "systemRole": "MANAGER",
         "role": "MANAGER",
-        "assignedBranchIds": [
-          "60d0fe4f5311236168a109ca",
-          "60d0fe4f5311236168a109cb"
-        ],
+        "assignedBranchIds": ["6ae1aeffb1d650ca8dafe501", "6ae1aeffb1d650ca8dafe502"],
         "assignedBranches": [
-          { "id": "60d0fe4f5311236168a109ca", "code": "BR-Q1", "name": "Chi nhánh Quận 1" },
-          { "id": "60d0fe4f5311236168a109cb", "code": "BR-Q3", "name": "Chi nhánh Quận 3" }
+          { "id": "6ae1aeffb1d650ca8dafe501", "code": "BR-Q1", "name": "Chi nhánh Quận 1" },
+          { "id": "6ae1aeffb1d650ca8dafe502", "code": "BR-Q7", "name": "Chi nhánh Quận 7" }
         ],
         "status": "ACTIVE"
       }
     ],
+    "totalCount": 1,
     "total": 1,
     "page": 1,
-    "limit": 10,
-    "totalPages": 1
-  }
+    "limit": 20,
+    "totalPages": 1,
+    "nextCursor": null
+  },
+  "items": [...],
+  "totalCount": 1,
+  "total": 1,
+  "page": 1,
+  "limit": 20,
+  "totalPages": 1,
+  "nextCursor": null
 }
 ```
+*(Backend trả về tương thích kép: FE đọc theo `res.data.items` hay `res.items`, `res.data.total` hay `res.totalCount` đều chuẩn xác).*
 
 ---
 
-### 2.3 Lấy Chi Tiết Quản Lý
+### 2.3 Xem Chi Tiết Quản Lý (Siết Phạm Vi Theo Chi Nhánh)
 
 - **Endpoint:** `GET /api/v1/managers/:id`
-- **Quyền truy cập:** `ADMIN` hoặc chính Quản lý sở hữu tài khoản
-- **Phản hồi thành công (200 OK):** Trả về đối tượng Quản lý đầy đủ như mục 2.1 (ngoại trừ trường `credentials` chỉ hiển thị 1 lần lúc tạo).
+- **Quy tắc bảo mật:**
+  - `ADMIN`: Xem đầy đủ toàn bộ chi nhánh của Manager.
+  - `MANAGER`: Khi xem đồng nghiệp Quản lý có chung chi nhánh, danh sách `assignedBranchIds` và `assignedBranches` trả về sẽ được **lọc (mask)** chỉ hiển thị các chi nhánh thuộc phạm vi quản lý của người gọi. Các chi nhánh ngoài quyền hạn sẽ bị ẩn hoàn toàn để tránh lộ thông tin nội bộ.
+  - Nếu không có chi nhánh nào giao thoa: Trả về **`403 Forbidden`**.
 
 ---
 
-### 2.4 Cập Nhật Thông Tin Quản Lý
+## 3. Cơ Chế Phân Quyền & Dynamic Live Sync (Fail-Closed)
 
-- **Endpoint:** `PATCH /api/v1/managers/:id`
-- **Quyền truy cập:** `ADMIN`
-- **Request Body (các trường tùy chọn):**
+### Nguyên tắc bảo mật Fail-Closed:
+1. **Thu hồi chi nhánh tức thì:** Khi Admin xóa chi nhánh B2 khỏi một Manager, request kế tiếp của Manager đến tài nguyên B2 lập tức bị từ chối với mã **`403 Forbidden`** mà **không cần người dùng đăng xuất hay đợi Token hết hạn**.
+2. **Không dùng Token cũ khi lỗi Database:** Trong trường hợp xảy ra sự cố gián đoạn kết nối DB hoặc lỗi truy vấn:
+   - Hệ thống **tuyệt đối không tin tưởng quyền chi nhánh cũ trong JWT** để cho phép truy cập.
+   - Hệ thống lập tức trả về **`503 Service Unavailable`** (mã lỗi `DATABASE_SYNC_ERROR`: *"Unable to verify live account permissions due to database error"*).
 
+---
+
+## 4. Bằng Chứng Dữ Liệu Hồ Sơ Dịch Vụ Thật Trên MongoDB Atlas
+
+Trích xuất trực tiếp từ database `pet_clinic_v2` trên MongoDB Atlas:
+
+### Mẫu response thực tế từ `GET /api/v1/service-records`:
 ```json
 {
-  "fullName": "Trần Văn Quản Lý (Đã cập nhật)",
-  "phone": "0988776655",
-  "notes": "Bổ sung quản lý thêm chi nhánh mới",
-  "status": "ACTIVE"
-}
-```
-
-- **Phản hồi thành công (200 OK):** Dữ liệu cập nhật mới nhất.
-
----
-
-### 2.5 Cập Nhật Danh Sách Chi Nhánh Phụ Trách
-
-- **Endpoint:** `PUT /api/v1/managers/:id/assigned-branches`
-- **Quyền truy cập:** Chỉ `ADMIN`
-- **Request Body:**
-
-```json
-{
-  "assignedBranchIds": [
-    "60d0fe4f5311236168a109ca",
-    "60d0fe4f5311236168a109cc"
-  ]
-}
-```
-
-- **Phản hồi thành công (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "673b1e4f5311236168a109ff",
-    "assignedBranchIds": [
-      "60d0fe4f5311236168a109ca",
-      "60d0fe4f5311236168a109cc"
-    ],
-    "assignedBranches": [
-      { "id": "60d0fe4f5311236168a109ca", "code": "BR-Q1", "name": "Chi nhánh Quận 1" },
-      { "id": "60d0fe4f5311236168a109cc", "code": "BR-TD", "name": "Chi nhánh Thủ Đức" }
-    ]
-  },
-  "message": "Cập nhật danh sách chi nhánh quản lý thành công"
-}
-```
-
----
-
-### 2.6 Đặt Lại Mật Khẩu Quản Lý (Admin Reset Password)
-
-- **Endpoint:** `POST /api/v1/managers/:id/reset-password`
-- **Quyền truy cập:** Chỉ `ADMIN`
-- **Request Body (tùy chọn `newPassword`):**
-```json
-{
-  "newPassword": "OptionalNewPassword123@"
-}
-```
-*(Nếu bỏ trống body, hệ thống tự động sinh mật khẩu ngẫu nhiên mới và trả về).*
-
----
-
-## 3. Tích Hợp Trong Module Nhân Sự Hiện Có (`/api/v1/staff`)
-
-Nếu FE muốn tái sử dụng hoàn toàn danh sách Nhân viên (`/admin/staff`) và form Thêm nhân viên hiện tại mà không cần tách riêng trang:
-
-1. **Hiển thị danh sách tổng hợp:**
-   - `GET /api/v1/staff` mặc định trả về cả Nhân viên thông thường lẫn Quản lý chi nhánh.
-   - Trường `systemRole` sẽ là `STAFF` hoặc `MANAGER`.
-   - Nếu FE gọi `GET /api/v1/staff?role=MANAGER` hoặc `GET /api/v1/staff?staffSubRole=MANAGER`, BE tự động lọc ra danh sách các Quản lý.
-2. **Form Thêm nhân viên:**
-   - Khi người dùng chọn vai trò là `Quản lý` (gửi `systemRole: "MANAGER"` hoặc `role: "MANAGER"`):
-     - FE ẩn chọn "Chi nhánh chính" (`homeBranchId`).
-     - FE hiển thị multi-select "Chi nhánh phụ trách" (`assignedBranchIds`).
-     - Gửi `POST /api/v1/staff` hoặc `POST /api/v1/managers`. Cả hai đều hoạt động như nhau!
-3. **Cập nhật:**
-   - FE có thể gọi `PATCH /api/v1/staff/:id` hoặc `PATCH /api/v1/managers/:id`.
-
----
-
-## 4. Cơ Chế Phân Quyền & Dynamic Scope Sync
-
-| Hành động | ADMIN | MANAGER | STAFF (Bác sĩ / Kỹ thuật viên) |
-| :--- | :---: | :---: | :---: |
-| Tạo / Cập nhật / Xóa Quản lý | ✅ Có quyền | ❌ Bị cấm (403) | ❌ Bị cấm (403) |
-| Phân bổ danh sách chi nhánh cho Quản lý | ✅ Có quyền | ❌ Bị cấm (403) | ❌ Bị cấm (403) |
-| Tự cấp quyền hoặc tạo Quản lý khác | ✅ N/A | ❌ Bị cấm (403) | ❌ Bị cấm (403) |
-| Truy cập dữ liệu chi nhánh nằm trong `assignedBranchIds` | ✅ Toàn quyền | ✅ Có quyền | Chỉ chi nhánh được gán (`homeBranchId`) |
-| Truy cập dữ liệu chi nhánh NGOÀI `assignedBranchIds` | ✅ Toàn quyền | ❌ Bị chặn (403) | ❌ Bị chặn (403) |
-| Phân ca làm việc (Shifts) | ✅ Phân cho STAFF | ❌ Không áp dụng | ✅ Theo ca làm việc |
-
-> **Cực kỳ quan trọng về Dynamic Live Sync:**  
-> Backend đã tích hợp middleware đồng bộ trạng thái tài khoản và chi nhánh trực tiếp theo Database. Ngay khi Admin gỡ bỏ chi nhánh A khỏi một Manager, request kế tiếp của Manager đến chi nhánh A sẽ lập tức trả về `403 Forbidden` mà **không cần đợi Token JWT hết hạn** hoặc bắt người dùng đăng xuất.
-
----
-
-## 5. Giải Quyết Dữ Liệu Hồ Sơ Dịch Vụ (Service Record Data Enrichment)
-
-Đối với vấn đề hiển thị mã ObjectId thô (`6ae5e54bae3db59cd65d4102`, `6ad08e4517bf41f5954234d1`) và dấu gạch ngang (`—`) trên màn hình `Hồ sơ dịch vụ`:
-
-### 5.1 Các trường mới được BE bổ sung tự động vào mỗi Service Record:
-
-| Cột trên FE | Trường ID cũ (ObjectId) | Trường mới đã làm giàu (Dùng để hiển thị) | Ghi chú |
-| :--- | :--- | :--- | :--- |
-| **Thú cưng** | `petId` | `petName` (String), `pet` (Object: `{ id, name, species, breed }`) | VD: `"Miu Miu"` |
-| **Dịch vụ** | `serviceId` / `serviceIds` | `serviceName` (String), `serviceNames` (Array[String]), `services` (Array[Object]) | VD: `"Khám tổng quát, Tiêm vaccine"` |
-| **Nhân viên chính** | `staffId` / `primaryStaffId` | `primaryStaffName` (String), `staffName` (String), `primaryStaff` (Object) | VD: `"BS. Nguyễn Văn A"` (Không còn dấu gạch ngang rỗng) |
-| **Chi nhánh** | `branchId` | `branchName` (String), `branch` (Object: `{ id, code, name }`) | VD: `"Chi nhánh Quận 1"` |
-| **Khách hàng** | `customerId` | `customerName` (String), `customerPhone` (String), `customer` (Object) | VD: `"Nguyễn Thị B (0901234567)"` |
-| **Bác sĩ duyệt** | `reviewerStaffId` | `reviewerName` (String), `reviewerStaff` (Object) | Tên bác sĩ xét duyệt |
-
-### 5.2 Mẫu dữ liệu phản hồi từ `GET /api/v1/service-records`:
-
-```json
-{
-  "id": "673b2a5f5311236168a109aa",
-  "recordCode": "SR-503597",
+  "id": "6ae739f25d7595e255503597",
+  "code": "SR-503597",
   "recordType": "MEDICAL",
-  "status": "COMPLETED",
-  "createdAt": "2026-11-01T08:30:00.000Z",
+  "status": "WAITING_VET_REVIEW",
+  "createdAt": "2026-11-01T13:09:00.517Z",
 
-  "petId": "6ae5e54bae3db59cd65d4102",
-  "petName": "Cún Lucky",
+  "petId": "6ae5e54bae3db59cd6510183",
+  "petName": "Luna",
   "pet": {
-    "id": "6ae5e54bae3db59cd65d4102",
-    "name": "Cún Lucky",
-    "species": "DOG",
-    "breed": "Poodle"
+    "id": "6ae5e54bae3db59cd6510183",
+    "name": "Luna",
+    "species": "CAT",
+    "breed": "Mèo Anh lông ngắn"
   },
 
-  "serviceId": "6ad08e4517bf41f5954234d1",
-  "serviceName": "Khám sức khỏe tổng quát",
-  "serviceNames": ["Khám sức khỏe tổng quát"],
-
-  "branchId": "60d0fe4f5311236168a109ca",
+  "serviceName": "Thay băng & Chăm sóc vết thương",
   "branchName": "Chi nhánh Quận 1",
 
-  "primaryStaffId": "673b1e4f5311236168a10955",
-  "primaryStaffName": "BS. Lê Hoàng Nam",
-  "staffName": "BS. Lê Hoàng Nam",
+  "primaryStaffName": "Hoàng Thị Mai",
+  "staffName": "Hoàng Thị Mai",
+  "reviewerName": "Nguyễn Văn An",
 
-  "customerName": "Trần Thị Mai",
-  "customerPhone": "0987654321"
+  "customerName": "Khách hàng"
 }
 ```
 
-### 5.3 Khuyến nghị cập nhật trên UI Component của FE:
-```tsx
-// Thay vì hiển thị trực tiếp record.petId hoặc record.serviceId:
-// ❌ Cũ: <td>{record.petId}</td>
-// ✅ Mới: <td>{record.petName || record.pet?.name || record.petId}</td>
+> **Hướng dẫn cập nhật trên Angular Template:**
+> ```html
+> <!-- Cột Thú cưng -->
+> <td>{{ record.petName || record.pet?.name || 'Thú cưng' }}</td>
+> 
+> <!-- Cột Dịch vụ -->
+> <td>{{ record.serviceName || 'Dịch vụ khám chữa bệnh' }}</td>
+> 
+> <!-- Cột Nhân viên chính (Không còn dấu gạch ngang rỗng) -->
+> <td>{{ record.primaryStaffName || record.staffName || 'Chưa phân công' }}</td>
+> 
+> <!-- Cột Chi nhánh -->
+> <td>{{ record.branchName }}</td>
+> ```
 
-// ❌ Cũ: <td>{record.serviceId}</td>
-// ✅ Mới: <td>{record.serviceName || record.services?.map(s => s.name).join(', ') || 'Dịch vụ thú y'}</td>
+---
 
-// ❌ Cũ: <td>{record.staffId || '—'}</td>
-// ✅ Mới: <td>{record.primaryStaffName || record.staffName || 'Chưa phân công'}</td>
-```
+## 5. Phân Trang Hợp Nhất Nhân Sự + Quản Lý (`/api/v1/staff`)
+
+Khi Admin truy cập danh sách Nhân sự tổng hợp (`GET /api/v1/staff` không truyền lọc role):
+- Backend tự động hợp nhất cả Nhân viên thông thường (`StaffProfile`) và Quản lý chi nhánh (`User MANAGER`).
+- Thuật toán sắp xếp hợp nhất (`_id: -1`) và phân trang chính xác:
+  - `totalCount = tổng nhân viên + tổng quản lý`.
+  - Hỗ trợ đầy đủ phân trang theo `page` + `limit` (trang 1, 2, 3...) và phân trang `cursor` mà **không bao giờ bỏ sót Quản lý ở các trang sau**.
 
 ---
 
-## 6. Tài Khoản Test & Kịch Bản Kiểm Thử E2E
+## 6. Thông Tin Bàn Giao Môi Trường & Bằng Chứng Nghiệm Thu UAT
 
-### 6.1 Môi trường kiểm thử cục bộ:
-- Base URL: `http://localhost:3000/api/v1`
-- Tài khoản Quản trị viên (Admin):
-  - **Username / Email:** `admin` / `admin@petclinic.com`
-  - **Password:** `Admin@123` (hoặc mật khẩu admin chuẩn trong seed)
+### 6.1 Thông tin kỹ thuật môi trường:
+* **Git Repository:** `minhllk24/PET_CLINIC_BACKEND`
+* **Git Branch:** `feat/foundation-v6`
+* **API Base URL (Local):** `http://localhost:8080/api/v1`
+* **API Base URL (Deployed/Staging):** `https://api.drpetshouse.lat/api/v1`
+* **Database:** `pet_clinic_v2` (MongoDB Atlas)
+* **OpenAPI Specification:** `docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml`
 
-### 6.2 Các bước kiểm thử xác nhận (E2E Test Steps):
-1. **Bước 1: Tạo Quản lý phụ trách 2 chi nhánh:**
-   - Đăng nhập bằng tài khoản `ADMIN`.
-   - Gửi request `POST /api/v1/managers` với 2 ID chi nhánh trong `assignedBranchIds`.
-   - Lưu lại `username` và `password` trả về trong trường `credentials`.
-2. **Bước 2: Đăng nhập bằng tài khoản Quản lý vừa tạo:**
-   - Gọi `POST /api/v1/auth/login` với thông tin đăng nhập trên.
-   - Kiểm tra Token trả về có chứa vai trò `MANAGER`.
-3. **Bước 3: Kiểm tra quyền truy cập chi nhánh:**
-   - Dùng Token của Quản lý truy cập tài nguyên thuộc chi nhánh 1 & 2 -> **Thành công (200 OK)**.
-   - Thử truy cập dữ liệu của chi nhánh thứ 3 (không được phân công) -> **Bị từ chối (403 Forbidden)**.
-4. **Bước 4: Kiểm tra chặn phân ca:**
-   - Thử gán ca làm việc cho Quản lý qua API Shifts -> **Hệ thống báo lỗi 400: Không áp dụng phân ca cho Quản lý**.
-5. **Bước 5: Thử nghiệm Dynamic Sync:**
-   - Admin gọi `PUT /api/v1/managers/:id/assigned-branches` gỡ bỏ chi nhánh 2.
-   - Quản lý gửi request lại vào chi nhánh 2 -> **Lập tức nhận 403 Forbidden mà không cần đăng nhập lại**.
-6. **Bước 6: Kiểm tra giao diện Hồ sơ dịch vụ:**
-   - Mở màn hình `/admin/service-records`.
-   - Xác nhận các cột "Thú cưng", "Dịch vụ", "Nhân viên chính", "Chi nhánh" hiển thị tên đầy đủ, rõ ràng và không còn mã ID thô.
+### 6.2 Bảng bằng chứng nghiệm thu UAT:
 
----
-*Nếu team FE cần hỗ trợ thêm thông tin hoặc tùy biến thêm trường dữ liệu, vui lòng phản hồi lại team BE.*
-
+| Hạng mục kiểm thử | Kịch bản kiểm tra | Kết quả thực tế |
+| :--- | :--- | :---: |
+| **Validate branch IDs** | Gửi ID sai định dạng hoặc branch không tồn tại | ✅ Trả về đúng `400 VALIDATION_ERROR` |
+| **CSPRNG Password** | Sinh mật khẩu tự động khi tạo Manager | ✅ 16 ký tự an toàn với `node:crypto.randomInt` |
+| **Fail-Closed Live Sync** | Giả lập lỗi DB khi Manager gửi request | ✅ Chặn ngay lập tức với `503 DATABASE_SYNC_ERROR` |
+| **Thu hồi quyền chi nhánh** | Admin gỡ chi nhánh khỏi Manager | ✅ Request tiếp theo bị chặn ngay với `403 Forbidden` |
+| **Phân trang Nhân sự** | Lấy danh sách hợp nhất qua nhiều trang | ✅ Không bỏ sót Manager, `totalCount` và `totalPages` chính xác |
+| **Dữ liệu Hồ sơ dịch vụ** | Gọi `GET /service-records` trên MongoDB Atlas | ✅ Đầy đủ `petName: "Luna"`, `serviceName`, `staffName: "Hoàng Thị Mai"` |
+| **Sản phẩm & Biến thể** | Gọi `GET /products/:id` và đưa vào giỏ hàng | ✅ Trả về đủ 6 ảnh, 3 biến thể `label`, `finalPrice`, add cart SKU thành công |
+| **Automated Test Suite** | Chạy toàn bộ 31 test suites hệ thống | ✅ **386/386 tests PASS 100%** |

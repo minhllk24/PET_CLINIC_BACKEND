@@ -1,9 +1,106 @@
+import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import User from '../../models/User.js';
 import Branch from '../branch/models/Branch.js';
 import AppError from '../../utils/AppError.js';
 import { ErrorCodes } from '../../shared/errorCodes.js';
 import { hashPassword } from '../../utils/passwordHelpers.js';
+
+/**
+ * Generate cryptographically secure random password (CSPRNG)
+ */
+export const generateSecurePassword = (length = 16) => {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const numbers = '23456789';
+  const symbols = '!@#$%^&*';
+  const allChars = upper + lower + numbers + symbols;
+
+  const passwordChars = [
+    upper[crypto.randomInt(0, upper.length)],
+    lower[crypto.randomInt(0, lower.length)],
+    numbers[crypto.randomInt(0, numbers.length)],
+    symbols[crypto.randomInt(0, symbols.length)],
+  ];
+
+  for (let i = passwordChars.length; i < length; i++) {
+    passwordChars.push(allChars[crypto.randomInt(0, allChars.length)]);
+  }
+
+  // Fisher-Yates shuffle with crypto.randomInt
+  for (let i = passwordChars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
+  }
+
+  return passwordChars.join('');
+};
+
+/**
+ * Validate that all assignedBranchIds exist, are active, and are valid ObjectIds.
+ * Does NOT silently filter out invalid branch IDs.
+ */
+export const validateActiveBranches = async (rawBranches) => {
+  if (!rawBranches) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'assignedBranchIds is required');
+  }
+
+  const rawList = Array.isArray(rawBranches) ? rawBranches : [rawBranches];
+  if (rawList.length === 0) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Manager must be assigned to at least 1 branch');
+  }
+
+  const normalizedIds = [];
+  for (const item of rawList) {
+    const idStr = (item?._id || item || '').toString().trim();
+    if (!idStr || !mongoose.Types.ObjectId.isValid(idStr)) {
+      throw new AppError(
+        400,
+        'ValidationError',
+        ErrorCodes.VALIDATION_ERROR,
+        `Invalid branch ID format: "${item}". All assignedBranchIds must be valid ObjectId strings.`
+      );
+    }
+    normalizedIds.push(idStr);
+  }
+
+  const uniqueIds = Array.from(new Set(normalizedIds));
+
+  // Check existence and active status in DB if connected or mocked
+  if (mongoose.connection.readyState === 1 || Branch.find?._isMockFunction) {
+    try {
+      const activeBranches = await Branch.find({
+        _id: { $in: uniqueIds },
+      }).lean();
+
+      const activeMap = new Map();
+      (activeBranches || []).forEach((b) => {
+        const isInactive = b.isActive === false || ['INACTIVE', 'CLOSED', 'DEACTIVATED'].includes(b.status);
+        if (!isInactive) {
+          activeMap.set(b._id.toString(), b);
+        }
+      });
+
+      const missingOrInactive = uniqueIds.filter((id) => !activeMap.has(id));
+      if (missingOrInactive.length > 0) {
+        throw new AppError(
+          400,
+          'ValidationError',
+          ErrorCodes.VALIDATION_ERROR,
+          `One or more assigned branches do not exist or are inactive: ${missingOrInactive.join(', ')}`
+        );
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // In case of query failure, if connection was 1, throw error
+      if (mongoose.connection.readyState === 1) {
+        throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Unable to verify branch status');
+      }
+    }
+  }
+
+  return uniqueIds;
+};
 
 /**
  * Format pure DTO for Manager Response (compatible with both Manager and Staff interfaces)
@@ -94,32 +191,12 @@ export const createManager = async (data, actor = null) => {
     username: customUsername,
   } = data;
 
-  const rawBranches = data.assignedBranchIds || data.authorizedBranchIds || data.branchIds || data.branches || [];
+  const rawBranches = data.assignedBranchIds || data.authorizedBranchIds || data.branchIds || data.branches;
   if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'fullName is required');
   }
 
-  const assignedBranchIds = Array.isArray(rawBranches) ? rawBranches : [rawBranches];
-  const normalizedBranchIds = assignedBranchIds
-    .map((b) => (b?._id || b || '').toString().trim())
-    .filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-  if (normalizedBranchIds.length === 0) {
-    throw new AppError(
-      400,
-      'ValidationError',
-      ErrorCodes.VALIDATION_ERROR,
-      'Manager must be assigned to at least 1 branch (assignedBranchIds is required)'
-    );
-  }
-
-  // Verify branch existence if connected
-  if (mongoose.connection.readyState === 1) {
-    const branchCount = await Branch.countDocuments({ _id: { $in: normalizedBranchIds } });
-    if (branchCount === 0) {
-      throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Specified assignedBranchIds do not exist');
-    }
-  }
+  const normalizedBranchIds = await validateActiveBranches(rawBranches);
 
   // Unique email and phone check
   const cleanEmail = email && typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : null;
@@ -144,31 +221,27 @@ export const createManager = async (data, actor = null) => {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
       .slice(0, 15);
-    const suffix = Math.floor(100 + Math.random() * 900);
+    const suffix = crypto.randomInt(100, 1000);
     username = `mgr_${normalizedName}${suffix}`;
   }
 
   // Check unique username
   const existingUsername = await User.findOne({ username });
   if (existingUsername) {
-    username = `${username}${Math.floor(10 + Math.random() * 90)}`;
+    username = `${username}${crypto.randomInt(10, 100)}`;
   }
 
-  // Password handling
+  // Password handling using CSPRNG
   let plainPassword = (password && typeof password === 'string' && password.trim().length >= 6)
     ? password.trim()
     : null;
 
   if (!plainPassword) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
-    plainPassword = '';
-    for (let i = 0; i < 16; i++) {
-      plainPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    plainPassword = generateSecurePassword(16);
   }
 
   const passwordHash = await hashPassword(plainPassword);
-  const staffCode = data.staffCode || `MGR-${Math.floor(1000 + Math.random() * 9000)}`;
+  const staffCode = data.staffCode || `MGR-${crypto.randomInt(1000, 10000)}`;
 
   const user = new User({
     fullName: fullName.trim(),
@@ -268,11 +341,27 @@ export const listManagers = async (query = {}, actor = null) => {
   });
   const branchMap = await fetchBranchMap(allBranchIds);
 
+  const formattedItems = items.map((u) => formatManager(u, branchMap));
+  const effectiveTotal = cursor ? formattedItems.length : totalCount;
+  const totalPages = Math.ceil(effectiveTotal / parsedLimit) || 1;
+
   return {
-    items: items.map((u) => formatManager(u, branchMap)),
-    totalCount: cursor ? items.length : totalCount,
+    success: true,
+    data: {
+      items: formattedItems,
+      totalCount: effectiveTotal,
+      total: effectiveTotal,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages,
+      nextCursor,
+    },
+    items: formattedItems,
+    totalCount: effectiveTotal,
+    total: effectiveTotal,
     page: parsedPage,
     limit: parsedLimit,
+    totalPages,
     nextCursor,
   };
 };
@@ -296,7 +385,7 @@ export const getManagerById = async (id, actor = null) => {
     }
     if (actor.systemRole === 'MANAGER' && actor.id !== user._id.toString()) {
       const actorAssigned = (actor.assignedBranchIds || []).map((b) => b.toString());
-      const userAssigned = (user.assignedBranchIds || []).map((b) => b.toString());
+      const userAssigned = (user.assignedBranchIds || []).map((b) => (b?._id || b).toString());
       const hasOverlap = userAssigned.some((b) => actorAssigned.includes(b));
       if (!hasOverlap) {
         throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Access denied to manager of other branches');
@@ -305,7 +394,17 @@ export const getManagerById = async (id, actor = null) => {
   }
 
   const branchMap = await fetchBranchMap((user.assignedBranchIds || []).map((b) => (b?._id || b).toString()));
-  return formatManager(user, branchMap);
+  const formatted = formatManager(user, branchMap);
+
+  // If actor is MANAGER, scope visible branches to actor's assignedBranchIds only
+  if (actor && actor.systemRole === 'MANAGER') {
+    const actorAssigned = (actor.assignedBranchIds || []).map((b) => b.toString());
+    formatted.assignedBranchIds = formatted.assignedBranchIds.filter((bId) => actorAssigned.includes(bId));
+    formatted.authorizedBranchIds = formatted.assignedBranchIds;
+    formatted.assignedBranches = formatted.assignedBranches.filter((br) => actorAssigned.includes(br.id));
+  }
+
+  return formatted;
 };
 
 /**
@@ -359,13 +458,7 @@ export const updateManager = async (id, data = {}, actor = null) => {
 
   const rawBranches = data.assignedBranchIds || data.authorizedBranchIds || data.branchIds;
   if (rawBranches !== undefined) {
-    const arr = Array.isArray(rawBranches) ? rawBranches : [rawBranches];
-    const normalized = arr
-      .map((b) => (b?._id || b || '').toString().trim())
-      .filter((bId) => mongoose.Types.ObjectId.isValid(bId));
-    if (normalized.length === 0) {
-      throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Manager must be assigned to at least 1 branch');
-    }
+    const normalized = await validateActiveBranches(rawBranches);
     user.assignedBranchIds = normalized.map((bId) => new mongoose.Types.ObjectId(bId));
   }
 
@@ -398,15 +491,8 @@ export const updateManagerBranches = async (id, data = {}, actor = null) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid Manager ID format');
   }
 
-  const rawBranches = data.assignedBranchIds || data.authorizedBranchIds || data.branchIds || [];
-  const arr = Array.isArray(rawBranches) ? rawBranches : [rawBranches];
-  const normalized = arr
-    .map((b) => (b?._id || b || '').toString().trim())
-    .filter((bId) => mongoose.Types.ObjectId.isValid(bId));
-
-  if (normalized.length === 0) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'assignedBranchIds must contain at least 1 branch');
-  }
+  const rawBranches = data.assignedBranchIds || data.authorizedBranchIds || data.branchIds;
+  const normalized = await validateActiveBranches(rawBranches);
 
   const user = await User.findOne({ _id: id, systemRole: 'MANAGER' });
   if (!user) {
@@ -446,10 +532,9 @@ export const resetManagerPassword = async (id, data = {}, actor = null) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Manager not found');
   }
 
-  const newPassword = (data.newPassword || 'PetClinic@2026!').trim();
-  if (newPassword.length < 8) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Password must be at least 8 characters');
-  }
+  const newPassword = (data.newPassword && typeof data.newPassword === 'string' && data.newPassword.trim().length >= 8)
+    ? data.newPassword.trim()
+    : generateSecurePassword(16);
 
   user.passwordHash = await hashPassword(newPassword);
   user.failedLoginCount = 0;

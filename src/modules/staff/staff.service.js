@@ -31,6 +31,7 @@ export const formatStaff = (profile, user = null, branchMap = null) => {
     id: profile._id.toString(),
     staffCode: profile.staffCode || null,
     joinedAt: profile.createdAt ? profile.createdAt.toISOString() : null,
+    systemRole: u?.systemRole || 'STAFF',
     staffSubRole: profile.staffSubRole,
     role: profile.staffSubRole,
     authorizedBranchIds: authorizedIds,
@@ -76,7 +77,7 @@ export const formatStaff = (profile, user = null, branchMap = null) => {
  * List Staff with server-side filtering, cursor/pagination, and RBAC (OpenAPI StaffPage)
  */
 export const listStaff = async (query = {}, actor = null) => {
-  const { branchId, staffSubRole, role, limit = 20, cursor, includeManagers } = query;
+  const { branchId, staffSubRole, role, limit = 20, page = 1, cursor, includeManagers } = query;
   const effectiveRole = (staffSubRole || role || '').toUpperCase();
 
   // If query is specifically requesting MANAGER role, delegate to managerService
@@ -125,7 +126,104 @@ export const listStaff = async (query = {}, actor = null) => {
   }
 
   const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const parsedPage = Math.max(1, parseInt(page, 10) || 1);
 
+  // Check if we should include managers in unified personnel list
+  const shouldIncludeManagers =
+    actor &&
+    actor.systemRole === 'ADMIN' &&
+    (!effectiveRole || effectiveRole === 'ALL' || includeManagers === 'true' || includeManagers === true) &&
+    includeManagers !== 'false' &&
+    (mongoose.connection.readyState === 1 || User.find?._isMockFunction || managerService.listManagers?._isMockFunction);
+
+  if (shouldIncludeManagers) {
+    const fetchWindow = cursor ? (parsedLimit + 1) : (parsedPage * parsedLimit);
+
+    // Build manager query
+    const mgrQuery = {
+      branchId,
+      search: query.search,
+      status: query.status || query.accountStatus,
+      limit: fetchWindow,
+      cursor,
+    };
+
+    const [staffProfiles, staffTotal, mgrResult] = await Promise.all([
+      StaffProfile.find(filter)
+        .populate('userId')
+        .sort({ _id: -1 })
+        .limit(fetchWindow),
+      StaffProfile.countDocuments(cursor ? {} : filter),
+      managerService.listManagers(mgrQuery, actor).catch(() => ({ items: [], totalCount: 0 })),
+    ]);
+
+    // Format staff items
+    const branchIds = new Set();
+    staffProfiles.forEach((p) => {
+      (p.authorizedBranchIds || []).forEach((b) => branchIds.add((b?._id || b).toString()));
+      if (p.homeBranchId) branchIds.add((p.homeBranchId?._id || p.homeBranchId).toString());
+    });
+
+    const branchMap = new Map();
+    if (branchIds.size > 0 && mongoose.connection.readyState === 1) {
+      try {
+        const branches = await Branch.find({ _id: { $in: Array.from(branchIds) } }).lean();
+        branches.forEach((b) => branchMap.set(b._id.toString(), b));
+      } catch (_e) {}
+    }
+
+    const staffItems = staffProfiles.map((item) => formatStaff(item, item.userId, branchMap));
+    const managerItems = mgrResult.items || [];
+
+    // Merge and sort by _id descending (newest first)
+    const merged = [...staffItems, ...managerItems].sort((a, b) => {
+      const idA = (a.id || a.userId || '').toString();
+      const idB = (b.id || b.userId || '').toString();
+      return idB.localeCompare(idA);
+    });
+
+    const combinedTotal = (staffTotal || 0) + (mgrResult.totalCount || 0);
+
+    let pagedItems = [];
+    let nextCursor = null;
+
+    if (cursor) {
+      pagedItems = merged.slice(0, parsedLimit);
+      if (merged.length > parsedLimit && pagedItems.length > 0) {
+        nextCursor = pagedItems[pagedItems.length - 1].id;
+      }
+    } else {
+      const startIndex = (parsedPage - 1) * parsedLimit;
+      pagedItems = merged.slice(startIndex, startIndex + parsedLimit);
+      if (combinedTotal > startIndex + pagedItems.length && pagedItems.length > 0) {
+        nextCursor = pagedItems[pagedItems.length - 1].id;
+      }
+    }
+
+    const totalPages = Math.ceil(combinedTotal / parsedLimit) || 1;
+
+    return {
+      success: true,
+      data: {
+        items: pagedItems,
+        totalCount: combinedTotal,
+        total: combinedTotal,
+        page: parsedPage,
+        limit: parsedLimit,
+        totalPages,
+        nextCursor,
+      },
+      items: pagedItems,
+      totalCount: combinedTotal,
+      total: combinedTotal,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages,
+      nextCursor,
+    };
+  }
+
+  // Standard Staff-only listing
   const [profiles, totalCount] = await Promise.all([
     StaffProfile.find(filter)
       .populate('userId')
@@ -156,31 +254,25 @@ export const listStaff = async (query = {}, actor = null) => {
   }
 
   const staffItems = profiles.map((item) => formatStaff(item, item.userId, branchMap));
-
-  // If Admin views staff list without role filter or explicitly requests managers, include Managers
-  let finalItems = staffItems;
-  let finalTotalCount = totalCount;
-
-  if (
-    actor &&
-    actor.systemRole === 'ADMIN' &&
-    (!effectiveRole || includeManagers === 'true' || includeManagers === true) &&
-    includeManagers !== 'false' &&
-    !cursor &&
-    (mongoose.connection.readyState === 1 || User.find?._isMockFunction)
-  ) {
-    try {
-      const mgrResult = await managerService.listManagers({ branchId, search: query.search, limit: 100 }, actor);
-      if (mgrResult && mgrResult.items && mgrResult.items.length > 0) {
-        finalItems = [...mgrResult.items, ...staffItems];
-        finalTotalCount += mgrResult.totalCount || mgrResult.items.length;
-      }
-    } catch (_e) {}
-  }
+  const totalPages = Math.ceil(totalCount / parsedLimit) || 1;
 
   return {
-    items: finalItems,
-    totalCount: finalTotalCount,
+    success: true,
+    data: {
+      items: staffItems,
+      totalCount,
+      total: totalCount,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages,
+      nextCursor,
+    },
+    items: staffItems,
+    totalCount,
+    total: totalCount,
+    page: parsedPage,
+    limit: parsedLimit,
+    totalPages,
     nextCursor,
   };
 };

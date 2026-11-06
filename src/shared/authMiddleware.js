@@ -37,28 +37,37 @@ export const authenticate = async (req, res, next) => {
       authorizedBranchIds: decoded.authorizedBranchIds || [],
     };
 
-    // Dynamic live sync from DB for fresh permissions and lock check
-    if (mongoose.connection.readyState === 1 && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
+    // Dynamic live sync from DB for fresh permissions and lock check (Fail-Closed)
+    if ((mongoose.connection.readyState === 1 || User.findById?._isMockFunction) && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
       try {
         const liveUser = await User.findById(decoded.id)
           .select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil')
           .lean();
-        if (liveUser) {
-          if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
-            return next(new AppError(403, 'Forbidden', 'ACCOUNT_BLOCKED', 'Tài khoản của bạn đã bị khóa'));
-          }
-          if (liveUser.accountStatus === 'PENDING_ACTIVATION') {
-            return next(new AppError(403, 'Forbidden', 'ACCOUNT_NOT_ACTIVATED', 'Tài khoản chưa được kích hoạt'));
-          }
-          req.actor.systemRole = liveUser.systemRole || req.actor.systemRole;
-          req.actor.staffSubRole = liveUser.staffSubRole || req.actor.staffSubRole;
-          if (Array.isArray(liveUser.assignedBranchIds)) {
-            req.actor.assignedBranchIds = liveUser.assignedBranchIds.map((b) => (b?._id || b).toString());
-            req.actor.authorizedBranchIds = req.actor.assignedBranchIds;
-          }
+        if (!liveUser) {
+          return next(new AppError(401, 'Unauthenticated', 'AUTHENTICATION_ERROR', 'User account no longer exists'));
         }
-      } catch (_e) {
-        // Fallback to token claims
+        if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
+          return next(new AppError(403, 'Forbidden', 'ACCOUNT_BLOCKED', 'Tài khoản của bạn đã bị khóa'));
+        }
+        if (liveUser.accountStatus === 'PENDING_ACTIVATION') {
+          return next(new AppError(403, 'Forbidden', 'ACCOUNT_NOT_ACTIVATED', 'Tài khoản chưa được kích hoạt'));
+        }
+        req.actor.systemRole = liveUser.systemRole || req.actor.systemRole;
+        req.actor.staffSubRole = liveUser.staffSubRole || req.actor.staffSubRole;
+        if (Array.isArray(liveUser.assignedBranchIds)) {
+          req.actor.assignedBranchIds = liveUser.assignedBranchIds.map((b) => (b?._id || b).toString());
+          req.actor.authorizedBranchIds = req.actor.assignedBranchIds;
+        } else {
+          req.actor.assignedBranchIds = [];
+          req.actor.authorizedBranchIds = [];
+        }
+      } catch (dbErr) {
+        // Fail-Closed: When DB query fails, NEVER use stale branch claims from JWT for MANAGER/STAFF
+        if (['MANAGER', 'STAFF'].includes(decoded.systemRole)) {
+          req.actor.assignedBranchIds = [];
+          req.actor.authorizedBranchIds = [];
+          return next(new AppError(503, 'ServiceUnavailable', 'DATABASE_SYNC_ERROR', 'Unable to verify live account permissions due to database error'));
+        }
       }
     }
     

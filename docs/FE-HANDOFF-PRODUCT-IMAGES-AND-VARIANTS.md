@@ -1,254 +1,443 @@
-# 📋 TÀI LIỆU HƯỚNG DẪN BÀN GIAO TRIỂN KHAI PHÍA FRONTEND (FE HANDOFF)
-## Tính năng: Hiển thị 5–10 hình ảnh & Bộ chọn Loại (Biến thể) trên Trang Chi tiết Sản phẩm
+# 📋 TÀI LIỆU HƯỚNG DẪN BÀN GIAO FRONTEND (ANGULAR)
+## Tính năng: Hiển thị 5–10 hình ảnh, Bộ chọn Loại (Biến thể) & Đưa vào Giỏ hàng trên Trang Chi tiết Sản phẩm
 
-> **Dành cho:** Đội ngũ Frontend (FE Team)  
-> **Phiên bản Backend:** Đã cập nhật & Triển khai thành công trên MongoDB Atlas (`feat/foundation-v6`)  
-> **Ngày lập:** 04/11/2026  
-
----
-
-### 1. BỐI CẢNH & NGUYÊN NHÂN LỖI TRÊN GIAO DIỆN HIỆN TẠI
-
-Khi deploy và kiểm tra trang chi tiết sản phẩm (`ProductDetailsPage.jsx`), giao diện gặp 3 vấn đề:
-1. **Nút "Loại" bị trắng, không có chữ:** Nút chọn biến thể hiển thị một ô chữ nhật rỗng không có nhãn.
-   - **Nguyên nhân:** Backend tuân theo chuẩn OpenAPI v6/v7 với schema `ProductVariant`, trong đó tên biến thể được đặt là thuộc tính `label` (`sku`, `label`, `price`, `finalPrice`, `discountPercent`, `status`, `availableStock`). Trong khi đó, file `src/services/productService.js` của FE chỉ lấy `name: getFirstValue(variant.name, variant.variant_name)`, **bỏ quên `variant.label`**, khiến `variant.name` trả về `undefined`.
-2. **Không đồng bộ giá khi chọn Loại:** Bấm vào các biến thể khác nhau nhưng giá bán trên tiêu đề vẫn giữ nguyên giá cơ sở `product.price`.
-3. **Khung ảnh Thumbnail bị vỡ khi có nhiều ảnh:** Cột thumbnail bên trái trước đây dùng `justify-between` với chiều cao cố định `h-[194px]` cho mỗi ảnh (chỉ phù hợp khi có đúng 2 ảnh). Khi backend trả về từ 5 đến 10 ảnh, các ảnh thumbnail sẽ bị tràn khung.
+> **Dành cho:** Đội ngũ Frontend WEB 2 (`DR_PETS_HOUSE_ANGULAR`)  
+> **Framework:** Angular (TypeScript + HTML Template)  
+> **Phiên bản API Backend:** `v7.0` (MongoDB Atlas `pet_clinic_v2`)  
+> **Trạng thái:** Đã triển khai và xác thực dữ liệu thực tế 100%  
 
 ---
 
-### 2. CÁC FILE CẦN CHỈNH SỬA PHÍA FRONTEND
+### 1. BỐI CẢNH & PHÂN TÍCH HỆ THỐNG DỮ LIỆU
 
-Phía FE chỉ cần cập nhật đúng **2 file** sau:
-1. `src/services/productService.js`
-2. `src/pages/Product/ProductDetailsPage.jsx`
+Trang Chi tiết Sản phẩm trên giao diện gặp 3 vấn đề chính khi kết nối với Backend:
+1. **Nút "Loại" bị trắng/rỗng:**
+   - **Nguyên nhân:** Backend tuân theo chuẩn OpenAPI v7 với schema `ProductVariant`, trong đó tên hiển thị của biến thể được đặt là thuộc tính `label` (`sku`, `label`, `price`, `finalPrice`, `discountPercent`, `status`, `availableStock`). Trong khi đó, mapper cũ chỉ đọc `variant.name` khiến giá trị bị `undefined`.
+2. **Không đồng bộ giá bán và tồn kho khi chọn Loại:**
+   - Khi người dùng click chọn biến thể (ví dụ: Túi 2kg, Túi 8kg, Bao 15kg), giá bán và số lượng tồn kho trên giao diện cần lập tức cập nhật theo `variant.price`, `variant.finalPrice`, và `variant.availableStock`.
+3. **Thanh ảnh Thumbnail bị tràn vỡ khi có 5–10 ảnh:**
+   - Layout cũ cố định chiều cao cho 2 ảnh. Với 5–10 ảnh sản phẩm chất lượng cao từ CDN Unsplash/Cloudinary, cần sử dụng container cuộn dọc mượt mà (`overflow-y-auto`, `scroll-smooth`) với kích thước thumbnail chuẩn `94x94px`.
 
 ---
 
-### 3. HƯỚNG DẪN CODE CHI TIẾT
+### 2. MÔ HÌNH DỮ LIỆU TYPESCRIPT (ANGULAR MODELS)
 
-#### 📁 Bước 1: Cập nhật `src/services/productService.js`
+Tạo hoặc cập nhật file interface tại `src/app/core/models/product.model.ts`:
 
-##### 1.1 Sửa hàm `normalizeImageUrl` (Hỗ trợ cả String và Object ảnh)
-Tìm hàm `normalizeImageUrl` và cập nhật để bóc tách an toàn thuộc tính `.url` nếu backend trả về dạng object:
-
-```javascript
-function normalizeImageUrl(value) {
-  if (!value) return "";
-  // Xử lý an toàn nếu item là object { id, url, isPrimary, ... }
-  if (typeof value === "object") {
-    value = value.url || value.imageUrl || value.image_url || "";
-  }
-  if (!value || typeof value !== "string") return "";
-  if (/^(https?:)?\/\//.test(value) || value.startsWith("data:") || value.startsWith("blob:")) {
-    return value;
-  }
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  if (!backendUrl) return value;
-  return `${backendUrl.replace(/\/$/, "")}/${String(value).replace(/^\//, "")}`;
+```typescript
+export interface ProductImage {
+  id?: string;
+  url: string;
+  isPrimary?: boolean;
+  altText?: string;
 }
-```
 
-##### 1.2 Sửa hàm `normalizeVariant` (Đọc đúng trường `label` từ Backend)
-Tìm hàm `normalizeVariant` và cập nhật cả `name` lẫn `label`:
+export interface ProductVariant {
+  sku: string;
+  label: string; // Tên hiển thị của biến thể (VD: "Túi 2kg", "Bao 15kg")
+  name?: string;  // Alias tương thích ngược
+  price: number;
+  finalPrice: number;
+  discountPercent?: number;
+  availableStock: number;
+  status: 'ACTIVE' | 'OUT_OF_STOCK' | 'INACTIVE';
+  imageUrl?: string;
+}
 
-```javascript
-function normalizeVariant(variant) {
-  if (!variant) return variant;
-  // Bổ sung variant.label từ Backend OpenAPI schema
-  const name = getFirstValue(variant.name, variant.variant_name, variant.label, "Tiêu chuẩn");
-  const label = getFirstValue(variant.label, variant.name, variant.variant_name, "Tiêu chuẩn");
-  return {
-    ...variant,
-    id: getFirstValue(variant.id, variant.variant_id, variant.sku),
-    name,
-    label,
-    price: getFirstValue(variant.price, 0),
-    originalPrice: getFirstValue(variant.originalPrice, variant.original_price),
-    stockQuantity: getFirstValue(variant.stockQuantity, variant.stock_quantity, variant.availableStock, 0),
-    availableStock: getFirstValue(variant.availableStock, variant.stockQuantity, variant.stock_quantity, 0),
-    image: normalizeImageUrl(getFirstValue(variant.image, variant.imageUrl, variant.image_url)),
-    sizes: Array.isArray(variant.sizes) ? variant.sizes : [],
-  };
+export interface ProductDetail {
+  id: string;
+  sku: string;
+  name: string;
+  slug?: string;
+  categoryName?: string;
+  categoryId?: string;
+  description?: string;
+  price: number;
+  finalPrice: number;
+  images: ProductImage[];
+  variants: ProductVariant[];
+  rating?: number;
+  reviewCount?: number;
 }
 ```
 
 ---
 
-#### 📁 Bước 2: Cập nhật `src/pages/Product/ProductDetailsPage.jsx`
+### 3. CẬP NHẬT SERVICE MAPPER (ANGULAR PRODUCT SERVICE)
 
-##### 2.1 Cập nhật Khung Thumbnails cuộn dọc (Hỗ trợ mượt mà từ 5 đến 10 ảnh)
-Tìm khối `{/* Thumbnails */}` (khoảng dòng 392) và thay bằng code cuộn dọc với kích thước ô `94x94px`:
+Tại file `src/app/core/services/product.service.ts`:
 
-```jsx
-{/* Thumbnails hỗ trợ 5 - 10 ảnh cuộn dọc mượt mà */}
-<div className="flex h-[626px] w-[110px] shrink-0 flex-col gap-[10px] overflow-y-auto pr-1 no-scrollbar scroll-smooth">
-  {thumbnails.map((thumb, i) => (
-    <button
-      key={i}
-      type="button"
-      onClick={() => setSelectedImageIdx(i)}
-      onMouseEnter={() => setThumbHovered(i)}
-      onMouseLeave={() => setThumbHovered(null)}
-      className={`group relative h-[94px] w-[94px] shrink-0 overflow-hidden rounded-[8px] transition-all duration-micro focus-ring-brand focus-visible:ring-2 focus-visible:ring-[#0D47A1] ${
-        i === selectedImageIdx
-          ? "border-2 border-[#0D47A1] shadow-[0_0_0_1px_#0D47A1]"
-          : thumbHovered === i
-            ? "border-2 border-[#90CAF9] shadow-sm"
-            : "border border-[#E0E0E0]"
-      }`}
-      aria-label={`Xem ảnh ${i + 1}`}
-      aria-current={i === selectedImageIdx ? "true" : undefined}
-    >
-      <img
-        src={thumb}
-        alt=""
-        className={`h-full w-full object-cover transition-opacity duration-micro ${
-          i !== selectedImageIdx && thumbHovered !== i ? "opacity-70 group-hover:opacity-90" : "opacity-100"
-        }`}
-      />
-    </button>
-  ))}
+```typescript
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { ProductDetail, ProductVariant, ProductImage } from '../models/product.model';
+import { environment } from '../../../environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ProductService {
+  private readonly baseUrl = `${environment.apiUrl}/products`;
+
+  constructor(private http: HttpClient) {}
+
+  getProductById(id: string): Observable<ProductDetail> {
+    return this.http.get<any>(`${this.baseUrl}/${id}`).pipe(
+      map(res => this.normalizeProduct(res.data || res))
+    );
+  }
+
+  private normalizeProduct(raw: any): ProductDetail {
+    // 1. Chuẩn hóa mảng 5 - 10 ảnh
+    const rawImages = Array.isArray(raw.images) ? raw.images : [];
+    const images: ProductImage[] = rawImages.map((img: any, idx: number) => {
+      const url = typeof img === 'string' ? img : (img.url || img.imageUrl || '');
+      return {
+        id: img.id || `img-${idx}`,
+        url: this.normalizeImageUrl(url),
+        isPrimary: typeof img === 'object' ? Boolean(img.isPrimary) : (idx === 0)
+      };
+    });
+
+    // 2. Chuẩn hóa biến thể (đọc đúng variant.label)
+    const rawVariants = Array.isArray(raw.variants) ? raw.variants : [];
+    const variants: ProductVariant[] = rawVariants.map((v: any) => {
+      const label = v.label || v.name || v.sku || 'Tiêu chuẩn';
+      const price = Number(v.price) || Number(raw.price) || 0;
+      const finalPrice = Number(v.finalPrice) || Number(v.price) || price;
+      const availableStock = v.availableStock !== undefined ? Number(v.availableStock) : 50;
+
+      return {
+        sku: v.sku,
+        label,
+        name: label,
+        price,
+        finalPrice,
+        discountPercent: Number(v.discountPercent) || 0,
+        availableStock,
+        status: v.status || (availableStock > 0 ? 'ACTIVE' : 'OUT_OF_STOCK'),
+        imageUrl: v.imageUrl ? this.normalizeImageUrl(v.imageUrl) : undefined
+      };
+    });
+
+    return {
+      id: raw._id || raw.id,
+      sku: raw.sku,
+      name: raw.name,
+      slug: raw.slug,
+      categoryName: raw.categoryName || raw.category_name,
+      categoryId: raw.categoryId,
+      description: raw.description,
+      price: Number(raw.price) || 0,
+      finalPrice: Number(raw.finalPrice) || Number(raw.price) || 0,
+      images,
+      variants,
+      rating: raw.rating || 5,
+      reviewCount: raw.reviewCount || 0
+    };
+  }
+
+  private normalizeImageUrl(value: string): string {
+    if (!value) return '';
+    if (/^(https?:)?\/\//.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+      return value;
+    }
+    return `${environment.apiUrl.replace(/\/api\/v1$/, '')}/${value.replace(/^\//, '')}`;
+  }
+}
+```
+
+---
+
+### 4. MẪU ANGULAR COMPONENT & TEMPLATE
+
+#### 4.1 Component TypeScript (`product-detail.component.ts`)
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { ProductService } from '../../core/services/product.service';
+import { CartService } from '../../core/services/cart.service';
+import { ProductDetail, ProductVariant } from '../../core/models/product.model';
+
+@Component({
+  selector: 'app-product-detail',
+  templateUrl: './product-detail.component.html',
+  styleUrls: ['./product-detail.component.scss']
+})
+export class ProductDetailComponent implements OnInit {
+  product: ProductDetail | null = null;
+  selectedVariant: ProductVariant | null = null;
+  selectedImageIndex = 0;
+  quantity = 1;
+  isLoading = true;
+
+  constructor(
+    private route: ActivatedRoute,
+    private productService: ProductService,
+    private cartService: CartService
+  ) {}
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id') || '6ae1aeffb1d650ca8dafe521';
+    this.productService.getProductById(id).subscribe({
+      next: (data) => {
+        this.product = data;
+        // Tự động chọn biến thể đầu tiên còn hàng
+        if (data.variants && data.variants.length > 0) {
+          const firstAvailable = data.variants.find(v => v.status === 'ACTIVE' && v.availableStock > 0) || data.variants[0];
+          this.selectVariant(firstAvailable);
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Lỗi tải sản phẩm:', err);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  selectVariant(variant: ProductVariant): void {
+    this.selectedVariant = variant;
+    // Nếu biến thể có ảnh riêng, chuyển đổi sang ảnh đó
+    if (variant.imageUrl && this.product) {
+      const idx = this.product.images.findIndex(img => img.url === variant.imageUrl);
+      if (idx !== -1) this.selectedImageIndex = idx;
+    }
+  }
+
+  get currentPrice(): number {
+    return this.selectedVariant?.finalPrice ?? this.product?.finalPrice ?? 0;
+  }
+
+  get currentOriginalPrice(): number {
+    return this.selectedVariant?.price ?? this.product?.price ?? 0;
+  }
+
+  get currentStock(): number {
+    return this.selectedVariant?.availableStock ?? 0;
+  }
+
+  addToCart(): void {
+    if (!this.product || !this.selectedVariant) return;
+
+    this.cartService.addToCart({
+      productId: this.product.id,
+      sku: this.selectedVariant.sku,
+      variantLabel: this.selectedVariant.label,
+      quantity: this.quantity,
+      price: this.currentPrice,
+      imageUrl: this.product.images[0]?.url
+    }).subscribe({
+      next: () => alert('Đã thêm sản phẩm vào giỏ hàng thành công!'),
+      error: (err) => alert('Lỗi khi thêm giỏ hàng: ' + err.message)
+    });
+  }
+}
+```
+
+#### 4.2 HTML Template (`product-detail.component.html`)
+
+```html
+<div class="container mx-auto px-4 py-8" *ngIf="product">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    
+    <!-- CỘT 1: HÌNH ẢNH (THUMBNAIL CUỘN DỌC + ẢNH CHÍNH) -->
+    <div class="flex gap-4">
+      <!-- Dải Thumbnail hỗ trợ 5 - 10 ảnh -->
+      <div class="flex flex-col gap-2 h-[500px] w-24 overflow-y-auto pr-1 no-scrollbar">
+        <button
+          *ngFor="let img of product.images; let i = index"
+          type="button"
+          (click)="selectedImageIndex = i"
+          class="relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all shrink-0"
+          [class.border-blue-600]="selectedImageIndex === i"
+          [class.border-gray-200]="selectedImageIndex !== i"
+        >
+          <img [src]="img.url" [alt]="product.name" class="w-full h-full object-cover" />
+        </button>
+      </div>
+
+      <!-- Ảnh chính hiển thị to -->
+      <div class="flex-1 h-[500px] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+        <img
+          [src]="product.images[selectedImageIndex]?.url"
+          [alt]="product.name"
+          class="max-h-full max-w-full object-contain"
+        />
+      </div>
+    </div>
+
+    <!-- CỘT 2: THÔNG TIN SẢN PHẨM & BỘ CHỌN LOẠI -->
+    <div class="flex flex-col gap-6">
+      <h1 class="text-2xl font-bold text-gray-900">{{ product.name }}</h1>
+      <p class="text-sm text-gray-500">Mã SKU: {{ selectedVariant?.sku || product.sku }}</p>
+
+      <!-- Giá tiền động theo Biến thể -->
+      <div class="flex items-baseline gap-3">
+        <span class="text-3xl font-extrabold text-red-600">{{ currentPrice | number }}đ</span>
+        <span *ngIf="currentOriginalPrice > currentPrice" class="text-lg text-gray-400 line-through">
+          {{ currentOriginalPrice | number }}đ
+        </span>
+        <span *ngIf="selectedVariant?.discountPercent" class="px-2 py-0.5 text-xs font-semibold text-red-600 bg-red-100 rounded">
+          -{{ selectedVariant?.discountPercent }}%
+        </span>
+      </div>
+
+      <!-- BỘ CHỌN LOẠI (BIẾN THỂ) -->
+      <div class="space-y-3">
+        <label class="block text-sm font-semibold text-gray-700">
+          Loại: <span class="text-blue-600 font-bold">{{ selectedVariant?.label }}</span>
+        </label>
+        <div class="flex flex-wrap gap-3">
+          <button
+            *ngFor="let v of product.variants"
+            type="button"
+            (click)="selectVariant(v)"
+            [disabled]="v.status === 'OUT_OF_STOCK' || v.availableStock === 0"
+            class="px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all"
+            [class.border-blue-600]="selectedVariant?.sku === v.sku"
+            [class.bg-blue-50]="selectedVariant?.sku === v.sku"
+            [class.text-blue-700]="selectedVariant?.sku === v.sku"
+            [class.border-gray-200]="selectedVariant?.sku !== v.sku"
+            [class.opacity-50]="v.status === 'OUT_OF_STOCK' || v.availableStock === 0"
+          >
+            {{ v.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Số lượng tồn kho -->
+      <div class="text-sm text-gray-600">
+        Tồn kho khả dụng: <span class="font-medium text-gray-900">{{ currentStock }} sản phẩm</span>
+      </div>
+
+      <!-- Nút Thêm vào giỏ hàng -->
+      <div class="flex items-center gap-4 pt-4">
+        <button
+          type="button"
+          (click)="addToCart()"
+          [disabled]="currentStock === 0"
+          class="w-full py-3.5 px-6 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:bg-gray-300"
+        >
+          THÊM VÀO GIỎ HÀNG
+        </button>
+      </div>
+    </div>
+
+  </div>
 </div>
 ```
 
-##### 2.2 Đồng bộ hiển thị Giá bán theo Biến thể đang chọn
-Tìm khối hiển thị giá (khoảng dòng 441) và tính giá dựa trên `selectedTypeIdx`:
-
-```jsx
-{(() => {
-  const activeVariant = product?.variants?.[selectedTypeIdx];
-  const activePrice = activeVariant?.price ?? product.price;
-  const activeOriginalPrice = activeVariant?.originalPrice ?? product.originalPrice;
-  const activeDiscountPercent = activeVariant?.discountPercent ?? (activeOriginalPrice > activePrice && activePrice > 0 ? Math.round((1 - activePrice / activeOriginalPrice) * 100) : product.discountPercent);
-  
-  return (
-    <div className="flex items-center gap-[10px]">
-      <span className="font-['Roboto'] text-[32px] font-normal leading-[39.52px] tracking-[0.25px] text-[#D32F2F]">
-        {formatPrice(activePrice)}
-      </span>
-      {activeOriginalPrice > activePrice && (
-        <>
-          <span className="font-['Roboto'] text-[24px] font-normal leading-[32.02px] text-[rgba(0,0,0,0.38)] line-through">
-            {formatPrice(activeOriginalPrice)}
-          </span>
-          <span className="inline-flex h-[21px] w-[50px] items-center justify-center rounded-[40px] bg-[#D32F2F] font-['Roboto'] text-[12px] font-bold leading-[19.92px] tracking-[0.4px] text-white">
-            -{activeDiscountPercent}%
-          </span>
-        </>
-      )}
-    </div>
-  );
-})()}
-```
-
-##### 2.3 Hiển thị danh sách nút chọn "Loại" (Variants)
-Tìm khối `{/* Type selection */}` (khoảng dòng 476) và thay bằng:
-
-```jsx
-{/* Type selection - Hiển thị tên biến thể rõ ràng */}
-{Array.isArray(product.variants) && product.variants.length > 0 && (
-  <div className="flex items-start gap-[20px] pb-7">
-    <span className="pt-[8px] font-['Roboto'] text-[18px] font-medium leading-[26px] tracking-[0.15px] text-[#1D2939]">
-      Loại
-    </span>
-    <div className="flex flex-wrap gap-[12px] max-w-[420px]">
-      {product.variants.map((variant, i) => {
-        const variantLabel = variant.name || variant.label || `Loại ${i + 1}`;
-        const isSelected = i === selectedTypeIdx;
-        return (
-          <button
-            key={variant.id ?? variant.sku ?? `${variantLabel}-${i}`}
-            type="button"
-            onClick={() => {
-              setSelectedTypeIdx(i);
-              setDropdownValue(variant.sizes?.[0] ?? "");
-              if (variant.image) {
-                const matchIdx = thumbnails.findIndex((img) => img === variant.image);
-                if (matchIdx !== -1) setSelectedImageIdx(matchIdx);
-              }
-            }}
-            className={`group min-h-[44px] min-w-[84px] px-[16px] py-[8px] rounded-[10px] flex items-center justify-center transition-all duration-micro focus-ring-brand active:scale-95 ${
-              isSelected
-                ? "border-2 border-[#0D47A1] bg-[#E3F2FD] shadow-[0_0_0_1px_#0D47A1]"
-                : "border border-[#D7D7D7] bg-[#F8F9FA] hover:border-[#90CAF9] hover:bg-[#F2F4F7]"
-            }`}
-            aria-pressed={isSelected}
-          >
-            <span className={`font-['Roboto'] text-[14px] font-semibold leading-[20px] ${
-              isSelected ? "text-[#0D47A1]" : "text-[#1D2939]"
-            }`}>
-              {variantLabel}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-)}
-```
-
-##### 2.4 Cập nhật trường `type` trong Giỏ hàng
-Trong hai hàm `handleAddToCart` và `handleBuyNow`, đảm bảo truyền:
-```javascript
-type: variant?.name || variant?.label || "Tiêu chuẩn",
-```
-
 ---
 
-### 4. DỮ LIỆU MẪU TỪ BACKEND API ĐỂ KIỂM THỬ
+### 5. DỮ LIỆU THỰC TẾ TRÍCH XUẤT TỪ MONGODB ATLAS (UAT EVIDENCE)
 
-Khi gọi API `GET /api/v1/products/:id` hoặc `GET /api/v1/products/SP-LEG-099`, Backend sẽ trả về cấu trúc chuẩn:
+#### 5.1 JSON Response thực tế của Sản phẩm (6 ảnh, 3 biến thể):
+* **Endpoint:** `GET /api/v1/products/6ae1aeffb1d650ca8dafe521`
 
 ```json
 {
-  "productCode": "SP-LEG-099",
-  "name": "Thức ăn cho chó hữu cơ NATURAL CORE Multi Protein Chicken Salmon",
-  "productType": "VARIANT",
+  "id": "6ae1aeffb1d650ca8dafe521",
+  "name": "Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult",
+  "categoryName": "Thức ăn thú cưng",
+  "imageCount": 6,
   "images": [
-    { "id": "img-1", "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon.jpg", "isPrimary": true, "sortOrder": 0 },
-    { "id": "img-2", "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg", "isPrimary": false, "sortOrder": 1 },
-    { "id": "img-3", "url": "https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800&q=80", "isPrimary": false, "sortOrder": 2 },
-    { "id": "img-4", "url": "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80", "isPrimary": false, "sortOrder": 3 },
-    { "id": "img-5", "url": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80", "isPrimary": false, "sortOrder": 4 },
-    { "id": "img-6", "url": "https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80", "isPrimary": false, "sortOrder": 5 }
+    {
+      "index": 1,
+      "url": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80",
+      "isPrimary": true
+    },
+    {
+      "index": 2,
+      "url": "https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80",
+      "isPrimary": false
+    },
+    {
+      "index": 3,
+      "url": "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80",
+      "isPrimary": false
+    },
+    {
+      "index": 4,
+      "url": "https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80",
+      "isPrimary": false
+    },
+    {
+      "index": 5,
+      "url": "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=800&q=80",
+      "isPrimary": false
+    },
+    {
+      "index": 6,
+      "url": "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80",
+      "isPrimary": false
+    }
   ],
   "variants": [
     {
-      "sku": "SP-LEG-099-01",
-      "label": "Túi 1kg",
-      "price": 290000,
-      "discountPercent": 0,
-      "finalPrice": 290000,
-      "status": "ACTIVE"
-    },
-    {
-      "sku": "SP-LEG-099-02",
-      "label": "Túi 2.4kg",
-      "price": 638000,
+      "sku": "SP-RC-MINI-001-01",
+      "label": "Túi 2kg",
+      "price": 340000,
+      "finalPrice": 323000,
       "discountPercent": 5,
-      "finalPrice": 606000,
+      "availableStock": 50,
       "status": "ACTIVE"
     },
     {
-      "sku": "SP-LEG-099-03",
-      "label": "Bao 6kg",
-      "price": 1392000,
+      "sku": "SP-RC-MINI-001-02",
+      "label": "Túi 8kg",
+      "price": 1150000,
+      "finalPrice": 1035000,
       "discountPercent": 10,
-      "finalPrice": 1253000,
+      "availableStock": 50,
+      "status": "ACTIVE"
+    },
+    {
+      "sku": "SP-RC-MINI-001-03",
+      "label": "Bao 15kg",
+      "price": 1980000,
+      "finalPrice": 1742400,
+      "discountPercent": 12,
+      "availableStock": 50,
       "status": "ACTIVE"
     }
   ]
 }
 ```
 
----
+#### 5.2 JSON Request & Response khi đưa Biến thể vào Giỏ hàng:
+* **Request:** `POST /api/v1/cart/items`
+```json
+{
+  "productId": "6ae1aeffb1d650ca8dafe521",
+  "sku": "SP-RC-MINI-001-02",
+  "quantity": 1
+}
+```
 
-### 5. CHECKLIST KIỂM THỬ TRƯỚC KHI BÀN GIAO (FE CHECKLIST)
-
-- [ ] Nút chọn "Loại" hiển thị đúng tên (`Túi 1kg`, `Túi 2.4kg`, `Bao 6kg`...). Không còn nút trắng rỗng.
-- [ ] Bấm chọn các biến thể khác nhau: giá trên màn hình thay đổi tương ứng.
-- [ ] Cột ảnh thumbnail bên trái hiển thị đủ 6 ảnh, cuộn mượt mà, hover/click đổi ảnh lớn chính xác.
-- [ ] Thêm vào giỏ hàng (`Thêm vào giỏ` hoặc `Mua ngay`) nhận đúng biến thể và đơn giá đã chọn.
-- [ ] Chạy `npm run build` trên Frontend không phát sinh lỗi cú pháp hay TypeScript/Vite error.
-
+* **Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "productId": "6ae1aeffb1d650ca8dafe521",
+        "sku": "SP-RC-MINI-001-02",
+        "productName": "Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult",
+        "variantLabel": "Túi 8kg",
+        "unitPrice": 1035000,
+        "quantity": 1,
+        "totalPrice": 1035000,
+        "availableStock": 50,
+        "imageUrl": "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80"
+      }
+    ],
+    "subtotal": 1035000,
+    "total": 1035000
+  }
+}
+```

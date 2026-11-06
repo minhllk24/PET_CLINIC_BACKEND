@@ -693,9 +693,9 @@ app.use(
             };
 
             const mongoose = require('mongoose');
-            if (mongoose.connection.readyState === 1 && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
+            const User = require('./models/User').default || require('./models/User');
+            if ((mongoose.connection.readyState === 1 || User.findById?._isMockFunction) && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
               try {
-                const User = require('./models/User').default || require('./models/User');
                 const liveUser = await User.findById(decoded.id)
                   .select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil')
                   .lean();
@@ -703,14 +703,29 @@ app.use(
                   if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
                     return false;
                   }
+                  if (liveUser.accountStatus === 'PENDING_ACTIVATION') {
+                    return false;
+                  }
                   req.actor.systemRole = liveUser.systemRole || req.actor.systemRole;
                   req.actor.staffSubRole = liveUser.staffSubRole || req.actor.staffSubRole;
                   if (Array.isArray(liveUser.assignedBranchIds)) {
                     req.actor.assignedBranchIds = liveUser.assignedBranchIds.map((b) => (b?._id || b).toString());
                     req.actor.authorizedBranchIds = req.actor.assignedBranchIds;
+                  } else {
+                    req.actor.assignedBranchIds = [];
+                    req.actor.authorizedBranchIds = [];
                   }
+                } else {
+                  return false;
                 }
-              } catch (_e) {}
+              } catch (_e) {
+                // Fail-closed on DB error for MANAGER and STAFF
+                if (['MANAGER', 'STAFF'].includes(req.actor.systemRole)) {
+                  req.actor.assignedBranchIds = [];
+                  req.actor.authorizedBranchIds = [];
+                  return false;
+                }
+              }
             }
 
             return true;

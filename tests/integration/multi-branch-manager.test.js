@@ -254,7 +254,128 @@ describe('Multi-Branch Manager & ServiceRecord Data Enrichment Suite', () => {
     });
   });
 
-  describe('3. Shift Assignment Guardrail for Manager', () => {
+  describe('3. Validation & CSPRNG Password Generation', () => {
+    it('generateSecurePassword generates strong 16-char password with mixed character sets', () => {
+      const pwd = managerService.generateSecurePassword(16);
+      expect(pwd).toHaveLength(16);
+      expect(/[A-Z]/.test(pwd)).toBe(true);
+      expect(/[a-z]/.test(pwd)).toBe(true);
+      expect(/[0-9]/.test(pwd)).toBe(true);
+      expect(/[!@#$%^&*]/.test(pwd)).toBe(true);
+    });
+
+    it('validateActiveBranches rejects invalid ID format with 400 and does not silently ignore it', async () => {
+      await expect(
+        managerService.validateActiveBranches([branchQ1, 'invalid-id-123'])
+      ).rejects.toThrow('All assignedBranchIds must be valid ObjectId strings');
+    });
+
+    it('validateActiveBranches rejects inactive or non-existent branch IDs with 400', async () => {
+      jest.spyOn(Branch, 'find').mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { _id: new mongoose.Types.ObjectId(branchQ1), isActive: true, status: 'ACTIVE' },
+        ]),
+      });
+
+      await expect(
+        managerService.validateActiveBranches([branchQ1, branchQ7])
+      ).rejects.toThrow('One or more assigned branches do not exist or are inactive');
+    });
+  });
+
+  describe('4. Scoped Branch Visibility & Unified Pagination', () => {
+    it('scopes assignedBranchIds when Manager views another Manager to caller assigned branches only', async () => {
+      const targetManagerDoc = {
+        _id: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
+        systemRole: 'MANAGER',
+        fullName: 'Target Manager',
+        staffCode: 'MGR-9999',
+        assignedBranchIds: [
+          new mongoose.Types.ObjectId(branchQ1), // Shared with caller
+          new mongoose.Types.ObjectId(branchBT), // NOT shared with caller
+        ],
+        accountStatus: 'ACTIVE',
+      };
+
+      jest.spyOn(User, 'findOne').mockResolvedValue(targetManagerDoc);
+
+      const callerManagerActor = {
+        id: managerId,
+        systemRole: 'MANAGER',
+        assignedBranchIds: [branchQ1, branchQ7], // Caller only has Q1 and Q7
+      };
+
+      const result = await managerService.getManagerById('507f1f77bcf86cd799439099', callerManagerActor);
+      expect(result.assignedBranchIds).toEqual([branchQ1]); // BT is masked/stripped
+      expect(result.assignedBranches).toHaveLength(1);
+      expect(result.assignedBranches[0].id).toBe(branchQ1);
+    });
+
+    it('listStaff seamlessly merges managers and staff across pages for Admin', async () => {
+      const mockStaffProfiles = [
+        {
+          _id: new mongoose.Types.ObjectId('507f1f77bcf86cd799439071'),
+          userId: { _id: '507f1f77bcf86cd799439071', fullName: 'Staff 1', systemRole: 'STAFF' },
+          staffSubRole: 'VETERINARIAN',
+          staffCode: 'VET-001',
+          authorizedBranchIds: [branchQ1],
+        },
+      ];
+
+      const mockManagers = {
+        items: [
+          {
+            id: '507f1f77bcf86cd799439081',
+            userId: '507f1f77bcf86cd799439081',
+            fullName: 'Manager 1',
+            systemRole: 'MANAGER',
+            role: 'MANAGER',
+            staffSubRole: 'MANAGER',
+            staffCode: 'MGR-001',
+            assignedBranchIds: [branchQ1],
+          },
+        ],
+        totalCount: 1,
+      };
+
+      jest.spyOn(StaffProfile, 'find').mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue(mockStaffProfiles),
+      });
+      jest.spyOn(StaffProfile, 'countDocuments').mockResolvedValue(1);
+      jest.spyOn(managerService, 'listManagers').mockResolvedValue(mockManagers);
+
+      const result = await staffService.listStaff(
+        { page: 1, limit: 10 },
+        { id: adminId, systemRole: 'ADMIN' }
+      );
+
+      expect(result.totalCount).toBe(2);
+      expect(result.items).toHaveLength(2);
+      expect(result.items.some((i) => i.systemRole === 'MANAGER')).toBe(true);
+      expect(result.items.some((i) => i.systemRole === 'STAFF')).toBe(true);
+    });
+  });
+
+  describe('5. Dynamic Live Sync (Fail-Closed on DB Error & Branch Revocation)', () => {
+    it('authenticates with Fail-Closed: returns 503 DATABASE_SYNC_ERROR when DB query fails instead of falling back to stale JWT claims', async () => {
+      jest.spyOn(User, 'findById').mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockRejectedValue(new Error('MongoDB cluster unreachable')),
+        }),
+      });
+
+      const res = await request(app)
+        .get('/api/v1/managers')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      // Expect Fail-Closed rejection: 503 or 401/403 (never 200 with old claims)
+      expect([401, 403, 503]).toContain(res.status);
+    });
+  });
+
+  describe('6. Shift Assignment Guardrail for Manager', () => {
     it('rejects creating a shift for a Manager (Managers do not require shifts)', async () => {
       jest.spyOn(User, 'findById').mockReturnValue({
         select: jest.fn().mockResolvedValue({
