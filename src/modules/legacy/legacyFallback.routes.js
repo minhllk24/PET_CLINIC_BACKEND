@@ -227,6 +227,84 @@ router.get('/posts/:slug', (req, res) => {
   });
 });
 
+// Community Posts Fallback
+const sampleCommunityPosts = [
+  {
+    id: 'comm-1',
+    _id: '6ae161491bb9b2b264c91201',
+    title: 'Chia sẻ kinh nghiệm chăm sóc bé Poodle khi đổi mùa',
+    content: 'Mùa này các bé Poodle rất dễ bị viêm tai và khô da. Mình đã áp dụng cách vệ sinh tai 2 ngày/lần và bổ sung dầu cá Omega 3, trộm vía bé khỏe mạnh hẳn!',
+    imageUrls: ['https://images.unsplash.com/photo-1543466835-00a7907e9de1'],
+    authorNameSnapshot: 'Minh Thư',
+    authorAvatarSnapshot: null,
+    status: 'APPROVED',
+    likesCount: 24,
+    commentsCount: 6,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'comm-2',
+    _id: '6ae161491bb9b2b264c91202',
+    title: 'Mèo con bị sốc nhiệt mùa nắng nóng - bài học đáng nhớ',
+    content: 'Tuần trước bé Miu nhà mình bị thở dốc do phòng trọ nóng quá. May mà gọi hotline cấp cứu của Dr. Pets House được bác sĩ hướng dẫn hạ nhiệt đúng cách...',
+    imageUrls: ['https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba'],
+    authorNameSnapshot: 'Hoàng Nam',
+    authorAvatarSnapshot: null,
+    status: 'APPROVED',
+    likesCount: 42,
+    commentsCount: 15,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'comm-3',
+    _id: '6ae161491bb9b2b264c91203',
+    title: 'Góc khoe bé Corgi vừa làm đẹp tại Dr. Pets House chi nhánh Q1',
+    content: 'Đưa bé đi tắm cắt tỉa lông mông trái tim mà nhân viên làm siêu có tâm, bé về không bị hoảng sợ tí nào!',
+    imageUrls: ['https://images.unsplash.com/photo-1517849845537-4d257902454a'],
+    authorNameSnapshot: 'Thanh Trúc',
+    authorAvatarSnapshot: null,
+    status: 'APPROVED',
+    likesCount: 58,
+    commentsCount: 8,
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
+
+router.get(['/community/posts', '/public/community/posts'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      items: sampleCommunityPosts,
+      total: sampleCommunityPosts.length,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+    },
+  });
+});
+
+router.post(['/community/posts', '/public/community/posts'], (req, res) => {
+  const { title, content, imageUrls } = req.body || {};
+  const newPost = {
+    id: `comm-${Date.now()}`,
+    _id: new mongoose.Types.ObjectId().toString(),
+    title: title || 'Bài viết chia sẻ',
+    content: content || '',
+    imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+    authorNameSnapshot: req.actor?.fullName || req.user?.fullName || 'Thành viên yêu thú cưng',
+    authorAvatarSnapshot: null,
+    status: 'APPROVED',
+    likesCount: 0,
+    commentsCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+  sampleCommunityPosts.unshift(newPost);
+  res.status(201).json({
+    success: true,
+    data: newPost,
+  });
+});
+
 // 5. Loài & Giống thú cưng (Species & Breeds)
 router.get('/pets/species', (req, res) => {
   res.status(200).json({

@@ -278,9 +278,8 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
         const isFreeShipVoucher = appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING');
         if (isFreeShipVoucher) {
           voucherDiscount = shippingFee;
-          shippingFee = 0;
         }
-        const totalAmount = Math.max(0, merchandiseSubtotal - (isFreeShipVoucher ? 0 : voucherDiscount) + shippingFee);
+        const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
 
         // Proportional discount allocation for eligible items
         const isItemEligible = (item) => {
@@ -1230,7 +1229,6 @@ export const quoteAdminOrder = async (data, actor) => {
   let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
   if (appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING')) {
     voucherDiscount = shippingFee;
-    shippingFee = 0;
   }
   const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
 
@@ -1409,7 +1407,6 @@ export const createAdminOrder = async (data, actor) => {
     let shippingFee = merchandiseSubtotal >= freeShippingThreshold ? 0 : 30000;
     if (appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING')) {
       voucherDiscount = shippingFee;
-      shippingFee = 0;
     }
     const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
 
