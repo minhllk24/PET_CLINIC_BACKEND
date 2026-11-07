@@ -7,24 +7,28 @@ import config from './config';
 const inMemoryOutboxStore = new Map();
 
 /**
- * Build nodemailer transporter based on environment
+ * Build nodemailer transporter strictly from SMTP configuration.
+ * Never fallback to jsonTransport which could falsely mark unsent emails as SENT (BE-FIX-04).
  */
-const getTransporter = () => {
-  if (config.smtp?.host && config.smtp?.user) {
-    return nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port || 587,
-      secure: config.smtp.secure || false,
-      auth: {
-        user: config.smtp.user,
-        pass: config.smtp.pass,
-      },
-    });
+export const getTransporter = () => {
+  const host = process.env.SMTP_HOST || (process.env.EMAIL_APP ? 'smtp.gmail.com' : config.smtp?.host || '');
+  const port = Number(process.env.SMTP_PORT || config.smtp?.port || 587);
+  const secure = Boolean(process.env.SMTP_SECURE === 'true' || config.smtp?.secure);
+  const user = process.env.SMTP_USER ?? process.env.EMAIL_APP ?? config.smtp?.user ?? '';
+  const pass = process.env.SMTP_PASS ?? process.env.EMAIL_APP_PASSWORD ?? config.smtp?.pass ?? '';
+
+  if (!host || !user || !pass) {
+    throw new Error('SMTP provider is not configured: missing SMTP_HOST/EMAIL_APP or EMAIL_APP_PASSWORD');
   }
 
-  // Fallback to JSON transport which generates real messageId and persists message headers
   return nodemailer.createTransport({
-    jsonTransport: true,
+    host,
+    port,
+    secure,
+    auth: {
+      user,
+      pass,
+    },
   });
 };
 
@@ -112,8 +116,8 @@ export const sendFeedbackReplyEmail = async ({
     }
   }
 
-  // 3. Simulated failure check for tests (GAP-09)
-  if (forceFail) {
+  // 3. Simulated failure check ONLY in test environment (GAP-09)
+  if (process.env.NODE_ENV === 'test' && forceFail) {
     outbox.status = 'FAILED';
     outbox.lastError = 'Simulated SMTP connection failure';
     outbox.attempts += 1;

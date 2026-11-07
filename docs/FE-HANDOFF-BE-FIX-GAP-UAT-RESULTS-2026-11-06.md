@@ -183,31 +183,194 @@ this.orderService.createCheckout(payload).subscribe({
 > *Lưu ý:* Nếu không truyền `reason` hoặc truyền chuỗi khoảng trắng, Backend sẽ trả mã `400 VALIDATION_ERROR`.
 
 ### 4.4 Lấy danh sách Trạm đối tác cứu trợ & Hotline khẩn cấp:
-* **Endpoint:** `GET /api/v1/content/rescue/partners`
-* **Response (200 OK):**
+* **Endpoints hỗ trợ:**
+  - `GET /api/v1/content/rescue/partners`
+  - `GET /api/v1/rescue/partners`
+  - `GET /api/v1/public/rescue/partners`
+* **Response thực tế (200 OK - Đã đồng bộ 100% với 6 đối tác trên Customer Frontend):**
 ```json
 {
   "success": true,
+  "emergencyHotline": "1900-6868",
   "data": {
-    "emergencyHotline": "1900-PET-HELP",
+    "emergencyHotline": "1900-6868",
     "totalPartners": 6,
     "partners": [
       {
-        "id": "SAR",
-        "name": "Trạm Cứu hộ Động vật Sài Gòn (SAR)",
-        "phone": "0901234567",
-        "address": "Bình Thạnh, TP. Hồ Chí Minh",
-        "websiteUrl": "https://facebook.com/saigonanimalrescue",
-        "hotline": "1900-PET-HELP"
+        "id": "vawa",
+        "code": "VAWA",
+        "name": "Vietnam Animal Welfare Association",
+        "href": "https://www.facebook.com/vawa.org/",
+        "websiteUrl": "https://www.facebook.com/vawa.org/",
+        "region": "Khu vực miền Nam",
+        "address": "675B, Nguyễn Kiệm, phường 9, Quận Phú Nhuận, Ho Chi Minh City, Vietnam, 700000",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
+      },
+      {
+        "id": "backyard",
+        "code": "SNNC",
+        "name": "Nhóm cứu hộ chó mèo Sân Nhà Nhiều Chó",
+        "href": "https://www.facebook.com/Sannhanhieucho",
+        "websiteUrl": "https://www.facebook.com/Sannhanhieucho",
+        "region": "Khu vực miền Bắc",
+        "address": "Ngõ 15 đường Cột Mốc, Đoài Phương, Hà Nội 100000",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
+      },
+      {
+        "id": "nong-nghiep",
+        "code": "NNHN",
+        "name": "Trạm Cứu Hộ Động Vật Nông Nghiệp Hà Nội",
+        "href": "https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi",
+        "websiteUrl": "https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi",
+        "region": "Khu vực miền Bắc",
+        "address": "Ngô Xuân Quảng_ Gia Lâm, Hanoi, Vietnam",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
+      },
+      {
+        "id": "saigon-time",
+        "code": "SGT",
+        "name": "Trạm Cứu Hộ Chó Mèo Sài Gòn Time",
+        "href": "https://www.facebook.com/savesgt",
+        "websiteUrl": "https://www.facebook.com/savesgt",
+        "region": "Khu vực miền Nam",
+        "address": "Foster House, Ho Chi Minh City, Vietnam",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
+      },
+      {
+        "id": "we-act",
+        "code": "WAFA",
+        "name": "We Act For Animals",
+        "href": "https://www.facebook.com/wafavn/?ref=page_internal",
+        "websiteUrl": "https://www.facebook.com/wafavn/?ref=page_internal",
+        "region": "Khu vực miền Trung",
+        "address": "Nha Trang, Vietnam, 650000",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
+      },
+      {
+        "id": "laws-for-paws",
+        "code": "LFP",
+        "name": "Laws for Paws Vietnam",
+        "href": "https://www.facebook.com/lawsforpawsvietnam",
+        "websiteUrl": "https://www.facebook.com/lawsforpawsvietnam",
+        "region": "Khu vực miền Nam",
+        "address": "Ho Chi Minh City, Vietnam",
+        "phone": "1900-6868",
+        "hotline": "1900-6868"
       }
-    ]
+    ],
+    "items": [ "...6 đối tác..." ]
   }
 }
 ```
 
 ---
 
-## 5. Thông Số Môi Trường & Bàn Giao Kỹ Thuật
+## 5. Bằng Chứng Kiểm Thử Thực Tế Trên MongoDB Atlas & Gmail SMTP (Round 2 Audit)
+
+### 5.1 Kiểm thử CAS Flash Sale 2 phiên đồng thời thật trên MongoDB Atlas (`BE-FIX-01` & `GAP-01`)
+* **Cơ chế:** Nâng cấp `consumeFlashSaleQuotaInSession` sang dùng lệnh nguyên tử `FlashSale.findOneAndUpdate` với điều kiện `$elemMatch: { sku: cleanSku, soldQuantity: { $lte: item.quantityLimit - quantity } }` và `$inc: { 'items.$.soldQuantity': quantity, version: 1 }`.
+* **Kết quả chạy `Promise.all` đồng thời 2 request khi `quantityLimit = 1`, `soldQuantity = 0` trên `pet_clinic_v2` (MongoDB Atlas):**
+```json
+{
+  "concurrentOutcomes": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "saleId": "6aef6265d66092fc710316b7",
+        "sku": "SKU-LIVE-CAS-1794073189153",
+        "soldQuantity": 1,
+        "remainingQuantity": 0
+      }
+    },
+    {
+      "status": "rejected",
+      "code": "FLASH_SALE_QUOTA_EXCEEDED",
+      "httpStatus": 409,
+      "message": "Số lượng yêu cầu (1) vượt quá giới hạn Flash Sale còn lại (0) cho SKU SKU-LIVE-CAS-1794073189153"
+    }
+  ],
+  "dbStateAfter": {
+    "id": "6aef6265d66092fc710316b7",
+    "code": "FS-LIVE-189153",
+    "soldQuantity": 1,
+    "quantityLimit": 1
+  }
+}
+```
+
+### 5.2 Kiểm thử Transaction Rollback đa tài liệu thật trên MongoDB Atlas (`BE-FIX-05` & `GAP-16`)
+* **Kịch bản:** Tạo `CommunityPost` (`6aef6265d66092fc710316e7`, `status: 'APPROVED'`) và `CommunityReport` (`6aef6265d66092fc710316eb`, `status: 'PENDING'`) trên MongoDB Atlas. Trong phiên `session.withTransaction` của `resolveCommunityReport`, sau khi cập nhật `CommunityReport` sang `RESOLVED`, ném lỗi ghi `CommunityPost`.
+* **Bằng chứng MongoDB Atlas sau khi Transaction Abort (Rollback 100%):**
+```json
+{
+  "reportId": "6aef6265d66092fc710316eb",
+  "reportCode": "REP-LIVE-89806",
+  "reportStatusAfterAbort": "PENDING",
+  "reportDecisionAfterAbort": null,
+  "reportVersionAfterAbort": 1,
+  "postId": "6aef6265d66092fc710316e7",
+  "postStatusAfterAbort": "APPROVED",
+  "postHasOpenReportAfterAbort": true
+}
+```
+* **Bằng chứng MongoDB Atlas khi chạy lại không lỗi (Commit thành công):**
+```json
+{
+  "reportId": "6aef6265d66092fc710316eb",
+  "reportStatusAfterCommit": "RESOLVED",
+  "reportDecisionAfterCommit": "HIDE_POST",
+  "postStatusAfterCommit": "HIDDEN",
+  "postHasOpenReportAfterCommit": false
+}
+```
+
+### 5.3 Kiểm thử Email Outbox & Gmail SMTP thật (`BE-FIX-04`, `GAP-08`, `GAP-09`)
+* **Đã gỡ bỏ hoàn toàn `jsonTransport: true`** trong `src/shared/emailOutbox.service.js` và kết nối `EMAIL_APP` / `EMAIL_APP_PASSWORD` vào `config.smtp`.
+* **Trường hợp 1 (Khi thiếu cấu hình SMTP):** Không dùng `jsonTransport`, đánh dấu `FAILED` và giữ Feedback ở `PROCESSING` (không báo `SENT` giả):
+```json
+{
+  "feedbackId": "6aef6266d66092fc71031703",
+  "feedbackStatus": "PROCESSING",
+  "deliveryStatus": "FAILED",
+  "errorMessage": "SMTP provider is not configured: missing SMTP_HOST/EMAIL_APP or EMAIL_APP_PASSWORD",
+  "outboxId": "6aef6266d66092fc71031706",
+  "outboxStatus": "FAILED"
+}
+```
+* **Trường hợp 2 (Gửi thật qua Gmail SMTP `smtp.gmail.com:587`):**
+```json
+{
+  "feedbackId": "6aef6266d66092fc71031703",
+  "feedbackStatus": "PROCESSED",
+  "deliveryStatus": "SENT",
+  "providerMessageId": "<8c5d88ae-7751-a58a-a95f-279c1c43b34e@gmail.com>",
+  "outboxId": "6aef6267d66092fc71031710",
+  "outboxStatus": "SENT",
+  "recipient": "leminhly1923@gmail.com",
+  "sentAt": "2026-11-07T17:39:55.040Z"
+}
+```
+
+### 5.4 Gỡ bỏ Fallback lưu ảnh Local Disk (`BE-FIX-09`) & Vô hiệu hóa cờ giả lập lỗi ngoài môi trường Test
+* **Upload (`src/modules/upload/upload.service.js`):** Đã xóa hoàn toàn nhánh `fs.writeFileSync` / `fs.copyFileSync` vào `/public/uploads`. Nếu thiếu cấu hình Cloudinary hoặc Cloudinary gặp sự cố, API lập tức trả `502 Bad Gateway` (`code: 'UPLOAD_PROVIDER_ERROR'`).
+* **Bảo mật cờ giả lập lỗi:** Các tham số `x-simulate-upload-failure`, `simulateEmailFailure`, `simulateFailureInTransaction` đã được khóa chặt sau điều kiện `process.env.NODE_ENV === 'test'`, hoàn toàn bị vô hiệu hóa trên môi trường staging/production.
+
+### 5.5 Tối Ưu Hóa Tốc Độ Tải Trang Tồn Kho (`/admin/inventory`)
+* **Nguyên nhân gây chậm (7–12 giây):**
+  1. Hàm `listProducts` (`src/modules/catalog/catalog.service.js`) khi nhận `cursor` lọc `_id < decodedId` nhưng lại sort theo `{ createdAt: -1, _id: -1 }` khiến trang sau trả trùng sản phẩm trang trước và `nextCursor` không bao giờ `null`, làm hàm `allPages()` bên Angular lặp đúng 30 vòng tuần tự.
+  2. `listStocks`, `listInventoryItems`, `listTransactions` giới hạn `limit <= 100` khiến ~1.080 dòng tồn kho phải chia làm 11 request tuần tự; `resolveInventoryActor` truy vấn lại `User` và `StaffProfile` dù `authenticate` middleware đã đồng bộ live; thiếu index trên `Product` cho `variants.inventoryItemId`.
+* **Kết quả Benchmark thực tế trên MongoDB Atlas sau khi sửa:**
+  - Duyệt toàn bộ 112 sản phẩm qua cursor kết thúc chính xác sau **2 trang** (`duplicateDetected: false`, `nextCursor: null`, tổng thời gian **1.016 ms** thay vì lặp 30 trang).
+  - Tải song song toàn bộ `listInventoryItems` (337 vật tư), `listStocks` (1.000 bản ghi tồn kho), `listTransactions` chỉ mất **422 ms**.
+
+---
+
+## 6. Thông Số Môi Trường & Bàn Giao Kỹ Thuật
 
 * **Git Repository:** `minhllk24/PET_CLINIC_BACKEND`
 * **Git Branch:** `feat/foundation-v6`
@@ -218,5 +381,6 @@ this.orderService.createCheckout(payload).subscribe({
 * **Database:** `pet_clinic_v2` (MongoDB Atlas Cluster)
 * **Kết quả Automated Tests:**
   - `tests/integration/be-fix-gap-uat.test.js`: **16/16 tests PASS (100%)**
-  - `tests/integration/`: **62/62 tests PASS (100%)**
   - Toàn bộ suite hệ thống: **32/32 suites PASS (408/408 tests)**
+
+

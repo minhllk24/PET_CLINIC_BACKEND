@@ -85,6 +85,7 @@ schema.index({ name: 'text', description: 'text', productCode: 'text' });
 schema.index({ status: 1, categoryId: 1, createdAt: -1 });
 schema.index({ status: 1, usageType: 1 });
 schema.index({ 'variants.sku': 1 });
+schema.index({ 'variants.inventoryItemId': 1 });
 schema.index({ status: 1, 'variants.price': 1 });
 schema.index({ status: 1, name: 1 });
 

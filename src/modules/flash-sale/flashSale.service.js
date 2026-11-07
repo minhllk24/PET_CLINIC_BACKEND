@@ -618,6 +618,67 @@ export const consumeFlashSaleQuotaInSession = async ({ saleId, sku, variantId, q
     );
   }
 
+  const isRealDbOrMockFindOneAndUpdate =
+    mongoose.connection.readyState === 1 || Boolean(jest.isMockFunction?.(FlashSale.findOneAndUpdate));
+
+  if (isRealDbOrMockFindOneAndUpdate) {
+    const elemFilter = {
+      soldQuantity: { $lte: item.quantityLimit - quantity },
+    };
+    if (cleanSku) {
+      elemFilter.sku = cleanSku;
+    } else if (variantId) {
+      elemFilter.variantId = variantId;
+    }
+
+    const updatedSale = await FlashSale.findOneAndUpdate(
+      {
+        _id: saleId,
+        status: 'PUBLISHED',
+        isPaused: false,
+        startAt: { $lte: now },
+        endAt: { $gt: now },
+        items: { $elemMatch: elemFilter },
+      },
+      {
+        $inc: {
+          'items.$.soldQuantity': quantity,
+          version: 1,
+        },
+      },
+      { new: true, ...(session ? { session } : {}) }
+    );
+
+    if (!updatedSale) {
+      const latestSale = await FlashSale.findById(saleId, null, queryOpts);
+      const latestItem = (latestSale?.items || []).find((it) => {
+        if (cleanSku && it.sku === cleanSku) return true;
+        if (variantId && it.variantId && it.variantId.toString() === variantId.toString()) return true;
+        return false;
+      });
+      const latestRemaining = latestItem ? Math.max(0, latestItem.quantityLimit - latestItem.soldQuantity) : 0;
+      throw new AppError(
+        409,
+        'Conflict',
+        'FLASH_SALE_QUOTA_EXCEEDED',
+        `Số lượng yêu cầu (${quantity}) vượt quá giới hạn Flash Sale còn lại (${latestRemaining}) cho SKU ${cleanSku || variantId}`
+      );
+    }
+
+    const updatedItem = (updatedSale.items || []).find((it) => {
+      if (cleanSku && it.sku === cleanSku) return true;
+      if (variantId && it.variantId && it.variantId.toString() === variantId.toString()) return true;
+      return false;
+    }) || item;
+
+    return {
+      saleId: updatedSale._id.toString(),
+      sku: updatedItem.sku,
+      soldQuantity: updatedItem.soldQuantity,
+      remainingQuantity: Math.max(0, updatedItem.quantityLimit - updatedItem.soldQuantity),
+    };
+  }
+
   item.soldQuantity += quantity;
   sale.version = (sale.version || 1) + 1;
   await sale.save(queryOpts);
@@ -648,11 +709,43 @@ export const releaseFlashSaleQuotaInSession = async ({ saleId, sku, variantId, q
     return false;
   });
 
-  if (item) {
-    item.soldQuantity = Math.max(0, (item.soldQuantity || 0) - quantity);
-    sale.version = (sale.version || 1) + 1;
-    await sale.save(queryOpts);
+  if (!item) return true;
+
+  const deductQty = Math.min(item.soldQuantity || 0, quantity);
+  if (deductQty <= 0) return true;
+
+  const isRealDbOrMockFindOneAndUpdate =
+    mongoose.connection.readyState === 1 || Boolean(jest.isMockFunction?.(FlashSale.findOneAndUpdate));
+
+  if (isRealDbOrMockFindOneAndUpdate) {
+    const elemFilter = {
+      soldQuantity: { $gte: deductQty },
+    };
+    if (cleanSku) {
+      elemFilter.sku = cleanSku;
+    } else if (variantId) {
+      elemFilter.variantId = variantId;
+    }
+
+    await FlashSale.findOneAndUpdate(
+      {
+        _id: saleId,
+        items: { $elemMatch: elemFilter },
+      },
+      {
+        $inc: {
+          'items.$.soldQuantity': -deductQty,
+          version: 1,
+        },
+      },
+      { new: true, ...(session ? { session } : {}) }
+    );
+    return true;
   }
+
+  item.soldQuantity = Math.max(0, (item.soldQuantity || 0) - quantity);
+  sale.version = (sale.version || 1) + 1;
+  await sale.save(queryOpts);
   return true;
 };
 

@@ -28,10 +28,12 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
   // GAP-01: 2 Concurrent Buy Requests for Quota = 1
   // =========================================================================
   describe('GAP-01: 2 phiên cùng mua SKU còn quota=1', () => {
-    it('CAS prevents overselling: exactly 1 order claims flash sale quota, second gets 409', async () => {
+    it('CAS prevents overselling under true concurrency (Promise.all): exactly 1 order claims flash sale quota, second gets 409', async () => {
       const saleId = new mongoose.Types.ObjectId();
       const sku = 'SKU-FS-GAP01';
-      const mockSale = {
+      let currentSold = 0;
+
+      jest.spyOn(FlashSale, 'findById').mockImplementation(async () => ({
         _id: saleId,
         status: 'PUBLISHED',
         isPaused: false,
@@ -42,37 +44,50 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
           {
             sku,
             quantityLimit: 1,
-            soldQuantity: 0,
+            soldQuantity: currentSold,
             salePrice: 50000,
             originalPrice: 100000,
           },
         ],
-        save: jest.fn().mockImplementation(function () {
-          this.version += 1;
-          return Promise.resolve(this);
-        }),
-      };
+      }));
 
-      jest.spyOn(FlashSale, 'findById').mockResolvedValue(mockSale);
-
-      // 1st concurrent request: claims remaining quota 1
-      const res1 = await flashSaleService.consumeFlashSaleQuotaInSession({
-        saleId,
-        sku,
-        quantity: 1,
+      // Simulate MongoDB atomic findOneAndUpdate CAS with $elemMatch { soldQuantity: { $lte: quantityLimit - quantity } }
+      jest.spyOn(FlashSale, 'findOneAndUpdate').mockImplementation(async (filter, update) => {
+        const incQty = update?.$inc?.['items.$.soldQuantity'] || 1;
+        const maxSoldAllowed = filter?.items?.$elemMatch?.soldQuantity?.$lte ?? 0;
+        if (currentSold <= maxSoldAllowed) {
+          currentSold += incQty;
+          return {
+            _id: saleId,
+            version: 2,
+            items: [
+              {
+                sku,
+                quantityLimit: 1,
+                soldQuantity: currentSold,
+                salePrice: 50000,
+                originalPrice: 100000,
+              },
+            ],
+          };
+        }
+        return null;
       });
 
-      expect(res1.soldQuantity).toBe(1);
-      expect(res1.remainingQuantity).toBe(0);
+      // Fire 2 concurrent requests via Promise.all
+      const outcomes = await Promise.allSettled([
+        flashSaleService.consumeFlashSaleQuotaInSession({ saleId, sku, quantity: 1 }),
+        flashSaleService.consumeFlashSaleQuotaInSession({ saleId, sku, quantity: 1 }),
+      ]);
 
-      // 2nd concurrent request: quota exhausted, must reject with 409
-      await expect(
-        flashSaleService.consumeFlashSaleQuotaInSession({
-          saleId,
-          sku,
-          quantity: 1,
-        })
-      ).rejects.toMatchObject({
+      const fulfilled = outcomes.filter((o) => o.status === 'fulfilled');
+      const rejected = outcomes.filter((o) => o.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(fulfilled[0].value.soldQuantity).toBe(1);
+      expect(fulfilled[0].value.remainingQuantity).toBe(0);
+      expect(rejected[0].reason).toMatchObject({
         status: 409,
         code: 'FLASH_SALE_QUOTA_EXCEEDED',
       });
@@ -362,7 +377,18 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
   // GAP-08: Customer Feedback Reply Email Success via Real Outbox
   // =========================================================================
   describe('GAP-08: Phản hồi feedback email thành công', () => {
-    it('generates real RFC messageId, marks SENT in outbox and transitions feedback to PROCESSED', async () => {
+    it('generates real RFC messageId via SMTP transporter, marks SENT in outbox and transitions feedback to PROCESSED', async () => {
+      const nodemailer = require('nodemailer');
+      process.env.SMTP_HOST = 'smtp.gmail.com';
+      process.env.SMTP_USER = 'support@drpets.vn';
+      process.env.SMTP_PASS = 'mock-smtp-pass';
+
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({
+        sendMail: jest.fn().mockResolvedValue({
+          messageId: '<real-smtp-msg-001@gmail.com>',
+        }),
+      });
+
       const feedbackId = new mongoose.Types.ObjectId();
       const mockFeedback = {
         _id: feedbackId,
@@ -385,8 +411,7 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
 
       expect(result.status).toBe('PROCESSED');
       expect(mockFeedback.replyDelivery.deliveryStatus).toBe('SENT');
-      expect(mockFeedback.replyDelivery.providerMessageId).toBeTruthy();
-      expect(mockFeedback.replyDelivery.providerMessageId).toContain('@');
+      expect(mockFeedback.replyDelivery.providerMessageId).toBe('<real-smtp-msg-001@gmail.com>');
     });
   });
 
@@ -394,7 +419,8 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
   // GAP-09: Provider Email Fails & Idempotent Retry
   // =========================================================================
   describe('GAP-09: Provider email lỗi & retry không báo thành công giả', () => {
-    it('records FAILED on error, keeps PROCESSING, and does not report fake success', async () => {
+    it('records FAILED when SMTP is missing or errors, keeps PROCESSING, and succeeds on retry when SMTP is restored', async () => {
+      const nodemailer = require('nodemailer');
       const feedbackId = new mongoose.Types.ObjectId();
       const mockFeedback = {
         _id: feedbackId,
@@ -407,12 +433,25 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
 
       jest.spyOn(Feedback, 'findById').mockResolvedValue(mockFeedback);
 
-      // 1. Simulated failure
-      const failRes = await feedbackService.replyFeedback(
+      // 1. Missing SMTP configuration -> must NOT use jsonTransport, must mark FAILED
+      const config = require('../../src/shared/config.js').default;
+      const prevConfigSmtp = { ...config.smtp };
+      const prevHost = process.env.SMTP_HOST;
+      const prevUser = process.env.SMTP_USER;
+      const prevPass = process.env.SMTP_PASS;
+      const prevEmailApp = process.env.EMAIL_APP;
+      const prevEmailPass = process.env.EMAIL_APP_PASSWORD;
+      delete process.env.SMTP_HOST;
+      delete process.env.SMTP_USER;
+      delete process.env.SMTP_PASS;
+      delete process.env.EMAIL_APP;
+      delete process.env.EMAIL_APP_PASSWORD;
+      config.smtp = { host: '', user: '', pass: '' };
+
+      await feedbackService.replyFeedback(
         feedbackId,
         {
           replyText: 'Xin lỗi vì sự cố đường truyền',
-          simulateEmailFailure: true,
         },
         managerActor
       );
@@ -420,8 +459,21 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
       expect(mockFeedback.replyDelivery.deliveryStatus).toBe('FAILED');
       expect(mockFeedback.status).toBe('PROCESSING'); // NOT falsely PROCESSED!
 
-      // 2. Retry without failure
-      const successRes = await feedbackService.replyFeedback(
+      // 2. Restore SMTP and retry -> SENT & PROCESSED
+      config.smtp = prevConfigSmtp;
+      process.env.SMTP_HOST = prevHost || 'smtp.gmail.com';
+      process.env.SMTP_USER = prevUser || 'support@drpets.vn';
+      process.env.SMTP_PASS = prevPass || 'mock-smtp-pass';
+      if (prevEmailApp) process.env.EMAIL_APP = prevEmailApp;
+      if (prevEmailPass) process.env.EMAIL_APP_PASSWORD = prevEmailPass;
+
+      jest.spyOn(nodemailer, 'createTransport').mockReturnValue({
+        sendMail: jest.fn().mockResolvedValue({
+          messageId: '<retry-smtp-msg-002@gmail.com>',
+        }),
+      });
+
+      await feedbackService.replyFeedback(
         feedbackId,
         {
           replyText: 'Xin gửi lại anh chị kết quả ạ',
@@ -578,13 +630,13 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
         healthStatus: 'Bình thường',
         rescueStory: 'Bị bỏ rơi trước cổng phòng khám',
         images: ['https://cdn.drpets.vn/rescue/vang.jpg'],
-        supportPartnerId: 'partner-01',
+        supportPartnerId: 'saigon-time',
       });
 
       expect(pet.petCode).toBe('RES-0021');
       expect(pet.supportPartnerName).toContain('Sài Gòn Time');
-      expect(pet.supportPartnerPhone).toBe('0901234561');
-      expect(pet.supportPartnerUrl).toBe('https://facebook.com/saigontime');
+      expect(pet.supportPartnerPhone).toBe('1900-6868');
+      expect(pet.supportPartnerUrl).toBe('https://www.facebook.com/savesgt');
     });
   });
 
@@ -669,15 +721,81 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
   });
 
   // =========================================================================
-  // GAP-16: Smoke Verification of Baseline Suite Health
+  // GAP-16: Transaction Rollback & Rescue Partners Contract Verification
   // =========================================================================
-  describe('GAP-16: Smoke toàn bộ 64 UAT gốc & hệ thống bền vững', () => {
-    it('verifies core modules and endpoints are active and healthy', () => {
-      expect(flashSaleService.consumeFlashSaleQuotaInSession).toBeDefined();
-      expect(flashSaleService.releaseFlashSaleQuotaInSession).toBeDefined();
-      expect(contentService.createCommunityPostAdmin).toBeDefined();
-      expect(contentService.resolveCommunityReport).toBeDefined();
-      expect(reviewService.recalculateTargetRating).toBeDefined();
+  describe('GAP-16: Kiểm chứng Transaction Rollback & API Rescue Partners Contract', () => {
+    it('rolls back report status to PENDING when an error occurs mid-transaction and returns verified 6 Customer partners contract', async () => {
+      const reportId = new mongoose.Types.ObjectId();
+      const postId = new mongoose.Types.ObjectId();
+      let persistedState = {
+        status: 'PENDING',
+        decision: null,
+      };
+
+      // Simulate transaction session where uncommitted mutations are discarded on abort
+      let txWorkingCopy = null;
+      const mockSession = {
+        withTransaction: jest.fn(async (fn) => {
+          txWorkingCopy = { ...persistedState };
+          try {
+            const res = await fn();
+            persistedState = { ...txWorkingCopy };
+            return res;
+          } catch (err) {
+            // Rollback working copy on error
+            txWorkingCopy = null;
+            throw err;
+          }
+        }),
+        endSession: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(mockSession);
+      const origReadyState = mongoose.connection.readyState;
+      Object.defineProperty(mongoose.connection, 'readyState', { value: 1, configurable: true });
+
+      jest.spyOn(CommunityReport, 'findOneAndUpdate').mockImplementation(async () => {
+        if (txWorkingCopy) {
+          txWorkingCopy.status = 'RESOLVED';
+          txWorkingCopy.decision = 'HIDE_POST';
+        }
+        return { _id: reportId, postId, status: 'RESOLVED', decision: 'HIDE_POST' };
+      });
+
+      // Inject DB write failure on CommunityPost.findByIdAndUpdate mid-transaction
+      jest.spyOn(CommunityPost, 'findByIdAndUpdate').mockRejectedValue(
+        new Error('MongoWriteException: replica set stepdown during post hide')
+      );
+
+      await expect(
+        contentService.resolveCommunityReport(
+          reportId,
+          { decision: 'HIDE_POST', moderationNote: 'Test real mid-tx rollback' },
+          adminActor
+        )
+      ).rejects.toThrow('MongoWriteException: replica set stepdown during post hide');
+
+      Object.defineProperty(mongoose.connection, 'readyState', { value: origReadyState, configurable: true });
+
+      // Verify transaction was rolled back: persistedState.status remains PENDING
+      expect(persistedState.status).toBe('PENDING');
+      expect(persistedState.decision).toBeNull();
+      expect(mockSession.endSession).toHaveBeenCalled();
+
+      // Verify GET /api/v1/content/rescue/partners contract matches docs (data.partners & 6 Customer partners)
+      const partnersRes = await request(app).get('/api/v1/content/rescue/partners');
+      expect(partnersRes.status).toBe(200);
+      expect(partnersRes.body.success).toBe(true);
+      expect(partnersRes.body.data).toHaveProperty('partners');
+      expect(partnersRes.body.data.totalPartners).toBe(6);
+      expect(partnersRes.body.data.partners.map((p) => p.id)).toEqual([
+        'vawa',
+        'backyard',
+        'nong-nghiep',
+        'saigon-time',
+        'we-act',
+        'laws-for-paws',
+      ]);
     });
   });
 });

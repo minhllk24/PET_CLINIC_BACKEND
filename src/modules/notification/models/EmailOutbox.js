@@ -76,3 +76,4 @@ const emailOutboxSchema = new mongoose.Schema(
 emailOutboxSchema.index({ status: 1, createdAt: -1 });
 
 export default mongoose.models.EmailOutbox || mongoose.model('EmailOutbox', emailOutboxSchema);
+

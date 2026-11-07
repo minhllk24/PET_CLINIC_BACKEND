@@ -472,7 +472,7 @@ export const updateThreshold = async (branchIdValue, inventoryItemIdValue, data,
 
 export const listInventoryItems = async (query, actor) => {
   await resolveInventoryActor(actor, ['ADMIN', 'MANAGER', 'STAFF']);
-  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 500);
   const filter = {};
   if (query.cursor) filter._id = { $gt: requireObjectId(query.cursor, 'cursor') };
   if (query.kind) filter.kind = query.kind;
@@ -482,15 +482,21 @@ export const listInventoryItems = async (query, actor) => {
     filter.$or = [{ sku: pattern }, { name: pattern }];
   }
 
-  const rows = await InventoryItem.find(filter).sort({ _id: 1 }).limit(limit + 1).lean();
+  const rows = await InventoryItem.find(filter)
+    .select('_id sku name kind unit status')
+    .sort({ _id: 1 })
+    .limit(limit + 1)
+    .lean();
   const hasMore = rows.length > limit;
   const sliced = rows.slice(0, limit);
   const itemIds = sliced.map((item) => item._id);
 
-  // Link with Product Master variants
-  const products = await Product.find({ 'variants.inventoryItemId': { $in: itemIds } })
-    .select('_id name productType variants')
-    .lean();
+  // Link with Product Master variants using indexed 'variants.inventoryItemId'
+  const products = itemIds.length > 0
+    ? await Product.find({ 'variants.inventoryItemId': { $in: itemIds } })
+        .select('_id name productType variants._id variants.label variants.inventoryItemId')
+        .lean()
+    : [];
 
   const productMap = new Map();
   for (const product of products) {
@@ -551,7 +557,9 @@ export const listStocks = async (query, actor) => {
   const rows = await InventoryStock.find({
     branchId: { $in: branchIds },
     inventoryItemId: { $in: itemIds }
-  }).lean();
+  })
+    .select('branchId inventoryItemId quantity lowStockThreshold thresholdConfigured version')
+    .lean();
   const stockMap = new Map(rows.map((stock) => [`${stock.branchId}:${stock.inventoryItemId}`, stock]));
   let materialized = [];
   for (const branchId of branchIds.sort()) {
@@ -561,7 +569,7 @@ export const listStocks = async (query, actor) => {
   }
   if (query.lowStock === true || query.lowStock === 'true') materialized = materialized.filter((stock) => stock.lowStock);
 
-  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 1000);
   const offset = query.cursor && /^\d+$/.test(query.cursor) ? Number(query.cursor) : 0;
   return {
     items: materialized.slice(offset, offset + limit),
@@ -619,7 +627,7 @@ export const listTransactions = async (query, actor) => {
 
   if (query.cursor) filter._id = { $lt: requireObjectId(query.cursor, 'cursor') };
 
-  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 500);
   const rows = await InventoryTransaction.find(filter).sort({ _id: -1 }).limit(limit + 1);
   const hasMore = rows.length > limit;
   const sliced = rows.slice(0, limit).map((tx) => (typeof tx.toObject === 'function' ? tx.toObject() : { ...tx }));

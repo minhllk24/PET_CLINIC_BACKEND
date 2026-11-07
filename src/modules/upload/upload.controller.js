@@ -15,7 +15,7 @@ export const uploadProductImages = async (req, res, next) => {
     else if (pathLower.includes('/rescue')) moduleName = 'rescue';
     else if (pathLower.includes('/products')) moduleName = 'products';
 
-    const simulateProviderFailure = Boolean(req.headers['x-simulate-upload-failure']);
+    const simulateProviderFailure = process.env.NODE_ENV === 'test' && Boolean(req.headers['x-simulate-upload-failure']);
 
     // Handle both req.files (array) and req.file (single)
     const files = req.files || (req.file ? [req.file] : []);

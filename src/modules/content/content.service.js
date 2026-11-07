@@ -50,12 +50,102 @@ const normalizeStep = (s, idx) => {
 };
 
 export const DEFAULT_RESCUE_PARTNERS = [
-  { id: 'partner-01', code: 'SGT', name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time', phone: '0901234561', address: 'Foster House, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/saigontime', location: 'TP. Hồ Chí Minh' },
-  { id: 'partner-02', code: 'SAR', name: 'Nhóm Cứu Hộ Động Vật SAR', phone: '0901234562', address: 'Quận 2, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/sarvietnam', location: 'TP. Hồ Chí Minh' },
-  { id: 'partner-03', code: 'MAYT', name: 'Mái Ấm Yêu Thương Pet Shelter', phone: '0901234563', address: 'Dĩ An, Bình Dương', websiteUrl: 'https://facebook.com/maiamyeuthuong', location: 'Bình Dương' },
-  { id: 'partner-04', code: 'TCNL', name: 'Trạm Cứu Trợ Động Vật Nông Lâm', phone: '0901234564', address: 'Đại học Nông Lâm, TP. Thủ Đức', websiteUrl: 'https://facebook.com/nonglampet', location: 'TP. Thủ Đức' },
-  { id: 'partner-05', code: 'HPR', name: 'Hanoi Pet Rescue (Chi nhánh miền Nam)', phone: '0901234565', address: 'Bình Thạnh, TP. Hồ Chí Minh', websiteUrl: 'https://facebook.com/hanoipetrescue', location: 'TP. Hồ Chí Minh' },
-  { id: 'partner-06', code: 'DCHLT', name: 'Đội Cứu Hộ Động Vật Lang Thang VN', phone: '0901234566', address: 'Biên Hòa, Đồng Nai', websiteUrl: 'https://facebook.com/cuuholangthang', location: 'Đồng Nai' },
+  {
+    id: 'vawa',
+    code: 'VAWA',
+    name: 'Vietnam Animal Welfare Association',
+    station_name: 'Vietnam Animal Welfare Association',
+    href: 'https://www.facebook.com/vawa.org/',
+    websiteUrl: 'https://www.facebook.com/vawa.org/',
+    fanpage_url: 'https://www.facebook.com/vawa.org/',
+    region: 'Khu vực miền Nam',
+    location: 'Khu vực miền Nam',
+    address: '675B, Nguyễn Kiệm, phường 9, Quận Phú Nhuận, Ho Chi Minh City, Vietnam, 700000',
+    description: 'Nhóm Cứu trợ Động vật SAR được thành lập bởi những tình nguyện viên tâm huyết nhằm giải cứu và tìm kiếm mái ấm mới cho các động vật bị bỏ rơi.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'backyard',
+    code: 'SNNC',
+    name: 'Nhóm cứu hộ chó mèo Sân Nhà Nhiều Chó',
+    station_name: 'Nhóm cứu hộ chó mèo Sân Nhà Nhiều Chó',
+    href: 'https://www.facebook.com/Sannhanhieucho',
+    websiteUrl: 'https://www.facebook.com/Sannhanhieucho',
+    fanpage_url: 'https://www.facebook.com/Sannhanhieucho',
+    region: 'Khu vực miền Bắc',
+    location: 'Khu vực miền Bắc',
+    address: 'Ngõ 15 đường Cột Mốc, Đoài Phương, Hà Nội 100000',
+    description: 'Sân Nhà Nhiều Chó là mái nhà chung của hàng trăm bé chó mèo bị bỏ rơi, bị bạo hành hoặc gặp tai nạn tại khu vực miền Bắc.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'nong-nghiep',
+    code: 'NNHN',
+    name: 'Trạm Cứu Hộ Động Vật Nông Nghiệp Hà Nội',
+    station_name: 'Trạm Cứu Hộ Động Vật Nông Nghiệp Hà Nội',
+    href: 'https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi',
+    websiteUrl: 'https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi',
+    fanpage_url: 'https://www.facebook.com/Tramcuuhodongvatnongnghiephanoi',
+    region: 'Khu vực miền Bắc',
+    location: 'Khu vực miền Bắc',
+    address: 'Ngô Xuân Quảng_ Gia Lâm, Hanoi, Vietnam',
+    description: 'Đội ngũ sinh viên và bác sĩ thú y tình nguyện tại Học viện Nông nghiệp Việt Nam trực tiếp tiếp nhận, điều trị và chăm sóc các ca cứu hộ khẩn cấp.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'saigon-time',
+    code: 'SGT',
+    name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
+    station_name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
+    href: 'https://www.facebook.com/savesgt',
+    websiteUrl: 'https://www.facebook.com/savesgt',
+    fanpage_url: 'https://www.facebook.com/savesgt',
+    region: 'Khu vực miền Nam',
+    location: 'Khu vực miền Nam',
+    address: 'Foster House, Ho Chi Minh City, Vietnam',
+    description: 'Tổ chức phi lợi nhuận hoạt động tại TP.HCM với mạng lưới nhà foster rộng khắp, hỗ trợ y tế và tìm chủ nuôi trách nhiệm cho chó mèo cơ nhỡ.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'we-act',
+    code: 'WAFA',
+    name: 'We Act For Animals',
+    station_name: 'We Act For Animals',
+    href: 'https://www.facebook.com/wafavn/?ref=page_internal',
+    websiteUrl: 'https://www.facebook.com/wafavn/?ref=page_internal',
+    fanpage_url: 'https://www.facebook.com/wafavn/?ref=page_internal',
+    region: 'Khu vực miền Trung',
+    location: 'Khu vực miền Trung',
+    address: 'Nha Trang, Vietnam, 650000',
+    description: 'Cộng đồng bảo vệ và cứu trợ động vật tại Nha Trang - Khánh Hòa, nâng cao nhận thức về phúc lợi động vật và tiêm phòng cộng đồng.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'laws-for-paws',
+    code: 'LFP',
+    name: 'Laws for Paws Vietnam',
+    station_name: 'Laws for Paws Vietnam',
+    href: 'https://www.facebook.com/lawsforpawsvietnam',
+    websiteUrl: 'https://www.facebook.com/lawsforpawsvietnam',
+    fanpage_url: 'https://www.facebook.com/lawsforpawsvietnam',
+    region: 'Khu vực miền Nam',
+    location: 'Khu vực miền Nam',
+    address: 'Ho Chi Minh City, Vietnam',
+    description: 'Tổ chức cứu hộ, phục hồi chức năng và kết nối nhận nuôi quốc tế & nội địa cho các bé chó bị bỏ rơi hoặc giải cứu từ lò mổ.',
+    phone: '1900-6868',
+    hotline: '1900-6868',
+    status: 'ACTIVE',
+  },
 ];
 
 export const getRescuePartnersList = async () => {
@@ -72,30 +162,8 @@ export const getRescuePartnersList = async () => {
 };
 
 export const getRescueStationsList = async () => {
-  const defaultStations = [
-    {
-      id: 'station-1',
-      station_id: 'station-1',
-      name: 'Vietnam Animal Welfare Association (VAWA)',
-      station_name: 'Vietnam Animal Welfare Association (VAWA)',
-      fanpage_url: 'https://www.facebook.com/vawa.org/',
-      address: '675B Nguyễn Kiệm, Phường 9, Quận Phú Nhuận, TP.HCM',
-      phone: '0901234567',
-      status: 'active',
-    },
-    {
-      id: 'station-2',
-      station_id: 'station-2',
-      name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
-      station_name: 'Trạm Cứu Hộ Chó Mèo Sài Gòn Time',
-      fanpage_url: 'https://www.facebook.com/savesgt',
-      address: 'Foster House, TP. Hồ Chí Minh',
-      phone: '0912345678',
-      status: 'active',
-    },
-  ];
   if (mongoose.connection.readyState !== 1) {
-    return defaultStations;
+    return DEFAULT_RESCUE_PARTNERS;
   }
   try {
     const setting = await SystemSetting.findOne({ key: 'rescue_stations' }).lean();
@@ -103,7 +171,7 @@ export const getRescueStationsList = async () => {
       return setting.value;
     }
   } catch (_) {}
-  return defaultStations;
+  return getRescuePartnersList();
 };
 
 export const getEmergencyHotline = async () => {
@@ -856,8 +924,8 @@ export const contentService = {
         throw new AppError(409, 'Conflict', 'REPORT_ALREADY_RESOLVED', 'Báo cáo vi phạm này đã được xử lý bởi người khác');
       }
 
-      // Error injection support for transaction rollback test (GAP-11)
-      if (simulateFailureInTransaction) {
+      // Error injection support ONLY in test environment for transaction rollback test (GAP-11)
+      if (process.env.NODE_ENV === 'test' && simulateFailureInTransaction) {
         throw new Error('Simulated failure during report resolution transaction');
       }
 

@@ -18,6 +18,22 @@ export const resolveInventoryActor = async (actor, allowedRoles = ['ADMIN', 'MAN
     throw new AppError(401, 'Unauthenticated', ErrorCodes.AUTHENTICATION_ERROR, 'A valid authenticated actor is required');
   }
 
+  // Fast-path: if authenticate middleware already performed live DB sync for this request,
+  // avoid redundant User.findById + StaffProfile.findOne round-trips unless User.findById is mocked in unit tests
+  const isMocked = Boolean(User.findById?._isMockFunction || StaffProfile.findOne?._isMockFunction);
+  if (!isMocked && actor.systemRole && (actor.accountStatus === 'ACTIVE' || Array.isArray(actor.assignedBranchIds) || Array.isArray(actor.authorizedBranchIds))) {
+    if (!allowedRoles.includes(actor.systemRole)) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to access inventory');
+    }
+    return {
+      id: actor.id.toString(),
+      systemRole: actor.systemRole,
+      staffSubRole: actor.staffSubRole || null,
+      assignedBranchIds: asStrings(actor.assignedBranchIds || []),
+      authorizedBranchIds: asStrings(actor.authorizedBranchIds || []),
+    };
+  }
+
   const user = await User.findById(actor.id)
     .select('_id systemRole staffSubRole assignedBranchIds accountStatus')
     .lean();

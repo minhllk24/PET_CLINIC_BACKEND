@@ -437,6 +437,23 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
     });
 
     it('POST /api/v1/uploads/products accepts multipart image upload for Admin', async () => {
+      const { v2: cloudinary } = require('cloudinary');
+      process.env.CLOUDINARY_CLOUD_NAME = 'test-cloud';
+      process.env.CLOUDINARY_API_KEY = 'test-key';
+      process.env.CLOUDINARY_API_SECRET = 'test-secret';
+      jest.spyOn(cloudinary.uploader, 'upload_stream').mockImplementation((opts, cb) => {
+        const { PassThrough } = require('stream');
+        const pt = new PassThrough();
+        pt.on('finish', () => {
+          cb(null, {
+            public_id: `${opts.folder}/mock-product-img`,
+            secure_url: `https://res.cloudinary.com/test-cloud/image/upload/${opts.folder}/mock-product-img.png`,
+            bytes: 1234,
+          });
+        });
+        return pt;
+      });
+
       const res = await request(app)
         .post('/api/v1/uploads/products')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -449,6 +466,7 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
       expect(res.body).toHaveProperty('items');
       expect(res.body.items.length).toBeGreaterThan(0);
       expect(res.body.items[0]).toHaveProperty('url');
+      expect(res.body.items[0].url).toContain('https://res.cloudinary.com/');
     });
   });
 

@@ -208,7 +208,7 @@ export const replyFeedback = async (id, data = {}, actor = {}) => {
     feedbackId: feedback._id,
     actorId: actor.id,
     idempotencyKey: data.idempotencyKey,
-    forceFail: Boolean(data.simulateEmailFailure),
+    forceFail: process.env.NODE_ENV === 'test' && Boolean(data.simulateEmailFailure),
   });
 
   feedback.responseMessage = message.trim();

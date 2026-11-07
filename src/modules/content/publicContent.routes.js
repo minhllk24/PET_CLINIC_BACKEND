@@ -140,8 +140,13 @@ router.get(['/rescue/partners', '/public/rescue/partners'], async (req, res, nex
     ]);
     res.status(200).json({
       success: true,
-      data: partners,
       emergencyHotline,
+      data: {
+        emergencyHotline,
+        totalPartners: partners.length,
+        partners,
+        items: partners,
+      },
     });
   } catch (err) {
     next(err);

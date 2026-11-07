@@ -640,6 +640,7 @@ app.use(async (req, res, next) => {
 
 // Mount Public Content routes (Real MongoDB Blog, First Aid, Community, Rescue)
 app.use('/api/v1', publicContentRoutes);
+app.use('/api/v1/content', publicContentRoutes);
 
 // Mount Legacy Fallback routes BEFORE OpenAPI Validator
 // Ensures legacy marketing, species, breeds, pricing matrix routes respond immediately

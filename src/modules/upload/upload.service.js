@@ -1,28 +1,30 @@
 import { v2 as cloudinary } from 'cloudinary';
-import fs from 'fs';
 import path from 'path';
 import config from '../../shared/config';
 import { logger } from '../../shared/logger';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 
-// Configure Cloudinary if credentials are present
-const isCloudinaryConfigured = Boolean(
-  config.cloudinary?.cloudName &&
-  config.cloudinary?.apiKey &&
-  config.cloudinary?.apiSecret
-);
+const checkCloudinaryConfigured = () => {
+  const cloudName = config.cloudinary?.cloudName || process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = config.cloudinary?.apiKey || process.env.CLOUDINARY_API_KEY;
+  const apiSecret = config.cloudinary?.apiSecret || process.env.CLOUDINARY_API_SECRET;
+  if (cloudName && apiKey && apiSecret) {
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+      secure: true,
+    });
+    return true;
+  }
+  return false;
+};
 
-if (isCloudinaryConfigured) {
-  cloudinary.config({
-    cloud_name: config.cloudinary.cloudName,
-    api_key: config.cloudinary.apiKey,
-    api_secret: config.cloudinary.apiSecret,
-    secure: true,
-  });
+if (checkCloudinaryConfigured()) {
   logger.info('Cloudinary configured successfully for media uploads');
 } else {
-  logger.info('Cloudinary not configured. Falling back to local disk storage in /public/uploads');
+  logger.warn('Cloudinary credentials missing in environment. Uploads will fail with 502 UPLOAD_PROVIDER_ERROR until configured.');
 }
 
 const MODULE_FOLDERS = {
@@ -32,17 +34,41 @@ const MODULE_FOLDERS = {
   rescue: 'pet_clinic/rescue',
 };
 
-const getLocalUploadDir = (moduleName = 'products') => {
-  const dir = path.join(__dirname, `../../../public/uploads/${moduleName}`);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
+/**
+ * Helper to stream buffer to Cloudinary
+ */
+export const uploadToCloudinary = (buffer, originalname = 'image', folder = 'pet_clinic/products') => {
+  return new Promise((resolve, reject) => {
+    const ext = path.extname(originalname || '');
+    const base = path.basename(originalname || 'image', ext)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 40);
+    const publicId = `${base}-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        public_id: publicId,
+        resource_type: 'image',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result || !result.secure_url) {
+          return reject(new Error('Invalid response from Cloudinary'));
+        }
+        resolve({
+          id: result.public_id,
+          url: result.secure_url,
+          bytes: result.bytes,
+        });
+      }
+    );
+    stream.end(buffer);
+  });
 };
-const localUploadDir = getLocalUploadDir('products');
 
 /**
- * Upload single file (either to Cloudinary or Local Disk)
+ * Upload single file strictly to Cloudinary (No local disk fallback - BE-FIX-09)
  */
 export const uploadProductImage = async (file, reqHost = '', moduleName = 'products', simulateProviderFailure = false) => {
   if (!file) {
@@ -61,54 +87,40 @@ export const uploadProductImage = async (file, reqHost = '', moduleName = 'produ
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'File size exceeds maximum limit of 5MB');
   }
 
-  // Simulated provider error in test (GAP-14)
-  if (simulateProviderFailure) {
+  // Simulated provider error ONLY in test environment (GAP-14)
+  if (process.env.NODE_ENV === 'test' && simulateProviderFailure) {
     throw new AppError(502, 'Bad Gateway', 'UPLOAD_PROVIDER_ERROR', 'Cloudinary upload failed: Connection timed out to storage provider');
   }
 
   const cloudinaryFolder = MODULE_FOLDERS[moduleName] || `pet_clinic/${moduleName}`;
 
-  // If Cloudinary is configured, attempt upload to Cloudinary.
-  // CRITICAL: Do NOT silently fallback to local storage if Cloudinary fails! (BE-FIX-09)
-  if (isCloudinaryConfigured && file.buffer && process.env.NODE_ENV !== 'test') {
-    try {
-      const result = await uploadToCloudinary(file.buffer, file.originalname, cloudinaryFolder);
-      return {
-        id: result.id,
-        url: result.url,
-        size: result.bytes,
-        mimeType: file.mimetype,
-        originalName: file.originalname,
-        folder: cloudinaryFolder,
-      };
-    } catch (err) {
-      logger.error('Cloudinary upload failed:', err.message);
-      throw new AppError(502, 'Bad Gateway', 'UPLOAD_PROVIDER_ERROR', `Cloudinary upload failed: ${err.message}`);
-    }
+  if (!checkCloudinaryConfigured()) {
+    throw new AppError(
+      502,
+      'Bad Gateway',
+      'UPLOAD_PROVIDER_ERROR',
+      'Cloudinary storage provider is not configured (missing CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET)'
+    );
   }
 
-  // Local disk storage for non-Cloudinary local/offline development
-  const localDir = getLocalUploadDir(moduleName);
-  const uniqueName = `${moduleName.slice(0, 3)}-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`;
-  const targetPath = path.join(localDir, uniqueName);
-
-  if (file.buffer) {
-    fs.writeFileSync(targetPath, file.buffer);
-  } else if (file.path) {
-    fs.copyFileSync(file.path, targetPath);
+  if (!file.buffer) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Image file buffer is required for cloud upload');
   }
 
-  const relativeUrl = `/uploads/${moduleName}/${uniqueName}`;
-  const absoluteUrl = reqHost ? `${reqHost}${relativeUrl}` : relativeUrl;
-
-  return {
-    id: uniqueName,
-    url: absoluteUrl,
-    size: file.size,
-    mimeType: file.mimetype,
-    originalName: file.originalname,
-    folder: cloudinaryFolder,
-  };
+  try {
+    const result = await uploadToCloudinary(file.buffer, file.originalname, cloudinaryFolder);
+    return {
+      id: result.id,
+      url: result.url,
+      size: result.bytes || file.size,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+      folder: cloudinaryFolder,
+    };
+  } catch (err) {
+    logger.error('Cloudinary upload failed:', err.message);
+    throw new AppError(502, 'Bad Gateway', 'UPLOAD_PROVIDER_ERROR', `Cloudinary upload failed: ${err.message}`);
+  }
 };
 
 /**
@@ -135,7 +147,7 @@ export const uploadProductImages = async (files = [], reqHost = '', moduleName =
 };
 
 /**
- * Delete product image from Cloudinary or local disk
+ * Delete product image from Cloudinary (No local disk fallback - BE-FIX-09)
  */
 export const deleteProductImage = async (imageId) => {
   if (!imageId || !imageId.trim()) {
@@ -144,30 +156,15 @@ export const deleteProductImage = async (imageId) => {
 
   const cleanId = imageId.trim().replace(/\.[^/.]+$/, '');
 
-  if (isCloudinaryConfigured && process.env.NODE_ENV !== 'test') {
+  if (checkCloudinaryConfigured()) {
     try {
-      const publicId = cleanId.startsWith('pet_clinic/products/')
+      const publicId = cleanId.startsWith('pet_clinic/')
         ? cleanId
         : `pet_clinic/products/${cleanId}`;
       const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
       logger.info(`Cloudinary destroy result for ${publicId}:`, result);
-      return {
-        id: imageId,
-        success: true,
-        message: 'Image deleted successfully',
-      };
     } catch (err) {
       logger.warn('Cloudinary delete image error:', err.message);
-    }
-  }
-
-  const baseName = path.basename(imageId);
-  const targetPath = path.join(localUploadDir, baseName);
-  if (fs.existsSync(targetPath)) {
-    try {
-      fs.unlinkSync(targetPath);
-    } catch (e) {
-      logger.warn('Failed to delete local file:', e.message);
     }
   }
 

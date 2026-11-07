@@ -362,12 +362,13 @@ export const listProducts = async (params = {}, actor = null) => {
     page
   } = params;
 
-  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const isInternal = actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole);
+  const maxLimit = isInternal ? 500 : 200;
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), maxLimit);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
   const query = {};
 
   // Phân quyền: public/CUSTOMER chỉ thấy ACTIVE và usageType in ['SALE', 'SHARED']
-  const isInternal = actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole);
   if (!isInternal) {
     query.status = 'ACTIVE';
     query.usageType = { $in: ['SALE', 'SHARED'] };
@@ -419,13 +420,22 @@ export const listProducts = async (params = {}, actor = null) => {
     query['variants.price'] = priceFilter;
   }
 
-  // Sắp xếp
+  // Sắp xếp: khi phân trang bằng cursor (_id < decodedId), bắt buộc sort theo { _id: -1 }
+  // để tránh vòng lặp vô hạn khi createdAt khác thứ tự _id (Inventory/Catalog allPages loop bug)
   let sortCriteria = { _id: -1 };
-  if (sort === 'NEWEST') sortCriteria = { createdAt: -1, _id: -1 };
-  else if (sort === 'NAME_ASC') sortCriteria = { name: 1, _id: 1 };
-  else if (sort === 'NAME_DESC') sortCriteria = { name: -1, _id: -1 };
-  else if (sort === 'PRICE_ASC') sortCriteria = { 'variants.price': 1, _id: 1 };
-  else if (sort === 'PRICE_DESC') sortCriteria = { 'variants.price': -1, _id: -1 };
+  if (!parsedPage && cursor) {
+    sortCriteria = { _id: -1 };
+  } else if (sort === 'NEWEST') {
+    sortCriteria = { createdAt: -1, _id: -1 };
+  } else if (sort === 'NAME_ASC') {
+    sortCriteria = { name: 1, _id: 1 };
+  } else if (sort === 'NAME_DESC') {
+    sortCriteria = { name: -1, _id: -1 };
+  } else if (sort === 'PRICE_ASC') {
+    sortCriteria = { 'variants.price': 1, _id: 1 };
+  } else if (sort === 'PRICE_DESC') {
+    sortCriteria = { 'variants.price': -1, _id: -1 };
+  }
 
   // Lọc sản phẩm còn tồn kho khả dụng trực tiếp từ InventoryStock nếu inStockOnly = true
   const filterInStock = inStockOnly === true || inStockOnly === 'true';

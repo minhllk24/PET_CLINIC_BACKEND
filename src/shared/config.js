@@ -55,6 +55,14 @@ const config = {
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
+  smtp: {
+    host: process.env.SMTP_HOST || (process.env.EMAIL_APP ? 'smtp.gmail.com' : ''),
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || process.env.EMAIL_APP || '',
+    pass: process.env.SMTP_PASS || process.env.EMAIL_APP_PASSWORD || '',
+    from: process.env.SMTP_FROM || (process.env.EMAIL_APP ? `"Dr. Pet Clinic Support" <${process.env.EMAIL_APP}>` : '"Dr. Pet Clinic Support" <support@drpets.vn>'),
+  },
 };
 
 if (!fs.existsSync(config.openapiSpecPath)) {
