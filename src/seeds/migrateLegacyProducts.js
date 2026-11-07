@@ -118,12 +118,14 @@ export const runMigrateLegacyProducts = async () => {
         );
       }
 
+      const variantImage = v.image || p.images?.[seq % (p.images?.length || 1)]?.url || p.images?.[0]?.url || null;
       formattedVariants.push({
         sku,
         label: v.label,
         price: v.price,
         discountPercent: v.discountPercent || 0,
         finalPrice,
+        image: variantImage,
         inventoryItemId: invItem._id,
         status: 'ACTIVE'
       });

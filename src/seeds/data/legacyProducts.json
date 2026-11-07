@@ -18,6 +18,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats2.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats3.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -27,14 +33,16 @@
         "label": "Chai 237ml (8oz)",
         "price": 283000,
         "discountPercent": 0,
-        "finalPrice": 283000
+        "finalPrice": 283000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats1.jpg"
       },
       {
         "sku": "SP-LEG-001-02",
         "label": "Chai 473ml (16oz)",
         "price": 509000,
         "discountPercent": 5,
-        "finalPrice": 484000
+        "finalPrice": 484000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats2.jpg"
       }
     ]
   },
@@ -72,21 +80,24 @@
         "label": "Túi 1kg",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://bizweb.dktcdn.net/100/605/361/products/jireho-09.jpg?v=1779871399363"
       },
       {
         "sku": "SP-LEG-002-02",
         "label": "Túi 2.4kg",
         "price": 121000,
         "discountPercent": 5,
-        "finalPrice": 115000
+        "finalPrice": 115000,
+        "image": "https://bizweb.dktcdn.net/100/605/361/products/jireho-08.jpg?v=1779871397567"
       },
       {
         "sku": "SP-LEG-002-03",
         "label": "Bao 6kg",
         "price": 264000,
         "discountPercent": 10,
-        "finalPrice": 238000
+        "finalPrice": 238000,
+        "image": "https://bizweb.dktcdn.net/100/605/361/products/jireho-hinhweb-cahoichocon-hinh01.jpg?v=1779871399363"
       }
     ]
   },
@@ -118,21 +129,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg"
       },
       {
         "sku": "SP-LEG-003-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg"
       },
       {
         "sku": "SP-LEG-003-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg"
       }
     ]
   },
@@ -164,21 +178,24 @@
         "label": "Gói 100g",
         "price": 70000,
         "discountPercent": 0,
-        "finalPrice": 70000
+        "finalPrice": 70000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg"
       },
       {
         "sku": "SP-LEG-004-02",
         "label": "Gói lớn 250g",
         "price": 154000,
         "discountPercent": 5,
-        "finalPrice": 146000
+        "finalPrice": 146000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg"
       },
       {
         "sku": "SP-LEG-004-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 189000,
         "discountPercent": 10,
-        "finalPrice": 170000
+        "finalPrice": 170000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg"
       }
     ]
   },
@@ -210,21 +227,24 @@
         "label": "Gói 100g",
         "price": 60000,
         "discountPercent": 0,
-        "finalPrice": 60000
+        "finalPrice": 60000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg"
       },
       {
         "sku": "SP-LEG-005-02",
         "label": "Gói lớn 250g",
         "price": 132000,
         "discountPercent": 5,
-        "finalPrice": 125000
+        "finalPrice": 125000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg"
       },
       {
         "sku": "SP-LEG-005-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 162000,
         "discountPercent": 10,
-        "finalPrice": 146000
+        "finalPrice": 146000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg"
       }
     ]
   },
@@ -256,21 +276,24 @@
         "label": "Túi 1kg",
         "price": 430000,
         "discountPercent": 0,
-        "finalPrice": 430000
+        "finalPrice": 430000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2014/12/dung-cu-an-uong-cho-cho-meo-paw-tu-dong-da-nang.jpg"
       },
       {
         "sku": "SP-LEG-006-02",
         "label": "Túi 2.4kg",
         "price": 946000,
         "discountPercent": 5,
-        "finalPrice": 899000
+        "finalPrice": 899000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2014/12/Dung-cu-an-uong-cho-cho-meo-tu-dong-da-nang1.jpg"
       },
       {
         "sku": "SP-LEG-006-03",
         "label": "Bao 6kg",
         "price": 2064000,
         "discountPercent": 10,
-        "finalPrice": 1858000
+        "finalPrice": 1858000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2014/12/dung-cu-an-uong-cho-cho-meo-paw-tu-dong-da-nang.jpg"
       }
     ]
   },
@@ -302,21 +325,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg"
       },
       {
         "sku": "SP-LEG-007-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg"
       },
       {
         "sku": "SP-LEG-007-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg"
       }
     ]
   },
@@ -348,21 +374,24 @@
         "label": "Túi 1kg",
         "price": 95000,
         "discountPercent": 0,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-ca-hoi-origi7-salmon.jpg"
       },
       {
         "sku": "SP-LEG-008-02",
         "label": "Túi 2.4kg",
         "price": 209000,
         "discountPercent": 5,
-        "finalPrice": 199000
+        "finalPrice": 199000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-ca-hoi-origi7-salmon.jpg"
       },
       {
         "sku": "SP-LEG-008-03",
         "label": "Bao 6kg",
         "price": 456000,
         "discountPercent": 10,
-        "finalPrice": 410000
+        "finalPrice": 410000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-ca-hoi-origi7-salmon.jpg"
       }
     ]
   },
@@ -394,21 +423,24 @@
         "label": "Túi 1kg",
         "price": 240000,
         "discountPercent": 0,
-        "finalPrice": 240000
+        "finalPrice": 240000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-puppy-chicken-potato.jpg"
       },
       {
         "sku": "SP-LEG-009-02",
         "label": "Túi 2.4kg",
         "price": 528000,
         "discountPercent": 5,
-        "finalPrice": 502000
+        "finalPrice": 502000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-puppy-chicken-potato.jpg"
       },
       {
         "sku": "SP-LEG-009-03",
         "label": "Bao 6kg",
         "price": 1152000,
         "discountPercent": 10,
-        "finalPrice": 1037000
+        "finalPrice": 1037000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-puppy-chicken-potato.jpg"
       }
     ]
   },
@@ -440,21 +472,24 @@
         "label": "Túi 1kg",
         "price": 250000,
         "discountPercent": 0,
-        "finalPrice": 250000
+        "finalPrice": 250000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-duck-potato-organic.jpg"
       },
       {
         "sku": "SP-LEG-010-02",
         "label": "Túi 2.4kg",
         "price": 550000,
         "discountPercent": 5,
-        "finalPrice": 523000
+        "finalPrice": 523000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-duck-potato-organic2.jpg"
       },
       {
         "sku": "SP-LEG-010-03",
         "label": "Bao 6kg",
         "price": 1200000,
         "discountPercent": 10,
-        "finalPrice": 1080000
+        "finalPrice": 1080000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-duck-potato-organic.jpg"
       }
     ]
   },
@@ -486,21 +521,24 @@
         "label": "Tuýp 59ml",
         "price": 195000,
         "discountPercent": 0,
-        "finalPrice": 195000
+        "finalPrice": 195000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg"
       },
       {
         "sku": "SP-LEG-011-02",
         "label": "Tuýp 118ml",
         "price": 341000,
         "discountPercent": 5,
-        "finalPrice": 324000
+        "finalPrice": 324000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg"
       },
       {
         "sku": "SP-LEG-011-03",
         "label": "Chai lớn 473ml",
         "price": 624000,
         "discountPercent": 10,
-        "finalPrice": 562000
+        "finalPrice": 562000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg"
       }
     ]
   },
@@ -532,21 +570,24 @@
         "label": "Túi 1kg",
         "price": 360000,
         "discountPercent": 0,
-        "finalPrice": 360000
+        "finalPrice": 360000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-tieu-hoa-cho-cho-tropiclean-dental-health-digestive.jpg"
       },
       {
         "sku": "SP-LEG-012-02",
         "label": "Túi 2.4kg",
         "price": 792000,
         "discountPercent": 5,
-        "finalPrice": 752000
+        "finalPrice": 752000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-tieu-hoa-cho-cho-tropiclean-dental-health-digestive.jpg"
       },
       {
         "sku": "SP-LEG-012-03",
         "label": "Bao 6kg",
         "price": 1728000,
         "discountPercent": 10,
-        "finalPrice": 1555000
+        "finalPrice": 1555000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-tieu-hoa-cho-cho-tropiclean-dental-health-digestive.jpg"
       }
     ]
   },
@@ -578,21 +619,24 @@
         "label": "Túi 1kg",
         "price": 360000,
         "discountPercent": 0,
-        "finalPrice": 360000
+        "finalPrice": 360000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-duong-long-cho-cho-tropiclean-dental-skin-health.jpg"
       },
       {
         "sku": "SP-LEG-013-02",
         "label": "Túi 2.4kg",
         "price": 792000,
         "discountPercent": 5,
-        "finalPrice": 752000
+        "finalPrice": 752000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-duong-long-cho-cho-tropiclean-dental-skin-health.jpg"
       },
       {
         "sku": "SP-LEG-013-03",
         "label": "Bao 6kg",
         "price": 1728000,
         "discountPercent": 10,
-        "finalPrice": 1555000
+        "finalPrice": 1555000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-duong-long-cho-cho-tropiclean-dental-skin-health.jpg"
       }
     ]
   },
@@ -624,21 +668,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg"
       },
       {
         "sku": "SP-LEG-014-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg"
       },
       {
         "sku": "SP-LEG-014-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg"
       }
     ]
   },
@@ -670,21 +717,24 @@
         "label": "Tuýp 59ml",
         "price": 250000,
         "discountPercent": 0,
-        "finalPrice": 250000
+        "finalPrice": 250000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg"
       },
       {
         "sku": "SP-LEG-015-02",
         "label": "Tuýp 118ml",
         "price": 438000,
         "discountPercent": 5,
-        "finalPrice": 416000
+        "finalPrice": 416000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg"
       },
       {
         "sku": "SP-LEG-015-03",
         "label": "Chai lớn 473ml",
         "price": 800000,
         "discountPercent": 10,
-        "finalPrice": 720000
+        "finalPrice": 720000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg"
       }
     ]
   },
@@ -716,21 +766,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua.jpg"
       },
       {
         "sku": "SP-LEG-016-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua2.jpg"
       },
       {
         "sku": "SP-LEG-016-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua.jpg"
       }
     ]
   },
@@ -762,21 +815,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang.jpg"
       },
       {
         "sku": "SP-LEG-017-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang2.jpg"
       },
       {
         "sku": "SP-LEG-017-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang.jpg"
       }
     ]
   },
@@ -808,21 +864,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg"
       },
       {
         "sku": "SP-LEG-018-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg"
       },
       {
         "sku": "SP-LEG-018-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg"
       }
     ]
   },
@@ -854,21 +913,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat.jpg"
       },
       {
         "sku": "SP-LEG-019-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat.jpg"
       },
       {
         "sku": "SP-LEG-019-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat.jpg"
       }
     ]
   },
@@ -900,21 +962,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 25000,
         "discountPercent": 0,
-        "finalPrice": 25000
+        "finalPrice": 25000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-thit-ga-iris-bonito-chicken.jpg"
       },
       {
         "sku": "SP-LEG-020-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 71000,
         "discountPercent": 5,
-        "finalPrice": 68000
+        "finalPrice": 68000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-iris2.jpg"
       },
       {
         "sku": "SP-LEG-020-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 263000,
         "discountPercent": 10,
-        "finalPrice": 236000
+        "finalPrice": 236000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-thit-ga-iris-bonito-chicken.jpg"
       }
     ]
   },
@@ -946,21 +1011,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ga-va-tom-iris-chicken-shrimp-soup1.jpg"
       },
       {
         "sku": "SP-LEG-021-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ga-va-tom-iris-chicken-shrimp-soup1.jpg"
       },
       {
         "sku": "SP-LEG-021-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ga-va-tom-iris-chicken-shrimp-soup1.jpg"
       }
     ]
   },
@@ -992,21 +1060,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-hoi-iris-salmon-soup8.jpg"
       },
       {
         "sku": "SP-LEG-022-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-hoi-iris-salmon-soup8.jpg"
       },
       {
         "sku": "SP-LEG-022-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-hoi-iris-salmon-soup8.jpg"
       }
     ]
   },
@@ -1038,21 +1109,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 85000,
         "discountPercent": 0,
-        "finalPrice": 85000
+        "finalPrice": 85000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-bo-va-rau-iris-hrbv375-beef-vegetable3.jpg"
       },
       {
         "sku": "SP-LEG-023-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 242000,
         "discountPercent": 5,
-        "finalPrice": 230000
+        "finalPrice": 230000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-bo-va-rau-iris-hrbv375-beef-vegetable4.jpg"
       },
       {
         "sku": "SP-LEG-023-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 893000,
         "discountPercent": 10,
-        "finalPrice": 803000
+        "finalPrice": 803000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-bo-va-rau-iris-hrbv375-beef-vegetable3.jpg"
       }
     ]
   },
@@ -1084,21 +1158,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-cua-iris-tuna-crab.jpg"
       },
       {
         "sku": "SP-LEG-024-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-cua-iris-tuna-crab-cat-food1.jpg"
       },
       {
         "sku": "SP-LEG-024-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-cua-iris-tuna-crab.jpg"
       }
     ]
   },
@@ -1130,21 +1207,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-iris-tuna.jpg"
       },
       {
         "sku": "SP-LEG-025-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-iris-tuna-cat-food1.jpg"
       },
       {
         "sku": "SP-LEG-025-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-iris-tuna.jpg"
       }
     ]
   },
@@ -1176,21 +1256,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 25000,
         "discountPercent": 0,
-        "finalPrice": 25000
+        "finalPrice": 25000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-ca-chub-iris-tunas-chub.jpg"
       },
       {
         "sku": "SP-LEG-026-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 71000,
         "discountPercent": 5,
-        "finalPrice": 68000
+        "finalPrice": 68000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-iris2.jpg"
       },
       {
         "sku": "SP-LEG-026-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 263000,
         "discountPercent": 10,
-        "finalPrice": 236000
+        "finalPrice": 236000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-ca-chub-iris-tunas-chub.jpg"
       }
     ]
   },
@@ -1222,21 +1305,24 @@
         "label": "Gói 100g",
         "price": 145000,
         "discountPercent": 0,
-        "finalPrice": 145000
+        "finalPrice": 145000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn5m.jpg"
       },
       {
         "sku": "SP-LEG-027-02",
         "label": "Gói lớn 250g",
         "price": 319000,
         "discountPercent": 5,
-        "finalPrice": 303000
+        "finalPrice": 303000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-iris.jpg"
       },
       {
         "sku": "SP-LEG-027-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 392000,
         "discountPercent": 10,
-        "finalPrice": 352000
+        "finalPrice": 352000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn5m.jpg"
       }
     ]
   },
@@ -1268,21 +1354,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 60000,
         "discountPercent": 0,
-        "finalPrice": 60000
+        "finalPrice": 60000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-thit-tron-catidea-variety-meat.jpg"
       },
       {
         "sku": "SP-LEG-028-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 171000,
         "discountPercent": 5,
-        "finalPrice": 162000
+        "finalPrice": 162000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-thit-tron-catidea-variety-of-meat1.jpg"
       },
       {
         "sku": "SP-LEG-028-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 630000,
         "discountPercent": 10,
-        "finalPrice": 567000
+        "finalPrice": 567000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-thit-tron-catidea-variety-meat.jpg"
       }
     ]
   },
@@ -1314,21 +1403,24 @@
         "label": "Size S (Nhỏ)",
         "price": 150000,
         "discountPercent": 0,
-        "finalPrice": 150000
+        "finalPrice": 150000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-meo-bang-coi-paw-hinh-chuot-size-xl.jpg"
       },
       {
         "sku": "SP-LEG-029-02",
         "label": "Size M (Vừa)",
         "price": 203000,
         "discountPercent": 5,
-        "finalPrice": 192000
+        "finalPrice": 192000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-meo-bang-coi-paw-hinh-chuot-size-xl.jpg"
       },
       {
         "sku": "SP-LEG-029-03",
         "label": "Size L (Lớn)",
         "price": 255000,
         "discountPercent": 8,
-        "finalPrice": 235000
+        "finalPrice": 235000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-meo-bang-coi-paw-hinh-chuot-size-xl.jpg"
       }
     ]
   },
@@ -1360,21 +1452,24 @@
         "label": "Size S (Nhỏ)",
         "price": 100000,
         "discountPercent": 0,
-        "finalPrice": 100000
+        "finalPrice": 100000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-xich-dai-nguc-hand-in-hand.jpg"
       },
       {
         "sku": "SP-LEG-030-02",
         "label": "Size M (Vừa)",
         "price": 135000,
         "discountPercent": 5,
-        "finalPrice": 128000
+        "finalPrice": 128000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-xich-dai-nguc-hand-in-hand-1.jpg"
       },
       {
         "sku": "SP-LEG-030-03",
         "label": "Size L (Lớn)",
         "price": 170000,
         "discountPercent": 8,
-        "finalPrice": 156000
+        "finalPrice": 156000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-xich-dai-nguc-hand-in-hand.jpg"
       }
     ]
   },
@@ -1406,21 +1501,24 @@
         "label": "Gói 100g",
         "price": 50000,
         "discountPercent": 0,
-        "finalPrice": 50000
+        "finalPrice": 50000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-gam-cho-cho-poodle-vegebrand-360-for-poodles-bone.jpg"
       },
       {
         "sku": "SP-LEG-031-02",
         "label": "Gói lớn 250g",
         "price": 110000,
         "discountPercent": 5,
-        "finalPrice": 105000
+        "finalPrice": 105000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-gam-cho-cho-poodle-vegebrand-360-for-poodles-bone.jpg"
       },
       {
         "sku": "SP-LEG-031-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 135000,
         "discountPercent": 10,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-gam-cho-cho-poodle-vegebrand-360-for-poodles-bone.jpg"
       }
     ]
   },
@@ -1452,21 +1550,24 @@
         "label": "Gói 100g",
         "price": 50000,
         "discountPercent": 0,
-        "finalPrice": 50000
+        "finalPrice": 50000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-thom-mieng-vegebrad-360-fresh-breath-bone.jpg"
       },
       {
         "sku": "SP-LEG-032-02",
         "label": "Gói lớn 250g",
         "price": 110000,
         "discountPercent": 5,
-        "finalPrice": 105000
+        "finalPrice": 105000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-thom-mieng-vegebrad-360-fresh-breath-bone.jpg"
       },
       {
         "sku": "SP-LEG-032-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 135000,
         "discountPercent": 10,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-thom-mieng-vegebrad-360-fresh-breath-bone.jpg"
       }
     ]
   },
@@ -1498,21 +1599,24 @@
         "label": "Gói 100g",
         "price": 50000,
         "discountPercent": 0,
-        "finalPrice": 50000
+        "finalPrice": 50000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-thit-bo-vegebrand-360-delicious-beef-bone.jpg"
       },
       {
         "sku": "SP-LEG-033-02",
         "label": "Gói lớn 250g",
         "price": 110000,
         "discountPercent": 5,
-        "finalPrice": 105000
+        "finalPrice": 105000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-thit-bo-vegebrand-360-delicious-beef-bone.jpg"
       },
       {
         "sku": "SP-LEG-033-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 135000,
         "discountPercent": 10,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-thit-bo-vegebrand-360-delicious-beef-bone.jpg"
       }
     ]
   },
@@ -1544,21 +1648,24 @@
         "label": "Gói 100g",
         "price": 50000,
         "discountPercent": 0,
-        "finalPrice": 50000
+        "finalPrice": 50000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-sua-vegebrand-360-calcium-milk-bone.jpg"
       },
       {
         "sku": "SP-LEG-034-02",
         "label": "Gói lớn 250g",
         "price": 110000,
         "discountPercent": 5,
-        "finalPrice": 105000
+        "finalPrice": 105000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-sua-vegebrand-360-calcium-milk-bone.jpg"
       },
       {
         "sku": "SP-LEG-034-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 135000,
         "discountPercent": 10,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/xuong-cho-cho-gam-vi-sua-vegebrand-360-calcium-milk-bone.jpg"
       }
     ]
   },
@@ -1590,21 +1697,24 @@
         "label": "Túi 1kg",
         "price": 10000,
         "discountPercent": 0,
-        "finalPrice": 10000
+        "finalPrice": 10000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps-42.jpg"
       },
       {
         "sku": "SP-LEG-035-02",
         "label": "Túi 2.4kg",
         "price": 22000,
         "discountPercent": 5,
-        "finalPrice": 21000
+        "finalPrice": 21000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps-42.jpg"
       },
       {
         "sku": "SP-LEG-035-03",
         "label": "Bao 6kg",
         "price": 48000,
         "discountPercent": 10,
-        "finalPrice": 43000
+        "finalPrice": 43000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps-42.jpg"
       }
     ]
   },
@@ -1636,21 +1746,24 @@
         "label": "Túi 1kg",
         "price": 5000,
         "discountPercent": 0,
-        "finalPrice": 5000
+        "finalPrice": 5000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps88.jpg"
       },
       {
         "sku": "SP-LEG-036-02",
         "label": "Túi 2.4kg",
         "price": 11000,
         "discountPercent": 5,
-        "finalPrice": 10000
+        "finalPrice": 10000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps88.jpg"
       },
       {
         "sku": "SP-LEG-036-03",
         "label": "Bao 6kg",
         "price": 24000,
         "discountPercent": 10,
-        "finalPrice": 22000
+        "finalPrice": 22000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/mieng-lot-cho-cho-di-ve-sinh-iris-clean-pet-sheets-cps88.jpg"
       }
     ]
   },
@@ -1682,21 +1795,24 @@
         "label": "Size S (Nhỏ)",
         "price": 95000,
         "discountPercent": 0,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-oc-sen.jpg"
       },
       {
         "sku": "SP-LEG-037-02",
         "label": "Size M (Vừa)",
         "price": 128000,
         "discountPercent": 5,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-oc-sen.jpg"
       },
       {
         "sku": "SP-LEG-037-03",
         "label": "Size L (Lớn)",
         "price": 162000,
         "discountPercent": 8,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-oc-sen.jpg"
       }
     ]
   },
@@ -1728,21 +1844,24 @@
         "label": "Size S (Nhỏ)",
         "price": 95000,
         "discountPercent": 0,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-gau.jpg"
       },
       {
         "sku": "SP-LEG-038-02",
         "label": "Size M (Vừa)",
         "price": 128000,
         "discountPercent": 5,
-        "finalPrice": 122000
+        "finalPrice": 122000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-gau.jpg"
       },
       {
         "sku": "SP-LEG-038-03",
         "label": "Size L (Lớn)",
         "price": 162000,
         "discountPercent": 8,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/do-choi-cho-cho-meo-bang-bong-chut-chit-elite-hinh-gau.jpg"
       }
     ]
   },
@@ -1774,21 +1893,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 30000,
         "discountPercent": 0,
-        "finalPrice": 30000
+        "finalPrice": 30000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-ngu-nguyen-chat-cat-sea-fish-pure-tuna-meat.jpg"
       },
       {
         "sku": "SP-LEG-039-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 86000,
         "discountPercent": 5,
-        "finalPrice": 81000
+        "finalPrice": 81000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-ngu-nguyen-chat-cat-sea-fish-pure-tuna-meat1.jpg"
       },
       {
         "sku": "SP-LEG-039-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 315000,
         "discountPercent": 10,
-        "finalPrice": 284000
+        "finalPrice": 284000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-ngu-nguyen-chat-cat-sea-fish-pure-tuna-meat.jpg"
       }
     ]
   },
@@ -1820,21 +1942,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 30000,
         "discountPercent": 0,
-        "finalPrice": 30000
+        "finalPrice": 30000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-com-cat-sea-fish-tuna-anchovy.jpg"
       },
       {
         "sku": "SP-LEG-040-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 86000,
         "discountPercent": 5,
-        "finalPrice": 81000
+        "finalPrice": 81000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-ngu-ca-com-cat-sea-fish-tuna-anchovy.jpg"
       },
       {
         "sku": "SP-LEG-040-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 315000,
         "discountPercent": 10,
-        "finalPrice": 284000
+        "finalPrice": 284000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2015/12/pate-cho-meo-vi-ca-com-cat-sea-fish-tuna-anchovy.jpg"
       }
     ]
   },
@@ -1866,14 +1991,16 @@
         "label": "Chai 237ml (8oz)",
         "price": 283000,
         "discountPercent": 0,
-        "finalPrice": 283000
+        "finalPrice": 283000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-cho-wild-caught-omega-3-fish-oil-for-dogs1.jpg"
       },
       {
         "sku": "SP-LEG-041-02",
         "label": "Chai 473ml (16oz)",
         "price": 509000,
         "discountPercent": 5,
-        "finalPrice": 484000
+        "finalPrice": 484000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-cho-wild-caught-omega-3-fish-oil-for-dogs2.jpg"
       }
     ]
   },
@@ -1905,21 +2032,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 37000,
         "discountPercent": 0,
-        "finalPrice": 37000
+        "finalPrice": 37000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-ca-bao-nhat.jpg"
       },
       {
         "sku": "SP-LEG-042-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 105000,
         "discountPercent": 5,
-        "finalPrice": 100000
+        "finalPrice": 100000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-ca-bao-nhat.jpg"
       },
       {
         "sku": "SP-LEG-042-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 389000,
         "discountPercent": 10,
-        "finalPrice": 350000
+        "finalPrice": 350000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-ca-bao-nhat.jpg"
       }
     ]
   },
@@ -1951,21 +2081,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-043-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-043-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-so-diep.jpg"
       }
     ]
   },
@@ -1997,21 +2130,24 @@
         "label": "Gói 100g",
         "price": 70000,
         "discountPercent": 0,
-        "finalPrice": 70000
+        "finalPrice": 70000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg"
       },
       {
         "sku": "SP-LEG-044-02",
         "label": "Gói lớn 250g",
         "price": 154000,
         "discountPercent": 5,
-        "finalPrice": 146000
+        "finalPrice": 146000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg"
       },
       {
         "sku": "SP-LEG-044-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 189000,
         "discountPercent": 10,
-        "finalPrice": 170000
+        "finalPrice": 170000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg"
       }
     ]
   },
@@ -2043,21 +2179,24 @@
         "label": "Gói 100g",
         "price": 65000,
         "discountPercent": 0,
-        "finalPrice": 65000
+        "finalPrice": 65000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bow-wow-soft-chicken.jpg"
       },
       {
         "sku": "SP-LEG-045-02",
         "label": "Gói lớn 250g",
         "price": 143000,
         "discountPercent": 5,
-        "finalPrice": 136000
+        "finalPrice": 136000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bow-wow-soft-chicken.jpg"
       },
       {
         "sku": "SP-LEG-045-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 176000,
         "discountPercent": 10,
-        "finalPrice": 158000
+        "finalPrice": 158000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bow-wow-soft-chicken.jpg"
       }
     ]
   },
@@ -2089,21 +2228,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang-chicken-carrot-oat.jpg"
       },
       {
         "sku": "SP-LEG-046-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang1.jpg"
       },
       {
         "sku": "SP-LEG-046-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang-chicken-carrot-oat.jpg"
       }
     ]
   },
@@ -2135,21 +2277,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-vanilla-mint.jpg"
       },
       {
         "sku": "SP-LEG-047-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-vanilla-mint.jpg"
       },
       {
         "sku": "SP-LEG-047-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-vanilla-mint.jpg"
       }
     ]
   },
@@ -2181,21 +2326,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang-chicken-pumpkin-carrot.jpg"
       },
       {
         "sku": "SP-LEG-048-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang1.jpg"
       },
       {
         "sku": "SP-LEG-048-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-cho-tron-vi-iris-aiwang-chicken-pumpkin-carrot.jpg"
       }
     ]
   },
@@ -2227,21 +2375,24 @@
         "label": "Tuýp 59ml",
         "price": 295000,
         "discountPercent": 0,
-        "finalPrice": 295000
+        "finalPrice": 295000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-meo-tropiclean-berry-coconut-waterless-cat-shampoo.jpg"
       },
       {
         "sku": "SP-LEG-049-02",
         "label": "Tuýp 118ml",
         "price": 516000,
         "discountPercent": 5,
-        "finalPrice": 490000
+        "finalPrice": 490000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-meo-tropiclean-berry-coconut-waterless-cat-shampoo.jpg"
       },
       {
         "sku": "SP-LEG-049-03",
         "label": "Chai lớn 473ml",
         "price": 944000,
         "discountPercent": 10,
-        "finalPrice": 850000
+        "finalPrice": 850000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-meo-tropiclean-berry-coconut-waterless-cat-shampoo.jpg"
       }
     ]
   },
@@ -2273,21 +2424,24 @@
         "label": "Túi 1kg",
         "price": 250000,
         "discountPercent": 0,
-        "finalPrice": 250000
+        "finalPrice": 250000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-lamb-potato-organic.jpg"
       },
       {
         "sku": "SP-LEG-050-02",
         "label": "Túi 2.4kg",
         "price": 550000,
         "discountPercent": 5,
-        "finalPrice": 523000
+        "finalPrice": 523000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-lamb-potato-organic1.jpg"
       },
       {
         "sku": "SP-LEG-050-03",
         "label": "Bao 6kg",
         "price": 1200000,
         "discountPercent": 10,
-        "finalPrice": 1080000
+        "finalPrice": 1080000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-lamb-potato-organic.jpg"
       }
     ]
   },
@@ -2319,21 +2473,24 @@
         "label": "Túi 1kg",
         "price": 360000,
         "discountPercent": 0,
-        "finalPrice": 360000
+        "finalPrice": 360000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-cho-meo-tropiclean-dental-health-solution.jpg"
       },
       {
         "sku": "SP-LEG-051-02",
         "label": "Túi 2.4kg",
         "price": 792000,
         "discountPercent": 5,
-        "finalPrice": 752000
+        "finalPrice": 752000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-cho-meo-tropiclean-dental-health-solution.jpg"
       },
       {
         "sku": "SP-LEG-051-03",
         "label": "Bao 6kg",
         "price": 1728000,
         "discountPercent": 10,
-        "finalPrice": 1555000
+        "finalPrice": 1555000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-cho-meo-tropiclean-dental-health-solution.jpg"
       }
     ]
   },
@@ -2365,21 +2522,24 @@
         "label": "Gói 100g",
         "price": 360000,
         "discountPercent": 0,
-        "finalPrice": 360000
+        "finalPrice": 360000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-xuong-khop-cho-cho-tropiclean-dental-health-hip-joint.jpg"
       },
       {
         "sku": "SP-LEG-052-02",
         "label": "Gói lớn 250g",
         "price": 792000,
         "discountPercent": 5,
-        "finalPrice": 752000
+        "finalPrice": 752000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-xuong-khop-cho-cho-tropiclean-dental-health-hip-joint.jpg"
       },
       {
         "sku": "SP-LEG-052-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 972000,
         "discountPercent": 10,
-        "finalPrice": 875000
+        "finalPrice": 875000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-suc-mieng-ho-tro-xuong-khop-cho-cho-tropiclean-dental-health-hip-joint.jpg"
       }
     ]
   },
@@ -2411,21 +2571,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-meo-tropiclean-clean-teeth-gel-oral-care.jpg"
       },
       {
         "sku": "SP-LEG-053-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-meo-tropiclean-clean-teeth-gel-oral-care.jpg"
       },
       {
         "sku": "SP-LEG-053-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-meo-tropiclean-clean-teeth-gel-oral-care.jpg"
       }
     ]
   },
@@ -2457,21 +2620,24 @@
         "label": "Tuýp 59ml",
         "price": 250000,
         "discountPercent": 0,
-        "finalPrice": 250000
+        "finalPrice": 250000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-meo-tropiclean-fresh-breath-drops-for-cats.jpg"
       },
       {
         "sku": "SP-LEG-054-02",
         "label": "Tuýp 118ml",
         "price": 438000,
         "discountPercent": 5,
-        "finalPrice": 416000
+        "finalPrice": 416000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-meo-tropiclean-fresh-breath-drops-for-cats-1.jpg"
       },
       {
         "sku": "SP-LEG-054-03",
         "label": "Chai lớn 473ml",
         "price": 800000,
         "discountPercent": 10,
-        "finalPrice": 720000
+        "finalPrice": 720000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-meo-tropiclean-fresh-breath-drops-for-cats.jpg"
       }
     ]
   },
@@ -2503,21 +2669,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-va-muc-bien.jpg"
       },
       {
         "sku": "SP-LEG-055-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-va-muc-bien2.jpg"
       },
       {
         "sku": "SP-LEG-055-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-va-muc-bien.jpg"
       }
     ]
   },
@@ -2549,21 +2718,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-056-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-so-diep2.jpg"
       },
       {
         "sku": "SP-LEG-056-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-so-diep.jpg"
       }
     ]
   },
@@ -2595,21 +2767,24 @@
         "label": "Túi 1kg",
         "price": 170000,
         "discountPercent": 0,
-        "finalPrice": 170000
+        "finalPrice": 170000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/may-say-long-cho-meo-chuyen-dung-chunzhou-2800w-a22-2300.jpg"
       },
       {
         "sku": "SP-LEG-057-02",
         "label": "Túi 2.4kg",
         "price": 374000,
         "discountPercent": 5,
-        "finalPrice": 355000
+        "finalPrice": 355000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/may-say-long-cho-meo-chuyen-dung-chunzhou-2800w-a22-2300-1.jpg"
       },
       {
         "sku": "SP-LEG-057-03",
         "label": "Bao 6kg",
         "price": 816000,
         "discountPercent": 10,
-        "finalPrice": 734000
+        "finalPrice": 734000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/may-say-long-cho-meo-chuyen-dung-chunzhou-2800w-a22-2300.jpg"
       }
     ]
   },
@@ -2641,21 +2816,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-058-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-058-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga-so-diep.jpg"
       }
     ]
   },
@@ -2687,21 +2865,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 25000,
         "discountPercent": 0,
-        "finalPrice": 25000
+        "finalPrice": 25000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-thit-ga-iris-tuna-chicken.jpg"
       },
       {
         "sku": "SP-LEG-059-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 71000,
         "discountPercent": 5,
-        "finalPrice": 68000
+        "finalPrice": 68000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-iris2.jpg"
       },
       {
         "sku": "SP-LEG-059-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 263000,
         "discountPercent": 10,
-        "finalPrice": 236000
+        "finalPrice": 236000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-thit-ga-iris-tuna-chicken.jpg"
       }
     ]
   },
@@ -2733,21 +2914,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-thu-iris-bonito-soup.jpg"
       },
       {
         "sku": "SP-LEG-060-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-thu-iris-bonito-soup.jpg"
       },
       {
         "sku": "SP-LEG-060-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-thu-iris-bonito-soup.jpg"
       }
     ]
   },
@@ -2779,21 +2963,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-ngu-iris-tuna-soup5.jpg"
       },
       {
         "sku": "SP-LEG-061-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-ngu-iris-tuna-soup5.jpg"
       },
       {
         "sku": "SP-LEG-061-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sup-thuong-cho-meo-vi-ca-ngu-iris-tuna-soup5.jpg"
       }
     ]
   },
@@ -2825,21 +3012,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 85000,
         "discountPercent": 0,
-        "finalPrice": 85000
+        "finalPrice": 85000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-thit-bo-iris-hrb375-beef3.jpg"
       },
       {
         "sku": "SP-LEG-062-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 242000,
         "discountPercent": 5,
-        "finalPrice": 230000
+        "finalPrice": 230000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-thit-bo-iris-hrb375-beef4.jpg"
       },
       {
         "sku": "SP-LEG-062-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 893000,
         "discountPercent": 10,
-        "finalPrice": 803000
+        "finalPrice": 803000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-thit-bo-iris-hrb375-beef3.jpg"
       }
     ]
   },
@@ -2871,21 +3061,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 85000,
         "discountPercent": 0,
-        "finalPrice": 85000
+        "finalPrice": 85000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-ga-va-rau-iris-hrcv375-chicken-vegetable6.jpg"
       },
       {
         "sku": "SP-LEG-063-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 242000,
         "discountPercent": 5,
-        "finalPrice": 230000
+        "finalPrice": 230000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-ga-va-rau-iris-hrcv375-chicken-vegetable2.jpg"
       },
       {
         "sku": "SP-LEG-063-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 893000,
         "discountPercent": 10,
-        "finalPrice": 803000
+        "finalPrice": 803000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-cho-vi-ga-va-rau-iris-hrcv375-chicken-vegetable6.jpg"
       }
     ]
   },
@@ -2917,21 +3110,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-ga-iris-tuna-chicken.jpg"
       },
       {
         "sku": "SP-LEG-064-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 157000,
         "discountPercent": 5,
-        "finalPrice": 149000
+        "finalPrice": 149000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-ga-iris-tuna-chicken-cat-food1.jpg"
       },
       {
         "sku": "SP-LEG-064-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 578000,
         "discountPercent": 10,
-        "finalPrice": 520000
+        "finalPrice": 520000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-va-ga-iris-tuna-chicken.jpg"
       }
     ]
   },
@@ -2963,21 +3159,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 25000,
         "discountPercent": 0,
-        "finalPrice": 25000
+        "finalPrice": 25000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-iris-bonito-tuna.jpg"
       },
       {
         "sku": "SP-LEG-065-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 71000,
         "discountPercent": 5,
-        "finalPrice": 68000
+        "finalPrice": 68000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-iris2.jpg"
       },
       {
         "sku": "SP-LEG-065-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 263000,
         "discountPercent": 10,
-        "finalPrice": 236000
+        "finalPrice": 236000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-vi-ca-ngu-iris-bonito-tuna.jpg"
       }
     ]
   },
@@ -3009,21 +3208,24 @@
         "label": "Gói 100g",
         "price": 145000,
         "discountPercent": 0,
-        "finalPrice": 145000
+        "finalPrice": 145000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn3l.jpg"
       },
       {
         "sku": "SP-LEG-066-02",
         "label": "Gói lớn 250g",
         "price": 319000,
         "discountPercent": 5,
-        "finalPrice": 303000
+        "finalPrice": 303000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-iris.jpg"
       },
       {
         "sku": "SP-LEG-066-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 392000,
         "discountPercent": 10,
-        "finalPrice": 352000
+        "finalPrice": 352000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn3l.jpg"
       }
     ]
   },
@@ -3055,21 +3257,24 @@
         "label": "Gói 100g",
         "price": 145000,
         "discountPercent": 0,
-        "finalPrice": 145000
+        "finalPrice": 145000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn8s.jpg"
       },
       {
         "sku": "SP-LEG-067-02",
         "label": "Gói lớn 250g",
         "price": 319000,
         "discountPercent": 5,
-        "finalPrice": 303000
+        "finalPrice": 303000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-iris.jpg"
       },
       {
         "sku": "SP-LEG-067-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 392000,
         "discountPercent": 10,
-        "finalPrice": 352000
+        "finalPrice": 352000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xuong-canxi-da-bo-cho-cho-vi-sua-iris-gn8s.jpg"
       }
     ]
   },
@@ -3101,21 +3306,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 30000,
         "discountPercent": 0,
-        "finalPrice": 30000
+        "finalPrice": 30000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-me-va-meo-con-catidea-mother-baby-cat.jpg"
       },
       {
         "sku": "SP-LEG-068-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 86000,
         "discountPercent": 5,
-        "finalPrice": 81000
+        "finalPrice": 81000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-me-va-meo-con-catidea-mother-baby-cat2.jpg"
       },
       {
         "sku": "SP-LEG-068-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 315000,
         "discountPercent": 10,
-        "finalPrice": 284000
+        "finalPrice": 284000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/pate-cho-meo-me-va-meo-con-catidea-mother-baby-cat.jpg"
       }
     ]
   },
@@ -3147,21 +3355,24 @@
         "label": "Size S (Nhỏ)",
         "price": 200000,
         "discountPercent": 0,
-        "finalPrice": 200000
+        "finalPrice": 200000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-vong-deo-co-hand-in-hand-plain-color-double-layers.jpg"
       },
       {
         "sku": "SP-LEG-069-02",
         "label": "Size M (Vừa)",
         "price": 270000,
         "discountPercent": 5,
-        "finalPrice": 257000
+        "finalPrice": 257000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-vong-deo-co-hand-in-hand-plain-color-double-layers-3.jpg"
       },
       {
         "sku": "SP-LEG-069-03",
         "label": "Size L (Lớn)",
         "price": 340000,
         "discountPercent": 8,
-        "finalPrice": 313000
+        "finalPrice": 313000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/day-dat-cho-cho-kem-vong-deo-co-hand-in-hand-plain-color-double-layers.jpg"
       }
     ]
   },
@@ -3193,21 +3404,24 @@
         "label": "Size S (Nhỏ)",
         "price": 130000,
         "discountPercent": 0,
-        "finalPrice": 130000
+        "finalPrice": 130000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/vong-co-cho-cho-gan-chuong-kem-day-dat-hand-in-hand-0.jpg"
       },
       {
         "sku": "SP-LEG-070-02",
         "label": "Size M (Vừa)",
         "price": 176000,
         "discountPercent": 5,
-        "finalPrice": 167000
+        "finalPrice": 167000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/vong-co-cho-cho-gan-chuong-kem-day-dat-hand-in-hand-4.jpg"
       },
       {
         "sku": "SP-LEG-070-03",
         "label": "Size L (Lớn)",
         "price": 221000,
         "discountPercent": 8,
-        "finalPrice": 203000
+        "finalPrice": 203000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/12/vong-co-cho-cho-gan-chuong-kem-day-dat-hand-in-hand-0.jpg"
       }
     ]
   },
@@ -3245,21 +3459,24 @@
         "label": "Túi 1kg",
         "price": 55000,
         "discountPercent": 0,
-        "finalPrice": 55000
+        "finalPrice": 55000,
+        "image": "https://bizweb.dktcdn.net/100/605/361/products/artboard-1.png?v=1759739695237"
       },
       {
         "sku": "SP-LEG-071-02",
         "label": "Túi 2.4kg",
         "price": 121000,
         "discountPercent": 5,
-        "finalPrice": 115000
+        "finalPrice": 115000,
+        "image": "https://bizweb.dktcdn.net/thumb/large/100/605/361/products/jireho-12.jpg?v=1779864847163"
       },
       {
         "sku": "SP-LEG-071-03",
         "label": "Bao 6kg",
         "price": 264000,
         "discountPercent": 10,
-        "finalPrice": 238000
+        "finalPrice": 238000,
+        "image": "https://product.hstatic.net/200000263355/product/ikgj7935_67271f42c8a34e349d08838930f1cf44_large.jpg"
       }
     ]
   },
@@ -3291,21 +3508,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 37000,
         "discountPercent": 0,
-        "finalPrice": 37000
+        "finalPrice": 37000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-huong-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-072-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 105000,
         "discountPercent": 5,
-        "finalPrice": 100000
+        "finalPrice": 100000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-huong-so-diep.jpg"
       },
       {
         "sku": "SP-LEG-072-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 389000,
         "discountPercent": 10,
-        "finalPrice": 350000
+        "finalPrice": 350000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-huong-so-diep.jpg"
       }
     ]
   },
@@ -3337,21 +3557,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-nguyen-chat.jpg"
       },
       {
         "sku": "SP-LEG-073-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-nguyen-chat.jpg"
       },
       {
         "sku": "SP-LEG-073-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-nguyen-chat.jpg"
       }
     ]
   },
@@ -3383,21 +3606,24 @@
         "label": "Gói 100g",
         "price": 60000,
         "discountPercent": 0,
-        "finalPrice": 60000
+        "finalPrice": 60000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bowwow-cheese-roll-chicken.jpg"
       },
       {
         "sku": "SP-LEG-074-02",
         "label": "Gói lớn 250g",
         "price": 132000,
         "discountPercent": 5,
-        "finalPrice": 125000
+        "finalPrice": 125000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bowwow-cheese-roll-chicken.jpg"
       },
       {
         "sku": "SP-LEG-074-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 162000,
         "discountPercent": 10,
-        "finalPrice": 146000
+        "finalPrice": 146000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bowwow-cheese-roll-chicken.jpg"
       }
     ]
   },
@@ -3429,21 +3655,24 @@
         "label": "Gói 100g",
         "price": 65000,
         "discountPercent": 0,
-        "finalPrice": 65000
+        "finalPrice": 65000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/banh-thuong-cho-cho-bow-wow-soft-salmon.jpg"
       },
       {
         "sku": "SP-LEG-075-02",
         "label": "Gói lớn 250g",
         "price": 143000,
         "discountPercent": 5,
-        "finalPrice": 136000
+        "finalPrice": 136000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/banh-thuong-cho-cho-bow-wow-soft-salmon.jpg"
       },
       {
         "sku": "SP-LEG-075-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 176000,
         "discountPercent": 10,
-        "finalPrice": 158000
+        "finalPrice": 158000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/banh-thuong-cho-cho-bow-wow-soft-salmon.jpg"
       }
     ]
   },
@@ -3475,21 +3704,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-oral-care.jpg"
       },
       {
         "sku": "SP-LEG-076-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-oral-care.jpg"
       },
       {
         "sku": "SP-LEG-076-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-oral-care.jpg"
       }
     ]
   },
@@ -3521,21 +3753,24 @@
         "label": "Tuýp 59ml",
         "price": 325000,
         "discountPercent": 0,
-        "finalPrice": 325000
+        "finalPrice": 325000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-berry-fresh.jpg"
       },
       {
         "sku": "SP-LEG-077-02",
         "label": "Tuýp 118ml",
         "price": 569000,
         "discountPercent": 5,
-        "finalPrice": 540000
+        "finalPrice": 540000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-berry-fresh.jpg"
       },
       {
         "sku": "SP-LEG-077-03",
         "label": "Chai lớn 473ml",
         "price": 1040000,
         "discountPercent": 10,
-        "finalPrice": 936000
+        "finalPrice": 936000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-berry-fresh.jpg"
       }
     ]
   },
@@ -3567,21 +3802,24 @@
         "label": "Tuýp 59ml",
         "price": 295000,
         "discountPercent": 0,
-        "finalPrice": 295000
+        "finalPrice": 295000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-bo-dau-phong-tropiclean-peanut-fresh-oral-care-spray.jpg"
       },
       {
         "sku": "SP-LEG-078-02",
         "label": "Tuýp 118ml",
         "price": 516000,
         "discountPercent": 5,
-        "finalPrice": 490000
+        "finalPrice": 490000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-bo-dau-phong-tropiclean-peanut-fresh-oral-care-spray-1.png"
       },
       {
         "sku": "SP-LEG-078-03",
         "label": "Chai lớn 473ml",
         "price": 944000,
         "discountPercent": 10,
-        "finalPrice": 850000
+        "finalPrice": 850000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-bo-dau-phong-tropiclean-peanut-fresh-oral-care-spray.jpg"
       }
     ]
   },
@@ -3604,6 +3842,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna2.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna3.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3613,21 +3857,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 25000,
         "discountPercent": 0,
-        "finalPrice": 25000
+        "finalPrice": 25000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna.jpg"
       },
       {
         "sku": "SP-LEG-079-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 71000,
         "discountPercent": 5,
-        "finalPrice": 68000
+        "finalPrice": 68000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna2.jpg"
       },
       {
         "sku": "SP-LEG-079-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 263000,
         "discountPercent": 10,
-        "finalPrice": 236000
+        "finalPrice": 236000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna3.jpg"
       }
     ]
   },
@@ -3650,6 +3897,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray-1.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/auah7098_0e0eac0a735b4733b4a826ffcbc7476d.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3659,21 +3912,24 @@
         "label": "Tuýp 59ml",
         "price": 295000,
         "discountPercent": 0,
-        "finalPrice": 295000
+        "finalPrice": 295000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray.jpg"
       },
       {
         "sku": "SP-LEG-080-02",
         "label": "Tuýp 118ml",
         "price": 516000,
         "discountPercent": 5,
-        "finalPrice": 490000
+        "finalPrice": 490000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray-1.jpg"
       },
       {
         "sku": "SP-LEG-080-03",
         "label": "Chai lớn 473ml",
         "price": 944000,
         "discountPercent": 10,
-        "finalPrice": 850000
+        "finalPrice": 850000,
+        "image": "https://product.hstatic.net/200000263355/product/auah7098_0e0eac0a735b4733b4a826ffcbc7476d.jpg"
       }
     ]
   },
@@ -3693,9 +3949,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2025/04/thuc-an-cho-meo-moi-lua-tuoi-vi-thit-ga-jireho-chicken.jpg",
+        "url": "https://product.hstatic.net/200000263355/product/iimu7673_9b751650d01f41258a1bf09fa8aad6c7.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/aglm4856_fa7ecdefc47b4a0ba49fead425fdd9fe.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3705,21 +3967,24 @@
         "label": "Túi 1kg",
         "price": 110000,
         "discountPercent": 0,
-        "finalPrice": 110000
+        "finalPrice": 110000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2025/04/thuc-an-cho-meo-moi-lua-tuoi-vi-thit-ga-jireho-chicken.jpg"
       },
       {
         "sku": "SP-LEG-081-02",
         "label": "Túi 2.4kg",
         "price": 242000,
         "discountPercent": 5,
-        "finalPrice": 230000
+        "finalPrice": 230000,
+        "image": "https://product.hstatic.net/200000263355/product/iimu7673_9b751650d01f41258a1bf09fa8aad6c7.jpg"
       },
       {
         "sku": "SP-LEG-081-03",
         "label": "Bao 6kg",
         "price": 528000,
         "discountPercent": 10,
-        "finalPrice": 475000
+        "finalPrice": 475000,
+        "image": "https://product.hstatic.net/200000263355/product/aglm4856_fa7ecdefc47b4a0ba49fead425fdd9fe.jpg"
       }
     ]
   },
@@ -3739,9 +4004,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-ca-moi.jpg",
+        "url": "https://product.hstatic.net/1000217401/product/60_b937d2d5516541b290a2f331e79fb80a.png",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z5185521775922_6b7496fb58952395bd185f507e887147_28957f1b0c4f4cfa8a43ca9921e09d18.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3751,21 +4022,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 37000,
         "discountPercent": 0,
-        "finalPrice": 37000
+        "finalPrice": 37000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-ca-moi.jpg"
       },
       {
         "sku": "SP-LEG-082-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 105000,
         "discountPercent": 5,
-        "finalPrice": 100000
+        "finalPrice": 100000,
+        "image": "https://product.hstatic.net/1000217401/product/60_b937d2d5516541b290a2f331e79fb80a.png"
       },
       {
         "sku": "SP-LEG-082-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 389000,
         "discountPercent": 10,
-        "finalPrice": 350000
+        "finalPrice": 350000,
+        "image": "https://product.hstatic.net/200000263355/product/z5185521775922_6b7496fb58952395bd185f507e887147_28957f1b0c4f4cfa8a43ca9921e09d18.jpg"
       }
     ]
   },
@@ -3785,9 +4059,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-bao-nhat.jpg",
+        "url": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3797,21 +4077,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 35000,
         "discountPercent": 0,
-        "finalPrice": 35000
+        "finalPrice": 35000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-bao-nhat.jpg"
       },
       {
         "sku": "SP-LEG-083-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 100000,
         "discountPercent": 5,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png"
       },
       {
         "sku": "SP-LEG-083-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 368000,
         "discountPercent": 10,
-        "finalPrice": 331000
+        "finalPrice": 331000,
+        "image": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png"
       }
     ]
   },
@@ -3831,9 +4114,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bowwow-cheese-roll-salmon.jpg",
+        "url": "https://cdn.hstatic.net/products/1000104513/4f3ef001ccc847b8afc117609e72670c_ee25ef175bfb4b15a58b419bbb928994.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000104513/product/pho-mai-cuon-ca-hoi-bowwow-120g-_goi___1__5309d1fae3e547c8992d3e1affb00c57.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3843,21 +4132,24 @@
         "label": "Gói 100g",
         "price": 60000,
         "discountPercent": 0,
-        "finalPrice": 60000
+        "finalPrice": 60000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bowwow-cheese-roll-salmon.jpg"
       },
       {
         "sku": "SP-LEG-084-02",
         "label": "Gói lớn 250g",
         "price": 132000,
         "discountPercent": 5,
-        "finalPrice": 125000
+        "finalPrice": 125000,
+        "image": "https://cdn.hstatic.net/products/1000104513/4f3ef001ccc847b8afc117609e72670c_ee25ef175bfb4b15a58b419bbb928994.jpg"
       },
       {
         "sku": "SP-LEG-084-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 162000,
         "discountPercent": 10,
-        "finalPrice": 146000
+        "finalPrice": 146000,
+        "image": "https://product.hstatic.net/1000104513/product/pho-mai-cuon-ca-hoi-bowwow-120g-_goi___1__5309d1fae3e547c8992d3e1affb00c57.jpg"
       }
     ]
   },
@@ -3877,9 +4169,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bow-wow-stick-jerky-beef.jpg",
+        "url": "https://product.hstatic.net/200000263355/product/z4386677892101_7c4cc676bd2a3dc7c351fc12f536cdf1_846c7e0614744189a17b1a8eab850763.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://cdn.hstatic.net/products/1000104513/0637b71d723d4f3cbfb723dd2507421c_bb17698c7087478188565ec64eafa961.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3889,21 +4187,24 @@
         "label": "Gói 100g",
         "price": 40000,
         "discountPercent": 0,
-        "finalPrice": 40000
+        "finalPrice": 40000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bow-wow-stick-jerky-beef.jpg"
       },
       {
         "sku": "SP-LEG-085-02",
         "label": "Gói lớn 250g",
         "price": 88000,
         "discountPercent": 5,
-        "finalPrice": 84000
+        "finalPrice": 84000,
+        "image": "https://product.hstatic.net/200000263355/product/z4386677892101_7c4cc676bd2a3dc7c351fc12f536cdf1_846c7e0614744189a17b1a8eab850763.jpg"
       },
       {
         "sku": "SP-LEG-085-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 108000,
         "discountPercent": 10,
-        "finalPrice": 97000
+        "finalPrice": 97000,
+        "image": "https://cdn.hstatic.net/products/1000104513/0637b71d723d4f3cbfb723dd2507421c_bb17698c7087478188565ec64eafa961.jpg"
       }
     ]
   },
@@ -3923,9 +4224,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/cats-best-original.jpg",
+        "url": "https://product.hstatic.net/200000263355/product/z4442807694685_ffed2f2063fb0017f18db8310dccdc2c_82874424c9ff4097914c4f915c837cf9.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4442807685758_2dbdf627890255d60abd371559f543e4_4144cd3e32ab47cfa5f78ba1b9636fca.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3935,21 +4242,24 @@
         "label": "Túi 5L (2.1kg)",
         "price": 140000,
         "discountPercent": 0,
-        "finalPrice": 140000
+        "finalPrice": 140000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/cats-best-original.jpg"
       },
       {
         "sku": "SP-LEG-086-02",
         "label": "Túi 10L (4.3kg)",
         "price": 259000,
         "discountPercent": 5,
-        "finalPrice": 246000
+        "finalPrice": 246000,
+        "image": "https://product.hstatic.net/200000263355/product/z4442807694685_ffed2f2063fb0017f18db8310dccdc2c_82874424c9ff4097914c4f915c837cf9.jpg"
       },
       {
         "sku": "SP-LEG-086-03",
         "label": "Bao tiết kiệm 20L",
         "price": 476000,
         "discountPercent": 10,
-        "finalPrice": 428000
+        "finalPrice": 428000,
+        "image": "https://product.hstatic.net/200000263355/product/z4442807685758_2dbdf627890255d60abd371559f543e4_4144cd3e32ab47cfa5f78ba1b9636fca.jpg"
       }
     ]
   },
@@ -3969,9 +4279,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-cuu-origi-7-lamb.jpg",
+        "url": "https://product.hstatic.net/200000263355/product/z4395825189533_fa88456623d21c7e0f7a15f205a6d58d_2bf213a2311b4ab48021c36e4e5823ba.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4395852476951_23bb6115da979cf0d3305356d1e24f55_d0fe473caad5403fa8bedcbc69f19ea4.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -3981,21 +4297,24 @@
         "label": "Túi 1kg",
         "price": 95000,
         "discountPercent": 0,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-cuu-origi-7-lamb.jpg"
       },
       {
         "sku": "SP-LEG-087-02",
         "label": "Túi 2.4kg",
         "price": 209000,
         "discountPercent": 5,
-        "finalPrice": 199000
+        "finalPrice": 199000,
+        "image": "https://product.hstatic.net/200000263355/product/z4395825189533_fa88456623d21c7e0f7a15f205a6d58d_2bf213a2311b4ab48021c36e4e5823ba.jpg"
       },
       {
         "sku": "SP-LEG-087-03",
         "label": "Bao 6kg",
         "price": 456000,
         "discountPercent": 10,
-        "finalPrice": 410000
+        "finalPrice": 410000,
+        "image": "https://product.hstatic.net/200000263355/product/z4395852476951_23bb6115da979cf0d3305356d1e24f55_d0fe473caad5403fa8bedcbc69f19ea4.jpg"
       }
     ]
   },
@@ -4033,21 +4352,24 @@
         "label": "Túi 1kg",
         "price": 240000,
         "discountPercent": 0,
-        "finalPrice": 240000
+        "finalPrice": 240000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-adult-lamb-potato.jpg"
       },
       {
         "sku": "SP-LEG-088-02",
         "label": "Túi 2.4kg",
         "price": 528000,
         "discountPercent": 5,
-        "finalPrice": 502000
+        "finalPrice": 502000,
+        "image": "https://down-vn.img.susercontent.com/file/d1d45772f3dab24dabb665680b6edff3"
       },
       {
         "sku": "SP-LEG-088-03",
         "label": "Bao 6kg",
         "price": 1152000,
         "discountPercent": 10,
-        "finalPrice": 1037000
+        "finalPrice": 1037000,
+        "image": "https://cdn.shopify.com/s/files/1/0624/1746/9697/files/hat-mem-zenith-adult-cho-cho-truong-thanh-paddy-2_600x600.webp?v=1719227163"
       }
     ]
   },
@@ -4070,6 +4392,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-meo-huu-co-natural-core-multi-protein-organic1.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/22_bca379484ff040d8b141bfe6c4b793e5_grande.png",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4079,21 +4407,24 @@
         "label": "Túi 1kg",
         "price": 340000,
         "discountPercent": 0,
-        "finalPrice": 340000
+        "finalPrice": 340000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-meo-huu-co-natural-core-multi-protein-organic.jpg"
       },
       {
         "sku": "SP-LEG-089-02",
         "label": "Túi 2.4kg",
         "price": 748000,
         "discountPercent": 5,
-        "finalPrice": 711000
+        "finalPrice": 711000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-meo-huu-co-natural-core-multi-protein-organic1.jpg"
       },
       {
         "sku": "SP-LEG-089-03",
         "label": "Bao 6kg",
         "price": 1632000,
         "discountPercent": 10,
-        "finalPrice": 1469000
+        "finalPrice": 1469000,
+        "image": "https://product.hstatic.net/1000217401/product/22_bca379484ff040d8b141bfe6c4b793e5_grande.png"
       }
     ]
   },
@@ -4116,6 +4447,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-con-huu-co-natural-core-lamb-puppy1.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/f18897cb-31dc-4fce-9e06-7f8b4797c97b/e8398e3a-084e-4f9f-bca8-106ba3bf098e/th-c-n-h-t-cho-ch-con-natural-core-puppy-v-c-u-pad.png",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4125,21 +4462,24 @@
         "label": "Túi 1kg",
         "price": 290000,
         "discountPercent": 0,
-        "finalPrice": 290000
+        "finalPrice": 290000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-con-huu-co-natural-core-lamb-puppy.jpg"
       },
       {
         "sku": "SP-LEG-090-02",
         "label": "Túi 2.4kg",
         "price": 638000,
         "discountPercent": 5,
-        "finalPrice": 606000
+        "finalPrice": 606000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-con-huu-co-natural-core-lamb-puppy1.jpg"
       },
       {
         "sku": "SP-LEG-090-03",
         "label": "Bao 6kg",
         "price": 1392000,
         "discountPercent": 10,
-        "finalPrice": 1253000
+        "finalPrice": 1253000,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/f18897cb-31dc-4fce-9e06-7f8b4797c97b/e8398e3a-084e-4f9f-bca8-106ba3bf098e/th-c-n-h-t-cho-ch-con-natural-core-puppy-v-c-u-pad.png"
       }
     ]
   },
@@ -4177,21 +4517,24 @@
         "label": "Túi 1kg",
         "price": 145000,
         "discountPercent": 0,
-        "finalPrice": 145000
+        "finalPrice": 145000,
+        "image": "https://khopetshop.net/assets/images/products/07072025045115_1876.jpg"
       },
       {
         "sku": "SP-LEG-091-02",
         "label": "Túi 2.4kg",
         "price": 319000,
         "discountPercent": 5,
-        "finalPrice": 303000
+        "finalPrice": 303000,
+        "image": "https://khopetshop.net/assets/images/products/07072025045500_29831.jpg"
       },
       {
         "sku": "SP-LEG-091-03",
         "label": "Bao 6kg",
         "price": 696000,
         "discountPercent": 10,
-        "finalPrice": 626000
+        "finalPrice": 626000,
+        "image": "https://bizweb.dktcdn.net/100/605/361/products/jireho-04.jpg?v=1779864603053"
       }
     ]
   },
@@ -4211,9 +4554,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-thit-ga-va-ca-ngu.jpg",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/69_cd7065da70fb4ac682c9770d440dd198_grande.png",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4223,21 +4572,24 @@
         "label": "Gói 85g / Lon 375g",
         "price": 37000,
         "discountPercent": 0,
-        "finalPrice": 37000
+        "finalPrice": 37000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-thit-ga-va-ca-ngu.jpg"
       },
       {
         "sku": "SP-LEG-092-02",
         "label": "Lốc 3 gói / 3 lon",
         "price": 105000,
         "discountPercent": 5,
-        "finalPrice": 100000
+        "finalPrice": 100000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg"
       },
       {
         "sku": "SP-LEG-092-03",
         "label": "Hộp 12 gói / Thùng 24 lon",
         "price": 389000,
         "discountPercent": 10,
-        "finalPrice": 350000
+        "finalPrice": 350000,
+        "image": "https://product.hstatic.net/1000217401/product/69_cd7065da70fb4ac682c9770d440dd198_grande.png"
       }
     ]
   },
@@ -4257,9 +4609,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bowwow-jerky-mix.jpg",
+        "url": "https://gaiapetshop.com/cdn/shop/files/BW2039_JerkyMix-1280g-_F_grande.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://apetmart.com/wp-content/uploads/2020/06/BW2039.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4269,21 +4627,24 @@
         "label": "Gói 100g",
         "price": 115000,
         "discountPercent": 0,
-        "finalPrice": 115000
+        "finalPrice": 115000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bowwow-jerky-mix.jpg"
       },
       {
         "sku": "SP-LEG-093-02",
         "label": "Gói lớn 250g",
         "price": 253000,
         "discountPercent": 5,
-        "finalPrice": 240000
+        "finalPrice": 240000,
+        "image": "https://gaiapetshop.com/cdn/shop/files/BW2039_JerkyMix-1280g-_F_grande.jpg"
       },
       {
         "sku": "SP-LEG-093-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 311000,
         "discountPercent": 10,
-        "finalPrice": 279000
+        "finalPrice": 279000,
+        "image": "https://apetmart.com/wp-content/uploads/2020/06/BW2039.jpg"
       }
     ]
   },
@@ -4303,9 +4664,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-hon-hop-bowwowmix.jpg",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/f3db2c3c-3bbf-4227-a473-b992b79b04ca/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/201af53e-736a-43a5-98fa-a33b82135901/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4315,21 +4682,24 @@
         "label": "Gói 100g",
         "price": 65000,
         "discountPercent": 0,
-        "finalPrice": 65000
+        "finalPrice": 65000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-hon-hop-bowwowmix.jpg"
       },
       {
         "sku": "SP-LEG-094-02",
         "label": "Gói lớn 250g",
         "price": 143000,
         "discountPercent": 5,
-        "finalPrice": 136000
+        "finalPrice": 136000,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/f3db2c3c-3bbf-4227-a473-b992b79b04ca/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg"
       },
       {
         "sku": "SP-LEG-094-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 176000,
         "discountPercent": 10,
-        "finalPrice": 158000
+        "finalPrice": 158000,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/201af53e-736a-43a5-98fa-a33b82135901/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg"
       }
     ]
   },
@@ -4349,9 +4719,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bowwow-stick-jerky-lamd.jpg",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/a4aaea61-f858-42e3-9e67-6438bfe221e1/83e754d0-9d33-44b6-bfa5-f4cabe20e48c/b-nh-th-ng-cho-ch-th-t-que-bowwow-stick-jerky-padd.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4386677932743_1f4664497ceaf42f6567e4a36da48bfe_ef32071e2c974e7d981cdc026dd57ae4_grande.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4361,21 +4737,24 @@
         "label": "Gói 100g",
         "price": 40000,
         "discountPercent": 0,
-        "finalPrice": 40000
+        "finalPrice": 40000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/que-banh-thuong-cho-cho-bowwow-stick-jerky-lamd.jpg"
       },
       {
         "sku": "SP-LEG-095-02",
         "label": "Gói lớn 250g",
         "price": 88000,
         "discountPercent": 5,
-        "finalPrice": 84000
+        "finalPrice": 84000,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/a4aaea61-f858-42e3-9e67-6438bfe221e1/83e754d0-9d33-44b6-bfa5-f4cabe20e48c/b-nh-th-ng-cho-ch-th-t-que-bowwow-stick-jerky-padd.jpg"
       },
       {
         "sku": "SP-LEG-095-03",
         "label": "Combo 3 gói tiết kiệm",
         "price": 108000,
         "discountPercent": 10,
-        "finalPrice": 97000
+        "finalPrice": 97000,
+        "image": "https://product.hstatic.net/200000263355/product/z4386677932743_1f4664497ceaf42f6567e4a36da48bfe_ef32071e2c974e7d981cdc026dd57ae4_grande.jpg"
       }
     ]
   },
@@ -4395,9 +4774,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/cats-best-smart-peppets.jpg",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/79f1027e-d7f0-463d-8a2c-e39a0aec40d3/453c1da1-0c18-4f0c-9e55-4c7885efe266/c-t-g-cho-m-o-l-ng-d-i-cat-s-best-smart-pellets-v-.png",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/cat_s_best_smart_pellets_d12ad3e6718543b097676349773046e0_grande.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4407,21 +4792,24 @@
         "label": "Túi 5L (2.1kg)",
         "price": 155000,
         "discountPercent": 0,
-        "finalPrice": 155000
+        "finalPrice": 155000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/cats-best-smart-peppets.jpg"
       },
       {
         "sku": "SP-LEG-096-02",
         "label": "Túi 10L (4.3kg)",
         "price": 287000,
         "discountPercent": 5,
-        "finalPrice": 272000
+        "finalPrice": 272000,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/79f1027e-d7f0-463d-8a2c-e39a0aec40d3/453c1da1-0c18-4f0c-9e55-4c7885efe266/c-t-g-cho-m-o-l-ng-d-i-cat-s-best-smart-pellets-v-.png"
       },
       {
         "sku": "SP-LEG-096-03",
         "label": "Bao tiết kiệm 20L",
         "price": 527000,
         "discountPercent": 10,
-        "finalPrice": 474000
+        "finalPrice": 474000,
+        "image": "https://product.hstatic.net/1000217401/product/cat_s_best_smart_pellets_d12ad3e6718543b097676349773046e0_grande.jpg"
       }
     ]
   },
@@ -4441,9 +4829,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-bo-origi-7-beef.jpg",
+        "url": "https://cdn.shopify.com/s/files/1/2977/2416/products/bow-wow-origi-7-beef-air-dried-soft-dry-dog-food-1-2kg.jpg?v=1571411581",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://cdn.shopify.com/s/files/1/2977/2416/files/BowWow_Origi-7_description.jpg?v=1741170964",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4453,21 +4847,24 @@
         "label": "Túi 1kg",
         "price": 95000,
         "discountPercent": 0,
-        "finalPrice": 95000
+        "finalPrice": 95000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-bo-origi-7-beef.jpg"
       },
       {
         "sku": "SP-LEG-097-02",
         "label": "Túi 2.4kg",
         "price": 209000,
         "discountPercent": 5,
-        "finalPrice": 199000
+        "finalPrice": 199000,
+        "image": "https://cdn.shopify.com/s/files/1/2977/2416/products/bow-wow-origi-7-beef-air-dried-soft-dry-dog-food-1-2kg.jpg?v=1571411581"
       },
       {
         "sku": "SP-LEG-097-03",
         "label": "Bao 6kg",
         "price": 456000,
         "discountPercent": 10,
-        "finalPrice": 410000
+        "finalPrice": 410000,
+        "image": "https://cdn.shopify.com/s/files/1/2977/2416/files/BowWow_Origi-7_description.jpg?v=1741170964"
       }
     ]
   },
@@ -4487,9 +4884,15 @@
       },
       {
         "id": "img-2",
-        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-cho-tropiclean-berry-coconut-waterless-dog-shampoo.jpg",
+        "url": "https://product.hstatic.net/200000263355/product/qhir4611_10e87df40d214ea6a8032bda20bfa1b5.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4467887432903_c91f927468cef55bbc35b506d9065d3f_65ee559d46294517a8d2031ecedc498a.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4499,21 +4902,24 @@
         "label": "Tuýp 59ml",
         "price": 295000,
         "discountPercent": 0,
-        "finalPrice": 295000
+        "finalPrice": 295000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-cho-tropiclean-berry-coconut-waterless-dog-shampoo.jpg"
       },
       {
         "sku": "SP-LEG-098-02",
         "label": "Tuýp 118ml",
         "price": 516000,
         "discountPercent": 5,
-        "finalPrice": 490000
+        "finalPrice": 490000,
+        "image": "https://product.hstatic.net/200000263355/product/qhir4611_10e87df40d214ea6a8032bda20bfa1b5.jpg"
       },
       {
         "sku": "SP-LEG-098-03",
         "label": "Chai lớn 473ml",
         "price": 944000,
         "discountPercent": 10,
-        "finalPrice": 850000
+        "finalPrice": 850000,
+        "image": "https://product.hstatic.net/200000263355/product/z4467887432903_c91f927468cef55bbc35b506d9065d3f_65ee559d46294517a8d2031ecedc498a.jpg"
       }
     ]
   },
@@ -4536,6 +4942,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4545,21 +4957,24 @@
         "label": "Túi 1kg",
         "price": 290000,
         "discountPercent": 0,
-        "finalPrice": 290000
+        "finalPrice": 290000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon.jpg"
       },
       {
         "sku": "SP-LEG-099-02",
         "label": "Túi 2.4kg",
         "price": 638000,
         "discountPercent": 5,
-        "finalPrice": 606000
+        "finalPrice": 606000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg"
       },
       {
         "sku": "SP-LEG-099-03",
         "label": "Bao 6kg",
         "price": 1392000,
         "discountPercent": 10,
-        "finalPrice": 1253000
+        "finalPrice": 1253000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core.jpg"
       }
     ]
   },
@@ -4582,6 +4997,12 @@
         "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray-1.jpg",
         "isPrimary": false,
         "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
       }
     ],
     "productType": "VARIANT",
@@ -4591,21 +5012,24 @@
         "label": "Tuýp 59ml",
         "price": 295000,
         "discountPercent": 0,
-        "finalPrice": 295000
+        "finalPrice": 295000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray.jpg"
       },
       {
         "sku": "SP-LEG-100-02",
         "label": "Tuýp 118ml",
         "price": 516000,
         "discountPercent": 5,
-        "finalPrice": 490000
+        "finalPrice": 490000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray-1.jpg"
       },
       {
         "sku": "SP-LEG-100-03",
         "label": "Chai lớn 473ml",
         "price": 944000,
         "discountPercent": 10,
-        "finalPrice": 850000
+        "finalPrice": 850000,
+        "image": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg"
       }
     ]
   }

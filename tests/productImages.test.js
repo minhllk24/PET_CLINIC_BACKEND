@@ -47,4 +47,26 @@ describe('legacy product images', () => {
     const edited = [...oldImages, { url: 'https://example.com/staff.jpg' }];
     expect(format(code, edited).images).toEqual(edited);
   });
+
+  it('ensures at least 20 curated products have 3 distinct product images and variant images', () => {
+    const curatedCodes = Object.keys(curated);
+    expect(curatedCodes.length).toBeGreaterThanOrEqual(20);
+
+    for (const productCode of curatedCodes) {
+      const entry = curated[productCode];
+      expect(entry.images).toHaveLength(3);
+      expect(new Set(entry.images.map((img) => img.url)).size).toBe(3);
+
+      const seededProduct = legacyProducts.find((p) => p.code === productCode);
+      expect(seededProduct).toBeDefined();
+      expect(seededProduct.images).toHaveLength(3);
+      expect(new Set(seededProduct.images.map((img) => img.url)).size).toBe(3);
+      expect(seededProduct.variants.length).toBeGreaterThanOrEqual(2);
+      for (const variant of seededProduct.variants) {
+        expect(typeof variant.image).toBe('string');
+        expect(variant.image.startsWith('http')).toBe(true);
+      }
+      expect(new Set(seededProduct.variants.map((v) => v.image)).size).toBe(seededProduct.variants.length);
+    }
+  });
 });

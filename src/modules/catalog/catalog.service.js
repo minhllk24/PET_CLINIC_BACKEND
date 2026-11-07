@@ -92,7 +92,19 @@ export const formatProduct = (prod) => {
   const primaryImage = images.find((img) => img?.isPrimary) || images[0];
   const primaryImageUrl = typeof primaryImage === 'string' ? primaryImage : primaryImage?.url || null;
 
-  const variants = Array.isArray(obj.variants) ? obj.variants.map(formatProductVariant) : [];
+  const variants = Array.isArray(obj.variants)
+    ? obj.variants.map((vObj, idx) => {
+        const formattedVar = formatProductVariant(vObj);
+        if (formattedVar.image && placeholders.has(formattedVar.image)) {
+          formattedVar.image = null;
+        }
+        if (!formattedVar.image && images.length > 0) {
+          const fallbackImg = images[idx % images.length] || images[0];
+          formattedVar.image = typeof fallbackImg === 'string' ? fallbackImg : fallbackImg?.url || null;
+        }
+        return formattedVar;
+      })
+    : [];
 
   let minPrice = 0;
   let maxPrice = 0;
