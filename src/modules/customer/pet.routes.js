@@ -29,6 +29,16 @@ export const listPetsHandler = async (req, res, next) => {
     const rawId = req.params.customerId || req.params.id || (req.actor ? req.actor.id : null);
     const targetCustomerIds = await resolveCustomerIds(rawId, req.actor);
     const filter = targetCustomerIds.length > 0 ? { customerId: { $in: targetCustomerIds } } : {};
+
+    // Archiving filter: by default hide archived pets unless explicitly requested
+    if (req.query.includeArchived === 'true') {
+      // return all
+    } else if (req.query.isArchived === 'true' || req.query.archived === 'true') {
+      filter.isArchived = true;
+    } else {
+      filter.isArchived = { $ne: true };
+    }
+
     const pets = await Pet.find(filter).sort({ createdAt: -1 });
     res.json(pets);
   } catch (error) {
@@ -48,13 +58,18 @@ export const createPetHandler = async (req, res, next) => {
       else customerId = new mongoose.Types.ObjectId(rawId);
     }
     if (!customerId && req.actor && req.actor.id && mongoose.Types.ObjectId.isValid(req.actor.id)) {
-      const customer = await Customer.findOne({ userId: req.actor.id }).lean();
-      if (customer) customerId = customer._id;
-      else customerId = new mongoose.Types.ObjectId(req.actor.id);
+      let customer = await Customer.findOne({ userId: req.actor.id }).lean();
+      if (!customer) {
+        customer = await Customer.create({
+          userId: req.actor.id,
+          accountStatus: 'ACTIVE',
+          activationStatus: 'ACTIVATED'
+        });
+      }
+      customerId = customer._id;
     }
     if (!customerId) {
-      const firstCustomer = await Customer.findOne().lean();
-      customerId = firstCustomer ? firstCustomer._id : new mongoose.Types.ObjectId();
+      customerId = new mongoose.Types.ObjectId();
     }
 
     let species = String(req.body.species || req.body.species_name || 'DOG').toUpperCase();
@@ -72,6 +87,7 @@ export const createPetHandler = async (req, res, next) => {
       healthStatus: req.body.healthStatus || req.body.health_status || 'NORMAL',
       medicalNotes: req.body.medicalNotes || req.body.medical_note || '',
       photoUrl: req.body.photoUrl || req.body.avatar || req.body.profile_image_url || null,
+      isArchived: Boolean(req.body.isArchived || false),
       customerId,
     };
     const pet = new Pet(petData);
@@ -112,6 +128,8 @@ export const updatePetHandler = async (req, res, next) => {
       ...(req.body.healthStatus || req.body.health_status ? { healthStatus: req.body.healthStatus || req.body.health_status } : {}),
       ...(req.body.medicalNotes !== undefined || req.body.medical_note !== undefined ? { medicalNotes: req.body.medicalNotes || req.body.medical_note } : {}),
       ...(req.body.photoUrl || req.body.avatar || req.body.profile_image_url ? { photoUrl: req.body.photoUrl || req.body.avatar || req.body.profile_image_url } : {}),
+      ...(req.body.isArchived !== undefined ? { isArchived: Boolean(req.body.isArchived) } : {}),
+      ...(req.body.archived !== undefined ? { isArchived: Boolean(req.body.archived) } : {}),
     };
 
     const pet = await Pet.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
@@ -124,9 +142,15 @@ export const updatePetHandler = async (req, res, next) => {
 
 export const deletePetHandler = async (req, res, next) => {
   try {
-    const pet = await Pet.findByIdAndDelete(req.params.id);
+    const permanent = req.query.permanent === 'true';
+    let pet;
+    if (permanent) {
+      pet = await Pet.findByIdAndDelete(req.params.id);
+    } else {
+      pet = await Pet.findByIdAndUpdate(req.params.id, { $set: { isArchived: true } }, { new: true });
+    }
     if (!pet) return res.status(404).json({ message: 'Pet not found' });
-    res.json({ success: true, message: 'Pet deleted successfully' });
+    res.json({ success: true, message: permanent ? 'Pet deleted successfully' : 'Pet archived successfully', pet });
   } catch (error) {
     next(error);
   }

@@ -69,7 +69,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
 
     const [products, services, categories] = await Promise.all([
       Product.find(productQuery)
-        .select('name productCode categoryId variants status')
+        .select('name productCode categoryId variants images status')
         .populate('categoryId', 'name')
         .limit(parsedLimit)
         .lean()
@@ -108,7 +108,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
       }
     }
 
-    // 2. Thêm sản phẩm vào gợi ý
+    // 2. Thêm sản phẩm vào gợi ý (bổ sung thumbnail & price phục vụ thẻ gợi ý trực quan theo spec)
     for (const p of (products || [])) {
       const kw = (p.name || '').trim();
       if (!kw) continue;
@@ -118,13 +118,17 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
         const minPrice = Array.isArray(p.variants) && p.variants.length > 0
           ? Math.min(...p.variants.map((v) => v.price || 0))
           : 0;
+        const imageUrl = (Array.isArray(p.images) && (p.images[0]?.url || p.images[0])) ||
+          (Array.isArray(p.variants) && p.variants[0]?.image) ||
+          null;
         suggestions.push({
           keyword: kw,
           type: 'product',
           id: p._id ? p._id.toString() : p.id,
           code: p.productCode,
           category: p.categoryId?.name || null,
-          price: minPrice
+          price: minPrice,
+          image: imageUrl
         });
       }
     }
@@ -200,11 +204,16 @@ export const unifiedSearch = async (params, actor = null) => {
     serviceSort = 'NAME_DESC';
   }
 
+  const rawCategoryFilter = params.categoryIds || params.categoryId;
+  const resolvedCategoryId = Array.isArray(rawCategoryFilter)
+    ? rawCategoryFilter.join(',')
+    : (rawCategoryFilter || undefined);
+
   if (scope === 'product') {
     const productRes = await catalogService.listProducts(
       {
         q: searchQuery,
-        categoryId,
+        categoryId: resolvedCategoryId,
         minPrice,
         maxPrice,
         sort: productSort,

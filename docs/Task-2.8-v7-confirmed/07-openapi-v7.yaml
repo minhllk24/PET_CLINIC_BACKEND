@@ -8751,6 +8751,8 @@ components:
           - 'null'
         archived:
           type: boolean
+        isArchived:
+          type: boolean
       additionalProperties: false
       required:
       - id
@@ -9753,6 +9755,28 @@ components:
             operator; null until assigned. Required before Medical professional/finalize, not before booking.
         noShowWarning:
           type: boolean
+        cancellationPolicy:
+          type: object
+          properties:
+            cancellationDeadline:
+              oneOf:
+              - $ref: '#/components/schemas/DateTime'
+              - type: 'null'
+            rescheduleDeadline:
+              oneOf:
+              - $ref: '#/components/schemas/DateTime'
+              - type: 'null'
+            minutesUntilStart:
+              type: integer
+            hoursUntilStart:
+              type: number
+            depositRefundable:
+              type: boolean
+            canSelfReschedule:
+              type: boolean
+            canSelfCancel:
+              type: boolean
+          additionalProperties: false
         cancel:
           oneOf:
           - type: object

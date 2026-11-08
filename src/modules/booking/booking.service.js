@@ -24,19 +24,22 @@ import {
  * Enforces additionalProperties: false
  */
 export const formatServiceLine = (seg) => {
+  if (!seg) return null;
   const line = {
-    serviceId: (seg.serviceId?._id || seg.serviceId).toString(),
-    serviceName: seg.serviceName,
-    serviceType: seg.serviceType,
+    serviceId: seg.serviceId ? (seg.serviceId._id || seg.serviceId).toString() : null,
+    serviceName: seg.serviceName || '',
+    serviceType: seg.serviceType || 'GROOMING',
     variantLabel: seg.variantLabel || null,
     unitPrice: Number(seg.unitPrice || 0),
-    durationMinutes: Number(seg.durationMinutes),
-    requiredStaffRole: seg.requiredStaffRole,
+    durationMinutes: Number(seg.durationMinutes || 0),
+    requiredStaffRole: seg.requiredStaffRole || 'CARE_STAFF',
     bookingMode: seg.bookingMode || 'BOOKABLE',
     sequence: Number(seg.sequence || 1),
-    scheduledStart: new Date(seg.scheduledStart).toISOString(),
-    scheduledEnd: new Date(seg.scheduledEnd).toISOString(),
-    assignedStaffId: (seg.assignedStaffId?._id || seg.assignedStaffId).toString(),
+    scheduledStart: seg.scheduledStart ? new Date(seg.scheduledStart).toISOString() : null,
+    scheduledEnd: seg.scheduledEnd ? new Date(seg.scheduledEnd).toISOString() : null,
+    assignedStaffId: seg.assignedStaffId
+      ? (seg.assignedStaffId._id || seg.assignedStaffId).toString()
+      : null,
     executionStatus: seg.executionStatus || 'NOT_STARTED',
     executionStartedAt: seg.executionStartedAt
       ? new Date(seg.executionStartedAt).toISOString()
@@ -212,6 +215,23 @@ export const formatAppointment = (apt) => {
 
   // Dynamic Allowed Actions
   res.allowedActions = computeAllowedActions(doc);
+
+  // Policy & Countdown deadlines (Audit requirement for minute-accurate countdown)
+  const startTime = doc.scheduledStart ? new Date(doc.scheduledStart).getTime() : 0;
+  const now = Date.now();
+  const minutesUntilStart = startTime > 0 ? Math.round((startTime - now) / 60000) : 0;
+  const hoursBefore = minutesUntilStart / 60;
+  const cancellationDeadline = startTime > 0 ? new Date(startTime - 24 * 3600000).toISOString() : null;
+
+  res.cancellationPolicy = {
+    cancellationDeadline,
+    rescheduleDeadline: cancellationDeadline,
+    minutesUntilStart,
+    hoursUntilStart: Number(hoursBefore.toFixed(1)),
+    depositRefundable: hoursBefore >= 24,
+    canSelfReschedule: Boolean(hoursBefore >= 24 && (doc.rescheduleCount || 0) < 2 && doc.status === 'CONFIRMED'),
+    canSelfCancel: Boolean(['PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'CONFIRMED'].includes(doc.status)),
+  };
 
   // Reviewer
   if (doc.reviewerStaffId !== undefined) {

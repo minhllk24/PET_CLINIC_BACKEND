@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import https from 'https';
 import User from '../../models/User.js';
+import Customer from '../customer/models/Customer.js';
 import OtpChallenge from '../../models/OtpChallenge.js';
 import RefreshSession from '../../models/RefreshSession.js';
 import AppError from '../../utils/AppError.js';
@@ -437,6 +438,28 @@ export const verifyOtpCode = async ({ identifier, otpCode, purpose }, meta = {})
       user.activatedAt = new Date();
       await user.save();
 
+      // Ensure Customer profile exists for new Customer user
+      if (user.systemRole === 'CUSTOMER') {
+        try {
+          await Customer.findOneAndUpdate(
+            { userId: user._id },
+            {
+              $setOnInsert: {
+                userId: user._id,
+                contactPhone: user.phone,
+                contactEmail: user.email,
+                fullName: user.fullName,
+                accountStatus: 'ACTIVE',
+                activationStatus: 'ACTIVATED'
+              }
+            },
+            { upsert: true }
+          );
+        } catch (_err) {
+          // Provisioning fallback
+        }
+      }
+
       await recordAuditLog({
         actor: { userId: user._id, systemRole: user.systemRole, ipAddress: meta.ip || '' },
         action: 'OTP_VERIFIED',
@@ -778,6 +801,28 @@ export const googleLogin = async ({ credential }, meta = {}) => {
 
   if (user.accountStatus !== 'ACTIVE') {
     throw new AppError(403, 'Forbidden', 'ACCOUNT_INACTIVE', `Account status is ${user.accountStatus}`);
+  }
+
+  // Ensure Customer record exists for Google Login
+  if (user.systemRole === 'CUSTOMER') {
+    try {
+      await Customer.findOneAndUpdate(
+        { userId: user._id },
+        {
+          $setOnInsert: {
+            userId: user._id,
+            contactEmail: user.email,
+            contactPhone: user.phone || null,
+            fullName: user.fullName,
+            accountStatus: 'ACTIVE',
+            activationStatus: 'ACTIVATED'
+          }
+        },
+        { upsert: true }
+      );
+    } catch (_err) {
+      // Provisioning fallback
+    }
   }
 
   user.lastLoginAt = new Date();
