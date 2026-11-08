@@ -786,6 +786,7 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
       const partnersRes = await request(app).get('/api/v1/content/rescue/partners');
       expect(partnersRes.status).toBe(200);
       expect(partnersRes.body.success).toBe(true);
+      expect(partnersRes.body.emergencyHotline).toBe('1900-6868');
       expect(partnersRes.body.data).toHaveProperty('partners');
       expect(partnersRes.body.data.totalPartners).toBe(6);
       expect(partnersRes.body.data.partners.map((p) => p.id)).toEqual([
@@ -796,6 +797,70 @@ describe('UAT Gate Suite: GAP-01 to GAP-16 Acceptance Verification', () => {
         'we-act',
         'laws-for-paws',
       ]);
+    });
+  });
+
+  // =========================================================================
+  // GAP-17: FE Verification Round 2 (Feedback Status Guard, Limit=200, Cust 2 Fixes)
+  // =========================================================================
+  describe('GAP-17: Nghiệm thu phản hồi FE & tài liệu FEEDBACK 7-11 cust 2', () => {
+    it('blocks PATCH /feedback/:id/status to PROCESSED when reply email is not SENT (BE-FIX-04)', async () => {
+      const fbId = new mongoose.Types.ObjectId();
+      const mockFb = {
+        _id: fbId,
+        name: 'Khách hàng test',
+        email: 'test@example.com',
+        message: 'Cần tư vấn',
+        status: 'PROCESSING',
+        replyDelivery: {
+          deliveryStatus: 'NONE',
+          providerMessageId: null,
+        },
+        statusHistory: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      jest.spyOn(Feedback, 'findById').mockResolvedValue(mockFb);
+
+      await expect(
+        feedbackService.updateFeedbackStatus(fbId, { status: 'PROCESSED' }, adminActor)
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'INVALID_STATE_TRANSITION',
+      });
+    });
+
+    it('supports limit=200 in feedback.service.js (BE-FIX-10) and only requires message on createFeedback', async () => {
+      jest.spyOn(Feedback, 'find').mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          skip: jest.fn().mockReturnValue({
+            limit: jest.fn().mockReturnValue({
+              lean: jest.fn().mockResolvedValue([]),
+            }),
+          }),
+        }),
+      });
+      jest.spyOn(Feedback, 'countDocuments').mockResolvedValue(160);
+
+      const listRes = await feedbackService.listFeedback({ limit: 200 }, adminActor);
+      expect(listRes.totalCount).toBe(160);
+
+      jest.spyOn(Feedback.prototype, 'save').mockResolvedValue(true);
+      const createdFb = await feedbackService.createFeedback({
+        message: 'Chỉ nhập nội dung liên hệ theo đúng yêu cầu cust 2',
+      });
+      expect(createdFb.message).toBe('Chỉ nhập nội dung liên hệ theo đúng yêu cầu cust 2');
+      expect(createdFb.name).toBe('Khách hàng');
+    });
+
+    it('returns averageRating: 0 when product has 0 reviews and includes shipping & related products', async () => {
+      jest.spyOn(Review, 'find').mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([]),
+        }),
+      });
+      const stats = await reviewService.getProductReviewStats(new mongoose.Types.ObjectId().toString());
+      expect(stats.averageRating).toBe(0);
+      expect(stats.totalReviews).toBe(0);
     });
   });
 });

@@ -371,7 +371,20 @@ describe('Task 4.6: Feedback & Review Module Suite', () => {
       expect(res.status).toBe(200);
       expect(mockFeedback.status).toBe('PROCESSING');
 
-      // 3. PROCESSING -> PROCESSED
+      // 3. PROCESSING -> PROCESSED (blocked with 409 before reply email is SENT per BE-FIX-04)
+      res = await request(app)
+        .patch(`/api/v1/feedback/${validFeedbackId}/status`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ status: 'PROCESSED', response: 'Đã giải quyết xong' });
+
+      expect(res.status).toBe(409);
+
+      // 4. PROCESSING -> PROCESSED (allowed once replyDelivery.deliveryStatus === 'SENT')
+      mockFeedback.replyDelivery = {
+        deliveryStatus: 'SENT',
+        providerMessageId: '<msg-01@drpets.vn>',
+      };
+
       res = await request(app)
         .patch(`/api/v1/feedback/${validFeedbackId}/status`)
         .set('Authorization', `Bearer ${managerToken}`)

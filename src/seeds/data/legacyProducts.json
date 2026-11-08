@@ -1,5 +1,161 @@
 [
   {
+    "code": "SP-BANNER-001",
+    "name": "Dinh Dưỡng Khỏe Mạnh Từ Tự Nhiên",
+    "categorySlug": "thuc-an",
+    "categoryName": "Thức ăn",
+    "description": "Gói hạt dinh dưỡng khỏe mạnh từ tự nhiên cao cấp dành cho thú cưng, công thức không ngũ cốc giàu đạm và vitamin tự nhiên giúp bé khỏe mạnh toàn diện, lông bóng mượt và tiêu hóa tốt.",
+    "price": 180000,
+    "images": [
+      {
+        "id": "img-1",
+        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ],
+    "productType": "SIMPLE",
+    "variants": [
+      {
+        "sku": "SP-BANNER-001-01",
+        "label": "Gói 1.5kg",
+        "price": 300000,
+        "discountPercent": 40,
+        "finalPrice": 180000,
+        "image": "/assets/customer/images/shop/promo-banner-1.png"
+      }
+    ]
+  },
+  {
+    "code": "SP-BANNER-002",
+    "name": "Bát ăn PetBowl",
+    "categorySlug": "phu-kien",
+    "categoryName": "Phụ kiện",
+    "description": "Bát ăn PetBowl cao cấp chống trượt, thiết kế nghiêng chuẩn công thái học bảo vệ cột sống cổ và hỗ trợ tiêu hóa tốt hơn cho chó mèo.",
+    "price": 121500,
+    "images": [
+      {
+        "id": "img-1",
+        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ],
+    "productType": "SIMPLE",
+    "variants": [
+      {
+        "sku": "SP-BANNER-002-01",
+        "label": "Tiêu chuẩn",
+        "price": 150000,
+        "discountPercent": 19,
+        "finalPrice": 121500,
+        "image": "/assets/customer/images/shop/promo-banner-2.png"
+      }
+    ]
+  },
+  {
+    "code": "SP-BANNER-003",
+    "name": "Khay vệ sinh cho mèo Jobi",
+    "categorySlug": "cham-soc-ve-sinh",
+    "categoryName": "Chăm sóc & Vệ sinh",
+    "description": "Khay vệ sinh cho mèo Jobi thành cao chống văng cát, nhựa nguyên sinh kháng khuẩn bền đẹp, dễ dàng tháo lắp vệ sinh hàng ngày.",
+    "price": 180000,
+    "images": [
+      {
+        "id": "img-1",
+        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ],
+    "productType": "SIMPLE",
+    "variants": [
+      {
+        "sku": "SP-BANNER-003-01",
+        "label": "Size L kèm xẻng",
+        "price": 240000,
+        "discountPercent": 25,
+        "finalPrice": 180000,
+        "image": "/assets/customer/images/shop/promo-banner-3.png"
+      }
+    ]
+  },
+  {
+    "code": "SP-BANNER-004",
+    "name": "Vòng cổ JewPet",
+    "categorySlug": "phu-kien",
+    "categoryName": "Phụ kiện",
+    "description": "Vòng cổ JewPet thời trang đính charm sang trọng, chất liệu êm ái an toàn cho vùng cổ thú cưng, khóa cài chắc chắn dễ điều chỉnh kích thước.",
+    "price": 140000,
+    "images": [
+      {
+        "id": "img-1",
+        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ],
+    "productType": "SIMPLE",
+    "variants": [
+      {
+        "sku": "SP-BANNER-004-01",
+        "label": "Bản tiêu chuẩn",
+        "price": 200000,
+        "discountPercent": 30,
+        "finalPrice": 140000,
+        "image": "/assets/customer/images/shop/promo-banner-4.png"
+      }
+    ]
+  },
+  {
     "code": "SP-LEG-001",
     "name": "Dầu cá cho mèo WILD CAUGHT Omega-3 Fish Oil For Cats",
     "categorySlug": "thuc-an",

@@ -89,14 +89,14 @@ Hàm `enrichServiceRecords` trong file `src/modules/execution/execution.service.
 | **BE-FIX-01** | **P0** | Flash Sale | Triển khai Atomic CAS Quota Checkout trong session MongoDB transaction (`consumeFlashSaleQuotaInSession`). Kiểm tra `soldQuantity + qty <= quantityLimit`. Hết quota trả ngay `409 FLASH_SALE_QUOTA_EXCEEDED`. Hoàn quota idempotent khi đơn hàng bị hủy/thất bại (`releaseFlashSaleQuotaInSession`). | ✅ **HOÀN TẤT** |
 | **BE-FIX-02** | **P0** | Flash Sale | Bỏ toàn bộ cơ chế fallback nhầm biến thể `return isProduct`. Hàm `findActiveFlashSaleItem` kiểm tra khớp chính xác `sku` hoặc `variantId`. Xác thực Product và Variant đang `ACTIVE`. Lấy giá gốc từ server, chặn client truyền giá giả. | ✅ **HOÀN TẤT** |
 | **BE-FIX-03** | **P0** | Flash Sale | Đồng bộ contract: Hỗ trợ `status: 'PUBLISHED'`, `activationMode === 'MANUAL'` khởi tạo với `isPaused: true`. Cập nhật `items`, validate `quantityLimit >= soldQuantity`. Kiểm tra concurrency version optimistic (`409 VERSION_CONFLICT`), chống tạo trùng lặp với `idempotencyKey`. | ✅ **HOÀN TẤT** |
-| **BE-FIX-04** | **P0** | Đánh giá & CSKH | Triển khai `EmailOutbox` và `sendFeedbackReplyEmail` gửi mail phản hồi thật qua Nodemailer. Chỉ cập nhật `deliveryStatus: 'SENT'` và trạng thái `PROCESSED` khi có `providerMessageId` thật. Khi lỗi gửi mail, đánh dấu `FAILED` và giữ feedback `PROCESSING`, tuyệt đối không báo thành công giả. | ✅ **HOÀN TẤT** |
+| **BE-FIX-04** | **P0** | Đánh giá & CSKH | Triển khai `EmailOutbox` và `sendFeedbackReplyEmail` gửi mail phản hồi thật qua Nodemailer. Chỉ cập nhật `deliveryStatus: 'SENT'` và trạng thái `PROCESSED` khi có `providerMessageId` thật. Đồng thời API `PATCH /api/v1/feedback/:id/status` chặn chuyển trực tiếp sang `PROCESSED` nếu email chưa gửi thành công (`409 INVALID_STATE_TRANSITION`). Khi lỗi gửi mail, đánh dấu `FAILED` và giữ feedback `PROCESSING`, tuyệt đối không báo thành công giả. | ✅ **HOÀN TẤT** |
 | **BE-FIX-05** | **P0** | Diễn đàn & Báo cáo | Bọc `resolveCommunityReport` trong transaction session với CAS conditional update (`status: { $in: ['PENDING', 'UNDER_REVIEW'] }`). Nếu đã giải quyết trả ngay `409 REPORT_ALREADY_RESOLVED`. Đồng bộ chuyển bài viết sang `HIDDEN` và cập nhật các báo cáo trùng. Tự động rollback khi có lỗi. | ✅ **HOÀN TẤT** |
-| **BE-FIX-06** | **P0** | Diễn đàn & Báo cáo | Bổ sung API Admin tạo bài viết: `POST /api/v1/admin/community/posts` (Quyền `ADMIN` / `MANAGER`). Tự động duyệt bài (`status: 'APPROVED'`), sinh `postCode`, kiểm tra sanitize nội dung HTML chống XSS, lưu lịch sử kiểm duyệt. | ✅ **HOÀN TẤT** |
-| **BE-FIX-07** | **P1** | Đánh giá | Bắt buộc truyền `reason` không rỗng khi gọi `POST /api/v1/admin/reviews/:id/hide` (nếu thiếu trả `400 VALIDATION_ERROR`). Tự động tính toán lại và cập nhật `ratingAvg`, `ratingCount` trên `Product` / `Service` mỗi khi có review được ẩn/hiện/tạo mới. | ✅ **HOÀN TẤT** |
-| **BE-FIX-08** | **P1** | Cứu trợ thú cưng | Loại bỏ hoàn toàn fallback ảnh giả Unsplash (nếu thiếu `images` trả `400 VALIDATION_ERROR`). Cấu hình 6 đối tác cứu trợ và hotline khẩn cấp (`1900-PET-HELP`) lưu trong `SystemSetting` MongoDB. Tự động map hotline/website của đối tác vào hồ sơ thú cưng. | ✅ **HOÀN TẤT** |
+| **BE-FIX-06** | **P0** | Diễn đàn & Báo cáo | Bổ sung API Admin tạo bài viết: `POST /api/v1/admin/community/posts` (Quyền `ADMIN` / `MANAGER`). Hỗ trợ trực tiếp contract FE thực tế (`type`, `imageUrls`, `status`) đồng thời tương thích ngược với `category`/`images`. Tự động duyệt bài (`status: 'APPROVED'`), sinh `postCode`, kiểm tra sanitize nội dung HTML chống XSS, lưu lịch sử kiểm duyệt. | ✅ **HOÀN TẤT** |
+| **BE-FIX-07** | **P1** | Đánh giá | Bắt buộc truyền `reason` không rỗng khi gọi `POST /api/v1/reviews/:id/hide` (hoặc `PATCH /api/v1/reviews/:id/hide`, cùng alias `/api/v1/admin/reviews/:id/hide` — nếu thiếu trả `400 VALIDATION_ERROR`). Tự động tính toán lại và cập nhật `ratingAvg`, `ratingCount` trên `Product` / `Service` mỗi khi có review được ẩn/hiện/tạo mới. | ✅ **HOÀN TẤT** |
+| **BE-FIX-08** | **P1** | Cứu trợ thú cưng | Loại bỏ hoàn toàn fallback ảnh giả Unsplash (nếu thiếu `images` trả `400 VALIDATION_ERROR`). Cấu hình 6 đối tác cứu trợ và hotline khẩn cấp chính thức (`1900-6868`) lưu trong `SystemSetting` MongoDB. Tự động map hotline/website của đối tác vào hồ sơ thú cưng. | ✅ **HOÀN TẤT** |
 | **BE-FIX-09** | **P1** | Upload đa phương tiện | Phân chia thư mục lưu trữ Cloudinary theo từng module (`pet_clinic/products`, `pet_clinic/content`, `pet_clinic/community`, `pet_clinic/rescue`). Giới hạn dung lượng ≤ 5MB, định dạng JPG/PNG/WEBP. Khi Cloudinary lỗi trả ngay `502 UPLOAD_PROVIDER_ERROR`, không âm thầm fallback lưu tạm trên local disk. | ✅ **HOÀN TẤT** |
 | **BE-FIX-09.2** | **P1** | Upload | Khắc phục đường dẫn `localUploadDir` trong `deleteProductImage`, đảm bảo xóa ảnh trả về `200 OK` cho Admin. | ✅ **HOÀN TẤT** |
-| **BE-FIX-10** | **P1** | Phân trang & Handoff | Nâng giới hạn tham số `limit` lên 200 bản ghi cho các API Admin. Chuẩn hóa format phân trang trả về cả `totalCount`, `total` và `nextCursor`. Xây dựng bộ test tích hợp `GAP-01` → `GAP-16` bao phủ 100% kịch bản. | ✅ **HOÀN TẤT** |
+| **BE-FIX-10** | **P1** | Phân trang & Handoff | Nâng giới hạn tham số `limit` tối đa lên 200 bản ghi trên toàn bộ API Admin & danh mục (`feedback.service.js`, `review.service.js`, `catalog.service.js`, `serviceCatalog.service.js`, `branch.service.js`, `flashSale.service.js`). Chuẩn hóa format phân trang trả về cả `totalCount`, `total` và `nextCursor`. Xây dựng bộ test tích hợp `GAP-01` → `GAP-16` bao phủ 100% kịch bản. | ✅ **HOÀN TẤT** |
 
 ---
 
@@ -149,14 +149,15 @@ this.orderService.createCheckout(payload).subscribe({
 ### 4.2 Admin tạo bài viết Cộng đồng (`POST /api/v1/admin/community/posts`):
 * **Endpoint:** `POST /api/v1/admin/community/posts`
 * **Quyền:** `ADMIN`, `MANAGER`
-* **Payload:**
+* **Payload (Khớp 100% contract FE hiện tại `type`, `imageUrls`, `status` và hỗ trợ tương thích ngược `category`, `images`):**
 ```json
 {
   "title": "Cẩm nang hướng dẫn sơ cứu thú cưng khi bị sốc nhiệt mùa hè",
   "content": "<p>Vào mùa nắng nóng, thú cưng lông dày rất dễ gặp tình trạng sốc nhiệt...</p>",
-  "category": "PET_CARE",
+  "type": "EXPERIENCE",
+  "status": "APPROVED",
   "tags": ["sơ cứu", "chó mèo", "mùa hè"],
-  "images": [
+  "imageUrls": [
     "https://res.cloudinary.com/petclinic/image/upload/pet_clinic/community/soc-nhiet-1.webp"
   ]
 }
@@ -167,13 +168,19 @@ this.orderService.createCheckout(payload).subscribe({
   "id": "6ae79b8f0a12e34d56789abc",
   "postCode": "POST-0012",
   "title": "Cẩm nang hướng dẫn sơ cứu thú cưng khi bị sốc nhiệt mùa hè",
+  "type": "EXPERIENCE",
+  "imageUrls": [
+    "https://res.cloudinary.com/petclinic/image/upload/pet_clinic/community/soc-nhiet-1.webp"
+  ],
   "status": "APPROVED",
   "authorRole": "ADMIN"
 }
 ```
 
 ### 4.3 Ẩn đánh giá vi phạm (Bắt buộc lý do):
-* **Endpoint:** `POST /api/v1/admin/reviews/:id/hide`
+* **Endpoints hỗ trợ (Khớp trực tiếp endpoint FE đang gọi):**
+  - `POST /api/v1/reviews/:id/hide` (và `PATCH /api/v1/reviews/:id/hide`)
+  - Alias quản trị: `POST /api/v1/admin/reviews/:id/hide` (và `PATCH /api/v1/admin/reviews/:id/hide`)
 * **Payload bắt buộc:**
 ```json
 {

@@ -16,6 +16,7 @@ import OrderRefund from '../modules/order/models/OrderRefund.js';
 import Payment from '../modules/payment/models/Payment.js';
 import { seedDemoUsers } from './demoUsersSeed.js';
 import { seedVouchers } from './voucherSeed.js';
+import { seedFlashSales } from './flashSaleSeed.js';
 
 export const runUatSeed = async ({ dryRun = false } = {}) => {
   console.log(`\n========================================================================`);
@@ -127,8 +128,109 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
   const foodCatId = categoryMap.get('thuc-an-dinh-duong') || (await Category.findOne({ slug: 'thuc-an-dinh-duong' }))?._id;
   const hygieneCatId = categoryMap.get('cham-soc-ve-sinh') || (await Category.findOne({ slug: 'cham-soc-ve-sinh' }))?._id;
   const toyCatId = categoryMap.get('do-choi-huan-luyen') || (await Category.findOne({ slug: 'do-choi-huan-luyen' }))?._id;
+  const accCatId = categoryMap.get('phu-kien-chuong-long') || (await Category.findOne({ slug: 'phu-kien-chuong-long' }))?._id || toyCatId;
 
   const UAT_PRODUCTS = [
+    {
+      code: 'SP-BANNER-001',
+      name: 'Dinh Dưỡng Khỏe Mạnh Từ Tự Nhiên',
+      description: 'Gói hạt dinh dưỡng khỏe mạnh từ tự nhiên cao cấp dành cho thú cưng, công thức không ngũ cốc giàu đạm và vitamin tự nhiên giúp bé khỏe mạnh toàn diện, lông bóng mượt và tiêu hóa tốt.',
+      categoryId: foodCatId,
+      productType: 'SIMPLE',
+      usageType: 'SALE',
+      status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: false, sortOrder: 2 }
+      ],
+      variants: [
+        {
+          sku: 'SP-BANNER-001-01',
+          label: 'Gói 1.5kg',
+          price: 300000,
+          discountPercent: 40,
+          finalPrice: 180000,
+          image: '/assets/customer/images/shop/promo-banner-1.png',
+          status: 'ACTIVE'
+        }
+      ]
+    },
+    {
+      code: 'SP-BANNER-002',
+      name: 'Bát ăn PetBowl',
+      description: 'Bát ăn PetBowl cao cấp chống trượt, thiết kế nghiêng chuẩn công thái học bảo vệ cột sống cổ và hỗ trợ tiêu hóa tốt hơn cho chó mèo.',
+      categoryId: accCatId,
+      productType: 'SIMPLE',
+      usageType: 'SALE',
+      status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: false, sortOrder: 2 }
+      ],
+      variants: [
+        {
+          sku: 'SP-BANNER-002-01',
+          label: 'Tiêu chuẩn',
+          price: 150000,
+          discountPercent: 19,
+          finalPrice: 121500,
+          image: '/assets/customer/images/shop/promo-banner-2.png',
+          status: 'ACTIVE'
+        }
+      ]
+    },
+    {
+      code: 'SP-BANNER-003',
+      name: 'Khay vệ sinh cho mèo Jobi',
+      description: 'Khay vệ sinh cho mèo Jobi thành cao chống văng cát, nhựa nguyên sinh kháng khuẩn bền đẹp, dễ dàng tháo lắp vệ sinh hàng ngày.',
+      categoryId: hygieneCatId,
+      productType: 'SIMPLE',
+      usageType: 'SALE',
+      status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: false, sortOrder: 2 }
+      ],
+      variants: [
+        {
+          sku: 'SP-BANNER-003-01',
+          label: 'Size L kèm xẻng',
+          price: 240000,
+          discountPercent: 25,
+          finalPrice: 180000,
+          image: '/assets/customer/images/shop/promo-banner-3.png',
+          status: 'ACTIVE'
+        }
+      ]
+    },
+    {
+      code: 'SP-BANNER-004',
+      name: 'Vòng cổ JewPet',
+      description: 'Vòng cổ JewPet thời trang đính charm sang trọng, chất liệu êm ái an toàn cho vùng cổ thú cưng, khóa cài chắc chắn dễ điều chỉnh kích thước.',
+      categoryId: accCatId,
+      productType: 'SIMPLE',
+      usageType: 'SALE',
+      status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: false, sortOrder: 2 }
+      ],
+      variants: [
+        {
+          sku: 'SP-BANNER-004-01',
+          label: 'Bản tiêu chuẩn',
+          price: 200000,
+          discountPercent: 30,
+          finalPrice: 140000,
+          image: '/assets/customer/images/shop/promo-banner-4.png',
+          status: 'ACTIVE'
+        }
+      ]
+    },
     {
       code: 'SP-UAT-DOG-001',
       name: 'Thức ăn hạt cao cấp cho chó Royal Canin Mini Adult',
@@ -287,9 +389,12 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       const existingProd = await Product.findOne({ $or: [{ productCode: prodData.code }, { name: prodData.name }] });
       let pDoc;
       if (existingProd) {
+        existingProd.productCode = prodData.code;
         existingProd.name = prodData.name;
+        if (prodData.description) existingProd.description = prodData.description;
         existingProd.categoryId = prodData.categoryId;
         existingProd.status = 'ACTIVE';
+        if (prodData.images) existingProd.images = prodData.images;
         existingProd.variants = resolvedVariants;
         await existingProd.save();
         pDoc = existingProd;
@@ -298,10 +403,12 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
         pDoc = await Product.create({
           productCode: prodData.code,
           name: prodData.name,
+          description: prodData.description || '',
           categoryId: prodData.categoryId,
           productType: prodData.productType,
           usageType: prodData.usageType,
           status: 'ACTIVE',
+          images: prodData.images || [],
           variants: resolvedVariants
         });
         console.log(`   - [SẢN PHẨM] Đã tạo mới: ${prodData.name} (${prodData.variants.length} SKU)`);
@@ -310,12 +417,13 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     }
   }
 
-  // 4. Đồng bộ Vouchers
-  console.log('\n📌 Bước 4: Đồng bộ Danh sách Voucher khuyến mãi...');
+  // 4. Đồng bộ Vouchers & Flash Sales
+  console.log('\n📌 Bước 4: Đồng bộ Danh sách Voucher khuyến mãi & Flash Sales...');
   if (!dryRun) {
     await seedVouchers();
+    await seedFlashSales(logger);
   } else {
-    console.log('   [DRY-RUN] Bỏ qua ghi seedVouchers');
+    console.log('   [DRY-RUN] Bỏ qua ghi seedVouchers & seedFlashSales');
   }
 
   // 5. Tạo bộ 12 Đơn hàng UAT (Orders) và Return/Refund
@@ -323,12 +431,12 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
   const customerUser = await User.findOne({ username: 'customer' }) || (await User.findOne({ systemRole: 'CUSTOMER' }));
   const customerId = customerUser ? customerUser._id : new mongoose.Types.ObjectId();
 
-  const dogProd = seededProducts[0] || (await Product.findOne({ name: /Royal Canin/i }));
-  const catProd = seededProducts[1] || (await Product.findOne({ name: /Whiskas/i }));
-  const smallProd = seededProducts[2] || (await Product.findOne({ name: /Alfalfa/i }));
-  const birdProd = seededProducts[3] || (await Product.findOne({ name: /Vẹt/i }));
-  const litterProd = seededProducts[4] || (await Product.findOne({ name: /Cature/i }));
-  const toyProd = seededProducts[5] || (await Product.findOne({ name: /KONG/i }));
+  const dogProd = seededProducts.find((p) => /Royal Canin/i.test(p.name)) || (await Product.findOne({ name: /Royal Canin/i }));
+  const catProd = seededProducts.find((p) => /Whiskas/i.test(p.name)) || (await Product.findOne({ name: /Whiskas/i }));
+  const smallProd = seededProducts.find((p) => /Alfalfa/i.test(p.name)) || (await Product.findOne({ name: /Alfalfa/i }));
+  const birdProd = seededProducts.find((p) => /Vẹt/i.test(p.name)) || (await Product.findOne({ name: /Vẹt/i }));
+  const litterProd = seededProducts.find((p) => /Cature/i.test(p.name)) || (await Product.findOne({ name: /Cature/i }));
+  const toyProd = seededProducts.find((p) => /KONG/i.test(p.name)) || (await Product.findOne({ name: /KONG/i }));
 
   const now = new Date();
   const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);

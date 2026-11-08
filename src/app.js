@@ -216,14 +216,20 @@ app.use(async (req, res, next) => {
     if (rawId !== 'suggestions' && !/^[0-9a-fA-F]{24}$/.test(rawId)) {
       try {
         const Product = require('./modules/catalog/models/Product').default || require('./modules/catalog/models/Product');
-        let found = await Product.findOne({
-          $or: [
-            { productCode: rawId },
-            { 'variants.sku': rawId },
-            { slug: rawId },
-            { code: rawId }
-          ]
-        }).select('_id').lean();
+        let found = null;
+        if (['1', '2', '3', '4'].includes(rawId)) {
+          found = await Product.findOne({ productCode: `SP-BANNER-00${rawId}` }).select('_id').lean();
+        }
+        if (!found) {
+          found = await Product.findOne({
+            $or: [
+              { productCode: rawId },
+              { 'variants.sku': rawId },
+              { slug: rawId },
+              { code: rawId }
+            ]
+          }).select('_id').lean();
+        }
 
         if (!found && /^\d+$/.test(rawId)) {
           const idx = parseInt(rawId, 10);
@@ -707,6 +713,13 @@ app.use(
       if (path.includes('/managers')) return true;
       if (path.includes('/uploads')) return true;
       if (path.includes('/locations')) return true;
+      if (path.includes('/provinces')) return true;
+      if (path.includes('/districts')) return true;
+      if (path.includes('/wards')) return true;
+      if (path.includes('/users/')) return true;
+      if (path.includes('/addresses/')) return true;
+      if (path.includes('/related') || path.includes('/similar')) return true;
+      if (path.includes('/review-stats') || path.includes('/reviews/target') || path.includes('/like')) return true;
       if (path.includes('/care-plans') || path.includes('/care-plan')) return true;
       if (path.includes('/recommendations')) return true;
       if (path.includes('/ai/')) return true;

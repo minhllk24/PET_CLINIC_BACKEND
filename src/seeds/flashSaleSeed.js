@@ -20,28 +20,25 @@ export const seedFlashSales = async () => {
         name: 'Giờ Vàng Giá Sốc - Bùng Nổ Ưu Đãi',
         description: 'Chiến dịch Flash Sale đang diễn ra trực tiếp trên toàn hệ thống',
         startAt: new Date(now - 2 * 3600000),
-        endAt: new Date(now + 4 * 3600000),
+        endAt: new Date(now + 72 * 3600000),
         activationMode: 'AUTO',
         isPaused: false,
         status: 'PUBLISHED',
-        items: [
-          {
-            productId: products[0]._id,
-            sku: products[0].variants?.[0]?.sku || 'SKU-FS-001',
-            originalPrice: products[0].price || 290000,
-            salePrice: Math.round((products[0].price || 290000) * 0.7),
+        items: products.slice(0, 6).map((p, idx) => {
+          const basePrice = p.variants?.[0]?.price || p.price || (180000 + idx * 35000);
+          const discountRatio = [0.7, 0.65, 0.6, 0.75, 0.68, 0.72][idx % 6];
+          return {
+            productId: p._id,
+            variantId: p.variants?.[0]?._id || null,
+            sku: p.variants?.[0]?.sku || `SKU-FS-00${idx + 1}`,
+            productName: p.name,
+            variantLabel: p.variants?.[0]?.label || 'Mặc định',
+            originalPrice: basePrice,
+            salePrice: Math.round((basePrice * discountRatio) / 1000) * 1000,
             quantityLimit: 50,
-            soldQuantity: 12,
-          },
-          ...(products[1] ? [{
-            productId: products[1]._id,
-            sku: products[1].variants?.[0]?.sku || 'SKU-FS-002',
-            originalPrice: products[1].price || 150000,
-            salePrice: Math.round((products[1].price || 150000) * 0.65),
-            quantityLimit: 40,
-            soldQuantity: 8,
-          }] : []),
-        ],
+            soldQuantity: 10 + idx * 3,
+          };
+        }),
         createdBy: adminId,
       },
       {

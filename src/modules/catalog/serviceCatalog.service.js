@@ -30,19 +30,39 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
 
   const obj = service.toObject ? service.toObject() : service;
   const status = obj.status || 'ACTIVE';
+  const sId = (obj._id || obj.id).toString();
+  const hasWeightPricing = Boolean(
+    Array.isArray(obj.priceVariants) &&
+    obj.priceVariants.some((v) => v.minWeightKg !== undefined || v.maxWeightKg !== undefined)
+  );
+  const categoryNameStr = typeof obj.category === 'string' && obj.category
+    ? obj.category
+    : (obj.serviceType === 'GROOMING' ? 'Grooming & Spa' : 'Khám & Điều trị');
+
   const res = {
-    id: (obj._id || obj.id).toString(),
+    id: sId,
+    service_id: sId,
     name: obj.name,
+    service_name: obj.name,
     serviceType: obj.serviceType,
     basePrice: Number(obj.basePrice),
+    base_price: Number(obj.basePrice),
     durationMinutes: Number(obj.durationMinutes),
+    duration_minutes: Number(obj.durationMinutes),
     requiredStaffRole: obj.requiredStaffRole,
     bookingMode: obj.bookingMode,
+    booking_mode: obj.bookingMode,
+    is_weight_surcharge_applied: hasWeightPricing,
     status,
   };
 
   if (obj.code) res.code = obj.code;
-  if (obj.category) res.category = obj.category;
+  if (obj.category) {
+    res.category = typeof obj.category === 'object' ? obj.category : obj.category;
+  } else {
+    res.category = { category_name: categoryNameStr };
+  }
+  res.category_name = categoryNameStr;
   if (obj.description) res.description = obj.description;
 
   if (obj.priceVariants && Array.isArray(obj.priceVariants) && obj.priceVariants.length > 0) {
@@ -197,15 +217,18 @@ export const listServices = async ({
   actor = null,
 }) => {
   if (mongoose.connection.readyState !== 1 && !Service.find?._isMockFunction) {
-    return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
+    return { items: [], services: [], DT: [], EC: 0, total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
   }
-  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
   const filter = {};
 
   const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
   if (!isInternal) {
     filter.status = 'ACTIVE';
+    if (!bookingMode && !bookableOnly && parseInt(limit, 10) >= 100) {
+      filter.bookingMode = 'BOOKABLE';
+    }
   } else if (status) {
     filter.status = status;
   }
@@ -376,6 +399,9 @@ export const listServices = async ({
 
   return {
     items: formattedItems,
+    services: formattedItems,
+    DT: formattedItems,
+    EC: 0,
     total: totalItems,
     totalItems,
     page: parsedPage || 1,

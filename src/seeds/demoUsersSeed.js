@@ -132,11 +132,26 @@ const DEMO_ACCOUNTS = [
   {
     username: 'customer',
     phone: '0905555555',
-    fullName: 'Khách Hàng Lê Văn C',
+    fullName: 'Lê Văn Cường',
     email: 'customer.levanc@gmail.com',
     password: 'cT6$vM2!pL9#zR8&',
     systemRole: 'CUSTOMER',
     accountStatus: 'ACTIVE',
+    addresses: [
+      {
+        fullName: 'Lê Văn Cường',
+        phone: '0905555555',
+        email: 'customer.levanc@gmail.com',
+        country: 'Việt Nam',
+        province: 'Thành phố Hồ Chí Minh',
+        provinceCode: '79',
+        district: 'Quận 1',
+        ward: 'Phường Bến Nghé',
+        addressDetail: '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1',
+        fullAddress: '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh',
+        isDefault: true,
+      },
+    ],
   },
   {
     username: 'pending_user',
@@ -212,6 +227,10 @@ export const seedDemoUsers = async () => {
           existing.assignedBranchIds = targetBranchIds;
           isUpdated = true;
         }
+        if (acc.addresses && (!existing.addresses || existing.addresses.length === 0)) {
+          existing.addresses = acc.addresses;
+          isUpdated = true;
+        }
         // If acc has no phone/email (like only-text admin), unset phone & email from DB
         if (!acc.phone && existing.phone) {
           unsetFields.phone = 1;
@@ -252,6 +271,7 @@ export const seedDemoUsers = async () => {
           assignedBranchIds: targetBranchIds,
           accountStatus: acc.accountStatus,
           activatedAt: acc.accountStatus === 'ACTIVE' ? new Date() : null,
+          addresses: acc.addresses || [],
         });
 
         console.log(`[CREATED] ${acc.systemRole.padEnd(8)} | User: ${(acc.username || '-').padEnd(12)} | Phone: ${acc.phone || 'NONE (Only Text)'} | ${acc.fullName}`);

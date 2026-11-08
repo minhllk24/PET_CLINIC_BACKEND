@@ -77,6 +77,15 @@ export const getProductById = async (req, res, next) => {
   }
 };
 
+export const getRelatedProducts = async (req, res, next) => {
+  try {
+    const result = await catalogService.getRelatedProducts(req.params.id, req.query.limit);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateProduct = async (req, res, next) => {
   try {
     const result = await catalogService.updateProduct(req.params.id, req.body, req.actor);

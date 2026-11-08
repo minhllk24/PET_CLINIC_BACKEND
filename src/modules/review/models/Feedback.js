@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
+  name: { type: String, default: 'Khách hàng', trim: true },
   email: { type: String, trim: true, default: null },
   phone: { type: String, trim: true, default: null },
   gender: { type: String, enum: ['male', 'female', 'other', null], default: null },
   sourceCode: { type: String, default: 'CONTACT_FORM' },
-  subject: { type: String, required: true, trim: true },
+  subject: { type: String, default: 'Liên hệ từ khách hàng', trim: true },
   message: { type: String, required: true, maxlength: 5000 },
   category: {
     type: String,

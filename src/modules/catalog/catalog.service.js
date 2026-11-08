@@ -55,15 +55,31 @@ const formatProductVariant = (v) => {
     ? parseInt(vObj.finalPrice, 10)
     : calculateFinalPrice(basePrice, discountPercent);
 
+  const vId = (vObj._id || vObj.id).toString();
   const formatted = {
-    id: (vObj._id || vObj.id).toString(),
+    id: vId,
+    variant_id: vId,
+    variantId: vId,
     sku: vObj.sku,
     label: vObj.label,
+    name: vObj.label,
+    variantName: vObj.label,
+    variant_name: vObj.label,
     price: basePrice,
+    originalPrice: basePrice,
+    original_price: basePrice,
     discountPercent,
+    discount_percent: discountPercent,
     finalPrice,
+    salePrice: finalPrice,
+    sale_price: finalPrice,
     image: vObj.image || null,
-    status: vObj.status || 'ACTIVE'
+    imageUrl: vObj.image || null,
+    image_url: vObj.image || null,
+    status: vObj.status || 'ACTIVE',
+    stockQuantity: vObj.availableStock !== undefined ? vObj.availableStock : 100,
+    stock_quantity: vObj.availableStock !== undefined ? vObj.availableStock : 100,
+    sizes: Array.isArray(vObj.sizes) ? vObj.sizes : []
   };
 
   if (vObj.availableStock !== undefined) {
@@ -98,10 +114,15 @@ export const formatProduct = (prod) => {
         const formattedVar = formatProductVariant(vObj);
         if (formattedVar.image && placeholders.has(formattedVar.image)) {
           formattedVar.image = null;
+          formattedVar.imageUrl = null;
+          formattedVar.image_url = null;
         }
         if (!formattedVar.image && images.length > 0) {
           const fallbackImg = images[idx % images.length] || images[0];
-          formattedVar.image = typeof fallbackImg === 'string' ? fallbackImg : fallbackImg?.url || null;
+          const fbUrl = typeof fallbackImg === 'string' ? fallbackImg : fallbackImg?.url || null;
+          formattedVar.image = fbUrl;
+          formattedVar.imageUrl = fbUrl;
+          formattedVar.image_url = fbUrl;
         }
         return formattedVar;
       })
@@ -125,6 +146,33 @@ export const formatProduct = (prod) => {
     ? obj.categoryId.name
     : (obj.categoryName || null);
 
+  // Build product_images so that if there are variants with distinct images, they align with variants,
+  // and if there is only 1 image, repeat it 3 times so storefront detail thumbnail column has 3 slots.
+  let productImagesList = images.map((img) => ({
+    image_url: typeof img === 'string' ? img : img.url,
+    is_primary: typeof img === 'object' && img !== null ? Boolean(img.isPrimary) : img === primaryImage,
+  }));
+  if (variants.length > 1) {
+    const varImgs = variants.map((v, idx) => ({
+      image_url: v.image || primaryImageUrl,
+      is_primary: idx === 0,
+    })).filter((x) => Boolean(x.image_url));
+    if (varImgs.length >= productImagesList.length) {
+      productImagesList = varImgs;
+    }
+  }
+  if (productImagesList.length === 1 && productImagesList[0].image_url) {
+    const singleUrl = productImagesList[0].image_url;
+    productImagesList = [
+      { image_url: singleUrl, is_primary: true },
+      { image_url: singleUrl, is_primary: false },
+      { image_url: singleUrl, is_primary: false },
+    ];
+  }
+
+  const hasReviews = Number(obj.ratingCount) > 0;
+  const computedRating = hasReviews ? Number(obj.ratingAvg || 0) : 0;
+
   const formatted = {
     id: (obj._id || obj.id).toString(),
     productCode: obj.productCode || null,
@@ -138,10 +186,7 @@ export const formatProduct = (prod) => {
     thumbnailUrl: primaryImageUrl,
     image: primaryImageUrl,
     imageUrl: primaryImageUrl,
-    product_images: images.map((img) => ({
-      image_url: typeof img === 'string' ? img : img.url,
-      is_primary: typeof img === 'object' && img !== null ? Boolean(img.isPrimary) : img === primaryImage,
-    })),
+    product_images: productImagesList,
     productType: obj.productType || 'SIMPLE',
     usageType: obj.usageType || 'SALE',
     variants,
@@ -151,12 +196,48 @@ export const formatProduct = (prod) => {
     minPrice,
     maxPrice,
     minFinalPrice,
-    maxFinalPrice
+    maxFinalPrice,
+    rating: computedRating,
+    averageRating: computedRating,
+    reviewCount: Number(obj.ratingCount || 0),
+    shipping: {
+      freeShippingThreshold: 500000,
+      deliveryEstimate: '2 - 4 ngày',
+      freeShippingPolicy: 'Miễn phí vận chuyển cho đơn từ 500.000đ'
+    }
   };
 
   if (formatted.productType === 'SIMPLE' && variants.length > 0) {
     formatted.price = variants[0].price;
     formatted.finalPrice = variants[0].finalPrice;
+    formatted.product_price = variants[0].price;
+    formatted.sellingPrice = variants[0].finalPrice || variants[0].price;
+    formatted.selling_price = variants[0].finalPrice || variants[0].price;
+    const varDisc = Number(variants[0].discountPercent || obj.discountPercent || 0);
+    if (varDisc > 0) {
+      formatted.discountPercent = varDisc;
+      formatted.discount_percent = varDisc;
+      const computedOrig = variants[0].price > variants[0].finalPrice
+        ? Math.round(variants[0].price / (1 - varDisc / 100))
+        : variants[0].price;
+      formatted.originalPrice = computedOrig;
+      formatted.original_price = computedOrig;
+    }
+  } else if (variants.length > 0) {
+    formatted.product_price = minFinalPrice || minPrice;
+    formatted.sellingPrice = minFinalPrice || minPrice;
+    formatted.selling_price = minFinalPrice || minPrice;
+    formatted.sale_price = minFinalPrice || minPrice;
+    const firstDisc = Number(variants[0]?.discountPercent || 0);
+    if (minPrice > minFinalPrice) {
+      formatted.originalPrice = minPrice;
+      formatted.original_price = minPrice;
+      formatted.discountPercent = firstDisc || Math.round(((minPrice - minFinalPrice) / minPrice) * 100);
+      formatted.discount_percent = formatted.discountPercent;
+    } else if (maxPrice > minFinalPrice) {
+      formatted.originalPrice = maxPrice;
+      formatted.original_price = maxPrice;
+    }
   }
 
   if (obj.archivedAt) {
@@ -178,7 +259,7 @@ export const listCategories = async (params = {}, actor = null) => {
     return { items: [], total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
   }
   const { parentId, q, status, limit = 20, cursor, page } = params;
-  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
 
   const query = {};
@@ -532,15 +613,18 @@ export const listProducts = async (params = {}, actor = null) => {
 
 export const getProductById = async (id, actor) => {
   let productQuery;
-  if (mongoose.isValidObjectId(id)) {
-    productQuery = Product.findById(id);
+  const strId = String(id).trim();
+  if (['1', '2', '3', '4'].includes(strId)) {
+    productQuery = Product.findOne({ productCode: `SP-BANNER-00${strId}` });
+  } else if (mongoose.isValidObjectId(strId)) {
+    productQuery = Product.findById(strId);
   } else {
     productQuery = Product.findOne({
       $or: [
-        { productCode: id },
-        { 'variants.sku': id },
-        { slug: id },
-        { code: id }
+        { productCode: strId },
+        { 'variants.sku': strId },
+        { slug: strId },
+        { code: strId }
       ]
     });
   }
@@ -565,6 +649,63 @@ export const getProductById = async (id, actor) => {
 
   const enriched = await attachOutOfStockFlag(product);
   return formatProduct(enriched);
+};
+
+export const getRelatedProducts = async (id, limit = 12) => {
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 50);
+  let targetProduct = null;
+  const strId = String(id || '').trim();
+
+  if (['1', '2', '3', '4'].includes(strId)) {
+    targetProduct = await Product.findOne({ productCode: `SP-BANNER-00${strId}` }).lean();
+  } else if (mongoose.isValidObjectId(strId)) {
+    targetProduct = await Product.findById(strId).lean();
+  } else if (strId) {
+    targetProduct = await Product.findOne({
+      $or: [{ productCode: strId }, { 'variants.sku': strId }, { slug: strId }]
+    }).lean();
+  }
+
+  const baseFilter = {
+    status: 'ACTIVE',
+    usageType: { $in: ['SALE', 'SHARED'] },
+  };
+  if (targetProduct && targetProduct._id) {
+    baseFilter._id = { $ne: targetProduct._id };
+  }
+
+  let relatedDocs = [];
+  if (targetProduct && targetProduct.categoryId) {
+    relatedDocs = await Product.find({
+      ...baseFilter,
+      categoryId: targetProduct.categoryId,
+    })
+      .populate('categoryId', 'name slug status')
+      .limit(parsedLimit);
+  }
+
+  if (relatedDocs.length < parsedLimit) {
+    const existingIds = relatedDocs.map((d) => d._id);
+    if (targetProduct && targetProduct._id) existingIds.push(targetProduct._id);
+    const fallbackDocs = await Product.find({
+      ...baseFilter,
+      _id: { $nin: existingIds },
+    })
+      .populate('categoryId', 'name slug status')
+      .limit(parsedLimit - relatedDocs.length);
+    relatedDocs = [...relatedDocs, ...fallbackDocs];
+  }
+
+  const enriched = await attachOutOfStockFlag(relatedDocs);
+  const items = enriched.map(formatProduct);
+  return {
+    items,
+    products: items,
+    data: items,
+    DT: items,
+    EC: 0,
+    total: items.length,
+  };
 };
 
 export const createProduct = async (data, actor) => {

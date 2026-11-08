@@ -14,16 +14,23 @@ const ALLOWED_TRANSITIONS = {
   REJECTED: [],
 };
 
-export const getAllowedActions = (status) => {
+export const getAllowedActions = (status, doc = null) => {
+  const canResolve = Boolean(
+    doc?.replyDelivery?.deliveryStatus === 'SENT' && doc?.replyDelivery?.providerMessageId
+  );
   switch (status) {
     case 'NEW':
       return ['MARK_READ', 'START_PROCESSING', 'REPLY', 'REJECT'];
     case 'READ':
       return ['START_PROCESSING', 'REPLY', 'REJECT'];
     case 'PROCESSING':
-      return ['RESOLVE', 'NEED_CONTACT', 'REPLY', 'REJECT'];
+      return canResolve
+        ? ['RESOLVE', 'NEED_CONTACT', 'REPLY', 'REJECT']
+        : ['NEED_CONTACT', 'REPLY', 'REJECT'];
     case 'NEED_CONTACT':
-      return ['START_PROCESSING', 'RESOLVE', 'REPLY', 'REJECT'];
+      return canResolve
+        ? ['START_PROCESSING', 'RESOLVE', 'REPLY', 'REJECT']
+        : ['START_PROCESSING', 'REPLY', 'REJECT'];
     case 'PROCESSED':
     case 'REJECTED':
     default:
@@ -37,19 +44,28 @@ export const formatFeedback = (doc) => {
   return {
     ...raw,
     id: (raw._id || raw.id).toString(),
-    allowedActions: getAllowedActions(raw.status),
+    allowedActions: getAllowedActions(raw.status, raw),
   };
 };
 
 export const createFeedback = async (data = {}, actor = null) => {
-  if (!data.name || typeof data.name !== 'string' || data.name.trim().length === 0) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Name is required');
-  }
-  if (!data.subject || typeof data.subject !== 'string' || data.subject.trim().length === 0) {
-    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Subject is required');
-  }
-  if (!data.message || typeof data.message !== 'string' || data.message.trim().length === 0) {
+  const rawMessage = data.message ?? data.content ?? data.body ?? data.note ?? '';
+  if (!rawMessage || typeof rawMessage !== 'string' || rawMessage.trim().length === 0) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Message is required');
+  }
+
+  const rawName = data.name ?? data.fullName ?? data.customerName ?? '';
+  const name = (typeof rawName === 'string' && rawName.trim().length > 0) ? rawName.trim() : 'Khách hàng';
+
+  const rawSubject = data.subject ?? data.title ?? '';
+  const subject = (typeof rawSubject === 'string' && rawSubject.trim().length > 0) ? rawSubject.trim() : 'Liên hệ từ khách hàng';
+
+  let normalizedGender = null;
+  if (data.gender && typeof data.gender === 'string') {
+    const g = data.gender.trim().toLowerCase();
+    if (g === 'male' || g === 'nam') normalizedGender = 'male';
+    else if (g === 'female' || g === 'nữ' || g === 'nu') normalizedGender = 'female';
+    else if (g === 'other' || g === 'khác' || g === 'khac') normalizedGender = 'other';
   }
 
   let customerId = null;
@@ -59,13 +75,13 @@ export const createFeedback = async (data = {}, actor = null) => {
   }
 
   const feedback = new Feedback({
-    name: data.name.trim(),
-    email: data.email ? data.email.trim() : null,
-    phone: data.phone ? data.phone.trim() : null,
-    gender: data.gender || null,
+    name,
+    email: data.email ? String(data.email).trim() : null,
+    phone: data.phone ? String(data.phone).trim() : null,
+    gender: normalizedGender,
     sourceCode: data.sourceCode || 'CONTACT_FORM',
-    subject: data.subject.trim(),
-    message: data.message.trim(),
+    subject,
+    message: rawMessage.trim(),
     category: data.category || 'GENERAL',
     customerId,
     status: 'NEW',
@@ -90,7 +106,7 @@ export const listFeedback = async (query = {}, actor = {}) => {
   if (query.category) filter.category = query.category;
 
   const page = Math.max(1, parseInt(query.page, 10) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 20));
   const skip = (page - 1) * limit;
 
   const [items, total] = await Promise.all([
@@ -101,9 +117,11 @@ export const listFeedback = async (query = {}, actor = {}) => {
   return {
     items: items.map(formatFeedback),
     total,
+    totalCount: total,
     page,
     limit,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.ceil(total / limit) || 1,
+    nextCursor: skip + items.length < total ? String(page + 1) : null,
   };
 };
 
@@ -152,6 +170,21 @@ export const updateFeedbackStatus = async (id, data = {}, actor = {}) => {
       ErrorCodes.INVALID_STATE_TRANSITION,
       `Invalid feedback status transition from ${currentStatus} to ${targetStatus}`
     );
+  }
+
+  // BE-FIX-04 Strict Guard: Do NOT allow transitioning to PROCESSED unless reply email was actually SENT
+  if (targetStatus === 'PROCESSED') {
+    const isEmailSent =
+      feedback.replyDelivery?.deliveryStatus === 'SENT' &&
+      Boolean(feedback.replyDelivery?.providerMessageId);
+    if (!isEmailSent) {
+      throw new AppError(
+        409,
+        'Conflict',
+        ErrorCodes.INVALID_STATE_TRANSITION,
+        'Không thể chuyển trực tiếp sang PROCESSED khi email phản hồi chưa được gửi thành công (deliveryStatus phải là SENT)'
+      );
+    }
   }
 
   feedback.status = targetStatus;

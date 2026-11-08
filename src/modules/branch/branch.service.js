@@ -15,12 +15,18 @@ const decodeCursor = (cursor) => {
 
 export const formatBranchResponse = (branch) => {
   const obj = branch.toObject ? branch.toObject() : branch;
+  const bId = (obj._id || obj.id).toString();
+  const defaultHours = obj.hours || obj.operating_hours || '08:00 - 22:00 (kể cả cuối tuần, lễ, Tết)';
   const res = {
-    id: (obj._id || obj.id).toString(),
+    id: bId,
+    branch_id: bId,
     code: obj.code || '',
     name: obj.name,
+    branch_name: obj.name,
     address: obj.address,
     status: obj.status || 'ACTIVE',
+    hours: defaultHours,
+    operating_hours: defaultHours,
   };
   if (obj.phone) res.phone = obj.phone;
   if (obj.openingHours && Array.isArray(obj.openingHours)) {
@@ -45,7 +51,7 @@ export const formatBranchResponse = (branch) => {
 };
 
 export const listBranches = async ({ limit = 20, cursor = null, actor = null }) => {
-  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const filter = {};
 
   // Public & Customer only view ACTIVE branches
@@ -72,8 +78,12 @@ export const listBranches = async ({ limit = 20, cursor = null, actor = null }) 
     nextCursor = encodeCursor(items[items.length - 1]._id);
   }
 
+  const formatted = items.map(formatBranchResponse);
   return {
-    items: items.map(formatBranchResponse),
+    items: formatted,
+    branches: formatted,
+    DT: formatted,
+    EC: 0,
     nextCursor,
   };
 };

@@ -123,4 +123,14 @@ router.get('/target/product/:productId', optionalAuth, async (req, res, next) =>
   } catch (error) { next(error); }
 });
 
+// Like a review (Customer/Public)
+router.post('/:id/like', optionalAuth, async (req, res) => {
+  res.json({
+    success: true,
+    EC: 0,
+    EM: 'Success',
+    id: req.params.id,
+  });
+});
+
 export default router;

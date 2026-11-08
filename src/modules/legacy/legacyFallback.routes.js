@@ -1,7 +1,12 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { optionalAuth } from '../../shared/authMiddleware.js';
 import Pet from '../customer/models/Pet.js';
 import Customer from '../customer/models/Customer.js';
+import User from '../../models/User.js';
+import * as authService from '../auth/auth.service.js';
+import { formatMe } from '../auth/auth.serializer.js';
+import { getProvinces, getDistricts, getWards } from '../location/location.service.js';
 
 const router = express.Router();
 
@@ -564,6 +569,199 @@ router.post(['/appointments/quote', '/appointments/preview-pricing'], optionalAu
       },
     });
   }
+});
+
+// 10. User Profile & Address Book Legacy/Angular Contract (/users/:userId & /addresses/:addressId)
+const formatAddressDto = (addr, userId = '') => {
+  if (!addr) return null;
+  const obj = typeof addr.toObject === 'function' ? addr.toObject() : addr;
+  const aid = (obj._id || obj.id || '').toString();
+  const addrLine = obj.addressDetail || obj.address_line || obj.address || obj.fullAddress || '';
+  const prov = obj.province || obj.city || 'Thành phố Hồ Chí Minh';
+  return {
+    _id: aid,
+    id: aid,
+    address_id: aid,
+    user_id: String(userId || ''),
+    fullName: obj.fullName || obj.recipient_name || obj.name || 'Khách hàng',
+    recipient_name: obj.fullName || obj.recipient_name || obj.name || 'Khách hàng',
+    name: obj.fullName || obj.recipient_name || obj.name || 'Khách hàng',
+    phone: obj.phone || obj.recipient_phone || '',
+    recipient_phone: obj.phone || obj.recipient_phone || '',
+    email: obj.email || obj.recipient_email || null,
+    recipient_email: obj.email || obj.recipient_email || null,
+    country: obj.country || 'Việt Nam',
+    province: prov,
+    city: prov,
+    provinceCode: obj.provinceCode || null,
+    district: obj.district || '',
+    districtCode: obj.districtCode || null,
+    ward: obj.ward || '',
+    wardCode: obj.wardCode || null,
+    addressDetail: addrLine,
+    address_line: addrLine,
+    address: addrLine,
+    fullAddress: obj.fullAddress || [addrLine, obj.ward, obj.district, prov].filter(Boolean).join(', '),
+    isDefault: Boolean(obj.isDefault ?? obj.is_default),
+    is_default: Boolean(obj.isDefault ?? obj.is_default),
+  };
+};
+
+const normalizeIncomingAddressPayload = (body = {}) => {
+  return {
+    fullName: body.fullName || body.recipient_name || body.name,
+    phone: body.phone || body.recipient_phone,
+    email: body.email || body.recipient_email,
+    country: body.country || 'Việt Nam',
+    province: body.province || body.city || 'Thành phố Hồ Chí Minh',
+    provinceCode: body.provinceCode || body.province_code || null,
+    district: body.district || null,
+    districtCode: body.districtCode || body.district_code || null,
+    ward: body.ward || null,
+    wardCode: body.wardCode || body.ward_code || null,
+    addressDetail: body.addressDetail || body.address_line || body.address || '',
+    isDefault: body.isDefault !== undefined ? Boolean(body.isDefault) : Boolean(body.is_default),
+  };
+};
+
+router.get('/users/:userId', optionalAuth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId === 'me' && req.actor?.id ? req.actor.id : req.params.userId;
+    const user = await authService.getMe(targetUserId);
+    const formatted = formatMe(user);
+    return res.status(200).json({
+      EC: 0,
+      EM: 'Success',
+      DT: formatted,
+      ...formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/users/:userId', optionalAuth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId === 'me' && req.actor?.id ? req.actor.id : req.params.userId;
+    const payload = {
+      fullName: req.body.fullName !== undefined ? req.body.fullName : req.body.full_name,
+      email: req.body.email,
+      avatarUrl: req.body.avatarUrl !== undefined ? req.body.avatarUrl : req.body.avatar_url,
+      addresses: req.body.addresses,
+    };
+    const updated = await authService.updateMe(targetUserId, payload);
+    if (req.body.phone && updated.phone !== req.body.phone) {
+      updated.phone = String(req.body.phone).trim();
+      await updated.save();
+    }
+    const formatted = formatMe(updated);
+    return res.status(200).json({
+      EC: 0,
+      EM: 'Cập nhật thông tin tài khoản thành công',
+      DT: formatted,
+      ...formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/users/:userId/addresses', optionalAuth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId === 'me' && req.actor?.id ? req.actor.id : req.params.userId;
+    const list = await authService.listAddresses(targetUserId);
+    const formattedList = (list || []).map((a) => formatAddressDto(a, targetUserId));
+    return res.status(200).json({
+      EC: 0,
+      EM: 'Success',
+      DT: formattedList,
+      items: formattedList,
+      data: formattedList,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:userId/addresses', optionalAuth, async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId === 'me' && req.actor?.id ? req.actor.id : req.params.userId;
+    const addrPayload = normalizeIncomingAddressPayload(req.body);
+    const created = await authService.addAddress(targetUserId, addrPayload);
+    const formatted = formatAddressDto(created, targetUserId);
+    return res.status(201).json({
+      EC: 0,
+      EM: 'Thêm địa chỉ thành công',
+      DT: formatted,
+      ...formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/addresses/:addressId', optionalAuth, async (req, res, next) => {
+  try {
+    const addressId = req.params.addressId;
+    let userId = req.actor?.id;
+    if (!userId && mongoose.Types.ObjectId.isValid(addressId)) {
+      const owner = await User.findOne({ 'addresses._id': new mongoose.Types.ObjectId(addressId) }).select('_id').lean();
+      if (owner) userId = owner._id.toString();
+    }
+    if (!userId) {
+      return res.status(401).json({ EC: 1, EM: 'Unauthorized' });
+    }
+    const addrPayload = normalizeIncomingAddressPayload(req.body);
+    const updated = await authService.updateAddress(userId, addressId, addrPayload);
+    const formatted = formatAddressDto(updated, userId);
+    return res.status(200).json({
+      EC: 0,
+      EM: 'Cập nhật địa chỉ thành công',
+      DT: formatted,
+      ...formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/addresses/:addressId', optionalAuth, async (req, res, next) => {
+  try {
+    const addressId = req.params.addressId;
+    let userId = req.actor?.id;
+    if (!userId && mongoose.Types.ObjectId.isValid(addressId)) {
+      const owner = await User.findOne({ 'addresses._id': new mongoose.Types.ObjectId(addressId) }).select('_id').lean();
+      if (owner) userId = owner._id.toString();
+    }
+    if (!userId) {
+      return res.status(401).json({ EC: 1, EM: 'Unauthorized' });
+    }
+    const result = await authService.deleteAddress(userId, addressId);
+    return res.status(200).json({
+      EC: 0,
+      EM: 'Xóa địa chỉ thành công',
+      DT: result,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 11. Provinces / Districts / Wards Direct Aliases
+router.get('/provinces', (req, res) => {
+  const data = getProvinces({ q: req.query.q });
+  res.status(200).json({ EC: 0, EM: 'Success', DT: data, success: true, data, total: data.length });
+});
+
+router.get('/provinces/:provinceCode/districts', (req, res) => {
+  const data = getDistricts(req.params.provinceCode, { q: req.query.q });
+  res.status(200).json({ EC: 0, EM: 'Success', DT: data, success: true, data, total: data.length });
+});
+
+router.get('/districts/:districtCode/wards', (req, res) => {
+  const data = getWards(req.params.districtCode, { q: req.query.q });
+  res.status(200).json({ EC: 0, EM: 'Success', DT: data, success: true, data, total: data.length });
 });
 
 export default router;

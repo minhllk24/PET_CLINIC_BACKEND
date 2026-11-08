@@ -52,8 +52,10 @@ export const formatReview = (rev, forAdmin = false) => {
 
   const isAnon = Boolean(doc.anonymous);
 
+  const displayAuthor = (isAnon && !forAdmin) ? 'Ẩn danh' : (doc.displayName || 'Khách hàng');
   const res = {
     id: (doc._id || doc.id).toString(),
+    review_id: (doc._id || doc.id).toString(),
     targetType: doc.targetType || 'PRODUCT',
     targetId: (doc.targetId?._id || doc.targetId)?.toString() || null,
     targetName: doc.targetName || (doc.targetId && doc.targetId.name ? doc.targetId.name : null),
@@ -62,8 +64,13 @@ export const formatReview = (rev, forAdmin = false) => {
     sourceCode: doc.sourceCode || (doc.sourceId && (doc.sourceId.orderCode || doc.sourceId.code) ? (doc.sourceId.orderCode || doc.sourceId.code) : null),
     rating: Number(doc.rating || 5),
     comment: doc.comment || '',
+    content: doc.comment || '',
     anonymous: isAnon,
     displayName: (isAnon && !forAdmin) ? null : (doc.displayName || 'Khách hàng'),
+    authorName: displayAuthor,
+    author_name: displayAuthor,
+    likeCount: Number(doc.likesCount || doc.likeCount || 0),
+    like_count: Number(doc.likesCount || doc.likeCount || 0),
     hidden: Boolean(doc.hidden),
     status: doc.status || (doc.hidden ? 'HIDDEN' : 'ACTIVE'),
     createdAt: new Date(doc.createdAt || Date.now()).toISOString(),
@@ -492,11 +499,15 @@ export const replyReview = async (id, data = {}, actor) => {
 };
 
 export const getProductReviewStats = async (productId) => {
+  const emptyBreakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   if (!mongoose.Types.ObjectId.isValid(productId)) {
     return {
-      averageRating: 5.0,
+      averageRating: 0,
+      ratingAvg: 0,
       totalReviews: 0,
-      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      ratingCount: 0,
+      breakdown: emptyBreakdown,
+      starCounts: emptyBreakdown,
     };
   }
 
@@ -509,9 +520,12 @@ export const getProductReviewStats = async (productId) => {
 
   if (reviews.length === 0) {
     return {
-      averageRating: 5.0,
+      averageRating: 0,
+      ratingAvg: 0,
       totalReviews: 0,
-      breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      ratingCount: 0,
+      breakdown: emptyBreakdown,
+      starCounts: emptyBreakdown,
     };
   }
 
@@ -526,7 +540,10 @@ export const getProductReviewStats = async (productId) => {
   const avg = Number((sum / reviews.length).toFixed(1));
   return {
     averageRating: avg,
+    ratingAvg: avg,
     totalReviews: reviews.length,
-    breakdown
+    ratingCount: reviews.length,
+    breakdown,
+    starCounts: breakdown,
   };
 };

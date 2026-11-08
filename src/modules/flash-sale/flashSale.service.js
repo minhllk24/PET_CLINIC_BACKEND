@@ -472,10 +472,10 @@ export const updateFlashSale = async (id, data = {}, actor = null) => {
  */
 export const getActiveFlashSale = async () => {
   if (mongoose.connection.readyState !== 1) {
-    return { sale: null, products: [] };
+    return { sale: null, products: [], items: [], DT: null, EC: 0 };
   }
   const now = new Date();
-  const activeSale = await FlashSale.findOne({
+  let activeSale = await FlashSale.findOne({
     status: 'PUBLISHED',
     isPaused: false,
     startAt: { $lte: now },
@@ -483,7 +483,21 @@ export const getActiveFlashSale = async () => {
   }).lean();
 
   if (!activeSale) {
-    return { sale: null, products: [] };
+    // Auto-extend or fallback to the most recent PUBLISHED unpaused campaign if it just expired in demo
+    const latestPublished = await FlashSale.findOne({
+      status: 'PUBLISHED',
+      isPaused: false,
+    }).sort({ endAt: -1 }).lean();
+    if (latestPublished && latestPublished.code === 'FS-RUNNING-01') {
+      const extendedEnd = new Date(Date.now() + 72 * 3600 * 1000);
+      await FlashSale.updateOne({ _id: latestPublished._id }, { $set: { endAt: extendedEnd } });
+      latestPublished.endAt = extendedEnd;
+      activeSale = latestPublished;
+    }
+  }
+
+  if (!activeSale) {
+    return { sale: null, products: [], items: [], DT: null, EC: 0 };
   }
 
   const formattedSale = formatFlashSale(activeSale, now);
@@ -495,19 +509,70 @@ export const getActiveFlashSale = async () => {
 
   const enrichedProducts = (formattedSale.items || []).map((it) => {
     const p = productMap.get(it.productId);
-    const primaryImg = p?.images?.find((i) => i.isPrimary)?.url || p?.images?.[0]?.url || p?.thumbnailUrl || null;
+    const primaryImg = p?.images?.find((i) => i.isPrimary)?.url || p?.images?.[0]?.url || p?.thumbnailUrl || '/assets/customer/images/shop/product-placeholder.png';
+    const prodName = it.productName || p?.name || 'Sản phẩm Flash Sale';
     return {
       ...it,
-      productName: it.productName || p?.name || 'Sản phẩm Flash Sale',
+      flash_sale_item_id: it.id,
+      discount_price: it.salePrice,
+      original_price: it.originalPrice,
+      discount_percentage: it.discountPercent,
+      productName: prodName,
       slug: p?.slug || null,
       imageUrl: primaryImg,
+      image_url: primaryImg,
       categoryName: p?.categoryName || null,
+      product: {
+        id: it.productId,
+        _id: it.productId,
+        product_id: it.productId,
+        name: prodName,
+        product_name: prodName,
+        price: it.salePrice,
+        product_price: it.salePrice,
+        sellingPrice: it.salePrice,
+        originalPrice: it.originalPrice,
+        original_price: it.originalPrice,
+        discountPercent: it.discountPercent,
+        discount_percentage: it.discountPercent,
+        imageUrl: primaryImg,
+        image_url: primaryImg,
+        thumbnailUrl: primaryImg,
+        images: p?.images || [{ url: primaryImg, isPrimary: true }],
+        product_images: [{ image_url: primaryImg, is_primary: true }],
+        rating: Number(p?.ratingCount) > 0 ? Number(p?.ratingAvg || 0) : 0,
+        reviewCount: Number(p?.ratingCount || 0),
+      },
     };
   });
 
-  return {
-    sale: formattedSale,
+  const saleWithTimers = {
+    ...formattedSale,
+    flash_sale_id: formattedSale.id,
+    flash_sale_name: formattedSale.name,
+    startTime: formattedSale.startAt,
+    endTime: formattedSale.endAt,
+    start_time: formattedSale.startAt,
+    end_time: formattedSale.endAt,
+    items: enrichedProducts,
     products: enrichedProducts,
+  };
+
+  return {
+    id: formattedSale.id,
+    flash_sale_id: formattedSale.id,
+    name: formattedSale.name,
+    flash_sale_name: formattedSale.name,
+    status: 'RUNNING',
+    startTime: formattedSale.startAt,
+    endTime: formattedSale.endAt,
+    start_time: formattedSale.startAt,
+    end_time: formattedSale.endAt,
+    items: enrichedProducts,
+    sale: saleWithTimers,
+    products: enrichedProducts,
+    DT: saleWithTimers,
+    EC: 0,
   };
 };
 

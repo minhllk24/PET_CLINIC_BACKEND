@@ -29,27 +29,44 @@ export const formatCartResponse = async (cartDoc) => {
       ...item,
       id: item._id ? item._id.toString() : `${item.productId}:${item.variantId || 'default'}`,
       cartItemId: item._id ? item._id.toString() : undefined,
+      cart_item_id: item._id ? item._id.toString() : undefined,
+      product_id: item.productId ? item.productId.toString() : undefined,
+      variant_id: item.variantId ? item.variantId.toString() : undefined,
       name: prod.name || item.name || '',
       image: imgUrl,
       thumbnailUrl: imgUrl,
       product: {
         id: prod._id,
+        product_id: prod._id ? prod._id.toString() : undefined,
         name: prod.name,
+        product_name: prod.name,
         price: prod.price,
+        product_price: prod.price,
         finalPrice: prod.finalPrice || prod.price,
         images: prod.images || [],
+        product_images: [{ image_url: imgUrl, is_primary: true }],
         thumbnailUrl: imgUrl,
         imageUrl: imgUrl,
         variants: prod.variants || []
       },
       variant: {
         id: variant._id,
+        variant_id: variant._id ? variant._id.toString() : undefined,
         name: variant.label || variant.name,
+        variant_name: variant.label || variant.name,
         price: variant.finalPrice || variant.price
       }
     };
   });
-  return doc;
+  return {
+    ...doc,
+    EC: 0,
+    EM: 'Success',
+    DT: {
+      items: doc.items,
+      cart_id: doc._id ? doc._id.toString() : undefined,
+    }
+  };
 };
 
 export const getCart = async (req, res, next) => {
