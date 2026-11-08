@@ -201,6 +201,19 @@ export const markNoShow = async (req, res, next) => {
   }
 };
 
+export const checkInAppointment = async (req, res, next) => {
+  try {
+    const appointment = await bookingService.checkInAppointment(
+      req.params.id,
+      req.body || {},
+      req.actor
+    );
+    res.json(appointment);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const startSegment = async (req, res, next) => {
   try {
     const appointment = await bookingService.startSegment(

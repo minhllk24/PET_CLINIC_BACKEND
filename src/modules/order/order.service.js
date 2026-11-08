@@ -385,6 +385,38 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
         });
         await createdOrder.save({ session });
 
+        // Auto-save initial shipping address to Customer address book if empty
+        if (actor && actor.id && shippingAddress) {
+          try {
+            const UserModel = mongoose.models.User || mongoose.model('User');
+            const liveUser = await UserModel.findById(actor.id).session(session);
+            if (liveUser && (!liveUser.addresses || liveUser.addresses.length === 0)) {
+              liveUser.addresses = [{
+                fullName: shippingAddress.fullName || shippingAddress.recipientName || liveUser.fullName,
+                phone: shippingAddress.phone || liveUser.phone,
+                email: liveUser.email || undefined,
+                province: shippingAddress.city || shippingAddress.province || '',
+                provinceCode: shippingAddress.provinceCode || null,
+                district: shippingAddress.district || null,
+                districtCode: shippingAddress.districtCode || null,
+                ward: shippingAddress.ward || null,
+                wardCode: shippingAddress.wardCode || null,
+                addressDetail: shippingAddress.line1 || shippingAddress.addressDetail || shippingAddress.detail || '',
+                fullAddress: [
+                  shippingAddress.line1 || shippingAddress.addressDetail || shippingAddress.detail,
+                  shippingAddress.ward,
+                  shippingAddress.district,
+                  shippingAddress.city || shippingAddress.province
+                ].filter(Boolean).join(', '),
+                isDefault: true,
+              }];
+              await liveUser.save({ session });
+            }
+          } catch (_e) {
+            // Non-blocking address save
+          }
+        }
+
         const payment = new Payment({
           code: `PAY-${new mongoose.Types.ObjectId().toString().slice(-10).toUpperCase()}`,
           target: { type: 'ORDER', id: createdOrder._id },
@@ -1213,14 +1245,14 @@ export const quoteAdminOrder = async (data, actor) => {
   if (voucherCode) {
     const vRes = await validateVoucherEligibility({
       code: voucherCode,
-      targetType: 'ORDER',
-      orderAmount: merchandiseSubtotal,
+      scope: 'PRODUCT',
+      subtotal: merchandiseSubtotal,
       customerId: customerId || null,
       items: enrichedItems.map((i) => ({ productId: i.productId, lineNet: i.lineNet }))
     });
-    if (vRes.eligible) {
+    if (vRes.valid || vRes.eligible) {
       appliedVoucher = vRes.voucher;
-      voucherDiscount = calculateDiscount(appliedVoucher, merchandiseSubtotal);
+      voucherDiscount = typeof vRes.discount === 'number' ? vRes.discount : calculateDiscount(appliedVoucher, merchandiseSubtotal);
     }
   }
 
@@ -1279,7 +1311,17 @@ export const createAdminOrder = async (data, actor) => {
 
   if (finalCustomerId) {
     const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
-    const cust = await CustomerModel.findById(finalCustomerId);
+    const UserModel = mongoose.models.User || mongoose.model('User');
+    let cust = null;
+    if (mongoose.Types.ObjectId.isValid(finalCustomerId)) {
+      cust = await CustomerModel.findOne({
+        $or: [{ _id: finalCustomerId }, { userId: finalCustomerId }]
+      }).session(session);
+      if (!cust) {
+        const u = await UserModel.findById(finalCustomerId).session(session);
+        if (u) cust = { _id: u._id, fullName: u.fullName, phone: u.phone, email: u.email };
+      }
+    }
     if (!cust) throw new AppError(404, 'Not Found', 'CUSTOMER_NOT_FOUND', 'Customer not found');
     contactSnapshot = {
       fullName: cust.fullName || cust.name || 'Thành viên',
@@ -1383,15 +1425,15 @@ export const createAdminOrder = async (data, actor) => {
     if (voucherCode) {
       const vRes = await validateVoucherEligibility({
         code: voucherCode,
-        targetType: 'ORDER',
-        orderAmount: merchandiseSubtotal,
+        scope: 'PRODUCT',
+        subtotal: merchandiseSubtotal,
         customerId: finalCustomerId,
         items: orderItems.map((i) => ({ productId: i.productId, lineNet: i.lineNet })),
         session
       });
-      if (vRes.eligible) {
+      if (vRes.valid || vRes.eligible) {
         appliedVoucher = vRes.voucher;
-        voucherDiscount = calculateDiscount(appliedVoucher, merchandiseSubtotal);
+        voucherDiscount = typeof vRes.discount === 'number' ? vRes.discount : calculateDiscount(appliedVoucher, merchandiseSubtotal);
         await consumeQuotaInSession({
           voucherId: appliedVoucher._id,
           targetType: 'ORDER',
@@ -1410,7 +1452,7 @@ export const createAdminOrder = async (data, actor) => {
     }
     const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
 
-    const orderCode = makeOrderCode();
+    const orderCode = await generateUniqueOrderCode(session);
     const isPaid = paymentMethod === 'STORE_CASH' || paymentMethod === 'ONLINE_MOCK';
 
     const [paymentDoc] = await Payment.create(

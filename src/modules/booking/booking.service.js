@@ -104,11 +104,48 @@ export const formatAppointment = (apt) => {
     status: doc.status || 'CONFIRMED',
     paymentMethod: doc.paymentMethod || 'PAY_AT_STORE',
     holdExpiresAt: isHoldActive ? new Date(doc.holdExpiresAt).toISOString() : null,
+    createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : (doc.scheduledStart ? new Date(doc.scheduledStart).toISOString() : new Date().toISOString()),
+    updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : (doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString()),
+    checkInStatus: doc.checkInStatus || 'PENDING',
+    checkedInAt: doc.checkedInAt ? new Date(doc.checkedInAt).toISOString() : null,
+    paymentChannel: doc.paymentChannel || null,
     version: typeof doc.version === 'number' ? doc.version : 0,
     prepaymentId: doc.prepaymentId
       ? (doc.prepaymentId._id || doc.prepaymentId).toString()
       : null,
   };
+
+  // Branch detailed object & name
+  if (doc.branchId && typeof doc.branchId === 'object' && doc.branchId.name) {
+    res.branch = {
+      id: (doc.branchId._id || doc.branchId).toString(),
+      name: doc.branchId.name,
+      code: doc.branchId.code || '',
+      address: doc.branchId.address || '',
+    };
+    res.branchName = doc.branchId.name;
+  } else if (doc.branchId) {
+    const bIdStr = (doc.branchId._id || doc.branchId).toString();
+    const branchNameMap = {
+      '6ad08e4417bf41f5954234c3': 'Chi nhánh Quận 1',
+      '6ad08e4417bf41f5954234c4': 'Chi nhánh Quận 7',
+      '6ad08e4417bf41f5954234c5': 'Chi nhánh Bình Thạnh',
+    };
+    res.branchName = branchNameMap[bIdStr] || 'Chi nhánh Pet Clinic';
+    res.branch = {
+      id: bIdStr,
+      name: res.branchName,
+      code: bIdStr === '6ad08e4417bf41f5954234c3' ? 'Q1' : (bIdStr === '6ad08e4417bf41f5954234c4' ? 'Q7' : 'BT'),
+    };
+  }
+
+  // Status History
+  res.statusHistory = (doc.statusHistory || []).map((h) => ({
+    status: h.status,
+    at: h.at ? new Date(h.at).toISOString() : new Date().toISOString(),
+    actorId: h.actorId ? (h.actorId._id || h.actorId).toString() : null,
+    note: h.note || null,
+  }));
 
   // Optional / Nullable attributes according to OpenAPI
   if (doc.guestContactId !== undefined) {
@@ -572,11 +609,38 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
     let contactSnapshot = null;
 
     const isCustomer = actor && (actor.systemRole === 'CUSTOMER' || actor.role === 'CUSTOMER');
+    const isInternalStaff = actor && ['STAFF', 'MANAGER', 'ADMIN', 'RECEPTIONIST'].includes(actor.systemRole);
+
     if (isCustomer) {
       customerId = actor.id || actor._id;
       // If client supplied contact for customer, gracefully ignore it without crashing
       if (contact) {
         delete data.contact;
+      }
+    } else if (isInternalStaff && (data.customerId || data.customer_id)) {
+      const targetCustId = data.customerId || data.customer_id;
+      const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+      const UserModel = mongoose.models.User || mongoose.model('User');
+      let cust = null;
+      if (mongoose.Types.ObjectId.isValid(targetCustId)) {
+        cust = await CustomerModel.findOne({
+          $or: [{ _id: targetCustId }, { userId: targetCustId }]
+        }).session(session);
+        if (!cust) {
+          const u = await UserModel.findById(targetCustId).session(session);
+          if (u) cust = { _id: u._id, fullName: u.fullName, phone: u.phone, email: u.email };
+        }
+      }
+      if (cust) {
+        customerId = cust._id;
+        contactSnapshot = {
+          name: cust.fullName || cust.name || 'Khách hàng',
+          fullName: cust.fullName || cust.name || 'Khách hàng',
+          phone: cust.phone || '',
+          email: cust.email || '',
+        };
+      } else {
+        customerId = targetCustId;
       }
     } else {
       // Guest booking
@@ -643,7 +707,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       if (!s || s.status !== 'ACTIVE') {
         throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', `Active service ${sId} not found`);
       }
-      if (s.bookingMode === 'CONTACT_ONLY') {
+      if (s.bookingMode === 'CONTACT_ONLY' && !isInternalStaff && !data.isInternal) {
         throw new AppError(
           422,
           'UnprocessableEntity',
@@ -651,7 +715,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
           'Emergency services require direct contact and cannot be booked online'
         );
       }
-      if (s.bookingMode === 'REQUEST_ONLY') {
+      if (s.bookingMode === 'REQUEST_ONLY' && !isInternalStaff && !data.isInternal) {
         throw new AppError(
           422,
           'UnprocessableEntity',
@@ -1738,7 +1802,7 @@ export const reassignSegmentStaff = async (id, serviceId, newStaffId, actor) => 
  * Start Segment Execution
  */
 export const startSegment = async (id, serviceId, actor) => {
-  const apt = await Appointment.findById(id);
+  const apt = await Appointment.findById(id).populate('branchId');
   if (!apt) {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
   }
@@ -1751,9 +1815,89 @@ export const startSegment = async (id, serviceId, actor) => {
   segment.executionStatus = 'IN_PROGRESS';
   segment.executionStartedAt = new Date();
 
-  if (apt.status === 'CONFIRMED') {
+  if (apt.status === 'CONFIRMED' || apt.status === 'PENDING_CONFIRMATION') {
     apt.status = 'IN_PROGRESS';
   }
+
+  if (!apt.statusHistory) apt.statusHistory = [];
+  apt.statusHistory.push({
+    status: apt.status,
+    at: new Date(),
+    actorId: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
+    note: `Bắt đầu thực hiện dịch vụ ${segment.serviceName || ''}`.trim(),
+  });
+
+  await apt.save();
+
+  // Auto-create ServiceRecord if moving to IN_PROGRESS
+  try {
+    const ServiceRecord = mongoose.models.ServiceRecord || mongoose.model('ServiceRecord');
+    const ServiceModel = mongoose.models.Service || mongoose.model('Service');
+    const existingRec = await ServiceRecord.findOne({ appointmentId: apt._id });
+    if (!existingRec) {
+      const serviceDocs = await ServiceModel.find({ _id: { $in: apt.services.map((s) => s.serviceId) } });
+      const plannedMaterials = [];
+      serviceDocs.forEach((sDoc) => {
+        if (Array.isArray(sDoc.defaultMaterials)) {
+          sDoc.defaultMaterials.forEach((m) => {
+            if (m.inventoryItemId) {
+              plannedMaterials.push({
+                inventoryItemId: m.inventoryItemId,
+                quantity: m.quantity || 1,
+                unit: m.unit || 'cái',
+                notes: m.notes || 'Vật tư định mức theo dịch vụ',
+                isDefault: true,
+                isExtra: false,
+              });
+            }
+          });
+        }
+      });
+
+      const recordType = (apt.serviceType === 'MEDICAL' || apt.services.some((s) => s.serviceType === 'MEDICAL'))
+        ? 'MEDICAL'
+        : 'GROOMING';
+
+      const count = await ServiceRecord.countDocuments();
+      const code = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(count + 1).padStart(4, '0')}`;
+
+      await ServiceRecord.create({
+        code,
+        appointmentId: apt._id,
+        branchId: apt.branchId?._id || apt.branchId,
+        customerId: apt.customerId,
+        petId: apt.petId || apt.services[0]?.petId || null,
+        serviceIds: apt.services.map((s) => s.serviceId),
+        assignedStaffIds: actor?.id ? [new mongoose.Types.ObjectId(actor.id)] : (apt.services.map((s) => s.assignedStaffId).filter(Boolean)),
+        recordType,
+        status: 'IN_PROGRESS',
+        plannedMaterials,
+        actualMaterials: plannedMaterials,
+        actualStartAt: new Date(),
+      });
+    }
+  } catch (err) {
+    // Non-blocking
+  }
+
+  return formatAppointment(apt);
+};
+
+export const checkInAppointment = async (id, data = {}, actor) => {
+  const apt = await Appointment.findById(id).populate('branchId');
+  if (!apt) {
+    throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+  }
+
+  apt.checkInStatus = 'ARRIVED';
+  apt.checkedInAt = new Date();
+  if (!apt.statusHistory) apt.statusHistory = [];
+  apt.statusHistory.push({
+    status: apt.status,
+    at: new Date(),
+    actorId: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
+    note: data.note || 'Khách hàng đã check-in tại chi nhánh',
+  });
 
   await apt.save();
   return formatAppointment(apt);

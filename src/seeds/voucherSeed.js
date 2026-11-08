@@ -96,12 +96,12 @@ export const VOUCHER_SEEDS = [
   },
   // 7. Voucher Test UI: Điều kiện đơn hàng cao
   {
-    code: 'VIP100K_DON500K',
-    name: 'Ưu đãi Khách VIP - Giảm 100,000đ cho đơn từ 500,000đ',
+    code: 'GIAM100K_DON500K',
+    name: 'Ưu đãi Khách hàng thân thiết - Giảm 100,000đ cho đơn từ 500,000đ',
     discountType: 'FIXED',
     discountValue: 100000,
     minOrderAmount: 500000,
-    scope: 'ORDER',
+    scope: 'ALL',
     quota: 500,
     usedCount: 65,
     status: 'ACTIVE',

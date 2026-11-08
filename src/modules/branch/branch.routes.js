@@ -113,4 +113,32 @@ router.post(
   branchController.createShiftTemplate
 );
 
+router.get(
+  '/:branchId/shift-templates/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER', 'STAFF']),
+  branchController.getShiftTemplateById
+);
+
+router.patch(
+  '/:branchId/shift-templates/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchController.updateShiftTemplate
+);
+
+router.put(
+  '/:branchId/shift-templates/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchController.updateShiftTemplate
+);
+
+router.delete(
+  '/:branchId/shift-templates/:id',
+  authenticate,
+  requireRole(['ADMIN', 'MANAGER']),
+  branchController.deleteShiftTemplate
+);
+
 export default router;

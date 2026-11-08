@@ -477,13 +477,20 @@ export const listInventoryItems = async (query, actor) => {
   if (query.cursor) filter._id = { $gt: requireObjectId(query.cursor, 'cursor') };
   if (query.kind) filter.kind = query.kind;
   if (query.status) filter.status = query.status;
+  if (query.usageType) {
+    const types = query.usageType.split(',').map((t) => t.trim().toUpperCase());
+    filter.usageType = { $in: types };
+  }
+  if (query.forServiceMaterial === 'true' || query.forServiceMaterial === true) {
+    filter.usageType = { $in: ['SERVICE_SUPPLY', 'SHARED'] };
+  }
   if (query.search) {
     const pattern = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [{ sku: pattern }, { name: pattern }];
   }
 
   const rows = await InventoryItem.find(filter)
-    .select('_id sku name kind unit status')
+    .select('_id sku name kind unit status category categoryName usageType')
     .sort({ _id: 1 })
     .limit(limit + 1)
     .lean();
@@ -494,18 +501,22 @@ export const listInventoryItems = async (query, actor) => {
   // Link with Product Master variants using indexed 'variants.inventoryItemId'
   const products = itemIds.length > 0
     ? await Product.find({ 'variants.inventoryItemId': { $in: itemIds } })
-        .select('_id name productType variants._id variants.label variants.inventoryItemId')
+        .select('_id name productType usageType categoryId variants._id variants.label variants.inventoryItemId')
+        .populate('categoryId', 'name')
         .lean()
     : [];
 
   const productMap = new Map();
   for (const product of products) {
+    const catName = product.categoryId?.name || null;
     for (const variant of product.variants || []) {
       if (variant.inventoryItemId) {
         productMap.set(variant.inventoryItemId.toString(), {
           productId: product._id.toString(),
           productName: product.name,
           productType: product.productType || 'SIMPLE',
+          categoryName: catName,
+          usageType: product.usageType || 'SALE',
           variantId: variant._id.toString(),
           variantName: product.productType === 'SIMPLE' ? '-' : (variant.label || '-')
         });
@@ -515,6 +526,8 @@ export const listInventoryItems = async (query, actor) => {
 
   const items = sliced.map((item) => {
     const matched = productMap.get(item._id.toString());
+    const categoryName = item.categoryName || item.category || (matched ? matched.categoryName : 'Vật tư thú y');
+    const usageType = item.usageType || (matched ? matched.usageType : (item.kind === 'MATERIAL' ? 'SERVICE_SUPPLY' : 'SALE'));
     return {
       id: item._id.toString(),
       sku: item.sku,
@@ -522,6 +535,9 @@ export const listInventoryItems = async (query, actor) => {
       kind: item.kind,
       unit: item.unit,
       status: item.status,
+      category: item.category || null,
+      categoryName,
+      usageType,
       productId: matched ? matched.productId : null,
       productName: matched ? matched.productName : null,
       productType: matched ? matched.productType : null,

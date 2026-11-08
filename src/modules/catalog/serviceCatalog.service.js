@@ -183,6 +183,7 @@ export const validateServiceGuardrails = (data, existing = null) => {
 
 export const listServices = async ({
   bookingMode,
+  bookableOnly = false,
   requiredStaffRole,
   category,
   status,
@@ -209,7 +210,15 @@ export const listServices = async ({
     filter.status = status;
   }
 
-  if (bookingMode) filter.bookingMode = bookingMode;
+  if (bookableOnly === 'true' || bookableOnly === true) {
+    filter.bookingMode = 'BOOKABLE';
+  } else if (bookingMode) {
+    if (bookingMode.includes(',')) {
+      filter.bookingMode = { $in: bookingMode.split(',').map((m) => m.trim().toUpperCase()) };
+    } else {
+      filter.bookingMode = bookingMode.toUpperCase();
+    }
+  }
   if (requiredStaffRole) filter.requiredStaffRole = requiredStaffRole;
   if (category) filter.category = category;
 
@@ -439,6 +448,19 @@ export const createService = async (data, actor = null) => {
       await service.save();
     }
 
+    if (Array.isArray(service.defaultMaterials) && service.defaultMaterials.length > 0) {
+      try {
+        const matIds = service.defaultMaterials.map((m) => m.inventoryItemId || m.materialId).filter(Boolean);
+        if (matIds.length > 0) {
+          const ProductModel = mongoose.models.Product || mongoose.model('Product');
+          await ProductModel.updateMany(
+            { 'variants.inventoryItemId': { $in: matIds }, usageType: 'SALE' },
+            { $set: { usageType: 'SHARED' } }
+          );
+        }
+      } catch (_e) {}
+    }
+
     let enabledBranchCount = 0;
     const shouldAutoEnable = service.status === 'ACTIVE' && autoEnableActiveBranches !== false;
 
@@ -578,7 +600,19 @@ export const updateService = async (id, data, actor = null) => {
   if (data.durationMinutes !== undefined) service.durationMinutes = data.durationMinutes;
   if (data.requiredStaffRole !== undefined) service.requiredStaffRole = data.requiredStaffRole;
   if (data.bookingMode !== undefined) service.bookingMode = data.bookingMode;
-  if (data.defaultMaterials !== undefined) service.defaultMaterials = data.defaultMaterials;
+  if (data.defaultMaterials !== undefined) {
+    service.defaultMaterials = data.defaultMaterials;
+    try {
+      const matIds = data.defaultMaterials.map((m) => m.inventoryItemId || m.materialId).filter(Boolean);
+      if (matIds.length > 0) {
+        const ProductModel = mongoose.models.Product || mongoose.model('Product');
+        await ProductModel.updateMany(
+          { 'variants.inventoryItemId': { $in: matIds }, usageType: 'SALE' },
+          { $set: { usageType: 'SHARED' } }
+        );
+      }
+    } catch (_e) {}
+  }
   if (data.contactInfo !== undefined) service.contactInfo = data.contactInfo;
   if (data.status !== undefined) service.status = data.status;
 

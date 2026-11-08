@@ -1136,11 +1136,35 @@ export const runProductionUatSeed = async () => {
         passwordHash: commonPasswordHash,
         systemRole: 'CUSTOMER',
         accountStatus: 'ACTIVE',
-        activatedAt: new Date()
+        activatedAt: new Date(),
+        addresses: [
+          {
+            fullName: 'Lê Văn Cường',
+            phone: '0905555555',
+            country: 'Việt Nam',
+            province: 'Thành phố Hồ Chí Minh',
+            provinceCode: '79',
+            district: 'Quận 1',
+            districtCode: '760',
+            ward: 'Phường Bến Nghé',
+            wardCode: '26734',
+            addressDetail: '123 Lê Lợi',
+            fullAddress: '123 Lê Lợi, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh',
+            isDefault: true,
+          }
+        ]
       }
     },
     { upsert: true, new: true }
   );
+
+  // Clean up any junk test pets (e.g. "Nguyễn An Thái" 69kg)
+  await Pet.deleteMany({
+    $or: [
+      { name: { $regex: /nguyễn an thái/i } },
+      { weightKg: 69 }
+    ]
+  });
 
   const customerProfile1 = await Customer.findOneAndUpdate(
     { userId: custUser1._id },
@@ -1707,7 +1731,8 @@ export const runProductionUatSeed = async () => {
         user: custUser1,
         startHoursOffset: 0,
         depositStatus: 'NOT_REQUIRED',
-        execStatus: 'IN_PROGRESS'
+        execStatus: 'IN_PROGRESS',
+        hasInProgressRecord: true
       },
       {
         code: 'APT-20261029-0005',
@@ -1853,6 +1878,33 @@ export const runProductionUatSeed = async () => {
         );
       }
 
+      // Nếu là dịch vụ đang tiến hành, tạo ServiceRecord IN_PROGRESS tương ứng 1-1
+      if (apt.hasInProgressRecord) {
+        const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
+        await ServiceRecord.findOneAndUpdate(
+          { appointmentId: savedApt._id },
+          {
+            $set: {
+              code: srCode,
+              appointmentId: savedApt._id,
+              customerId: savedApt.customerId,
+              petId: apt.pet._id,
+              branchId: branch1._id,
+              serviceIds: [apt.service._id],
+              assignedStaffIds: [apt.staff._id],
+              recordType: apt.serviceType === 'MEDICAL' ? 'MEDICAL' : 'GROOMING',
+              status: 'IN_PROGRESS',
+              actualStartAt: aptStart,
+              actualMaterials: [],
+              professional: {
+                professionalNote: 'Kỹ thuật viên đang tiến hành thực hiện dịch vụ cho thú cưng.'
+              }
+            }
+          },
+          { upsert: true }
+        );
+      }
+
       // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt + 1 giao dịch ISSUE chính
       if (apt.hasServiceRecord) {
         const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
@@ -1893,41 +1945,26 @@ export const runProductionUatSeed = async () => {
         );
 
         if (savedSr && invItem) {
-          await InventoryTransaction.findOneAndUpdate(
-            {
+          const existingTx = await InventoryTransaction.findOne({
+            sourceType: 'SERVICE_RECORD',
+            sourceId: savedSr._id,
+          });
+          if (!existingTx) {
+            await InventoryTransaction.create({
+              branchId: branch1._id,
+              inventoryItemId: invItem._id,
+              transactionType: 'ISSUE',
+              beforeQty: 150,
+              changeQty: -1,
+              afterQty: 149,
               sourceType: 'SERVICE_RECORD',
               sourceId: savedSr._id,
-              recordVersion: 1
-            },
-            {
-              $set: {
-                branchId: branch1._id,
-                inventoryItemId: invItem._id,
-                transactionType: 'ISSUE',
-                quantityDelta: -1,
-                unitCost: 0,
-                sourceType: 'SERVICE_RECORD',
-                sourceId: savedSr._id,
-                referenceCode: srCode,
-                recordVersion: 1,
-                items: [
-                  {
-                    inventoryItemId: invItem._id,
-                    sku: invItem.sku || '',
-                    itemName: invItem.name || '',
-                    unit: invItem.unit || 'lọ',
-                    quantity: 1,
-                    quantityDelta: -1,
-                    notes: 'Vật tư tiêu hao thực tế khi khám và xử lý vết thương'
-                  }
-                ],
-                actorId: doctorAnProfile.userId || null,
-                reason: `Hồ sơ thực hiện dịch vụ ${srCode} finalize v1`,
-                occurredAt: aptEnd
-              }
-            },
-            { upsert: true }
-          );
+              referenceCode: srCode,
+              recordVersion: 1,
+              actorId: doctorAnProfile.userId || doctorAnProfile._id,
+              reason: `Hồ sơ thực hiện dịch vụ ${srCode} finalize v1`,
+            });
+          }
         }
       }
     }

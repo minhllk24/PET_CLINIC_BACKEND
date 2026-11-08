@@ -848,7 +848,7 @@ export const getMe = async (userId) => {
 /**
  * Update profile of authenticated actor (Strict whitelist against mass assignment)
  */
-export const updateMe = async (userId, { fullName, email, avatarUrl }, meta = {}) => {
+export const updateMe = async (userId, { fullName, email, avatarUrl, addresses }, meta = {}) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
@@ -890,10 +890,122 @@ export const updateMe = async (userId, { fullName, email, avatarUrl }, meta = {}
     user.avatarUrl = avatarUrl;
   }
 
+  if (addresses !== undefined && Array.isArray(addresses)) {
+    let hasDefault = false;
+    user.addresses = addresses.map((addr, idx) => {
+      const isDef = Boolean(addr.isDefault) && !hasDefault;
+      if (isDef) hasDefault = true;
+      return {
+        fullName: addr.fullName || user.fullName,
+        phone: addr.phone || user.phone,
+        email: addr.email || user.email,
+        country: addr.country || 'Việt Nam',
+        province: addr.province || '',
+        provinceCode: addr.provinceCode || null,
+        district: addr.district || null,
+        districtCode: addr.districtCode || null,
+        ward: addr.ward || null,
+        wardCode: addr.wardCode || null,
+        addressDetail: addr.addressDetail || '',
+        fullAddress: addr.fullAddress || [addr.addressDetail, addr.ward, addr.district, addr.province].filter(Boolean).join(', '),
+        isDefault: isDef || (!hasDefault && idx === 0),
+      };
+    });
+  }
+
   // Save changes (Privilege fields like systemRole, staffSubRole, accountStatus are NEVER updated here)
   await user.save();
 
   return user;
+};
+
+/**
+ * Address management helpers for Customer
+ */
+export const listAddresses = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+  return user.addresses || [];
+};
+
+export const addAddress = async (userId, addrData) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+
+  const isDefault = Boolean(addrData.isDefault || user.addresses.length === 0);
+  if (isDefault) {
+    user.addresses.forEach((a) => { a.isDefault = false; });
+  }
+
+  const newAddr = {
+    fullName: addrData.fullName || user.fullName,
+    phone: addrData.phone || user.phone,
+    email: addrData.email || user.email,
+    country: addrData.country || 'Việt Nam',
+    province: addrData.province || '',
+    provinceCode: addrData.provinceCode || null,
+    district: addrData.district || null,
+    districtCode: addrData.districtCode || null,
+    ward: addrData.ward || null,
+    wardCode: addrData.wardCode || null,
+    addressDetail: addrData.addressDetail || '',
+    fullAddress: addrData.fullAddress || [addrData.addressDetail, addrData.ward, addrData.district, addrData.province].filter(Boolean).join(', '),
+    isDefault,
+  };
+
+  user.addresses.push(newAddr);
+  await user.save();
+  return user.addresses[user.addresses.length - 1];
+};
+
+export const updateAddress = async (userId, addressId, addrData) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+
+  const addr = user.addresses.id(addressId);
+  if (!addr) throw new AppError(404, 'Not Found', 'ADDRESS_NOT_FOUND', 'Address not found');
+
+  if (addrData.isDefault) {
+    user.addresses.forEach((a) => { a.isDefault = false; });
+    addr.isDefault = true;
+  }
+
+  ['fullName', 'phone', 'email', 'country', 'province', 'provinceCode', 'district', 'districtCode', 'ward', 'wardCode', 'addressDetail'].forEach((k) => {
+    if (addrData[k] !== undefined) addr[k] = addrData[k];
+  });
+  addr.fullAddress = addrData.fullAddress || [addr.addressDetail, addr.ward, addr.district, addr.province].filter(Boolean).join(', ');
+
+  await user.save();
+  return addr;
+};
+
+export const deleteAddress = async (userId, addressId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+
+  const addr = user.addresses.id(addressId);
+  if (!addr) throw new AppError(404, 'Not Found', 'ADDRESS_NOT_FOUND', 'Address not found');
+
+  const wasDefault = addr.isDefault;
+  user.addresses.pull(addressId);
+  if (wasDefault && user.addresses.length > 0) {
+    user.addresses[0].isDefault = true;
+  }
+
+  await user.save();
+  return { message: 'Address removed successfully' };
+};
+
+export const setDefaultAddress = async (userId, addressId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+
+  const addr = user.addresses.id(addressId);
+  if (!addr) throw new AppError(404, 'Not Found', 'ADDRESS_NOT_FOUND', 'Address not found');
+
+  user.addresses.forEach((a) => { a.isDefault = a._id.toString() === addressId.toString(); });
+  await user.save();
+  return addr;
 };
 
 export default {
@@ -909,4 +1021,9 @@ export default {
   googleLogin,
   getMe,
   updateMe,
+  listAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
 };

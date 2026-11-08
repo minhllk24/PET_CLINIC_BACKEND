@@ -199,13 +199,14 @@ export const validateVoucherEligibility = async (arg1, arg2) => {
   }
 
   // Scope check:
-  // - ORDER scope can apply to orders
+  // - ORDER / PRODUCT scope can apply to orders
   // - SERVICE scope can apply to appointments
-  // - If voucher is PRODUCT, it applies only to orders with products
+  // - ALL scope can apply to both orders and services
   if (scope) {
-    const isOrderScope = scope === 'ORDER' && (voucher.scope === 'ORDER' || voucher.scope === 'PRODUCT');
-    const isServiceScope = scope === 'SERVICE' && (voucher.scope === 'SERVICE' || voucher.scope === 'ORDER');
-    if (!isOrderScope && !isServiceScope) {
+    const isOrderScope = (scope === 'ORDER' || scope === 'PRODUCT') && (voucher.scope === 'ORDER' || voucher.scope === 'PRODUCT' || voucher.scope === 'ALL');
+    const isServiceScope = scope === 'SERVICE' && (voucher.scope === 'SERVICE' || voucher.scope === 'ORDER' || voucher.scope === 'ALL');
+    const isAllScope = voucher.scope === 'ALL' || scope === 'ALL';
+    if (!isOrderScope && !isServiceScope && !isAllScope) {
       return {
         code: cleanCode,
         valid: false,

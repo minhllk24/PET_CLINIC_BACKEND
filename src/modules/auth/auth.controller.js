@@ -175,6 +175,51 @@ export const updateMe = async (req, res, next) => {
   }
 };
 
+export const listAddresses = async (req, res, next) => {
+  try {
+    const list = await authService.listAddresses(req.actor.id);
+    return sendSuccess(res, list);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addAddress = async (req, res, next) => {
+  try {
+    const item = await authService.addAddress(req.actor.id, req.body);
+    return sendCreated(res, item);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateAddress = async (req, res, next) => {
+  try {
+    const item = await authService.updateAddress(req.actor.id, req.params.addressId, req.body);
+    return sendSuccess(res, item);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteAddress = async (req, res, next) => {
+  try {
+    const result = await authService.deleteAddress(req.actor.id, req.params.addressId);
+    return sendSuccess(res, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const setDefaultAddress = async (req, res, next) => {
+  try {
+    const item = await authService.setDefaultAddress(req.actor.id, req.params.addressId);
+    return sendSuccess(res, item);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export default {
   register,
   login,
@@ -188,4 +233,9 @@ export default {
   googleLogin,
   getMe,
   updateMe,
+  listAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
 };

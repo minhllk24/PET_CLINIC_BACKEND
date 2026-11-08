@@ -7865,6 +7865,274 @@ paths:
       x-audience:
       - admin
       x-confirmed-decision: MEDICAL_REVIEWER
+  /locations/provinces:
+    get:
+      summary: Get Vietnamese provinces list
+      tags:
+      - Locations
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of provinces
+  /locations/provinces/{code}/districts:
+    get:
+      summary: Get districts by province code
+      tags:
+      - Locations
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of districts
+  /locations/districts/{code}/wards:
+    get:
+      summary: Get wards by district code
+      tags:
+      - Locations
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of wards
+  /auth/me/addresses:
+    get:
+      summary: List user addresses
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: User addresses array
+    post:
+      summary: Add new address
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Address created
+  /auth/me/addresses/{addressId}:
+    patch:
+      summary: Update address
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: addressId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Address updated
+    put:
+      summary: Update address (idempotent)
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: addressId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Address updated
+    delete:
+      summary: Delete address
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: addressId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Address deleted
+  /auth/me/addresses/{addressId}/default:
+    post:
+      summary: Set address as default
+      tags:
+      - Auth
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: addressId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Default address set
+  /pets/{petId}/care-plan:
+    get:
+      summary: Get personalized care plan for pet
+      tags:
+      - CarePlan
+      parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Personalized care plan
+  /pets/{petId}/care-plan/tasks/{taskKey}:
+    patch:
+      summary: Update care plan task completion state
+      tags:
+      - CarePlan
+      parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: taskKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Task state updated
+  /pets/{petId}/care-plan/reminders:
+    post:
+      summary: Trigger or configure care plan reminder
+      tags:
+      - CarePlan
+      parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Reminder triggered
+  /recommendations:
+    get:
+      summary: Get service and product recommendations
+      tags:
+      - Recommendations
+      parameters:
+      - name: petId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [ALL, PRODUCT, SERVICE]
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: need
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: branchId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Recommendations list
+  /ai/screening:
+    post:
+      summary: AI Symptom Screening Assistant
+      tags:
+      - AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - symptoms
+              properties:
+                symptoms:
+                  type: string
+                species:
+                  type: string
+                  enum: [DOG, CAT, OTHER]
+                ageYears:
+                  type: number
+                weightKg:
+                  type: number
+                petId:
+                  type: string
+      responses:
+        '200':
+          description: Screening triage analysis
 components:
   securitySchemes:
     bearerAuth:

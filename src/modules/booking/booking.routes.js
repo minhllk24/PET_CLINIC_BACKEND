@@ -21,6 +21,7 @@ router.post('/:id/checkout', optionalAuth, bookingController.checkoutAppointment
 router.post('/:id/confirm', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), idempotency('appointmentsConfirm', { required: true }), bookingController.confirmAppointment);
 router.post('/:id/reject', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), idempotency('appointmentsReject', { required: true }), bookingController.rejectAppointment);
 router.post('/:id/no-show', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), idempotency('appointmentsMarkNoShow', { required: true }), bookingController.markNoShow);
+router.post('/:id/check-in', requireRole(['RECEPTIONIST', 'STAFF', 'MANAGER', 'ADMIN']), bookingController.checkInAppointment);
 router.post('/:id/start', requireRole(['STAFF', 'MANAGER', 'ADMIN']), bookingController.startSegment);
 router.post('/:id/reschedule', optionalAuth, idempotency('appointmentsReschedule', { required: true }), bookingController.rescheduleAppointment);
 router.post('/:id/reschedule-override', requireRole(['MANAGER', 'ADMIN']), idempotency('appointmentsRescheduleOverride', { required: true }), bookingController.rescheduleOverride);
@@ -37,6 +38,7 @@ router.patch('/:id/confirm', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), 
 router.patch('/:id/reschedule', optionalAuth, bookingController.rescheduleAppointment);
 router.patch('/:id/cancel', optionalAuth, bookingController.cancelAppointment);
 router.patch('/:id/no-show', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.markNoShow);
+router.patch('/:id/check-in', requireRole(['RECEPTIONIST', 'STAFF', 'MANAGER', 'ADMIN']), bookingController.checkInAppointment);
 router.patch('/:id/start', requireRole(['STAFF', 'MANAGER', 'ADMIN']), bookingController.startSegment);
 
 export default router;

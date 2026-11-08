@@ -43,6 +43,10 @@ import adminUsersRoutes from './modules/admin/adminUsers.routes.js';
 import shiftTemplateRoutes from './modules/branch/shiftTemplate.routes.js';
 import flashSaleRoutes from './modules/flash-sale/flashSale.routes.js';
 import managerRoutes from './modules/staff/manager.routes.js';
+import locationRoutes from './modules/location/location.routes.js';
+import carePlanRoutes from './modules/care-plan/carePlan.routes.js';
+import recommendationRoutes from './modules/recommendation/recommendation.routes.js';
+import aiRoutes from './modules/ai-assistant/screening.routes.js';
 import AppError from './utils/AppError';
 
 const app = express();
@@ -148,9 +152,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Payload parsers
-// Limit payload size to 1mb (from 50mb legacy)
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ limit: '1mb', extended: true }));
+// Limit payload size to 10mb for media uploads and rich variant batches
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
 // =========================================================================
@@ -330,10 +334,19 @@ app.use(async (req, res, next) => {
       delete req.query.doctorId;
 
       if (req.query.date) {
-        req.query.date = String(req.query.date).split('T')[0];
+        let rawDate = String(req.query.date).split('T')[0].trim();
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate)) {
+          const [d, m, y] = rawDate.split('/');
+          rawDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        req.query.date = rawDate;
       } else {
         req.query.date = new Date().toISOString().split('T')[0];
       }
+      delete req.query.petIds;
+      delete req.query.petId;
+      delete req.query.customerId;
+      delete req.query.includeFull;
 
       // Ensure branchId is a valid ObjectId, otherwise map or fallback to primary branch
       if (!req.query.branchId || req.query.branchId === 'undefined' || !/^[0-9a-fA-F]{24}$/.test(req.query.branchId)) {
@@ -382,6 +395,15 @@ app.use(async (req, res, next) => {
       delete req.query.page;
       delete req.query.sort;
       delete req.query.order;
+    }
+
+    // E. Services Query Normalizer (FB-C2)
+    const isServices = (req.url.includes('/services') || (req.originalUrl && req.originalUrl.includes('/services')) || (req.path && req.path.includes('/services'))) && !req.url.includes('/service-records');
+    if (isServices && req.query) {
+      if (req.query.bookableOnly === 'true' || req.query.bookableOnly === true) {
+        req.query.bookingMode = 'BOOKABLE';
+        delete req.query.bookableOnly;
+      }
     }
 
     // Synchronize req.url and req.originalUrl query string with normalized req.query for express-openapi-validator
@@ -541,7 +563,6 @@ app.use(async (req, res, next) => {
       delete req.body.condition_description;
       delete req.body.slot_id;
       delete req.body.slotId;
-      delete req.body.customerId;
       delete req.body.appointmentDate;
       delete req.body.startTime;
 
@@ -576,9 +597,20 @@ app.use(async (req, res, next) => {
       if (!req.body.scope) {
         req.body.scope = 'ORDER';
       }
+      if ((req.body.order_value !== undefined || req.body.orderValue !== undefined) && req.body.subtotal === undefined) {
+        req.body.subtotal = Number(req.body.order_value !== undefined ? req.body.order_value : req.body.orderValue);
+      }
       delete req.body.branch_id;
       delete req.body.order_value;
       delete req.body.orderValue;
+    }
+
+    // Products Ingress Normalizer (Auto-generate Idempotency-Key if missing)
+    if (req.path.endsWith('/products') && req.method === 'POST') {
+      if (!req.headers['idempotency-key']) {
+        const { v4: uuidv4 } = require('uuid');
+        req.headers['idempotency-key'] = `prod-${uuidv4()}`;
+      }
     }
 
     // Orders Checkout Ingress Normalizer
@@ -673,6 +705,11 @@ app.use(
       if (path.includes('/contacts')) return true;
       if (path.includes('/repay')) return true;
       if (path.includes('/managers')) return true;
+      if (path.includes('/uploads')) return true;
+      if (path.includes('/locations')) return true;
+      if (path.includes('/care-plans') || path.includes('/care-plan')) return true;
+      if (path.includes('/recommendations')) return true;
+      if (path.includes('/ai/')) return true;
       return false;
     },
     validateSecurity: {
@@ -697,9 +734,14 @@ app.use(
             const User = require('./models/User').default || require('./models/User');
             if ((mongoose.connection.readyState === 1 || User.findById?._isMockFunction) && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
               try {
-                const liveUser = await User.findById(decoded.id)
-                  .select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil')
-                  .lean();
+                let liveQuery = User.findById(decoded.id);
+                if (liveQuery && typeof liveQuery.select === 'function') {
+                  liveQuery = liveQuery.select('systemRole staffSubRole assignedBranchIds accountStatus lockedUntil');
+                }
+                if (liveQuery && typeof liveQuery.lean === 'function') {
+                  liveQuery = liveQuery.lean();
+                }
+                const liveUser = await liveQuery;
                 if (liveUser) {
                   if (liveUser.accountStatus === 'BLOCKED' || (liveUser.lockedUntil && new Date(liveUser.lockedUntil) > new Date())) {
                     return false;
@@ -816,6 +858,11 @@ app.use('/api/v1/admin/managers', managerRoutes);
 app.use('/api/v1/shift-templates', shiftTemplateRoutes);
 app.use('/api/v1/flash-sales', flashSaleRoutes);
 app.use('/api/v1/admin', adminContentRoutes);
+app.use('/api/v1/locations', locationRoutes);
+app.use('/api/v1/pets', carePlanRoutes);
+app.use('/api/v1/care-plans', carePlanRoutes);
+app.use('/api/v1/recommendations', recommendationRoutes);
+app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/admin/dashboard', dashboardRoutes);
 

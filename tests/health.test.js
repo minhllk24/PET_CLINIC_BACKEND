@@ -121,9 +121,9 @@ describe('Foundation Verification Tests', () => {
     expect(res.headers['access-control-allow-methods']).toContain('POST');
   });
 
-  it('Should return 413 VALIDATION_ERROR for payload > 1MB', async () => {
-    // Generate a 1.5MB payload
-    const largeString = 'a'.repeat(1.5 * 1024 * 1024);
+  it('Should return 413 VALIDATION_ERROR for payload > 10MB', async () => {
+    // Generate a 10.5MB payload (exceeds 10MB limit)
+    const largeString = 'a'.repeat(10.5 * 1024 * 1024);
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({

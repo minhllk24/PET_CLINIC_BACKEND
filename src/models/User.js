@@ -10,7 +10,13 @@ const addressSchema = new mongoose.Schema({
   email: { type: String, trim: true, lowercase: true },
   country: { type: String, default: 'Việt Nam' },
   province: { type: String, trim: true },
+  provinceCode: { type: String, trim: true, default: null },
+  district: { type: String, trim: true, default: null },
+  districtCode: { type: String, trim: true, default: null },
+  ward: { type: String, trim: true, default: null },
+  wardCode: { type: String, trim: true, default: null },
   addressDetail: { type: String, trim: true },
+  fullAddress: { type: String, trim: true, default: null },
   isDefault: { type: Boolean, default: false },
 }, { _id: true });
 

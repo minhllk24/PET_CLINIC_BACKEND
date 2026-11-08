@@ -10,6 +10,7 @@ import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import legacyPlaceholderImages from './legacyPlaceholderImages';
 import curatedLegacyImages from './curatedLegacyImages';
+import { uploadBase64ToCloudinary } from '../upload/upload.service';
 
 // Helper: chuyển chuỗi thành slug
 const slugify = (text) => {
@@ -670,6 +671,8 @@ export const createProduct = async (data, actor) => {
       await item.save();
     }
 
+    const variantImage = v.image ? await uploadBase64ToCloudinary(v.image, `${name}-${label}`) : null;
+
     preparedVariants.push({
       _id: new mongoose.Types.ObjectId(),
       sku: trimmedSku,
@@ -677,10 +680,25 @@ export const createProduct = async (data, actor) => {
       price,
       discountPercent,
       finalPrice,
-      image: v.image || null,
+      image: variantImage,
       status: v.status || 'ACTIVE',
       inventoryItemId: item._id
     });
+  }
+
+  // Xử lý images nếu là base64
+  const processedImages = [];
+  if (Array.isArray(images)) {
+    for (let idx = 0; idx < images.length; idx++) {
+      const img = images[idx];
+      if (typeof img === 'string') {
+        const url = await uploadBase64ToCloudinary(img, `${name}-${idx + 1}`);
+        processedImages.push({ id: `img-${idx + 1}`, url, isPrimary: idx === 0, sortOrder: idx });
+      } else if (img && typeof img === 'object') {
+        const url = await uploadBase64ToCloudinary(img.url, `${name}-${idx + 1}`);
+        processedImages.push({ ...img, url });
+      }
+    }
   }
 
   // Lưu Product master global (TUYỆT ĐỐI KHÔNG LƯU STOCK TRÊN PRODUCT)
@@ -693,7 +711,7 @@ export const createProduct = async (data, actor) => {
     usageType,
     origin: origin || null,
     expiryInfo: expiryInfo || null,
-    images: images || [],
+    images: processedImages,
     variants: preparedVariants,
     nextSkuSeq,
     status: status || 'ACTIVE'
@@ -735,7 +753,22 @@ export const updateProduct = async (id, data, actor) => {
   if (data.usageType) product.usageType = data.usageType;
   if (data.origin !== undefined) product.origin = data.origin;
   if (data.expiryInfo !== undefined) product.expiryInfo = data.expiryInfo;
-  if (data.images !== undefined) product.images = data.images;
+  if (data.images !== undefined) {
+    const processedImages = [];
+    if (Array.isArray(data.images)) {
+      for (let idx = 0; idx < data.images.length; idx++) {
+        const img = data.images[idx];
+        if (typeof img === 'string') {
+          const url = await uploadBase64ToCloudinary(img, `${product.name}-${idx + 1}`);
+          processedImages.push({ id: `img-${idx + 1}`, url, isPrimary: idx === 0, sortOrder: idx });
+        } else if (img && typeof img === 'object') {
+          const url = await uploadBase64ToCloudinary(img.url, `${product.name}-${idx + 1}`);
+          processedImages.push({ ...img, url });
+        }
+      }
+    }
+    product.images = processedImages;
+  }
   if (data.status) product.status = data.status;
 
   // Bảo toàn biến thể: merge thông minh theo ID, không làm mất biến thể cũ khi FE gửi thiếu
@@ -799,7 +832,9 @@ export const updateProduct = async (id, data, actor) => {
         existingVariant.price = price;
         existingVariant.discountPercent = discountPercent;
         existingVariant.finalPrice = finalPrice;
-        if (payloadVar.image !== undefined) existingVariant.image = payloadVar.image;
+        if (payloadVar.image !== undefined) {
+          existingVariant.image = payloadVar.image ? await uploadBase64ToCloudinary(payloadVar.image, `${product.name}-${existingVariant.label}`) : null;
+        }
         if (payloadVar.status) existingVariant.status = payloadVar.status;
 
         skuSet.add(existingVariant.sku);
@@ -849,6 +884,8 @@ export const updateProduct = async (id, data, actor) => {
       const discountPercent = Number(newVar.discountPercent) || 0;
       const finalPrice = calculateFinalPrice(price, discountPercent);
 
+      const newVariantImg = newVar.image ? await uploadBase64ToCloudinary(newVar.image, `${product.name}-${newVar.label || 'variant'}`) : null;
+
       updatedVariants.push({
         _id: new mongoose.Types.ObjectId(),
         sku: trimmedSku,
@@ -856,7 +893,7 @@ export const updateProduct = async (id, data, actor) => {
         price,
         discountPercent,
         finalPrice,
-        image: newVar.image || null,
+        image: newVariantImg,
         status: newVar.status || 'ACTIVE',
         inventoryItemId: item._id,
         deactivatedAt: null

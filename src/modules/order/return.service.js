@@ -268,7 +268,18 @@ export const listReturns = async (query = {}, actor) => {
   }
 
   const filter = {};
-  if (query.status) filter.status = query.status;
+  if (query.status) {
+    const rawStatus = String(query.status).trim();
+    if (rawStatus.includes(',')) {
+      filter.status = { $in: rawStatus.split(',').map((s) => s.trim().toUpperCase()) };
+    } else if (rawStatus.toUpperCase() === 'IN_PROGRESS' || rawStatus.toUpperCase() === 'PROCESSING_GROUP') {
+      filter.status = { $in: ['PROCESSING', 'RECEIVED', 'APPROVED'] };
+    } else {
+      filter.status = rawStatus.toUpperCase();
+    }
+  } else if (query.statusGroup && query.statusGroup.toUpperCase() === 'IN_PROGRESS') {
+    filter.status = { $in: ['PROCESSING', 'RECEIVED', 'APPROVED'] };
+  }
   if (query.orderId) filter.orderId = query.orderId;
 
   if (actor.systemRole === 'CUSTOMER') {
@@ -298,11 +309,17 @@ export const listReturns = async (query = {}, actor) => {
     filter._id = { $lt: new mongoose.Types.ObjectId(query.cursor) };
   }
 
+  const baseScopeFilter = { ...filter };
+  delete baseScopeFilter.status;
+
   const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
-  const [returns, totalCount, pendingCount] = await Promise.all([
+  const [returns, totalCount, pendingCount, inProgressCount, completedCount, rejectedCount] = await Promise.all([
     OrderReturn.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1),
     OrderReturn.countDocuments(filter),
-    OrderReturn.countDocuments({ ...filter, status: 'REQUESTED' })
+    OrderReturn.countDocuments({ ...baseScopeFilter, status: 'REQUESTED' }),
+    OrderReturn.countDocuments({ ...baseScopeFilter, status: { $in: ['PROCESSING', 'RECEIVED', 'APPROVED'] } }),
+    OrderReturn.countDocuments({ ...baseScopeFilter, status: 'COMPLETED' }),
+    OrderReturn.countDocuments({ ...baseScopeFilter, status: { $in: ['REJECTED', 'CANCELLED'] } }),
   ]);
 
   let nextCursor = null;
@@ -324,7 +341,10 @@ export const listReturns = async (query = {}, actor) => {
     totalCount,
     nextCursor,
     summary: {
-      pendingCount
+      pendingCount,
+      inProgressCount,
+      completedCount,
+      rejectedCount,
     }
   };
 };

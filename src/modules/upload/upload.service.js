@@ -68,6 +68,25 @@ export const uploadToCloudinary = (buffer, originalname = 'image', folder = 'pet
 };
 
 /**
+ * Upload base64 image data URL directly to Cloudinary
+ */
+export const uploadBase64ToCloudinary = async (base64Str, originalname = 'image', folder = 'pet_clinic/products') => {
+  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:')) {
+    return base64Str;
+  }
+  try {
+    const parts = base64Str.split(';base64,');
+    if (parts.length !== 2) return base64Str;
+    const buffer = Buffer.from(parts[1], 'base64');
+    const res = await uploadToCloudinary(buffer, originalname, folder);
+    return res.url;
+  } catch (err) {
+    logger.warn('Failed to upload base64 to Cloudinary, keeping original url:', err.message);
+    return base64Str;
+  }
+};
+
+/**
  * Upload single file strictly to Cloudinary (No local disk fallback - BE-FIX-09)
  */
 export const uploadProductImage = async (file, reqHost = '', moduleName = 'products', simulateProviderFailure = false) => {

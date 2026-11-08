@@ -26,4 +26,12 @@ router.patch('/me', authenticate, authController.updateMe);
 router.put('/profile', authenticate, authController.updateMe);
 router.patch('/profile', authenticate, authController.updateMe);
 
+// Address Book (Customer Profile)
+router.get('/me/addresses', authenticate, authController.listAddresses);
+router.post('/me/addresses', authenticate, authController.addAddress);
+router.patch('/me/addresses/:addressId', authenticate, authController.updateAddress);
+router.put('/me/addresses/:addressId', authenticate, authController.updateAddress);
+router.delete('/me/addresses/:addressId', authenticate, authController.deleteAddress);
+router.post('/me/addresses/:addressId/default', authenticate, authController.setDefaultAddress);
+
 export default router;
