@@ -7,6 +7,125 @@ const makeImages = (urls) => urls.map((url, idx) => ({
 }));
 
 export default {
+  "SP-LEG-019": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-bao-nhat.jpg",
+      "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+      "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png"
+    ])
+  },
+  "SP-LEG-018": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna2.jpg"
+    ])
+  },
+  "SP-LEG-017": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang2.jpg",
+      "https://product.hstatic.net/1000217401/product/69_cd7065da70fb4ac682c9770d440dd198_grande.png"
+    ])
+  },
+  "SP-LEG-016": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua2.jpg",
+      "https://product.hstatic.net/1000217401/product/60_b937d2d5516541b290a2f331e79fb80a.png"
+    ])
+  },
+  "SP-LEG-015": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg",
+      "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg"
+    ])
+  },
+  "SP-LEG-014": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg"
+    ])
+  },
+  "SP-LEG-013": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-cho-tropiclean-berry-coconut-waterless-dog-shampoo.jpg",
+      "https://product.hstatic.net/200000263355/product/qhir4611_10e87df40d214ea6a8032bda20bfa1b5.jpg",
+      "https://product.hstatic.net/200000263355/product/z4467887432903_c91f927468cef55bbc35b506d9065d3f_65ee559d46294517a8d2031ecedc498a.jpg"
+    ])
+  },
+  "SP-LEG-012": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray-1.jpg",
+      "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg"
+    ])
+  },
+  "SP-LEG-011": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray-1.jpg"
+    ])
+  },
+  "SP-LEG-010": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core.jpg"
+    ])
+  },
+  "SP-LEG-009": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-adult-lamb-potato.jpg",
+      "https://product.hstatic.net/200000263355/product/ikgj7935_67271f42c8a34e349d08838930f1cf44_large.jpg",
+      "https://down-vn.img.susercontent.com/file/d1d45772f3dab24dabb665680b6edff3"
+    ])
+  },
+  "SP-LEG-008": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-cuu-origi-7-lamb.jpg",
+      "https://product.hstatic.net/200000263355/product/z4395825189533_fa88456623d21c7e0f7a15f205a6d58d_2bf213a2311b4ab48021c36e4e5823ba.jpg",
+      "https://product.hstatic.net/200000263355/product/z4395852476951_23bb6115da979cf0d3305356d1e24f55_d0fe473caad5403fa8bedcbc69f19ea4.jpg"
+    ])
+  },
+  "SP-LEG-007": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+      "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg"
+    ])
+  },
+  "SP-LEG-006": {
+    "images": makeImages([
+      "https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png",
+      "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png",
+      "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png"
+    ])
+  },
+  "SP-LEG-005": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg",
+      "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/f3db2c3c-3bbf-4227-a473-b992b79b04ca/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+      "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/201af53e-736a-43a5-98fa-a33b82135901/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg"
+    ])
+  },
+  "SP-LEG-004": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg",
+      "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg"
+    ])
+  },
+  "SP-LEG-003": {
+    "images": makeImages([
+      "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg",
+      "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+      "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png"
+    ])
+  },
   "SP-LEG-001": {
     "oldUrls": [
       "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats1.jpg",

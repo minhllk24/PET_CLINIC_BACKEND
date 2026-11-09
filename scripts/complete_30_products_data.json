@@ -1,0 +1,1502 @@
+[
+  {
+    "code": "SP-RC-MINI-001",
+    "name": "Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult",
+    "categorySlug": "thuc-an",
+    "origin": "Pháp",
+    "description": "Dinh dưỡng cân bằng hoàn hảo cho chó cỡ nhỏ từ 10 tháng đến 8 năm tuổi, giúp duy trì cân nặng lý tưởng, hỗ trợ tiêu hóa và làm mượt lông.",
+    "variants": [
+      {
+        "label": "Túi 800g",
+        "price": 185000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg",
+        "finalPrice": 175750
+      },
+      {
+        "label": "Túi 2kg",
+        "price": 350000,
+        "discountPercent": 10,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg",
+        "finalPrice": 315000
+      },
+      {
+        "label": "Bao 8kg Tiết kiệm",
+        "price": 1250000,
+        "discountPercent": 12,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png",
+        "finalPrice": 1100000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-WHISKAS-002",
+    "name": "Pate thơm ngon cho mèo Whiskas vị cá thu và cá hồi biển",
+    "categorySlug": "thuc-an",
+    "origin": "Thái Lan",
+    "description": "Thức ăn ướt giàu protein từ thịt cá tươi ngon mọng nước, bổ sung kẽm và acid béo omega giúp sáng mắt và nuôi dưỡng bộ lông bóng mượt.",
+    "variants": [
+      {
+        "label": "Gói 85g Cá Thu & Cá Hồi",
+        "price": 20000,
+        "discountPercent": 0,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "finalPrice": 20000
+      },
+      {
+        "label": "Hộp 12 gói (85g)",
+        "price": 228000,
+        "discountPercent": 5,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "finalPrice": 216600
+      },
+      {
+        "label": "Thùng 24 gói (85g) Tiết kiệm",
+        "price": 432000,
+        "discountPercent": 10,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "finalPrice": 388800
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-CATURE-003",
+    "name": "Cát đậu nành hữu cơ xả bồn cầu Cature Tofu Clumping Litter",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Hàn Quốc",
+    "description": "100% bã đậu nành thiên nhiên khử mùi vượt trội, vón cục nhanh, không bụi 99.5%, tự tiêu hủy sinh học an toàn xả trực tiếp bồn cầu.",
+    "variants": [
+      {
+        "label": "Túi 6L (2.4kg) Hương Sữa Tự Nhiên",
+        "price": 140000,
+        "discountPercent": 0,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+        "finalPrice": 140000
+      },
+      {
+        "label": "Túi 6L (2.4kg) Hương Trà Xanh Kháng Khuẩn",
+        "price": 145000,
+        "discountPercent": 0,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg",
+        "finalPrice": 145000
+      },
+      {
+        "label": "Thùng 4 túi (9.6kg) Combo Tiết Kiệm",
+        "price": 520000,
+        "discountPercent": 8,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+        "finalPrice": 478400
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-BRAVECTO-004",
+    "name": "Viên nhai đặc trị ve rận, bọ chét và ghẻ demodex Bravecto Chewable",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Viên nhai vị thịt hấp dẫn bảo vệ chó khỏi bọ chét và ve kéo dài suốt 12 tuần chỉ với 1 liều duy nhất, an toàn cho cả chó mang thai và cho con bú.",
+    "variants": [
+      {
+        "label": "Hộp 1 viên Cho chó 4.5 - 10kg (Vàng - 250mg)",
+        "price": 450000,
+        "discountPercent": 0,
+        "image": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp",
+        "finalPrice": 450000
+      },
+      {
+        "label": "Hộp 1 viên Cho chó 10 - 20kg (Xanh lá - 500mg)",
+        "price": 520000,
+        "discountPercent": 5,
+        "image": "https://down-br.img.susercontent.com/file/br-11134207-81ztx-ml2i0skbde6a68",
+        "finalPrice": 494000
+      },
+      {
+        "label": "Hộp 1 viên Cho chó 20 - 40kg (Xanh dương - 1000mg)",
+        "price": 610000,
+        "discountPercent": 5,
+        "image": "https://bizweb.dktcdn.net/thumb/1024x1024/100/364/584/products/watermarked-bravecto-500mg-20-40kg-289a3f81-fbd3-47f2-862c-81d78f991e33.png?v=1711610924840",
+        "finalPrice": 579500
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://down-br.img.susercontent.com/file/br-11134207-81ztx-ml2i0skbde6a68",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://bizweb.dktcdn.net/thumb/1024x1024/100/364/584/products/watermarked-bravecto-500mg-20-40kg-289a3f81-fbd3-47f2-862c-81d78f991e33.png?v=1711610924840",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-SOS-SHAMPOO-005",
+    "name": "Sữa tắm thảo dược dưỡng lông mềm mượt SOS dành cho thú cưng",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Đài Loan",
+    "description": "Chiết xuất thảo dược khử mùi hôi hiệu quả, giữ ẩm dịu nhẹ cho làn da nhạy cảm và duy trì hương thơm bền lâu trên 7 ngày.",
+    "variants": [
+      {
+        "label": "Chai xanh dương 530ml - Lông trắng sáng",
+        "price": 120000,
+        "discountPercent": 0,
+        "image": "https://down-vn.img.susercontent.com/file/sg-11134201-7rd49-lw2a8hubqeu538",
+        "finalPrice": 120000
+      },
+      {
+        "label": "Chai nâu đỏ 530ml - Lông màu & nâu đỏ",
+        "price": 120000,
+        "discountPercent": 0,
+        "image": "https://bizweb.dktcdn.net/100/386/755/products/thiet-ke-chua-co-ten-23.png?v=1657186909390",
+        "finalPrice": 120000
+      },
+      {
+        "label": "Chai đen 530ml - Diệt khuẩn & trị ve rận",
+        "price": 135000,
+        "discountPercent": 5,
+        "image": "https://imgcdn.thitruongsi.com/tts/rs:fill:1200:0:1:1/g:sm/plain/file:/product/2023/04/20/4a8fcff0-df50-11ed-8930-076713287c70.jpg",
+        "finalPrice": 128250
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://down-vn.img.susercontent.com/file/sg-11134201-7rd49-lw2a8hubqeu538",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://bizweb.dktcdn.net/100/386/755/products/thiet-ke-chua-co-ten-23.png?v=1657186909390",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://imgcdn.thitruongsi.com/tts/rs:fill:1200:0:1:1/g:sm/plain/file:/product/2023/04/20/4a8fcff0-df50-11ed-8930-076713287c70.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-KONG-TOY-006",
+    "name": "Đồ chơi nhai gặm cao su thiên nhiên cao cấp cho Chó KONG Classic",
+    "categorySlug": "do-choi",
+    "origin": "Mỹ",
+    "description": "Chất liệu cao su thiên nhiên siêu bền nảy bất định kích thích vận động, thiết kế rỗng thông minh có thể nhét pate hoặc bánh thưởng giải tỏa căng thẳng.",
+    "variants": [
+      {
+        "label": "Size S (Dưới 9kg)",
+        "price": 180000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg",
+        "finalPrice": 180000
+      },
+      {
+        "label": "Size M (7 - 16kg)",
+        "price": 220000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg",
+        "finalPrice": 220000
+      },
+      {
+        "label": "Size L (13 - 30kg)",
+        "price": 290000,
+        "discountPercent": 5,
+        "image": "https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg",
+        "finalPrice": 275500
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-ALFALFA-007",
+    "name": "Cỏ khô dinh dưỡng Alfalfa Hay cho Thỏ, Bọ và Chuột Lang",
+    "categorySlug": "thuc-an",
+    "origin": "Úc",
+    "description": "Cỏ linh lăng nguyên chất giàu đạm thực vật, canxi và chất xơ thô tự nhiên, kích thích tiêu hóa và hỗ trợ mài răng chắc khỏe cho thú nhỏ.",
+    "variants": [
+      {
+        "label": "Gói 500g Tiêu chuẩn",
+        "price": 120000,
+        "discountPercent": 0,
+        "image": "https://khopetshop.net/assets/images/products/19032025041109_23293.jpg",
+        "finalPrice": 120000
+      },
+      {
+        "label": "Gói 1kg Cọng dài xanh non",
+        "price": 210000,
+        "discountPercent": 5,
+        "image": "https://khopetshop.net/assets/images/products/19032025041109_232931.jpg",
+        "finalPrice": 199500
+      },
+      {
+        "label": "Bao 2.5kg Tiết kiệm",
+        "price": 450000,
+        "discountPercent": 10,
+        "image": "https://khopetshop.net/assets/images/products/21092022010303_45489.png",
+        "finalPrice": 405000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://khopetshop.net/assets/images/products/19032025041109_23293.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://khopetshop.net/assets/images/products/19032025041109_232931.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://khopetshop.net/assets/images/products/21092022010303_45489.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-RIO-BIRD-008",
+    "name": "Thức ăn hạt cao cấp cho Vẹt và Chim Cảnh RIO Daily Feed",
+    "categorySlug": "thuc-an",
+    "origin": "Đức",
+    "description": "Hỗn hợp hạt kê, ngũ cốc tuyển chọn và hạt cỏ hoa quả tự nhiên cung cấp đầy đủ vi lượng, canxi giúp chim cảnh hót vang, lông sáng bóng.",
+    "variants": [
+      {
+        "label": "Hộp 500g Cho Vẹt Yến Phụng (Budgies)",
+        "price": 95000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png",
+        "finalPrice": 95000
+      },
+      {
+        "label": "Hộp 1kg Cho Vẹt Cỡ Trung (Medium Parrots)",
+        "price": 175000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png",
+        "finalPrice": 166250
+      },
+      {
+        "label": "Bao 2.5kg Cho Vẹt Lớn (Large Parrots)",
+        "price": 380000,
+        "discountPercent": 10,
+        "image": "https://khopetshop.net/assets/images/products/19032025040921_63107.jpg",
+        "finalPrice": 342000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://khopetshop.net/assets/images/products/19032025040921_63107.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-GIMCAT-009",
+    "name": "Gel dinh dưỡng bổ sung 12 loại Vitamin thiết yếu cho Mèo GimCat Paste",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Đức",
+    "description": "Chứa phức hợp 12 loại vitamin thiết yếu, beta-glucan và dầu lanh sinh học giúp tăng cường hệ miễn dịch, kích thích thèm ăn và giảm rụng lông.",
+    "variants": [
+      {
+        "label": "Tuýp 50g Tiêu chuẩn",
+        "price": 165000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/200000365411/product/man_1f1645c6ebed4c9084abadb42b65790c_master.jpg",
+        "finalPrice": 165000
+      },
+      {
+        "label": "Tuýp 100g Tiết kiệm",
+        "price": 280000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2023/04/gel-dinh-duong-cho-meo-ho-tro-mien-dich-gimcat-multi-vitamin-paste.jpg",
+        "finalPrice": 266000
+      },
+      {
+        "label": "Tuýp 200g Đại gia đình",
+        "price": 490000,
+        "discountPercent": 10,
+        "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmexlbfp82cf62",
+        "finalPrice": 441000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://product.hstatic.net/200000365411/product/man_1f1645c6ebed4c9084abadb42b65790c_master.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2023/04/gel-dinh-duong-cho-meo-ho-tro-mien-dich-gimcat-multi-vitamin-paste.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmexlbfp82cf62",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-PETBED-010",
+    "name": "Nệm tròn lông vũ êm ái chống lạnh chống trượt cho Chó Mèo Cozy Cloud",
+    "categorySlug": "phu-kien",
+    "origin": "Hàn Quốc",
+    "description": "Sợi nhung lông vũ siêu mềm ấm áp, đệm bông gòn đàn hồi cao cấp ôm trọn cơ thể thú cưng, đáy phủ hạt silicon chống trượt hiệu quả.",
+    "variants": [
+      {
+        "label": "Size S (Đường kính 40cm - Dưới 4kg) Xám Pastel",
+        "price": 190000,
+        "discountPercent": 0,
+        "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m4ffbhnlzgufce",
+        "finalPrice": 190000
+      },
+      {
+        "label": "Size M (Đường kính 50cm - 4 - 8kg) Nâu Cafe",
+        "price": 260000,
+        "discountPercent": 5,
+        "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m263199hghbma2",
+        "finalPrice": 247000
+      },
+      {
+        "label": "Size L (Đường kính 60cm - Dưới 15kg) Be Trắng",
+        "price": 340000,
+        "discountPercent": 8,
+        "image": "https://bizweb.dktcdn.net/100/375/956/products/web-15e7e4f8-8f9e-4f50-980d-10695c06043f.jpg?v=1639662093587",
+        "finalPrice": 312800
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m4ffbhnlzgufce",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m263199hghbma2",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://bizweb.dktcdn.net/100/375/956/products/web-15e7e4f8-8f9e-4f50-980d-10695c06043f.jpg?v=1639662093587",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEASH-011",
+    "name": "Dây dắt kèm yếm ngực phản quang trợ lực đi dạo cho Chó Mèo",
+    "categorySlug": "phu-kien",
+    "origin": "Việt Nam",
+    "description": "Vải lưới thoáng khí tổ ong êm ái, đai ngực dệt viền chỉ dạ quang phát sáng ban đêm an toàn, khóa cài hợp kim chống giật bền bỉ.",
+    "variants": [
+      {
+        "label": "Size S (Vòng ngực 30-40cm) Đỏ viền phản quang",
+        "price": 150000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/200000263355/product/z4414321970844_86d1908da835af01c45ed97c22e6dafa_97fa626bd8604bb681be607aed4b470e_1024x1024.jpg",
+        "finalPrice": 150000
+      },
+      {
+        "label": "Size M (Vòng ngực 40-55cm) Xanh dương phối đen",
+        "price": 185000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/200000263355/product/z4412089628770_3af6311c01eb907faf0e43f8a0988cf3_e5dfd008cde64c52b1de3fd0ae46ae99_master.jpg",
+        "finalPrice": 175750
+      },
+      {
+        "label": "Size L (Vòng ngực 55-70cm) Cam dạ quang nổi bật",
+        "price": 230000,
+        "discountPercent": 8,
+        "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lw2f7vudp6mxd9",
+        "finalPrice": 211600
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://product.hstatic.net/200000263355/product/z4414321970844_86d1908da835af01c45ed97c22e6dafa_97fa626bd8604bb681be607aed4b470e_1024x1024.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/200000263355/product/z4412089628770_3af6311c01eb907faf0e43f8a0988cf3_e5dfd008cde64c52b1de3fd0ae46ae99_master.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lw2f7vudp6mxd9",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-CATTOY-012",
+    "name": "Cần câu mèo gắn chuông lông vũ kích thích vận động Funny Cat Stick",
+    "categorySlug": "do-choi",
+    "origin": "Hàn Quốc",
+    "description": "Cán cần sợi thủy tinh dẻo dai đàn hồi cao, gắn chuông leng keng vui nhộn và lông vũ tự nhiên kích thích bản năng săn mồi của mèo.",
+    "variants": [
+      {
+        "label": "Cần đơn 90cm sợi thủy tinh kèm chuông",
+        "price": 45000,
+        "discountPercent": 0,
+        "image": "https://bizweb.dktcdn.net/100/092/840/products/can-cau-long-vu-gan-chuong.jpg?v=1683364456207",
+        "finalPrice": 45000
+      },
+      {
+        "label": "Bộ cần rút gọn + 3 đầu lông vũ thay thế",
+        "price": 85000,
+        "discountPercent": 0,
+        "image": "https://product.hstatic.net/200000491469/product/b52bef929eb2428ca7f747fe6959983b_81eb18327ec54bc5acc4be3b86ed876f_master.png",
+        "finalPrice": 85000
+      },
+      {
+        "label": "Bản giác hút chân không tự động dính sàn",
+        "price": 135000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/200000263355/product/z6208564784468_645c2ef3552d7dd0dad6f29e57de2cff_104939bbdd3e4a2cb10c83d2f482d20f_master.jpg",
+        "finalPrice": 128250
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://bizweb.dktcdn.net/100/092/840/products/can-cau-long-vu-gan-chuong.jpg?v=1683364456207",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/200000491469/product/b52bef929eb2428ca7f747fe6959983b_81eb18327ec54bc5acc4be3b86ed876f_master.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z6208564784468_645c2ef3552d7dd0dad6f29e57de2cff_104939bbdd3e4a2cb10c83d2f482d20f_master.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-001",
+    "name": "Dầu cá cho mèo WILD CAUGHT Omega-3 Fish Oil For Cats",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Chiết xuất từ 100% cá biển đánh bắt tự nhiên vùng biển Bắc Băng Dương, bổ sung EPA và DHA đậm đặc giúp mượt lông và nuôi dưỡng não bộ.",
+    "variants": [
+      {
+        "label": "Chai 237ml (8oz)",
+        "price": 320000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats1.jpg",
+        "finalPrice": 320000
+      },
+      {
+        "label": "Chai 473ml (16oz)",
+        "price": 580000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats2.jpg",
+        "finalPrice": 551000
+      },
+      {
+        "label": "Chai 946ml (32oz) Tiết kiệm",
+        "price": 950000,
+        "discountPercent": 10,
+        "image": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats3.jpg",
+        "finalPrice": 855000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats1.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats2.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2026/03/dau-ca-cho-meo-wild-caught-omega-3-fish-oil-for-cats3.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-003",
+    "name": "Nước sốt pate cho mèo CIAO vị cá ngừ, cá bào nhật & ức gà",
+    "categorySlug": "thuc-an",
+    "origin": "Nhật Bản",
+    "description": "Nước sốt thơm ngon hảo hạng từ cá ngừ đại dương và cá bào Nhật katsuo, giàu vitamin E và chiết xuất trà xanh giảm mùi hôi chất thải.",
+    "variants": [
+      {
+        "label": "Gói 40g Tiêu chuẩn",
+        "price": 18000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg",
+        "finalPrice": 18000
+      },
+      {
+        "label": "Lốc 4 gói x 40g",
+        "price": 68000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+        "finalPrice": 64600
+      },
+      {
+        "label": "Hộp 16 gói x 40g Tiết kiệm",
+        "price": 260000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png",
+        "finalPrice": 234000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-bao-nhat-uc-ga.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-004",
+    "name": "Bánh thưởng cho chó BOWWOW Carrot Cheesee Ball",
+    "categorySlug": "thuc-an",
+    "origin": "Hàn Quốc",
+    "description": "Viên phô mai béo ngậy kết hợp cà rốt tươi ngon giòn rụm, giàu vitamin A và canxi hỗ trợ tiêu hóa và sáng mắt cho cún con.",
+    "variants": [
+      {
+        "label": "Gói 100g Tiêu chuẩn",
+        "price": 45000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg",
+        "finalPrice": 45000
+      },
+      {
+        "label": "Gói lớn 250g",
+        "price": 95000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg",
+        "finalPrice": 90250
+      },
+      {
+        "label": "Combo 3 gói x 100g Tiết kiệm",
+        "price": 125000,
+        "discountPercent": 8,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg",
+        "finalPrice": 115000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-carrot-cheesee-ball.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/bowwow-cheddar-cheese-ball.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-005",
+    "name": "Snack bánh thưởng cho chó BOWWOW Mixed Sandwich",
+    "categorySlug": "thuc-an",
+    "origin": "Hàn Quốc",
+    "description": "Bánh sandwich kẹp nhân thịt tươi và phô mai mềm xốp thơm lừng, là phần thưởng lý tưởng trong quá trình huấn luyện dạy lệnh cho cún.",
+    "variants": [
+      {
+        "label": "Gói 100g Tiêu chuẩn",
+        "price": 50000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg",
+        "finalPrice": 50000
+      },
+      {
+        "label": "Gói lớn 250g",
+        "price": 105000,
+        "discountPercent": 5,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/f3db2c3c-3bbf-4227-a473-b992b79b04ca/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+        "finalPrice": 99750
+      },
+      {
+        "label": "Combo 3 gói x 100g Tiết kiệm",
+        "price": 135000,
+        "discountPercent": 10,
+        "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/201af53e-736a-43a5-98fa-a33b82135901/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+        "finalPrice": 121500
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/snack-banh-thuong-cho-cho-bow-wow-mixed-sandwich.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/f3db2c3c-3bbf-4227-a473-b992b79b04ca/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/045fed65-73e7-47b0-ba29-c853c2e3e871/201af53e-736a-43a5-98fa-a33b82135901/b-nh-th-ng-cho-ch-h-n-h-p-bowwow-mixed-snack-paddy.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-006",
+    "name": "Dụng cụ ăn uống cho chó mèo PAW tự động đa năng",
+    "categorySlug": "phu-kien",
+    "origin": "Nhật Bản",
+    "description": "Bộ bát ăn và khay cấp nước tự động thông minh bằng nhựa ABS kháng khuẩn và khay Inox 304 không gỉ, nghiêng 15 độ bảo vệ cột sống cổ.",
+    "variants": [
+      {
+        "label": "Bát đơn Inox 400ml chống trượt",
+        "price": 150000,
+        "discountPercent": 19,
+        "image": "https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png",
+        "finalPrice": 121500
+      },
+      {
+        "label": "Bát đôi nghiêng 15 độ bảo vệ cột sống",
+        "price": 220000,
+        "discountPercent": 20,
+        "image": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png",
+        "finalPrice": 176000
+      },
+      {
+        "label": "Bát đôi kèm bình cấp nước tự động 1.5L",
+        "price": 280000,
+        "discountPercent": 25,
+        "image": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png",
+        "finalPrice": 210000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-007",
+    "name": "Gel vệ sinh răng miệng cho chó TROPICLEAN Clean Teeth Gel Peanut Butter",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Gel làm sạch mảng bám và cao răng hương vị bơ đậu phộng khoái khẩu của cún, không cần chải răng vẫn đem lại hơi thở thơm tho tươi mát.",
+    "variants": [
+      {
+        "label": "Tuýp 59ml (2oz)",
+        "price": 240000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg",
+        "finalPrice": 240000
+      },
+      {
+        "label": "Tuýp 118ml (4oz)",
+        "price": 360000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+        "finalPrice": 342000
+      },
+      {
+        "label": "Chai lớn 473ml (16oz)",
+        "price": 790000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "finalPrice": 711000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-tropiclean-clean-teeth-gel-peanut-butter.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-008",
+    "name": "Thức ăn cho chó hạt mềm vị cá hồi ORIGI-7 Salmon",
+    "categorySlug": "thuc-an",
+    "origin": "Hàn Quốc",
+    "description": "Hạt mềm sấy dẻo 70% hữu cơ từ thịt cá hồi tươi và nghệ, hạt mềm dễ nhai thích hợp cho chó kén ăn, chó nhỏ và chó già răng yếu.",
+    "variants": [
+      {
+        "label": "Túi 1.2kg (gồm 6 gói nhỏ 200g)",
+        "price": 380000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-cuu-origi-7-lamb.jpg",
+        "finalPrice": 380000
+      },
+      {
+        "label": "Túi 2kg",
+        "price": 580000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/200000263355/product/z4395825189533_fa88456623d21c7e0f7a15f205a6d58d_2bf213a2311b4ab48021c36e4e5823ba.jpg",
+        "finalPrice": 551000
+      },
+      {
+        "label": "Bao 6kg Tiết kiệm",
+        "price": 1450000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/200000263355/product/z4395852476951_23bb6115da979cf0d3305356d1e24f55_d0fe473caad5403fa8bedcbc69f19ea4.jpg",
+        "finalPrice": 1305000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-hat-mem-vi-thit-cuu-origi-7-lamb.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/200000263355/product/z4395825189533_fa88456623d21c7e0f7a15f205a6d58d_2bf213a2311b4ab48021c36e4e5823ba.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4395852476951_23bb6115da979cf0d3305356d1e24f55_d0fe473caad5403fa8bedcbc69f19ea4.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-009",
+    "name": "Thức ăn cho chó con hạt mềm ZENITH Puppy Chicken Potato",
+    "categorySlug": "thuc-an",
+    "origin": "Hàn Quốc",
+    "description": "Công thức hạt mềm bán ẩm từ thịt gà rút xương và khoai tây, bổ sung sữa non tăng cường kháng thể cho cún con trong giai đoạn phát triển đầu đời.",
+    "variants": [
+      {
+        "label": "Túi 1.2kg (gồm 4 gói nhỏ 300g)",
+        "price": 260000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-adult-lamb-potato.jpg",
+        "finalPrice": 260000
+      },
+      {
+        "label": "Túi 3kg (gồm 6 gói nhỏ 500g)",
+        "price": 580000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/200000263355/product/ikgj7935_67271f42c8a34e349d08838930f1cf44_large.jpg",
+        "finalPrice": 551000
+      },
+      {
+        "label": "Bao 9kg Tiết kiệm",
+        "price": 1550000,
+        "discountPercent": 10,
+        "image": "https://down-vn.img.susercontent.com/file/d1d45772f3dab24dabb665680b6edff3",
+        "finalPrice": 1395000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/zenith-adult-lamb-potato.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/200000263355/product/ikgj7935_67271f42c8a34e349d08838930f1cf44_large.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://down-vn.img.susercontent.com/file/d1d45772f3dab24dabb665680b6edff3",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-010",
+    "name": "Thức ăn cho chó hữu cơ NATURAL CORE Duck Potato Organic",
+    "categorySlug": "thuc-an",
+    "origin": "Hàn Quốc",
+    "description": "Thức ăn hữu cơ đạt chứng nhận USDA và ECOCERT từ thịt vịt và khoai tây không gây dị ứng, bảo vệ làn da nhạy cảm và hệ tiêu hóa nhạy cảm.",
+    "variants": [
+      {
+        "label": "Túi 1kg",
+        "price": 290000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon.jpg",
+        "finalPrice": 290000
+      },
+      {
+        "label": "Túi 2.4kg",
+        "price": 590000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg",
+        "finalPrice": 560500
+      },
+      {
+        "label": "Bao 6kg Tiết kiệm",
+        "price": 1350000,
+        "discountPercent": 10,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core.jpg",
+        "finalPrice": 1215000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core-multi-protein-chicken-salmon2.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/thuc-an-cho-cho-huu-co-natural-core.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-011",
+    "name": "Bộ vệ sinh răng miệng cho chó TROPICLEAN Fresh Breath Dental Trial Kit",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Bộ chăm sóc răng miệng toàn diện gồm gel đánh răng, bàn chải QuickFinger và bàn chải cán dài lông mềm giúp loại bỏ 99% vi khuẩn gây hôi miệng.",
+    "variants": [
+      {
+        "label": "Bộ cho Chó nhỏ (Dưới 10kg)",
+        "price": 280000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+        "finalPrice": 280000
+      },
+      {
+        "label": "Bộ cho Chó vừa (10 - 25kg)",
+        "price": 310000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray.jpg",
+        "finalPrice": 294500
+      },
+      {
+        "label": "Bộ cho Chó lớn (Trên 25kg)",
+        "price": 350000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray-1.jpg",
+        "finalPrice": 332500
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/bo-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-dental-trial-kit.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-huong-qua-mong-tropiclean-berry-fresh-oral-care-spray-1.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-012",
+    "name": "Nước súc miệng hỗ trợ tiêu hóa cho chó TROPICLEAN Dental Health Digestive",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Dung dịch pha nước uống bổ sung men vi sinh probiotic tự nhiên hỗ trợ đường ruột và ngăn ngừa tích tụ mảng bám chân răng suốt 12 giờ.",
+    "variants": [
+      {
+        "label": "Chai 236ml (8.5oz)",
+        "price": 250000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray.jpg",
+        "finalPrice": 250000
+      },
+      {
+        "label": "Chai 473ml (16oz)",
+        "price": 420000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray-1.jpg",
+        "finalPrice": 399000
+      },
+      {
+        "label": "Chai 946ml (32oz) Tiết kiệm",
+        "price": 750000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "finalPrice": 675000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/xit-khu-mui-hoi-mieng-cho-meo-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray-1.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-013",
+    "name": "Nước súc miệng dưỡng lông cho chó TROPICLEAN Dental Skin Health",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Bổ sung omega 3 & 6 từ dầu hạt lanh và vitamin E giúp dưỡng lông bóng khỏe từ bên trong, đồng thời giữ khoang miệng thơm tho không mùi.",
+    "variants": [
+      {
+        "label": "Chai 236ml (8.5oz)",
+        "price": 250000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-cho-tropiclean-berry-coconut-waterless-dog-shampoo.jpg",
+        "finalPrice": 250000
+      },
+      {
+        "label": "Chai 473ml (16oz)",
+        "price": 420000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/200000263355/product/qhir4611_10e87df40d214ea6a8032bda20bfa1b5.jpg",
+        "finalPrice": 399000
+      },
+      {
+        "label": "Chai 946ml (32oz) Tiết kiệm",
+        "price": 750000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/200000263355/product/z4467887432903_c91f927468cef55bbc35b506d9065d3f_65ee559d46294517a8d2031ecedc498a.jpg",
+        "finalPrice": 675000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/sua-tam-kho-cho-cho-tropiclean-berry-coconut-waterless-dog-shampoo.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/200000263355/product/qhir4611_10e87df40d214ea6a8032bda20bfa1b5.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/z4467887432903_c91f927468cef55bbc35b506d9065d3f_65ee559d46294517a8d2031ecedc498a.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-014",
+    "name": "Gel vệ sinh răng miệng cho chó con TROPICLEAN Clean Teeth Gel Puppy",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Công thức dịu nhẹ độc quyền dành riêng cho nướu nhạy cảm của cún con từ 16 tuần tuổi, làm dịu cảm giác khó chịu khi cún đang thay răng.",
+    "variants": [
+      {
+        "label": "Tuýp 59ml (2oz)",
+        "price": 230000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg",
+        "finalPrice": 230000
+      },
+      {
+        "label": "Tuýp 118ml (4oz)",
+        "price": 350000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+        "finalPrice": 332500
+      },
+      {
+        "label": "Chai 473ml (16oz)",
+        "price": 760000,
+        "discountPercent": 10,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg",
+        "finalPrice": 684000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/gel-ve-sinh-rang-mieng-cho-cho-con-tropiclean-clean-teeth-gel-puppy.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-015",
+    "name": "Dung dịch vệ sinh răng miệng cho chó TROPICLEAN Fresh Breath Drops",
+    "categorySlug": "cham-soc-suc-khoe",
+    "origin": "Mỹ",
+    "description": "Dung dịch nhỏ giọt bỏ túi tiện lợi, chỉ cần nhỏ 3 giọt vào bát nước sạch mỗi ngày giúp loại bỏ vi khuẩn gây mùi và giữ hơi thở thơm mát.",
+    "variants": [
+      {
+        "label": "Lọ giọt 59ml (2oz) Bỏ túi",
+        "price": 195000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+        "finalPrice": 195000
+      },
+      {
+        "label": "Chai 118ml (4oz)",
+        "price": 320000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg",
+        "finalPrice": 304000
+      },
+      {
+        "label": "Chai 473ml (16oz)",
+        "price": 680000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "finalPrice": 612000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-0.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/dung-dich-ve-sinh-rang-mieng-cho-cho-tropiclean-fresh-breath-drops-for-dogs-1.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/200000263355/product/cyjb0676_cc09bae0c2c54250845860a689bef291.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-016",
+    "name": "Nước sốt pate cho mèo CIAO vị ức gà và thanh cua",
+    "categorySlug": "thuc-an",
+    "origin": "Nhật Bản",
+    "description": "Thịt ức gà tươi xé sợi mềm quyện thanh cua biển hảo hạng, giàu protein nạc và độ ẩm cao hỗ trợ hệ tiết niệu khỏe mạnh cho mèo.",
+    "variants": [
+      {
+        "label": "Gói 40g Tiêu chuẩn",
+        "price": 18000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua.jpg",
+        "finalPrice": 18000
+      },
+      {
+        "label": "Lốc 4 gói x 40g",
+        "price": 68000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua2.jpg",
+        "finalPrice": 64600
+      },
+      {
+        "label": "Hộp 16 gói x 40g Tiết kiệm",
+        "price": 260000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/1000217401/product/60_b937d2d5516541b290a2f331e79fb80a.png",
+        "finalPrice": 234000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-uc-ga-va-thanh-cua2.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/60_b937d2d5516541b290a2f331e79fb80a.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-017",
+    "name": "Nước sốt pate cho mèo CIAO vị cá ngừ & cá ngần trắng",
+    "categorySlug": "thuc-an",
+    "origin": "Nhật Bản",
+    "description": "Cá ngừ đại dương tươi ngon kết hợp cá ngần trắng giàu canxi và taurine cho đôi mắt sáng tinh anh và trái tim mèo khỏe mạnh.",
+    "variants": [
+      {
+        "label": "Gói 40g Tiêu chuẩn",
+        "price": 18000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang.jpg",
+        "finalPrice": 18000
+      },
+      {
+        "label": "Lốc 4 gói x 40g",
+        "price": 68000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang2.jpg",
+        "finalPrice": 64600
+      },
+      {
+        "label": "Hộp 16 gói x 40g Tiết kiệm",
+        "price": 260000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/1000217401/product/69_cd7065da70fb4ac682c9770d440dd198_grande.png",
+        "finalPrice": 234000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-ca-ngan-trang2.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/69_cd7065da70fb4ac682c9770d440dd198_grande.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-018",
+    "name": "Nước sốt pate cho mèo CIAO vị cá ngừ & thịt gà",
+    "categorySlug": "thuc-an",
+    "origin": "Nhật Bản",
+    "description": "Sự kết hợp hoàn hảo giữa thịt cá ngừ hồng tươi và ức gà thanh ngọt, sốt kem mịn màng kích thích tối đa vị giác của mèo biếng ăn.",
+    "variants": [
+      {
+        "label": "Gói 40g Tiêu chuẩn",
+        "price": 18000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg",
+        "finalPrice": 18000
+      },
+      {
+        "label": "Lốc 4 gói x 40g",
+        "price": 68000,
+        "discountPercent": 5,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna.jpg",
+        "finalPrice": 64600
+      },
+      {
+        "label": "Hộp 16 gói x 40g Tiết kiệm",
+        "price": 260000,
+        "discountPercent": 10,
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna2.jpg",
+        "finalPrice": 234000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-ngu-thit-ga.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna.jpg",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/12/pate-cho-meo-vi-ca-ngu-iris-love-meow-tuna2.jpg",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  },
+  {
+    "code": "SP-LEG-019",
+    "name": "Nước sốt pate cho mèo CIAO vị cá ngừ & cá bào nhật",
+    "categorySlug": "thuc-an",
+    "origin": "Nhật Bản",
+    "description": "Hương vị cá bào truyền thống Nhật Bản đậm đà khó cưỡng, giàu khoáng chất tự nhiên giúp mèo luôn khỏe khoắn và năng động.",
+    "variants": [
+      {
+        "label": "Gói 40g Tiêu chuẩn",
+        "price": 18000,
+        "discountPercent": 0,
+        "image": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-bao-nhat.jpg",
+        "finalPrice": 18000
+      },
+      {
+        "label": "Lốc 4 gói x 40g",
+        "price": 68000,
+        "discountPercent": 5,
+        "image": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+        "finalPrice": 64600
+      },
+      {
+        "label": "Hộp 16 gói x 40g Tiết kiệm",
+        "price": 260000,
+        "discountPercent": 10,
+        "image": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png",
+        "finalPrice": 234000
+      }
+    ],
+    "images": [
+      {
+        "id": "img-1",
+        "url": "https://www.petmart.vn/wp-content/uploads/2020/12/nuoc-sot-pate-cho-meo-ciao-vi-ca-bao-nhat.jpg",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "id": "img-2",
+        "url": "https://product.hstatic.net/1000217401/product/68_22ff9ffb0a7647a082e4c0b351ad7d21.png",
+        "isPrimary": false,
+        "sortOrder": 1
+      },
+      {
+        "id": "img-3",
+        "url": "https://product.hstatic.net/1000217401/product/62_ec06eb85f744476eb8e42a4947bad54b.png",
+        "isPrimary": false,
+        "sortOrder": 2
+      }
+    ]
+  }
+]

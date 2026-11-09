@@ -779,256 +779,582 @@ export const runProductionUatSeed = async () => {
 
   const REALISTIC_PRODUCTS = [
     {
-      code: 'SP-RC-MINI-001',
-      name: 'Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult',
-      categorySlug: 'thuc-an',
-      origin: 'Pháp',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Hỗ trợ duy trì cân nặng lý tưởng, tăng cường sức khỏe da lông và hệ tiêu hóa cho giống chó nhỏ từ 10 tháng đến 8 tuổi.',
-      variants: [
-        { label: 'Túi 2kg', price: 340000, discountPercent: 5 },
-        { label: 'Túi 8kg', price: 1150000, discountPercent: 10 },
-        { label: 'Bao 15kg', price: 1980000, discountPercent: 12 }
-      ]
+        "code": "SP-RC-MINI-001",
+        "name": "Thức ăn hạt cao cấp cho chó nhỏ Royal Canin Mini Adult",
+        "categorySlug": "thuc-an",
+        "origin": "Pháp",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Dinh dưỡng cân bằng hoàn hảo cho chó cỡ nhỏ từ 10 tháng đến 8 năm tuổi, giúp duy trì cân nặng lý tưởng, hỗ trợ tiêu hóa và làm mượt lông.",
+        "variants": [
+            {
+                "label": "Túi 800g",
+                "price": 185000,
+                "discountPercent": 5,
+                "image": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg"
+            },
+            {
+                "label": "Túi 2kg",
+                "price": 350000,
+                "discountPercent": 10,
+                "image": "https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg"
+            },
+            {
+                "label": "Bao 8kg Tiết kiệm",
+                "price": 1250000,
+                "discountPercent": 12,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png"
+            }
+        ]
     },
     {
-      code: 'SP-WHISKAS-002',
-      name: 'Pate thơm ngon cho mèo Whiskas vị cá thu và cá hồi biển',
-      categorySlug: 'thuc-an',
-      origin: 'Thái Lan',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1561948955-570b270e7c36?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Bổ sung Omega 3, 6 và kẽm giúp lông bóng mượt, cung cấp đủ độ ẩm phòng ngừa sỏi thận cho mèo.',
-      variants: [
-        { label: 'Gói 85g', price: 18000, discountPercent: 0 },
-        { label: 'Hộp 12 gói (85g)', price: 200000, discountPercent: 8 },
-        { label: 'Thùng 24 gói (85g)', price: 380000, discountPercent: 12 }
-      ]
+        "code": "SP-WHISKAS-002",
+        "name": "Pate thơm ngon cho mèo Whiskas vị cá thu và cá hồi biển",
+        "categorySlug": "thuc-an",
+        "origin": "Thái Lan",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Thức ăn ướt giàu protein từ thịt cá tươi ngon mọng nước, bổ sung kẽm và acid béo omega giúp sáng mắt và nuôi dưỡng bộ lông bóng mượt.",
+        "variants": [
+            {
+                "label": "Gói 85g Cá Thu & Cá Hồi",
+                "price": 20000,
+                "discountPercent": 0,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png"
+            },
+            {
+                "label": "Hộp 12 gói (85g)",
+                "price": 228000,
+                "discountPercent": 5,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png"
+            },
+            {
+                "label": "Thùng 24 gói (85g) Tiết kiệm",
+                "price": 432000,
+                "discountPercent": 10,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png"
+            }
+        ]
     },
     {
-      code: 'SP-CATURE-003',
-      name: 'Cát đậu nành hữu cơ xả bồn cầu Cature Tofu Clumping Litter',
-      categorySlug: 'do-dung-thiet-yeu',
-      origin: 'Mỹ',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Vón hút nhanh chóng sau 3 giây, 99.5% không bụi, khử mùi tự nhiên 100% phân hủy sinh học có thể xả bồn cầu.',
-      variants: [
-        { label: 'Túi 6L (2.4kg)', price: 135000, discountPercent: 0 },
-        { label: 'Túi 12L (4.8kg)', price: 255000, discountPercent: 5 },
-        { label: 'Thùng 4 túi (9.6kg)', price: 490000, discountPercent: 10 }
-      ]
+        "code": "SP-CATURE-003",
+        "name": "Cát đậu nành hữu cơ xả bồn cầu Cature Tofu Clumping Litter",
+        "categorySlug": "cham-soc-suc-khoe",
+        "origin": "Hàn Quốc",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "100% bã đậu nành thiên nhiên khử mùi vượt trội, vón cục nhanh, không bụi 99.5%, tự tiêu hủy sinh học an toàn xả trực tiếp bồn cầu.",
+        "variants": [
+            {
+                "label": "Túi 6L (2.4kg) Hương Sữa Tự Nhiên",
+                "price": 140000,
+                "discountPercent": 0,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png"
+            },
+            {
+                "label": "Túi 6L (2.4kg) Hương Trà Xanh Kháng Khuẩn",
+                "price": 145000,
+                "discountPercent": 0,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg"
+            },
+            {
+                "label": "Thùng 4 túi (9.6kg) Combo Tiết Kiệm",
+                "price": 520000,
+                "discountPercent": 8,
+                "image": "https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png"
+            }
+        ]
     },
     {
-      code: 'SP-BRAVECTO-004',
-      name: 'Viên nhai đặc trị ve rận, bọ chét và ghẻ demodex Bravecto Chewable',
-      categorySlug: 'cham-soc-suc-khoe',
-      origin: 'Áo',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1527526029430-319f10814151?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Hiệu quả bảo vệ vượt trội kéo dài 12 tuần chỉ với 1 viên duy nhất, an toàn cho chó mang thai và cho con bú.',
-      variants: [
-        { label: 'Cho chó 4.5 - 10kg', price: 650000, discountPercent: 0 },
-        { label: 'Cho chó 10 - 20kg', price: 720000, discountPercent: 0 },
-        { label: 'Cho chó 20 - 40kg', price: 850000, discountPercent: 5 }
-      ]
+        "code": "SP-BRAVECTO-004",
+        "name": "Viên nhai đặc trị ve rận, bọ chét và ghẻ demodex Bravecto Chewable",
+        "categorySlug": "cham-soc-suc-khoe",
+        "origin": "Mỹ",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://down-br.img.susercontent.com/file/br-11134207-81ztx-ml2i0skbde6a68",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://bizweb.dktcdn.net/thumb/1024x1024/100/364/584/products/watermarked-bravecto-500mg-20-40kg-289a3f81-fbd3-47f2-862c-81d78f991e33.png?v=1711610924840",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Viên nhai vị thịt hấp dẫn bảo vệ chó khỏi bọ chét và ve kéo dài suốt 12 tuần chỉ với 1 liều duy nhất, an toàn cho cả chó mang thai và cho con bú.",
+        "variants": [
+            {
+                "label": "Hộp 1 viên Cho chó 4.5 - 10kg (Vàng - 250mg)",
+                "price": 450000,
+                "discountPercent": 0,
+                "image": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp"
+            },
+            {
+                "label": "Hộp 1 viên Cho chó 10 - 20kg (Xanh lá - 500mg)",
+                "price": 520000,
+                "discountPercent": 5,
+                "image": "https://down-br.img.susercontent.com/file/br-11134207-81ztx-ml2i0skbde6a68"
+            },
+            {
+                "label": "Hộp 1 viên Cho chó 20 - 40kg (Xanh dương - 1000mg)",
+                "price": 610000,
+                "discountPercent": 5,
+                "image": "https://bizweb.dktcdn.net/thumb/1024x1024/100/364/584/products/watermarked-bravecto-500mg-20-40kg-289a3f81-fbd3-47f2-862c-81d78f991e33.png?v=1711610924840"
+            }
+        ]
     },
     {
-      code: 'SP-SOS-SHAMPOO-005',
-      name: 'Sữa tắm thảo dược dưỡng lông mềm mượt SOS dành cho thú cưng',
-      categorySlug: 'do-dung-thiet-yeu',
-      origin: 'Đài Loan',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1527526029430-319f10814151?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Chiết xuất từ thiên nhiên giúp diệt khuẩn, lưu hương thơm dễ chịu tới 10 ngày, khử sạch mùi hôi cơ thể thú cưng.',
-      variants: [
-        { label: 'Chai 530ml - Lông trắng', price: 120000, discountPercent: 0 },
-        { label: 'Chai 530ml - Lông màu & nâu đỏ', price: 120000, discountPercent: 0 },
-        { label: 'Chai 530ml - Diệt khuẩn & trị ve rận', price: 135000, discountPercent: 5 }
-      ]
+        "code": "SP-SOS-SHAMPOO-005",
+        "name": "Sữa tắm thảo dược dưỡng lông mềm mượt SOS dành cho thú cưng",
+        "categorySlug": "cham-soc-suc-khoe",
+        "origin": "Đài Loan",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://down-vn.img.susercontent.com/file/sg-11134201-7rd49-lw2a8hubqeu538",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://bizweb.dktcdn.net/100/386/755/products/thiet-ke-chua-co-ten-23.png?v=1657186909390",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://imgcdn.thitruongsi.com/tts/rs:fill:1200:0:1:1/g:sm/plain/file:/product/2023/04/20/4a8fcff0-df50-11ed-8930-076713287c70.jpg",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Chiết xuất thảo dược khử mùi hôi hiệu quả, giữ ẩm dịu nhẹ cho làn da nhạy cảm và duy trì hương thơm bền lâu trên 7 ngày.",
+        "variants": [
+            {
+                "label": "Chai xanh dương 530ml - Lông trắng sáng",
+                "price": 120000,
+                "discountPercent": 0,
+                "image": "https://down-vn.img.susercontent.com/file/sg-11134201-7rd49-lw2a8hubqeu538"
+            },
+            {
+                "label": "Chai nâu đỏ 530ml - Lông màu & nâu đỏ",
+                "price": 120000,
+                "discountPercent": 0,
+                "image": "https://bizweb.dktcdn.net/100/386/755/products/thiet-ke-chua-co-ten-23.png?v=1657186909390"
+            },
+            {
+                "label": "Chai đen 530ml - Diệt khuẩn & trị ve rận",
+                "price": 135000,
+                "discountPercent": 5,
+                "image": "https://imgcdn.thitruongsi.com/tts/rs:fill:1200:0:1:1/g:sm/plain/file:/product/2023/04/20/4a8fcff0-df50-11ed-8930-076713287c70.jpg"
+            }
+        ]
     },
     {
-      code: 'SP-KONG-TOY-006',
-      name: 'Đồ chơi nhai gặm cao su thiên nhiên cao cấp cho Chó KONG Classic',
-      categorySlug: 'do-choi',
-      origin: 'Mỹ',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Chất liệu cao su thiên nhiên siêu bền, kích thích bản năng nhai gặm, có thể nhét thức ăn hoặc bơ đậu phộng vào bên trong.',
-      variants: [
-        { label: 'Size S (Dưới 9kg)', price: 190000, discountPercent: 0 },
-        { label: 'Size M (7 - 16kg)', price: 260000, discountPercent: 5 },
-        { label: 'Size L (13 - 30kg)', price: 340000, discountPercent: 8 }
-      ]
+        "code": "SP-KONG-TOY-006",
+        "name": "Đồ chơi nhai gặm cao su thiên nhiên cao cấp cho Chó KONG Classic",
+        "categorySlug": "do-choi",
+        "origin": "Mỹ",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Chất liệu cao su thiên nhiên siêu bền nảy bất định kích thích vận động, thiết kế rỗng thông minh có thể nhét pate hoặc bánh thưởng giải tỏa căng thẳng.",
+        "variants": [
+            {
+                "label": "Size S (Dưới 9kg)",
+                "price": 180000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg"
+            },
+            {
+                "label": "Size M (7 - 16kg)",
+                "price": 220000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg"
+            },
+            {
+                "label": "Size L (13 - 30kg)",
+                "price": 290000,
+                "discountPercent": 5,
+                "image": "https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg"
+            }
+        ]
     },
     {
-      code: 'SP-ALFALFA-007',
-      name: 'Cỏ khô dinh dưỡng Alfalfa Hay cho Thỏ, Bọ và Chuột Lang',
-      categorySlug: 'thuc-an',
-      origin: 'Úc',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Giàu protein, chất xơ và canxi cần thiết cho quá trình mài răng tự nhiên và phát triển khung xương của thú cưng nhỏ.',
-      variants: [
-        { label: 'Gói 500g', price: 75000, discountPercent: 0 },
-        { label: 'Gói 1kg', price: 135000, discountPercent: 5 },
-        { label: 'Bao 2.5kg', price: 290000, discountPercent: 10 }
-      ]
+        "code": "SP-ALFALFA-007",
+        "name": "Cỏ khô dinh dưỡng Alfalfa Hay cho Thỏ, Bọ và Chuột Lang",
+        "categorySlug": "thuc-an",
+        "origin": "Úc",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://khopetshop.net/assets/images/products/19032025041109_23293.jpg",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://khopetshop.net/assets/images/products/19032025041109_232931.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://khopetshop.net/assets/images/products/21092022010303_45489.png",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Cỏ linh lăng nguyên chất giàu đạm thực vật, canxi và chất xơ thô tự nhiên, kích thích tiêu hóa và hỗ trợ mài răng chắc khỏe cho thú nhỏ.",
+        "variants": [
+            {
+                "label": "Gói 500g Tiêu chuẩn",
+                "price": 120000,
+                "discountPercent": 0,
+                "image": "https://khopetshop.net/assets/images/products/19032025041109_23293.jpg"
+            },
+            {
+                "label": "Gói 1kg Cọng dài xanh non",
+                "price": 210000,
+                "discountPercent": 5,
+                "image": "https://khopetshop.net/assets/images/products/19032025041109_232931.jpg"
+            },
+            {
+                "label": "Bao 2.5kg Tiết kiệm",
+                "price": 450000,
+                "discountPercent": 10,
+                "image": "https://khopetshop.net/assets/images/products/21092022010303_45489.png"
+            }
+        ]
     },
     {
-      code: 'SP-RIO-BIRD-008',
-      name: 'Thức ăn hạt cao cấp cho Vẹt và Chim Cảnh RIO Daily Feed',
-      categorySlug: 'thuc-an',
-      origin: 'Đức',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Tập hợp các loại hạt ngũ cốc, hạt kê và khoáng chất cần thiết giúp chim cảnh hót hay, mượt lông.',
-      variants: [
-        { label: 'Hộp 500g', price: 88000, discountPercent: 0 },
-        { label: 'Hộp 1kg', price: 160000, discountPercent: 5 }
-      ]
+        "code": "SP-RIO-BIRD-008",
+        "name": "Thức ăn hạt cao cấp cho Vẹt và Chim Cảnh RIO Daily Feed",
+        "categorySlug": "thuc-an",
+        "origin": "Đức",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://khopetshop.net/assets/images/products/19032025040921_63107.jpg",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Hỗn hợp hạt kê, ngũ cốc tuyển chọn và hạt cỏ hoa quả tự nhiên cung cấp đầy đủ vi lượng, canxi giúp chim cảnh hót vang, lông sáng bóng.",
+        "variants": [
+            {
+                "label": "Hộp 500g Cho Vẹt Yến Phụng (Budgies)",
+                "price": 95000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png"
+            },
+            {
+                "label": "Hộp 1kg Cho Vẹt Cỡ Trung (Medium Parrots)",
+                "price": 175000,
+                "discountPercent": 5,
+                "image": "https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png"
+            },
+            {
+                "label": "Bao 2.5kg Cho Vẹt Lớn (Large Parrots)",
+                "price": 380000,
+                "discountPercent": 10,
+                "image": "https://khopetshop.net/assets/images/products/19032025040921_63107.jpg"
+            }
+        ]
     },
     {
-      code: 'SP-GIMCAT-009',
-      name: 'Gel dinh dưỡng bổ sung 12 loại Vitamin thiết yếu cho Mèo GimCat Paste',
-      categorySlug: 'cham-soc-suc-khoe',
-      origin: 'Đức',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1561948955-570b270e7c36?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Tăng cường hệ miễn dịch tự nhiên, bồi bổ cho mèo biếng ăn, ốm dậy hoặc mèo con đang phát triển.',
-      variants: [
-        { label: 'Tuýp 50g', price: 165000, discountPercent: 0 },
-        { label: 'Tuýp 100g', price: 290000, discountPercent: 5 },
-        { label: 'Tuýp 200g', price: 520000, discountPercent: 10 }
-      ]
+        "code": "SP-GIMCAT-009",
+        "name": "Gel dinh dưỡng bổ sung 12 loại Vitamin thiết yếu cho Mèo GimCat Paste",
+        "categorySlug": "cham-soc-suc-khoe",
+        "origin": "Đức",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://product.hstatic.net/200000365411/product/man_1f1645c6ebed4c9084abadb42b65790c_master.jpg",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://www.petmart.vn/wp-content/uploads/2023/04/gel-dinh-duong-cho-meo-ho-tro-mien-dich-gimcat-multi-vitamin-paste.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmexlbfp82cf62",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Chứa phức hợp 12 loại vitamin thiết yếu, beta-glucan và dầu lanh sinh học giúp tăng cường hệ miễn dịch, kích thích thèm ăn và giảm rụng lông.",
+        "variants": [
+            {
+                "label": "Tuýp 50g Tiêu chuẩn",
+                "price": 165000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/200000365411/product/man_1f1645c6ebed4c9084abadb42b65790c_master.jpg"
+            },
+            {
+                "label": "Tuýp 100g Tiết kiệm",
+                "price": 280000,
+                "discountPercent": 5,
+                "image": "https://www.petmart.vn/wp-content/uploads/2023/04/gel-dinh-duong-cho-meo-ho-tro-mien-dich-gimcat-multi-vitamin-paste.jpg"
+            },
+            {
+                "label": "Tuýp 200g Đại gia đình",
+                "price": 490000,
+                "discountPercent": 10,
+                "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmexlbfp82cf62"
+            }
+        ]
     },
     {
-      code: 'SP-PETBED-010',
-      name: 'Nệm tròn lông vũ êm ái chống lạnh chống trượt cho Chó Mèo Cozy Cloud',
-      categorySlug: 'phu-kien',
-      origin: 'Việt Nam',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Chất liệu bông PP mềm mại, nâng niu giấc ngủ cho thú cưng, đáy chống thấm nước và chống xê dịch.',
-      variants: [
-        { label: 'Size S (Dưới 5kg)', price: 190000, discountPercent: 0 },
-        { label: 'Size M (5 - 10kg)', price: 240000, discountPercent: 5 },
-        { label: 'Size L (Dưới 15kg)', price: 290000, discountPercent: 10 }
-      ]
+        "code": "SP-PETBED-010",
+        "name": "Nệm tròn lông vũ êm ái chống lạnh chống trượt cho Chó Mèo Cozy Cloud",
+        "categorySlug": "phu-kien",
+        "origin": "Hàn Quốc",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m4ffbhnlzgufce",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m263199hghbma2",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://bizweb.dktcdn.net/100/375/956/products/web-15e7e4f8-8f9e-4f50-980d-10695c06043f.jpg?v=1639662093587",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Sợi nhung lông vũ siêu mềm ấm áp, đệm bông gòn đàn hồi cao cấp ôm trọn cơ thể thú cưng, đáy phủ hạt silicon chống trượt hiệu quả.",
+        "variants": [
+            {
+                "label": "Size S (Đường kính 40cm - Dưới 4kg) Xám Pastel",
+                "price": 190000,
+                "discountPercent": 0,
+                "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m4ffbhnlzgufce"
+            },
+            {
+                "label": "Size M (Đường kính 50cm - 4 - 8kg) Nâu Cafe",
+                "price": 260000,
+                "discountPercent": 5,
+                "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7ras8-m263199hghbma2"
+            },
+            {
+                "label": "Size L (Đường kính 60cm - Dưới 15kg) Be Trắng",
+                "price": 340000,
+                "discountPercent": 8,
+                "image": "https://bizweb.dktcdn.net/100/375/956/products/web-15e7e4f8-8f9e-4f50-980d-10695c06043f.jpg?v=1639662093587"
+            }
+        ]
     },
     {
-      code: 'SP-LEASH-011',
-      name: 'Dây dắt kèm yếm ngực phản quang trợ lực đi dạo cho Chó Mèo',
-      categorySlug: 'phu-kien',
-      origin: 'Hàn Quốc',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1568640347023-a616a30bc3bd?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Chất liệu vải Oxford thoáng khí êm ái, viền dạ quang phát sáng an toàn khi đi dạo ban đêm.',
-      variants: [
-        { label: 'Size S (Dưới 6kg)', price: 125000, discountPercent: 0 },
-        { label: 'Size M (6 - 14kg)', price: 165000, discountPercent: 5 },
-        { label: 'Size L (14 - 25kg)', price: 210000, discountPercent: 8 }
-      ]
+        "code": "SP-LEASH-011",
+        "name": "Dây dắt kèm yếm ngực phản quang trợ lực đi dạo cho Chó Mèo",
+        "categorySlug": "phu-kien",
+        "origin": "Việt Nam",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://product.hstatic.net/200000263355/product/z4414321970844_86d1908da835af01c45ed97c22e6dafa_97fa626bd8604bb681be607aed4b470e_1024x1024.jpg",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://product.hstatic.net/200000263355/product/z4412089628770_3af6311c01eb907faf0e43f8a0988cf3_e5dfd008cde64c52b1de3fd0ae46ae99_master.jpg",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lw2f7vudp6mxd9",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Vải lưới thoáng khí tổ ong êm ái, đai ngực dệt viền chỉ dạ quang phát sáng ban đêm an toàn, khóa cài hợp kim chống giật bền bỉ.",
+        "variants": [
+            {
+                "label": "Size S (Vòng ngực 30-40cm) Đỏ viền phản quang",
+                "price": 150000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/200000263355/product/z4414321970844_86d1908da835af01c45ed97c22e6dafa_97fa626bd8604bb681be607aed4b470e_1024x1024.jpg"
+            },
+            {
+                "label": "Size M (Vòng ngực 40-55cm) Xanh dương phối đen",
+                "price": 185000,
+                "discountPercent": 5,
+                "image": "https://product.hstatic.net/200000263355/product/z4412089628770_3af6311c01eb907faf0e43f8a0988cf3_e5dfd008cde64c52b1de3fd0ae46ae99_master.jpg"
+            },
+            {
+                "label": "Size L (Vòng ngực 55-70cm) Cam dạ quang nổi bật",
+                "price": 230000,
+                "discountPercent": 8,
+                "image": "https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lw2f7vudp6mxd9"
+            }
+        ]
     },
     {
-      code: 'SP-CATTOY-012',
-      name: 'Cần câu mèo gắn chuông lông vũ kích thích vận động Funny Cat Stick',
-      categorySlug: 'do-choi',
-      origin: 'Nhật Bản',
-      productType: 'VARIANT',
-      images: [
-        { id: 'img-1', url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&q=80', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800&q=80', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?w=800&q=80', isPrimary: false, sortOrder: 2 },
-        { id: 'img-4', url: 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=800&q=80', isPrimary: false, sortOrder: 3 },
-        { id: 'img-5', url: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80', isPrimary: false, sortOrder: 4 },
-        { id: 'img-6', url: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800&q=80', isPrimary: false, sortOrder: 5 }
-      ],
-      description: 'Cán sợi carbon dẻo dai đàn hồi cao, gắn lông vũ tự nhiên và chuông nhỏ thu hút sự chú ý của mèo.',
-      variants: [
-        { label: 'Cần đơn 90cm', price: 45000, discountPercent: 0 },
-        { label: 'Bộ cần + 3 đầu lông vũ thay thế', price: 85000, discountPercent: 10 }
-      ]
+        "code": "SP-CATTOY-012",
+        "name": "Cần câu mèo gắn chuông lông vũ kích thích vận động Funny Cat Stick",
+        "categorySlug": "do-choi",
+        "origin": "Hàn Quốc",
+        "productType": "VARIANT",
+        "images": [
+            {
+                "id": "img-1",
+                "url": "https://bizweb.dktcdn.net/100/092/840/products/can-cau-long-vu-gan-chuong.jpg?v=1683364456207",
+                "isPrimary": true,
+                "sortOrder": 0
+            },
+            {
+                "id": "img-2",
+                "url": "https://product.hstatic.net/200000491469/product/b52bef929eb2428ca7f747fe6959983b_81eb18327ec54bc5acc4be3b86ed876f_master.png",
+                "isPrimary": false,
+                "sortOrder": 1
+            },
+            {
+                "id": "img-3",
+                "url": "https://product.hstatic.net/200000263355/product/z6208564784468_645c2ef3552d7dd0dad6f29e57de2cff_104939bbdd3e4a2cb10c83d2f482d20f_master.jpg",
+                "isPrimary": false,
+                "sortOrder": 2
+            }
+        ],
+        "description": "Cán cần sợi thủy tinh dẻo dai đàn hồi cao, gắn chuông leng keng vui nhộn và lông vũ tự nhiên kích thích bản năng săn mồi của mèo.",
+        "variants": [
+            {
+                "label": "Cần đơn 90cm sợi thủy tinh kèm chuông",
+                "price": 45000,
+                "discountPercent": 0,
+                "image": "https://bizweb.dktcdn.net/100/092/840/products/can-cau-long-vu-gan-chuong.jpg?v=1683364456207"
+            },
+            {
+                "label": "Bộ cần rút gọn + 3 đầu lông vũ thay thế",
+                "price": 85000,
+                "discountPercent": 0,
+                "image": "https://product.hstatic.net/200000491469/product/b52bef929eb2428ca7f747fe6959983b_81eb18327ec54bc5acc4be3b86ed876f_master.png"
+            },
+            {
+                "label": "Bản giác hút chân không tự động dính sàn",
+                "price": 135000,
+                "discountPercent": 5,
+                "image": "https://product.hstatic.net/200000263355/product/z6208564784468_645c2ef3552d7dd0dad6f29e57de2cff_104939bbdd3e4a2cb10c83d2f482d20f_master.jpg"
+            }
+        ]
     }
-  ];
+];
 
     const seededProducts = [];
   for (const p of REALISTIC_PRODUCTS) {

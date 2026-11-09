@@ -163,3 +163,4 @@ Time:        11.523 s
 Phía Backend đã hoàn thành **100% phạm vi công việc** được giao theo tài liệu kế hoạch, bảo đảm cả tính toàn vẹn nghiệp vụ, hiệu năng API và sự tương thích tuyệt đối cho phía Frontend Angular.
 
 Đội ngũ Frontend có thể tiến hành kéo code mới nhất từ nhánh `feat/foundation-v6` và áp dụng các hướng dẫn trên để hoàn tất bàn giao dự án. Mọi thắc mắc kỹ thuật trong quá trình tích hợp xin vui lòng liên hệ team Backend để được hỗ trợ tức thì.
+
