@@ -202,6 +202,8 @@ export const validateServiceGuardrails = (data, existing = null) => {
 };
 
 export const listServices = async ({
+  serviceType,
+  type,
   bookingMode,
   bookableOnly = false,
   requiredStaffRole,
@@ -226,13 +228,34 @@ export const listServices = async ({
   const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
   if (!isInternal) {
     filter.status = 'ACTIVE';
-    if (!bookingMode && !bookableOnly && parseInt(limit, 10) >= 100) {
-      filter.bookingMode = 'BOOKABLE';
-    }
   } else if (status) {
     filter.status = status;
   }
 
+  // 1. Resolve serviceType filter (supports MEDICAL, GROOMING, COMBO and Vietnamese text)
+  const targetType = (serviceType || type || '').trim().toUpperCase();
+  if (['MEDICAL', 'GROOMING', 'COMBO'].includes(targetType)) {
+    filter.serviceType = targetType;
+  } else if (targetType.includes('KHÁM') || targetType.includes('KHAM') || targetType.includes('ĐIỀU TRỊ') || targetType.includes('DIEU TRI')) {
+    filter.serviceType = 'MEDICAL';
+  } else if (targetType.includes('GROOMING') || targetType.includes('SPA') || targetType.includes('TẮM') || targetType.includes('TỈA')) {
+    filter.serviceType = 'GROOMING';
+  }
+
+  // 2. Resolve category filter (supports "Khám & Điều trị" and "Grooming & Spa" mapping)
+  if (category && typeof category === 'string') {
+    const catTrim = category.trim();
+    const catLower = catTrim.toLowerCase();
+    if (catLower.includes('khám') || catLower.includes('kham') || catLower.includes('điều trị') || catLower.includes('dieu tri') || catTrim.toUpperCase() === 'MEDICAL') {
+      filter.serviceType = 'MEDICAL';
+    } else if (catLower.includes('grooming') || catLower.includes('spa') || catLower.includes('tắm') || catLower.includes('tia') || catTrim.toUpperCase() === 'GROOMING') {
+      filter.serviceType = 'GROOMING';
+    } else {
+      filter.category = catTrim;
+    }
+  }
+
+  // 3. Resolve bookingMode filter (defaults to BOOKABLE for public booking storefront)
   if (bookableOnly === 'true' || bookableOnly === true) {
     filter.bookingMode = 'BOOKABLE';
   } else if (bookingMode) {
@@ -241,9 +264,10 @@ export const listServices = async ({
     } else {
       filter.bookingMode = bookingMode.toUpperCase();
     }
+  } else if (!isInternal && (filter.serviceType || category || Boolean(bookableOnly) || parseInt(limit, 10) >= 10)) {
+    filter.bookingMode = 'BOOKABLE';
   }
   if (requiredStaffRole) filter.requiredStaffRole = requiredStaffRole;
-  if (category) filter.category = category;
 
   if (search) {
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

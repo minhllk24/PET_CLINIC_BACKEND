@@ -720,11 +720,11 @@ export const runProductionUatSeed = async () => {
         }
       }
 
-      // Phân bổ ca làm thực tế trong 7 ngày tới với Anti-Overlap Rule:
+      // Phân bổ ca làm thực tế trong 30 ngày tới với Anti-Overlap Rule:
       // - Ca Sáng: 08:00 - 14:00, Ca Chiều: 14:00 - 20:00
       // - Với nhân viên đa chi nhánh: luân phiên các chi nhánh được ủy quyền, tuyệt đối không trùng giờ
       if (Array.isArray(sUser.shifts)) {
-        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
           const shiftDate = new Date(today);
           shiftDate.setDate(today.getDate() + dayOffset);
           const dayOfWeek = shiftDate.getDay() === 0 ? 7 : shiftDate.getDay(); // 1 (Mon) -> 7 (Sun)

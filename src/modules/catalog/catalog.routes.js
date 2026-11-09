@@ -31,6 +31,8 @@ router.post('/products', authenticate, requireRole(['ADMIN']), idempotency('prod
 router.get('/products/:id', optionalAuth, catalogController.getProductById);
 router.get('/products/:id/related', optionalAuth, catalogController.getRelatedProducts);
 router.get('/products/:id/similar', optionalAuth, catalogController.getRelatedProducts);
+router.get('/products/:id/related-products', optionalAuth, catalogController.getRelatedProducts);
+router.get('/products/:id/recommendations', optionalAuth, catalogController.getRelatedProducts);
 router.get('/products/:id/review-stats', optionalAuth, async (req, res, next) => {
   try {
     const { getProductReviewStats } = require('../review/review.service');

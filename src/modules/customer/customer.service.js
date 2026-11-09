@@ -42,6 +42,40 @@ export const formatCustomerDetail = (cust) => {
 
   res.blockedReason = doc.blockReason || doc.blockedReason || null;
 
+  const rawAddresses = u?.addresses || doc.addresses || [];
+  res.addresses = Array.isArray(rawAddresses)
+    ? rawAddresses.map((addr) => {
+        const aid = addr._id ? addr._id.toString() : (addr.id ? addr.id.toString() : undefined);
+        const addrLine = addr.addressDetail || addr.fullAddress || '';
+        const prov = addr.province || 'Thành phố Hồ Chí Minh';
+        return {
+          _id: aid,
+          id: aid,
+          address_id: aid,
+          fullName: addr.fullName || res.fullName || '',
+          recipient_name: addr.fullName || res.fullName || '',
+          name: addr.fullName || res.fullName || '',
+          phone: addr.phone || res.phone || '',
+          recipient_phone: addr.phone || res.phone || '',
+          email: addr.email || res.email || null,
+          recipient_email: addr.email || res.email || null,
+          country: addr.country || 'Việt Nam',
+          province: prov,
+          city: prov,
+          provinceCode: addr.provinceCode || null,
+          district: addr.district || null,
+          districtCode: addr.districtCode || null,
+          ward: addr.ward || null,
+          wardCode: addr.wardCode || null,
+          addressDetail: addr.addressDetail || '',
+          address_line: addrLine,
+          address: addrLine,
+          fullAddress: addr.fullAddress || `${addrLine}, ${addr.ward || ''}, ${addr.district || ''}, ${prov}`.replace(/,\s*,/g, ',').trim(),
+          isDefault: Boolean(addr.isDefault),
+        };
+      })
+    : [];
+
   return res;
 };
 
@@ -117,7 +151,10 @@ export const getCustomerById = async (id, actor = {}) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid customer ID format');
   }
 
-  const customer = await Customer.findById(id).populate('userId', 'email fullName accountStatus lastLoginAt lastLogin');
+  let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  if (!customer) {
+    customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  }
   if (!customer) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
   }
@@ -155,7 +192,10 @@ export const blockCustomer = async (id, data = {}, actor = {}) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'A valid reason (minimum 3 characters) is required to block an account');
   }
 
-  const customer = await Customer.findById(id).populate('userId', 'email fullName accountStatus lastLoginAt lastLogin');
+  let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  if (!customer) {
+    customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  }
   if (!customer) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
   }
@@ -207,7 +247,10 @@ export const unblockCustomer = async (id, data = {}, actor = {}) => {
     throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only ADMIN can unblock customer accounts');
   }
 
-  const customer = await Customer.findById(id).populate('userId', 'email fullName accountStatus lastLoginAt lastLogin');
+  let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  if (!customer) {
+    customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
+  }
   if (!customer) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Customer not found');
   }

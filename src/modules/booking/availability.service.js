@@ -461,17 +461,25 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
           .map((occ) => occ.assignedStaffId)
       );
 
-      const availableStaff = staffShifts.filter((shift) => {
-        return (
-          shift.subRole === service.requiredStaffRole &&
-          shift.startMins <= segStart &&
-          shift.endMins >= segEnd &&
-          !occupiedStaffIds.has(shift.staffId)
-        );
-      });
+      // Check staff availability:
+      // If shifts are scheduled for this required role, ensure staff is available.
+      // If no shifts are scheduled yet for this role on this date, fallback to branch capacity.
+      const matchingRoleShifts = staffShifts.filter(
+        (shift) => !service.requiredStaffRole || shift.subRole === service.requiredStaffRole
+      );
 
-      if (availableStaff.length === 0) {
-        staffUnavailable = true;
+      if (matchingRoleShifts.length > 0) {
+        const availableStaff = matchingRoleShifts.filter((shift) => {
+          return (
+            shift.startMins <= segStart &&
+            shift.endMins >= segEnd &&
+            !occupiedStaffIds.has(shift.staffId)
+          );
+        });
+
+        if (availableStaff.length === 0) {
+          staffUnavailable = true;
+        }
       }
 
       slotSegments.push({

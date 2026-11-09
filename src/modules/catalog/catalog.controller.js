@@ -166,6 +166,7 @@ export const listServices = async (req, res, next) => {
   try {
     const result = await serviceCatalogService.listServices({
       ...req.query,
+      serviceType: req.serviceType || req.query.serviceType || req.query.type,
       actor: req.actor,
     });
     res.json(result);

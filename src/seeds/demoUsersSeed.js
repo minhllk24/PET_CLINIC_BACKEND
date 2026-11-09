@@ -134,7 +134,7 @@ const DEMO_ACCOUNTS = [
     phone: '0905555555',
     fullName: 'Lê Văn Cường',
     email: 'customer.levanc@gmail.com',
-    password: 'cT6$vM2!pL9#zR8&',
+    password: 'K9#mQ$8xL!2vW*7z',
     systemRole: 'CUSTOMER',
     accountStatus: 'ACTIVE',
     addresses: [
@@ -300,11 +300,11 @@ export const seedDemoUsers = async () => {
           console.log(`  └─ [STAFF_PROFILE] Updated profile for ${userRecord.username} (${userRecord.staffSubRole})`);
         }
 
-        // Seed 7 sample shifts (08:00 - 17:00) starting today if none exist
+        // Seed 30 sample shifts (08:00 - 17:00) starting today if none exist
         const shiftCount = await Shift.countDocuments({ staffId: profile._id });
         if (shiftCount === 0 && branchIds.length > 0) {
           const today = new Date();
-          for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+          for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
             const shiftDate = new Date(today);
             shiftDate.setDate(today.getDate() + dayOffset);
             const dateStr = shiftDate.toISOString().split('T')[0];
@@ -318,7 +318,7 @@ export const seedDemoUsers = async () => {
               status: 'ACTIVE',
             });
           }
-          console.log(`  └─ [SHIFTS] Seeded 7 sample shifts (08:00-17:00) for ${userRecord.username}`);
+          console.log(`  └─ [SHIFTS] Seeded 30 sample shifts (08:00-17:00) for ${userRecord.username}`);
         }
       }
     }

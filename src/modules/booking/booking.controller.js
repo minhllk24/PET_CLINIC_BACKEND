@@ -4,16 +4,19 @@ import * as availabilityService from './availability.service';
 
 export const getAvailability = async (req, res, next) => {
   try {
-    const { serviceIds, branchId, date, includeFull } = req.query;
+    const rawServiceIds = req.query.serviceIds || req.query.serviceId || req.query.service_id;
+    const rawBranchId = req.query.branchId || req.query.branch_id || req.query.branch;
+    const rawDate = req.query.date || req.query.bookingDate || req.query.appointmentDate || new Date().toISOString().slice(0, 10);
+    const { includeFull } = req.query;
     const isIncludeFull =
       includeFull === 'true' ||
       includeFull === true ||
       ['ADMIN', 'MANAGER', 'STAFF'].includes(req.actor?.systemRole);
 
     const result = await availabilityService.getAvailability({
-      serviceIds,
-      branchId,
-      date,
+      serviceIds: rawServiceIds,
+      branchId: rawBranchId,
+      date: rawDate,
       includeFull: isIncludeFull,
     });
     res.json(result);

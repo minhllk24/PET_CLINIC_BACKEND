@@ -321,6 +321,9 @@ app.use(async (req, res, next) => {
       if (req.query.service_ids && !req.query.serviceIds) {
         req.query.serviceIds = req.query.service_ids;
       }
+      if (req.query.serviceId && !req.query.serviceIds) {
+        req.query.serviceIds = req.query.serviceId;
+      }
       if (req.query.service_id && !req.query.serviceIds) {
         req.query.serviceIds = req.query.service_id;
       }
@@ -331,6 +334,7 @@ app.use(async (req, res, next) => {
         req.query.serviceIds = req.query.service;
       }
       delete req.query.service_ids;
+      delete req.query.serviceId;
       delete req.query.service_id;
       delete req.query.services;
       delete req.query.service;
@@ -406,9 +410,35 @@ app.use(async (req, res, next) => {
     // E. Services Query Normalizer (FB-C2)
     const isServices = (req.url.includes('/services') || (req.originalUrl && req.originalUrl.includes('/services')) || (req.path && req.path.includes('/services'))) && !req.url.includes('/service-records');
     if (isServices && req.query) {
+      if (req.query.category && typeof req.query.category === 'string') {
+        const catLower = req.query.category.toLowerCase();
+        if (catLower.includes('khám') || catLower.includes('kham') || catLower.includes('điều trị') || catLower.includes('dieu tri') || catLower.includes('medical')) {
+          req.query.category = 'MEDICAL';
+          req.serviceType = 'MEDICAL';
+        } else if (catLower.includes('grooming') || catLower.includes('spa') || catLower.includes('tắm') || catLower.includes('tia')) {
+          req.query.category = 'GROOMING';
+          req.serviceType = 'GROOMING';
+        }
+      }
       if (req.query.bookableOnly === 'true' || req.query.bookableOnly === true) {
         req.query.bookingMode = 'BOOKABLE';
         delete req.query.bookableOnly;
+      }
+      if (req.query.serviceType) {
+        const st = String(req.query.serviceType).toUpperCase();
+        req.serviceType = st;
+        if (!req.query.category) {
+          req.query.category = st;
+        }
+        delete req.query.serviceType;
+      }
+      if (req.query.type) {
+        const t = String(req.query.type).toUpperCase();
+        req.serviceType = t;
+        if (!req.query.category) {
+          req.query.category = t;
+        }
+        delete req.query.type;
       }
     }
 

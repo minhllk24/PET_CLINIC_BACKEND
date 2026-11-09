@@ -65,6 +65,12 @@ const formatProductVariant = (v) => {
     name: vObj.label,
     variantName: vObj.label,
     variant_name: vObj.label,
+    title: vObj.label,
+    size: vObj.label,
+    option: vObj.label,
+    weight: vObj.label,
+    type: vObj.label,
+    value: vObj.label,
     price: basePrice,
     originalPrice: basePrice,
     original_price: basePrice,
@@ -208,37 +214,74 @@ export const formatProduct = (prod) => {
   };
 
   if (formatted.productType === 'SIMPLE' && variants.length > 0) {
-    formatted.price = variants[0].price;
-    formatted.finalPrice = variants[0].finalPrice;
-    formatted.product_price = variants[0].price;
-    formatted.sellingPrice = variants[0].finalPrice || variants[0].price;
-    formatted.selling_price = variants[0].finalPrice || variants[0].price;
-    const varDisc = Number(variants[0].discountPercent || obj.discountPercent || 0);
+    const defaultVar = variants[0];
+    const baseP = Number(defaultVar.price) || 0;
+    const finalP = defaultVar.finalPrice !== undefined && defaultVar.finalPrice !== null ? Number(defaultVar.finalPrice) : baseP;
+
+    formatted.price = baseP;
+    formatted.finalPrice = finalP;
+    formatted.product_price = baseP;
+    formatted.sellingPrice = finalP || baseP;
+    formatted.selling_price = finalP || baseP;
+    formatted.basePrice = baseP;
+    formatted.originalPrice = baseP;
+    formatted.original_price = baseP;
+    formatted.salePrice = finalP;
+    formatted.sale_price = finalP;
+
+    const varDisc = Number(defaultVar.discountPercent || obj.discountPercent || 0);
     if (varDisc > 0) {
       formatted.discountPercent = varDisc;
       formatted.discount_percent = varDisc;
-      const computedOrig = variants[0].price > variants[0].finalPrice
-        ? Math.round(variants[0].price / (1 - varDisc / 100))
-        : variants[0].price;
-      formatted.originalPrice = computedOrig;
-      formatted.original_price = computedOrig;
+    } else {
+      formatted.discountPercent = 0;
+      formatted.discount_percent = 0;
     }
   } else if (variants.length > 0) {
-    formatted.product_price = minFinalPrice || minPrice;
-    formatted.sellingPrice = minFinalPrice || minPrice;
-    formatted.selling_price = minFinalPrice || minPrice;
-    formatted.sale_price = minFinalPrice || minPrice;
+    const resolvedFinal = minFinalPrice || minPrice;
+    formatted.product_price = minPrice || resolvedFinal;
+    formatted.sellingPrice = resolvedFinal;
+    formatted.selling_price = resolvedFinal;
+    formatted.salePrice = resolvedFinal;
+    formatted.sale_price = resolvedFinal;
+    formatted.basePrice = minPrice;
+    formatted.originalPrice = maxPrice || minPrice;
+    formatted.original_price = maxPrice || minPrice;
+
     const firstDisc = Number(variants[0]?.discountPercent || 0);
     if (minPrice > minFinalPrice) {
-      formatted.originalPrice = minPrice;
-      formatted.original_price = minPrice;
       formatted.discountPercent = firstDisc || Math.round(((minPrice - minFinalPrice) / minPrice) * 100);
       formatted.discount_percent = formatted.discountPercent;
-    } else if (maxPrice > minFinalPrice) {
-      formatted.originalPrice = maxPrice;
-      formatted.original_price = maxPrice;
+    } else {
+      formatted.discountPercent = 0;
+      formatted.discount_percent = 0;
     }
+  } else {
+    const rawPrice = parseInt(obj.price, 10) || 0;
+    if (formatted.productType === 'SIMPLE') {
+      formatted.price = rawPrice;
+      formatted.finalPrice = rawPrice;
+    }
+    formatted.basePrice = rawPrice;
+    formatted.originalPrice = rawPrice;
+    formatted.original_price = rawPrice;
+    formatted.salePrice = rawPrice;
+    formatted.sale_price = rawPrice;
+    formatted.product_price = rawPrice;
+    formatted.sellingPrice = rawPrice;
+    formatted.selling_price = rawPrice;
+    formatted.discountPercent = 0;
+    formatted.discount_percent = 0;
   }
+
+  // Root shipping and review aliases for Frontend binding convenience
+  formatted.deliveryEstimate = '2 - 4 ngày';
+  formatted.delivery_estimate = '2 - 4 ngày';
+  formatted.freeShippingPolicy = 'Miễn phí vận chuyển cho đơn từ 500.000đ';
+  formatted.free_shipping_policy = 'Miễn phí vận chuyển cho đơn từ 500.000đ';
+  formatted.shippingPolicy = 'Miễn phí vận chuyển cho đơn từ 500.000đ';
+  formatted.ratingDisplay = hasReviews ? computedRating : 0;
+  formatted.hasReviews = hasReviews;
 
   if (obj.archivedAt) {
     formatted.archivedAt = obj.archivedAt instanceof Date ? obj.archivedAt.toISOString() : obj.archivedAt;
