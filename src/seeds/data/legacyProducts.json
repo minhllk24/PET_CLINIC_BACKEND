@@ -9,32 +9,48 @@
     "images": [
       {
         "id": "img-1",
-        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "url": "https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png",
         "isPrimary": true,
         "sortOrder": 0
       },
       {
         "id": "img-2",
-        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "url": "https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png",
         "isPrimary": false,
         "sortOrder": 1
       },
       {
         "id": "img-3",
-        "url": "/assets/customer/images/shop/promo-banner-1.png",
+        "url": "https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png",
         "isPrimary": false,
         "sortOrder": 2
       }
     ],
-    "productType": "SIMPLE",
+    "productType": "VARIANT",
     "variants": [
       {
         "sku": "SP-BANNER-001-01",
-        "label": "Gói 1.5kg",
+        "label": "Gói 1.5kg (Vị Bò & Rau Củ Hữu Cơ)",
         "price": 300000,
         "discountPercent": 40,
         "finalPrice": 180000,
-        "image": "/assets/customer/images/shop/promo-banner-1.png"
+        "image": "https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png"
+      },
+      {
+        "sku": "SP-BANNER-001-02",
+        "label": "Gói 3kg (Vị Cá Hồi Hạt Đậu)",
+        "price": 550000,
+        "discountPercent": 35,
+        "finalPrice": 357500,
+        "image": "https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png"
+      },
+      {
+        "sku": "SP-BANNER-001-03",
+        "label": "Bao 6kg (Dinh Dưỡng Toàn Diện)",
+        "price": 980000,
+        "discountPercent": 30,
+        "finalPrice": 686000,
+        "image": "https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png"
       }
     ]
   },
@@ -48,32 +64,48 @@
     "images": [
       {
         "id": "img-1",
-        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "url": "https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png",
         "isPrimary": true,
         "sortOrder": 0
       },
       {
         "id": "img-2",
-        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "url": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png",
         "isPrimary": false,
         "sortOrder": 1
       },
       {
         "id": "img-3",
-        "url": "/assets/customer/images/shop/promo-banner-2.png",
+        "url": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png",
         "isPrimary": false,
         "sortOrder": 2
       }
     ],
-    "productType": "SIMPLE",
+    "productType": "VARIANT",
     "variants": [
       {
         "sku": "SP-BANNER-002-01",
-        "label": "Tiêu chuẩn",
+        "label": "Bát đơn Inox 400ml chống trượt",
         "price": 150000,
         "discountPercent": 19,
         "finalPrice": 121500,
-        "image": "/assets/customer/images/shop/promo-banner-2.png"
+        "image": "https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png"
+      },
+      {
+        "sku": "SP-BANNER-002-02",
+        "label": "Bát đôi nghiêng 15 độ bảo vệ cột sống",
+        "price": 220000,
+        "discountPercent": 20,
+        "finalPrice": 176000,
+        "image": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png"
+      },
+      {
+        "sku": "SP-BANNER-002-03",
+        "label": "Bát đôi kèm bình cấp nước tự động",
+        "price": 280000,
+        "discountPercent": 25,
+        "finalPrice": 210000,
+        "image": "https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png"
       }
     ]
   },
@@ -87,32 +119,48 @@
     "images": [
       {
         "id": "img-1",
-        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg",
         "isPrimary": true,
         "sortOrder": 0
       },
       {
         "id": "img-2",
-        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg",
         "isPrimary": false,
         "sortOrder": 1
       },
       {
         "id": "img-3",
-        "url": "/assets/customer/images/shop/promo-banner-3.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg",
         "isPrimary": false,
         "sortOrder": 2
       }
     ],
-    "productType": "SIMPLE",
+    "productType": "VARIANT",
     "variants": [
       {
         "sku": "SP-BANNER-003-01",
-        "label": "Size L kèm xẻng",
+        "label": "Size M kèm xẻng (Xanh Pastel)",
         "price": 240000,
         "discountPercent": 25,
         "finalPrice": 180000,
-        "image": "/assets/customer/images/shop/promo-banner-3.png"
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg"
+      },
+      {
+        "sku": "SP-BANNER-003-02",
+        "label": "Size L thành cao chống văng cát (Xám Ghi)",
+        "price": 320000,
+        "discountPercent": 25,
+        "finalPrice": 240000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg"
+      },
+      {
+        "sku": "SP-BANNER-003-03",
+        "label": "Size XL có nắp vòm khử mùi (Hồng Phấn)",
+        "price": 450000,
+        "discountPercent": 20,
+        "finalPrice": 360000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg"
       }
     ]
   },
@@ -126,32 +174,48 @@
     "images": [
       {
         "id": "img-1",
-        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg",
         "isPrimary": true,
         "sortOrder": 0
       },
       {
         "id": "img-2",
-        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg",
         "isPrimary": false,
         "sortOrder": 1
       },
       {
         "id": "img-3",
-        "url": "/assets/customer/images/shop/promo-banner-4.png",
+        "url": "https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg",
         "isPrimary": false,
         "sortOrder": 2
       }
     ],
-    "productType": "SIMPLE",
+    "productType": "VARIANT",
     "variants": [
       {
         "sku": "SP-BANNER-004-01",
-        "label": "Bản tiêu chuẩn",
+        "label": "Bản nơ đính chuông vàng Size S (15-25cm)",
         "price": 200000,
         "discountPercent": 30,
         "finalPrice": 140000,
-        "image": "/assets/customer/images/shop/promo-banner-4.png"
+        "image": "https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg"
+      },
+      {
+        "sku": "SP-BANNER-004-02",
+        "label": "Bản da PU đính đá Charm Size M (20-32cm)",
+        "price": 250000,
+        "discountPercent": 28,
+        "finalPrice": 180000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg"
+      },
+      {
+        "sku": "SP-BANNER-004-03",
+        "label": "Bản sợi dù đệm êm Size L (25-40cm)",
+        "price": 290000,
+        "discountPercent": 24,
+        "finalPrice": 220000,
+        "image": "https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg"
       }
     ]
   },

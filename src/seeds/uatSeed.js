@@ -136,22 +136,40 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       name: 'Dinh Dưỡng Khỏe Mạnh Từ Tự Nhiên',
       description: 'Gói hạt dinh dưỡng khỏe mạnh từ tự nhiên cao cấp dành cho thú cưng, công thức không ngũ cốc giàu đạm và vitamin tự nhiên giúp bé khỏe mạnh toàn diện, lông bóng mượt và tiêu hóa tốt.',
       categoryId: foodCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
       images: [
-        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-1.png', isPrimary: false, sortOrder: 2 }
+        { id: 'img-1', url: 'https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png', isPrimary: false, sortOrder: 2 }
       ],
       variants: [
         {
           sku: 'SP-BANNER-001-01',
-          label: 'Gói 1.5kg',
+          label: 'Gói 1.5kg (Vị Bò & Rau Củ Hữu Cơ)',
           price: 300000,
           discountPercent: 40,
           finalPrice: 180000,
-          image: '/assets/customer/images/shop/promo-banner-1.png',
+          image: 'https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-001-02',
+          label: 'Gói 3kg (Vị Cá Hồi Hạt Đậu)',
+          price: 550000,
+          discountPercent: 35,
+          finalPrice: 357500,
+          image: 'https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-001-03',
+          label: 'Bao 6kg (Dinh Dưỡng Toàn Diện)',
+          price: 980000,
+          discountPercent: 30,
+          finalPrice: 686000,
+          image: 'https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png',
           status: 'ACTIVE'
         }
       ]
@@ -161,22 +179,40 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       name: 'Bát ăn PetBowl',
       description: 'Bát ăn PetBowl cao cấp chống trượt, thiết kế nghiêng chuẩn công thái học bảo vệ cột sống cổ và hỗ trợ tiêu hóa tốt hơn cho chó mèo.',
       categoryId: accCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
       images: [
-        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-2.png', isPrimary: false, sortOrder: 2 }
+        { id: 'img-1', url: 'https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png', isPrimary: false, sortOrder: 2 }
       ],
       variants: [
         {
           sku: 'SP-BANNER-002-01',
-          label: 'Tiêu chuẩn',
+          label: 'Bát đơn Inox 400ml chống trượt',
           price: 150000,
           discountPercent: 19,
           finalPrice: 121500,
-          image: '/assets/customer/images/shop/promo-banner-2.png',
+          image: 'https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-002-02',
+          label: 'Bát đôi nghiêng 15 độ bảo vệ cột sống',
+          price: 220000,
+          discountPercent: 20,
+          finalPrice: 176000,
+          image: 'https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-002-03',
+          label: 'Bát đôi kèm bình cấp nước tự động',
+          price: 280000,
+          discountPercent: 25,
+          finalPrice: 210000,
+          image: 'https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png',
           status: 'ACTIVE'
         }
       ]
@@ -186,22 +222,40 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       name: 'Khay vệ sinh cho mèo Jobi',
       description: 'Khay vệ sinh cho mèo Jobi thành cao chống văng cát, nhựa nguyên sinh kháng khuẩn bền đẹp, dễ dàng tháo lắp vệ sinh hàng ngày.',
       categoryId: hygieneCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
       images: [
-        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-3.png', isPrimary: false, sortOrder: 2 }
+        { id: 'img-1', url: 'https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg', isPrimary: false, sortOrder: 2 }
       ],
       variants: [
         {
           sku: 'SP-BANNER-003-01',
-          label: 'Size L kèm xẻng',
+          label: 'Size M kèm xẻng (Xanh Pastel)',
           price: 240000,
           discountPercent: 25,
           finalPrice: 180000,
-          image: '/assets/customer/images/shop/promo-banner-3.png',
+          image: 'https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-003-02',
+          label: 'Size L thành cao chống văng cát (Xám Ghi)',
+          price: 320000,
+          discountPercent: 25,
+          finalPrice: 240000,
+          image: 'https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-003-03',
+          label: 'Size XL có nắp vòm khử mùi (Hồng Phấn)',
+          price: 450000,
+          discountPercent: 20,
+          finalPrice: 360000,
+          image: 'https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg',
           status: 'ACTIVE'
         }
       ]
@@ -211,22 +265,40 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       name: 'Vòng cổ JewPet',
       description: 'Vòng cổ JewPet thời trang đính charm sang trọng, chất liệu êm ái an toàn cho vùng cổ thú cưng, khóa cài chắc chắn dễ điều chỉnh kích thước.',
       categoryId: accCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
       images: [
-        { id: 'img-1', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: true, sortOrder: 0 },
-        { id: 'img-2', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: false, sortOrder: 1 },
-        { id: 'img-3', url: '/assets/customer/images/shop/promo-banner-4.png', isPrimary: false, sortOrder: 2 }
+        { id: 'img-1', url: 'https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg', isPrimary: false, sortOrder: 2 }
       ],
       variants: [
         {
           sku: 'SP-BANNER-004-01',
-          label: 'Bản tiêu chuẩn',
+          label: 'Bản nơ đính chuông vàng Size S (15-25cm)',
           price: 200000,
           discountPercent: 30,
           finalPrice: 140000,
-          image: '/assets/customer/images/shop/promo-banner-4.png',
+          image: 'https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-004-02',
+          label: 'Bản da PU đính đá Charm Size M (20-32cm)',
+          price: 250000,
+          discountPercent: 28,
+          finalPrice: 180000,
+          image: 'https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-BANNER-004-03',
+          label: 'Bản sợi dù đệm êm Size L (25-40cm)',
+          price: 290000,
+          discountPercent: 24,
+          finalPrice: 220000,
+          image: 'https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg',
           status: 'ACTIVE'
         }
       ]
@@ -234,16 +306,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-DOG-001',
       name: 'Thức ăn hạt cao cấp cho chó Royal Canin Mini Adult',
+      description: 'Thức ăn hạt cao cấp cho chó Royal Canin Mini Adult dành riêng cho chó trưởng thành giống nhỏ từ 10 tháng tuổi. Cung cấp hàm lượng đạm cao cấp, L-Carnitine duy trì cân nặng lý tưởng và phức hợp dưỡng chất chăm sóc lông da khỏe mạnh.',
       categoryId: foodCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-DOG-001-01',
+          label: 'Túi 800g',
+          price: 185000,
+          discountPercent: 5,
+          finalPrice: 175750,
+          image: 'https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-DOG-001-02',
           label: 'Túi 2kg',
           price: 350000,
           discountPercent: 10,
+          finalPrice: 315000,
+          image: 'https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-DOG-001-03',
+          label: 'Bao 8kg Tiết kiệm',
+          price: 1250000,
+          discountPercent: 12,
+          finalPrice: 1100000,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png',
           status: 'ACTIVE'
         }
       ]
@@ -251,23 +349,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-CAT-001',
       name: 'Hạt dinh dưỡng cho mèo Whiskas vị cá biển tươi',
+      description: 'Hạt dinh dưỡng cho mèo Whiskas vị cá biển tươi thơm ngon đậm đà, bổ sung Omega 3 & 6, Kẽm và Vitamin A giúp mắt sáng tinh anh, lông mượt mà và ngăn ngừa hình thành búi lông hiệu quả.',
       categoryId: foodCatId,
       productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-CAT-001-01',
-          label: '500g',
+          label: 'Gói 450g',
           price: 85000,
           discountPercent: 0,
+          finalPrice: 85000,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png',
           status: 'ACTIVE'
         },
         {
           sku: 'SP-UAT-CAT-001-02',
-          label: '1.2kg',
+          label: 'Túi 1.2kg',
           price: 180000,
           discountPercent: 5,
+          finalPrice: 171000,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-CAT-001-03',
+          label: 'Bao 3kg Tiết kiệm',
+          price: 380000,
+          discountPercent: 10,
+          finalPrice: 342000,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png',
           status: 'ACTIVE'
         }
       ]
@@ -275,16 +392,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-SMALL-001',
       name: 'Cỏ khô Alfalfa tự nhiên giàu dinh dưỡng cho Thỏ & Bọ Ú',
+      description: 'Cỏ khô Alfalfa (cỏ linh lăng) tự nhiên giàu chất xơ thô, canxi và protein thực vật chất lượng cao, sấy lạnh giữ nguyên hương thơm và màu xanh tự nhiên, hỗ trợ mài răng và kích thích tiêu hóa khỏe mạnh cho thỏ, bọ ú và thú nhỏ.',
       categoryId: foodCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://khopetshop.net/assets/images/products/19032025041109_23293.jpg', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://khopetshop.net/assets/images/products/19032025041109_232931.jpg', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://khopetshop.net/assets/images/products/21092022010303_45489.png', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-SMALL-001-01',
-          label: 'Gói 500g',
+          label: 'Gói 500g Tiêu chuẩn',
           price: 120000,
           discountPercent: 0,
+          finalPrice: 120000,
+          image: 'https://khopetshop.net/assets/images/products/19032025041109_23293.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-SMALL-001-02',
+          label: 'Gói 1kg Cọng dài xanh non',
+          price: 210000,
+          discountPercent: 5,
+          finalPrice: 199500,
+          image: 'https://khopetshop.net/assets/images/products/19032025041109_232931.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-SMALL-001-03',
+          label: 'Bao nén 2.5kg Tiết kiệm',
+          price: 450000,
+          discountPercent: 10,
+          finalPrice: 405000,
+          image: 'https://khopetshop.net/assets/images/products/21092022010303_45489.png',
           status: 'ACTIVE'
         }
       ]
@@ -292,16 +435,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-BIRD-001',
       name: 'Thức ăn hạt hỗn hợp giàu khoáng cho Vẹt và Chim cảnh',
+      description: 'Hỗn hợp hạt ngũ cốc cao cấp kết hợp kê vàng, hướng dương, yến mạch và hạt lanh giàu khoáng chất, vitamin tổng hợp giúp vẹt và chim cảnh hót hay, lông bóng bẩy và sức đề kháng vượt trội.',
       categoryId: foodCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://khopetshop.net/assets/images/products/19032025040921_63107.jpg', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-BIRD-001-01',
-          label: 'Hũ 500g',
+          label: 'Hũ 500g Hạt hỗn hợp ngũ cốc',
           price: 95000,
           discountPercent: 0,
+          finalPrice: 95000,
+          image: 'https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-BIRD-001-02',
+          label: 'Hũ 1kg Bổ sung trái cây khoáng',
+          price: 175000,
+          discountPercent: 5,
+          finalPrice: 166250,
+          image: 'https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-BIRD-001-03',
+          label: 'Gói 2kg Dinh dưỡng sinh sản',
+          price: 310000,
+          discountPercent: 10,
+          finalPrice: 279000,
+          image: 'https://khopetshop.net/assets/images/products/19032025040921_63107.jpg',
           status: 'ACTIVE'
         }
       ]
@@ -309,16 +478,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-LITTER-001',
       name: 'Cát đậu nành hữu cơ Cature khử mùi vón nhanh cho Mèo 6L',
+      description: 'Cát vệ sinh đậu nành Cature Tofu Pellets 100% bã đậu tự nhiên phân hủy sinh học, vón cực nhanh không bụi, xả được trực tiếp vào bồn cầu, khử mùi amoniac hiệu quả suốt 30 ngày.',
       categoryId: hygieneCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-LITTER-001-01',
-          label: 'Túi 6L (2.4kg)',
+          label: 'Túi 6L Hương sữa tự nhiên',
           price: 140000,
           discountPercent: 0,
+          finalPrice: 140000,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-LITTER-001-02',
+          label: 'Túi 6L Than hoạt tính khử mùi sâu',
+          price: 155000,
+          discountPercent: 5,
+          finalPrice: 147250,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-LITTER-001-03',
+          label: 'Túi 6L Trà xanh kháng khuẩn thơm mát',
+          price: 155000,
+          discountPercent: 5,
+          finalPrice: 147250,
+          image: 'https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg',
           status: 'ACTIVE'
         }
       ]
@@ -326,16 +521,42 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     {
       code: 'SP-UAT-TOY-001',
       name: 'Bóng gặm cao su tự nhiên huấn luyện chó KONG Classic',
+      description: 'Đồ chơi KONG Classic cao su tự nhiên siêu bền hình nón 3 tầng kinh điển từ Mỹ, đàn hồi nảy bất định kích thích vận động, thiết kế rỗng ruột thông minh nhét sốt thưởng, pate giúp chó xả stress và hạn chế cắn phá.',
       categoryId: toyCatId,
-      productType: 'SIMPLE',
+      productType: 'VARIANT',
       usageType: 'SALE',
       status: 'ACTIVE',
+      images: [
+        { id: 'img-1', url: 'https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg', isPrimary: true, sortOrder: 0 },
+        { id: 'img-2', url: 'https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg', isPrimary: false, sortOrder: 1 },
+        { id: 'img-3', url: 'https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg', isPrimary: false, sortOrder: 2 }
+      ],
       variants: [
         {
           sku: 'SP-UAT-TOY-001-01',
-          label: 'Size M',
+          label: 'Size S (Chó nhỏ < 9kg)',
+          price: 180000,
+          discountPercent: 0,
+          finalPrice: 180000,
+          image: 'https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-TOY-001-02',
+          label: 'Size M (Chó vừa 7-16kg)',
           price: 220000,
           discountPercent: 0,
+          finalPrice: 220000,
+          image: 'https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg',
+          status: 'ACTIVE'
+        },
+        {
+          sku: 'SP-UAT-TOY-001-03',
+          label: 'Size L (Chó lớn 13-30kg)',
+          price: 290000,
+          discountPercent: 5,
+          finalPrice: 275500,
+          image: 'https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg',
           status: 'ACTIVE'
         }
       ]
@@ -393,8 +614,9 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
         existingProd.name = prodData.name;
         if (prodData.description) existingProd.description = prodData.description;
         existingProd.categoryId = prodData.categoryId;
+        existingProd.productType = prodData.productType;
         existingProd.status = 'ACTIVE';
-        if (prodData.images) existingProd.images = prodData.images;
+        existingProd.images = prodData.images || [];
         existingProd.variants = resolvedVariants;
         await existingProd.save();
         pDoc = existingProd;

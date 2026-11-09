@@ -27,3 +27,48 @@
 - **SP-LEG-100** (Xịt khử mùi hôi miệng cho chó TROPICLEAN Vanilla Mint Oral Care Spray): 2 hình từ [Pet Mart](https://www.petmart.vn/xit-khu-mui-hoi-mieng-cho-huong-vani-bac-ha-tropiclean-vanilla-mint-oral-care-spray) và 1 hình biến thể Vani Bạc hà từ [Mozzi Pet Shop](https://mozzi.vn/products/tropiclean-xit-ve-sinh-rang-mieng-118ml-cho-cho).
 
 Các URL được liên kết trực tiếp đến máy chủ nguồn và đã xác minh phản hồi HTTP 200 (`image/*`) với nội dung ảnh riêng biệt cho từng sản phẩm và từng biến thể.
+
+---
+
+# Bổ sung 10 Sản phẩm UAT & Banner mới (Mỗi sản phẩm có 3 ảnh sắc nét cho 3 biến thể)
+
+- **SP-BANNER-001** (Dinh Dưỡng Khỏe Mạnh Từ Tự Nhiên): 3 ảnh sắc nét từ Haravan/Petthings CDN tương ứng 3 biến thể (Gói 1.5kg Bò & Rau củ, Gói 3kg Cá hồi, Bao 6kg Toàn diện).
+  - Ảnh 1: `https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png`
+  - Ảnh 2: `https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png`
+  - Ảnh 3: `https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png`
+- **SP-BANNER-002** (Bát ăn PetBowl): 3 ảnh thực tế cho 3 biến thể (Bát đơn Inox 400ml, Bát đôi nghiêng 15 độ, Bát đôi cấp nước tự động).
+  - Ảnh 1: `https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png`
+  - Ảnh 2: `https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png`
+  - Ảnh 3: `https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png`
+- **SP-BANNER-003** (Khay vệ sinh cho mèo Jobi): 3 ảnh thực tế từ Pet Mart cho 3 biến thể (Size M kèm xẻng Xanh Pastel, Size L thành cao Xám Ghi, Size XL có nắp vòm khử mùi).
+  - Ảnh 1: `https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg`
+  - Ảnh 2: `https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg`
+  - Ảnh 3: `https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg`
+- **SP-BANNER-004** (Vòng cổ JewPet): 3 ảnh thực tế từ Pet Mart cho 3 biến thể (Bản nơ chuông vàng Size S, Bản da PU đính đá Size M, Bản sợi dù phản quang Size L).
+  - Ảnh 1: `https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg`
+  - Ảnh 2: `https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg`
+  - Ảnh 3: `https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg`
+- **SP-UAT-DOG-001** (Thức ăn hạt cao cấp cho chó Royal Canin Mini Adult): 3 ảnh từ Pet Mart và Paddy CDN cho 3 biến thể (Túi 800g, Túi 2kg, Bao 8kg Tiết kiệm).
+  - Ảnh 1: `https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg`
+  - Ảnh 2: `https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult2.jpg`
+  - Ảnh 3: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png`
+- **SP-UAT-CAT-001** (Hạt dinh dưỡng cho mèo Whiskas vị cá biển tươi): 3 ảnh bao bì chuẩn từ Paddy CDN cho 3 biến thể (Gói 450g, Túi 1.2kg, Bao 3kg).
+  - Ảnh 1: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/4b402154-86cc-4e51-8571-ca76d0a6e2a4/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png`
+  - Ảnh 2: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/911c1642-b6d0-4f34-a877-085103a2c462/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png`
+  - Ảnh 3: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/1b7e6a49-8c76-47fa-a0f8-514ccebd0520/72c765e4-25ab-48e1-b85b-c6d05064a862/h-t-whiskas-adult-cho-m-o-tr-ng-th-nh.png`
+- **SP-UAT-SMALL-001** (Cỏ khô Alfalfa tự nhiên giàu dinh dưỡng cho Thỏ & Bọ Ú): 3 ảnh thực tế cho 3 biến thể (Gói 500g Tiêu chuẩn, Gói 1kg Cọng dài xanh non, Bao nén 2.5kg Tiết kiệm).
+  - Ảnh 1: `https://khopetshop.net/assets/images/products/19032025041109_23293.jpg`
+  - Ảnh 2: `https://khopetshop.net/assets/images/products/19032025041109_232931.jpg`
+  - Ảnh 3: `https://khopetshop.net/assets/images/products/21092022010303_45489.png`
+- **SP-UAT-BIRD-001** (Thức ăn hạt hỗn hợp giàu khoáng cho Vẹt và Chim cảnh): 3 ảnh thực tế cho 3 biến thể (Hũ 500g Ngũ cốc, Hũ 1kg Bổ sung trái cây khoáng, Gói 2kg Dinh dưỡng sinh sản).
+  - Ảnh 1: `https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png`
+  - Ảnh 2: `https://product.hstatic.net/1000217401/product/9_1__ed5e3353d74343c5b9d2046db206d241.png`
+  - Ảnh 3: `https://khopetshop.net/assets/images/products/19032025040921_63107.jpg`
+- **SP-UAT-LITTER-001** (Cát đậu nành hữu cơ Cature khử mùi vón nhanh cho Mèo 6L): 3 ảnh từ Paddy CDN cho 3 biến thể (Túi 6L Hương sữa, Túi 6L Than hoạt tính, Túi 6L Trà xanh).
+  - Ảnh 1: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/ea9e0ab4-c74c-4be5-a5c0-b9c0c9c5429c/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png`
+  - Ảnh 2: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/f7154ebd-b0e0-478c-bb6e-95f162d2c81b/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.png`
+  - Ảnh 3: `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/63fe4e0f-e1a3-46f0-bac4-cafd329536f9/320d0e39-c458-45a1-823e-6574efcaf5e2/c-t-u-n-nh-cho-m-o-cature-tofu-paddy-pet-shop.jpg`
+- **SP-UAT-TOY-001** (Bóng gặm cao su tự nhiên huấn luyện chó KONG Classic): 3 ảnh thực tế cho 3 biến thể (Size S Chó nhỏ <9kg, Size M Chó vừa 7-16kg, Size L Chó lớn 13-30kg).
+  - Ảnh 1: `https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg`
+  - Ảnh 2: `https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_large.jpg`
+  - Ảnh 3: `https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg`

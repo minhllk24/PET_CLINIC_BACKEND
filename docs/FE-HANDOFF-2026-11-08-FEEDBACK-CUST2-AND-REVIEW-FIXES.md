@@ -232,32 +232,60 @@ Hỗ trợ đúng 100% contract mà `CustomerAccountService` bên FE Angular (`c
     }
     ```
 
-#### B. Danh mục 4 Sản phẩm Banner Trang Chủ (Đã seed lên Database)
-Khi người dùng bấm vào nút *"Mua ngay"* trên 4 banner trang chủ, FE chuyển hướng trực tiếp đến các slug hoặc code sau:
+#### B. Danh mục 4 Sản phẩm Banner & 6 Sản phẩm UAT Đa Loài (Đã cập nhật 3 ảnh sắc nét & 3 biến thể/sản phẩm)
+Toàn bộ 10 sản phẩm đã được nâng cấp lên chuẩn `productType: 'VARIANT'`, mỗi sản phẩm có đúng 3 biến thể với 3 ảnh sản phẩm thực tế, sắc nét được lưu trữ trực tiếp trên CDN uy tín, đã xác thực HTTP 200:
 
-1. **Banner 1 (Dinh Dưỡng Khỏe Mạnh):**
-   - **Mã sản phẩm:** `SP-BANNER-001`
-   - **Slug:** `dinh-duong-khoe-manh-tu-tu-nhien` (alias: `banner-1`, `1`)
-   - **Giá niêm yết:** `245.000đ` (Giá gốc: `310.000đ` – Giảm 21%)
-   - **Ảnh chính:** `https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=900&auto=format&fit=crop&q=80`
+1. **Banner 1 (Dinh Dưỡng Khỏe Mạnh Từ Tự Nhiên):**
+   - **Mã sản phẩm:** `SP-BANNER-001` | **Slug:** `dinh-duong-khoe-manh-tu-tu-nhien` (alias: `banner-1`, `1`)
+   - **3 Biến thể & 3 Ảnh:**
+     - `SP-BANNER-001-01`: Gói 1.5kg (Vị Bò & Rau Củ Hữu Cơ) – 180.000đ → `https://cdn.hstatic.net/products/1000217401/c4be79046a7448ef97914daa2320f165_f5844f1d85224026b037c93b985585f3.png`
+     - `SP-BANNER-001-02`: Gói 3kg (Vị Cá Hồi Hạt Đậu) – 357.500đ → `https://cdn.hstatic.net/products/1000217401/1da4377914e641609d225316bb722ba2_2e4729b1e2e44c368c472b57d7177c32.png`
+     - `SP-BANNER-001-03`: Bao 6kg (Dinh Dưỡng Toàn Diện) – 686.000đ → `https://cdn.hstatic.net/products/1000217401/8d610964ac9349ecbc7ece26e0569566_5e40830de67c4c24abba0d0c77e2079d.png`
 
 2. **Banner 2 (Bát ăn PetBowl):**
-   - **Mã sản phẩm:** `SP-BANNER-002`
-   - **Slug:** `bat-an-petbowl` (alias: `banner-2`, `2`)
-   - **Giá niêm yết:** `85.000đ` (Giá gốc: `120.000đ` – Giảm 29%)
-   - **Ảnh chính:** `https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=900&auto=format&fit=crop&q=80`
+   - **Mã sản phẩm:** `SP-BANNER-002` | **Slug:** `bat-an-petbowl` (alias: `banner-2`, `2`)
+   - **3 Biến thể & 3 Ảnh:**
+     - `SP-BANNER-002-01`: Bát đơn Inox 400ml chống trượt – 121.500đ → `https://product.hstatic.net/1000217401/product/108_d6cf7173244b44e999f8f8eb5ccf1745.png`
+     - `SP-BANNER-002-02`: Bát đôi nghiêng 15 độ bảo vệ cột sống cổ – 176.000đ → `https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__36__de2feab3e8d04692a226560f4a0c6caa.png`
+     - `SP-BANNER-002-03`: Bát đôi kèm bình cấp nước tự động – 210.000đ → `https://cdn.hstatic.net/products/1000104513/thiet_ke_chua_co_ten__35__7aecd32a1dc44fda8a69973b69344ca7.png`
 
 3. **Banner 3 (Khay vệ sinh cho mèo Jobi):**
-   - **Mã sản phẩm:** `SP-BANNER-003`
-   - **Slug:** `khay-ve-sinh-cho-meo-jobi` (alias: `banner-3`, `3`)
-   - **Giá niêm yết:** `260.000đ` (Giá gốc: `350.000đ` – Giảm 26%)
-   - **Ảnh chính:** `https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=900&auto=format&fit=crop&q=80`
+   - **Mã sản phẩm:** `SP-BANNER-003` | **Slug:** `khay-ve-sinh-cho-meo-jobi` (alias: `banner-3`, `3`)
+   - **3 Biến thể & 3 Ảnh:**
+     - `SP-BANNER-003-01`: Size M kèm xẻng (Xanh Pastel) – 180.000đ → `https://www.petmart.vn/wp-content/uploads/2018/09/khay-ve-sinh-cho-meo-makar-cat-litter-station.jpg`
+     - `SP-BANNER-003-02`: Size L thành cao chống văng cát (Xám Ghi) – 240.000đ → `https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station1.jpg`
+     - `SP-BANNER-003-03`: Size XL có nắp vòm khử mùi (Hồng Phấn) – 360.000đ → `https://www.petmart.vn/wp-content/uploads/2018/09/ve-sinh-cho-meo-makar-cat-litter-station2.jpg`
 
 4. **Banner 4 (Vòng cổ chuông đính kèm JewPet):**
-   - **Mã sản phẩm:** `SP-BANNER-004`
-   - **Slug:** `vong-co-jewpet` (alias: `banner-4`, `4`)
-   - **Giá niêm yết:** `65.000đ` (Giá gốc: `95.000đ` – Giảm 32%)
-   - **Ảnh chính:** `https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=900&auto=format&fit=crop&q=80`
+   - **Mã sản phẩm:** `SP-BANNER-004` | **Slug:** `vong-co-jewpet` (alias: `banner-4`, `4`)
+   - **3 Biến thể & 3 Ảnh:**
+     - `SP-BANNER-004-01`: Bản nơ đính chuông vàng Size S (15-25cm) – 140.000đ → `https://www.petmart.vn/wp-content/uploads/2021/08/vong-co-cho-meo-vai-du-co-be-hand-in-hand-pet-collar.jpg`
+     - `SP-BANNER-004-02`: Bản da PU đính đá Charm Size M (20-32cm) – 180.000đ → `https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-co-mini-hand-in-hand.jpg`
+     - `SP-BANNER-004-03`: Bản sợi dù đệm êm Size L (25-40cm) – 220.000đ → `https://www.petmart.vn/wp-content/uploads/2019/05/vong-co-cho-meo-kem-day-dat-hand-in-hand-co-mini1.jpg`
+
+5. **Thức ăn hạt cao cấp cho chó Royal Canin Mini Adult (`SP-UAT-DOG-001`):**
+   - 3 Biến thể: Túi 800g (175.750đ), Túi 2kg (315.000đ), Bao 8kg Tiết kiệm (1.100.000đ).
+   - 3 Ảnh sắc nét: `https://www.petmart.vn/wp-content/uploads/2021/06/thuc-an-cho-cho-truong-thanh-co-nho-royal-canin-mini-adult1.jpg`, `...mini-adult2.jpg`, `https://fexafkqzpbzjcupvbfhe.supabase.co/storage/v1/object/public/product-images/products/7bf9a2ec-7d5e-45be-a8fa-2f8171d5aa5a/029c8427-e0f4-44b7-9043-c1aef4d90eb5/th-c-n-h-t-cho-ch-tr-ng-th-nh-gi-ng-nh-royal-canin.png`.
+
+6. **Hạt dinh dưỡng cho mèo Whiskas vị cá biển tươi (`SP-UAT-CAT-001`):**
+   - 3 Biến thể: Gói 450g (85.000đ), Túi 1.2kg (171.000đ), Bao 3kg Tiết kiệm (342.000đ).
+   - 3 Ảnh bao bì chuẩn: Các ảnh Whiskas Adult chính hãng từ Paddy CDN.
+
+7. **Cỏ khô Alfalfa tự nhiên cho Thỏ & Bọ Ú (`SP-UAT-SMALL-001`):**
+   - 3 Biến thể: Gói 500g Tiêu chuẩn (120.000đ), Gói 1kg Cọng dài xanh non (199.500đ), Bao nén 2.5kg Tiết kiệm (405.000đ).
+   - 3 Ảnh thực tế: `https://khopetshop.net/assets/images/products/19032025041109_23293.jpg`, `...232931.jpg`, `...45489.png`.
+
+8. **Thức ăn hạt hỗn hợp cho Vẹt và Chim cảnh (`SP-UAT-BIRD-001`):**
+   - 3 Biến thể: Hũ 500g Ngũ cốc (95.000đ), Hũ 1kg Trái cây khoáng (166.250đ), Gói 2kg Dinh dưỡng sinh sản (279.000đ).
+   - 3 Ảnh thực tế: `https://product.hstatic.net/1000217401/product/10_de86dc61cab3485b9a33bf3ff80edd70.png`, `...9_1__ed5e3353d74343c5b9d2046db206d241.png`, `https://khopetshop.net/assets/images/products/19032025040921_63107.jpg`.
+
+9. **Cát đậu nành hữu cơ Cature khử mùi cho Mèo 6L (`SP-UAT-LITTER-001`):**
+   - 3 Biến thể: Túi 6L Hương sữa (140.000đ), Túi 6L Than hoạt tính (147.250đ), Túi 6L Trà xanh kháng khuẩn (147.250đ).
+   - 3 Ảnh bao bì chuẩn: Cature Tofu Pellets chính hãng từ Paddy CDN.
+
+10. **Bóng gặm cao su tự nhiên KONG Classic (`SP-UAT-TOY-001`):**
+    - 3 Biến thể: Size S Chó nhỏ <9kg (180.000đ), Size M Chó vừa 7-16kg (220.000đ), Size L Chó lớn 13-30kg (275.500đ).
+    - 3 Ảnh KONG Classic chuẩn từ Mỹ: `https://product.hstatic.net/1000104513/product/a799ecc39efd4cc3a6996303f87eca34_f3e3a7521e8941d0826d21675230ddde_master.jpg`, `...large.jpg`, `https://cutepetshop.vn/wp-content/uploads/2024/05/images-upload-woo2F4b63d48139b813646f1b445af9b01c85.jpg`.
 
 ---
 
@@ -403,3 +431,4 @@ npx jest tests/catalog.test.js tests/service-branch.test.js tests/integration/fl
 ---
 *Tài liệu này được lập và đối soát trực tiếp cùng mã nguồn Backend và cơ sở dữ liệu MongoDB để phục vụ nghiệm thu dự án.*  
 **Đại diện Đội ngũ Kỹ thuật Backend**
+
