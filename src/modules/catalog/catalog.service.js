@@ -229,40 +229,51 @@ export const formatProduct = (prod) => {
     const defaultVar = variants[0];
     const baseP = Number(defaultVar.price) || 0;
     const finalP = defaultVar.finalPrice !== undefined && defaultVar.finalPrice !== null ? Number(defaultVar.finalPrice) : baseP;
+    const hasDiscount = (Number(defaultVar.discountPercent) > 0) || (baseP > finalP);
+    const resolvedOriginal = hasDiscount ? baseP : finalP;
 
-    formatted.price = baseP;
+    formatted.price = finalP;
     formatted.finalPrice = finalP;
-    formatted.product_price = baseP;
-    formatted.sellingPrice = finalP || baseP;
-    formatted.selling_price = finalP || baseP;
-    formatted.basePrice = baseP;
-    formatted.originalPrice = baseP;
-    formatted.original_price = baseP;
+    formatted.product_price = finalP;
+    formatted.sellingPrice = finalP;
+    formatted.selling_price = finalP;
+    formatted.basePrice = finalP;
+    formatted.originalPrice = resolvedOriginal;
+    formatted.original_price = resolvedOriginal;
     formatted.salePrice = finalP;
     formatted.sale_price = finalP;
 
-    const varDisc = Number(defaultVar.discountPercent || obj.discountPercent || 0);
-    if (varDisc > 0) {
-      formatted.discountPercent = varDisc;
-      formatted.discount_percent = varDisc;
+    if (hasDiscount) {
+      formatted.discountPercent = Number(defaultVar.discountPercent) || Math.round(((baseP - finalP) / baseP) * 100);
+      formatted.discount_percent = formatted.discountPercent;
     } else {
       formatted.discountPercent = 0;
       formatted.discount_percent = 0;
     }
   } else if (variants.length > 0) {
     const resolvedFinal = minFinalPrice || minPrice;
-    formatted.product_price = minPrice || resolvedFinal;
+    const primaryVar = variants.find((v) => {
+      const vf = (v.finalPrice !== undefined && v.finalPrice !== null) ? Number(v.finalPrice) : Number(v.price) || 0;
+      return vf === resolvedFinal;
+    }) || variants[0];
+
+    const primaryPrice = Number(primaryVar.price) || resolvedFinal;
+    const hasDiscount = (Number(primaryVar.discountPercent) > 0) || (primaryPrice > resolvedFinal);
+    const resolvedOriginal = hasDiscount ? primaryPrice : resolvedFinal;
+
+    formatted.price = resolvedFinal;
+    formatted.finalPrice = resolvedFinal;
+    formatted.product_price = resolvedFinal;
     formatted.sellingPrice = resolvedFinal;
     formatted.selling_price = resolvedFinal;
     formatted.salePrice = resolvedFinal;
     formatted.sale_price = resolvedFinal;
-    formatted.basePrice = minPrice;
-    formatted.originalPrice = maxPrice || minPrice;
-    formatted.original_price = maxPrice || minPrice;
+    formatted.basePrice = resolvedFinal;
+    formatted.originalPrice = resolvedOriginal;
+    formatted.original_price = resolvedOriginal;
 
-    const firstDisc = Number(variants[0]?.discountPercent || 0);
-    if (minPrice > minFinalPrice) {
-      formatted.discountPercent = firstDisc || Math.round(((minPrice - minFinalPrice) / minPrice) * 100);
+    if (hasDiscount) {
+      formatted.discountPercent = Number(primaryVar.discountPercent) || Math.round(((primaryPrice - resolvedFinal) / primaryPrice) * 100);
       formatted.discount_percent = formatted.discountPercent;
     } else {
       formatted.discountPercent = 0;
@@ -511,6 +522,11 @@ export const listProducts = async (params = {}, actor = null) => {
     page
   } = params;
 
+  const rawQ = q || params.filter || params.keyword || params.search;
+  const rawCategoryId = categoryId || params.category_id || params.category_ids;
+  const rawMinPrice = minPrice !== undefined ? minPrice : params.min_price;
+  const rawMaxPrice = maxPrice !== undefined ? maxPrice : params.max_price;
+
   const isInternal = actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole);
   const maxLimit = isInternal ? 500 : 200;
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), maxLimit);
@@ -531,9 +547,9 @@ export const listProducts = async (params = {}, actor = null) => {
     if (usageType) query.usageType = usageType;
   }
 
-  // Filter categoryId (hỗ trợ nhiều category ngăn cách bằng dấu phẩy)
-  if (categoryId) {
-    const rawIds = categoryId.split(',').map((id) => id.trim()).filter((id) => mongoose.isValidObjectId(id));
+  // Filter categoryId (hỗ trợ cả categoryId, category_id, category_ids ngăn cách bằng dấu phẩy)
+  if (rawCategoryId) {
+    const rawIds = String(rawCategoryId).split(',').map((id) => id.trim()).filter((id) => mongoose.isValidObjectId(id));
     if (rawIds.length === 1) {
       query.categoryId = new mongoose.Types.ObjectId(rawIds[0]);
     } else if (rawIds.length > 1) {
@@ -550,9 +566,9 @@ export const listProducts = async (params = {}, actor = null) => {
     }
   }
 
-  // Search q (hỗ trợ name, productCode, variants.sku, description)
-  if (q && q.trim()) {
-    const trimmed = q.trim();
+  // Search q (hỗ trợ q, filter, keyword, search)
+  if (rawQ && String(rawQ).trim()) {
+    const trimmed = String(rawQ).trim();
     query.$or = [
       { name: { $regex: trimmed, $options: 'i' } },
       { productCode: { $regex: trimmed, $options: 'i' } },
@@ -561,29 +577,43 @@ export const listProducts = async (params = {}, actor = null) => {
     ];
   }
 
-  // Price range
-  if (minPrice !== undefined || maxPrice !== undefined) {
+  // Price range: Lọc theo Giá bán khởi điểm hiển thị thực tế (Card Display Price / minFinalPrice)
+  if (rawMinPrice !== undefined || rawMaxPrice !== undefined) {
     const priceFilter = {};
-    if (minPrice !== undefined) priceFilter.$gte = parseInt(minPrice, 10);
-    if (maxPrice !== undefined) priceFilter.$lte = parseInt(maxPrice, 10);
-    query['variants.price'] = priceFilter;
+    if (rawMinPrice !== undefined && !isNaN(parseInt(rawMinPrice, 10))) {
+      priceFilter.$gte = parseInt(rawMinPrice, 10);
+    }
+    if (rawMaxPrice !== undefined && !isNaN(parseInt(rawMaxPrice, 10)) && Number(rawMaxPrice) < Infinity) {
+      priceFilter.$lte = parseInt(rawMaxPrice, 10);
+    }
+    if (Object.keys(priceFilter).length > 0) {
+      query.$or = [
+        { displayPrice: priceFilter },
+        { minFinalPrice: priceFilter },
+        { sellingPrice: priceFilter },
+        { price: priceFilter },
+        { 'variants.0.finalPrice': priceFilter },
+        { 'variants.0.price': priceFilter }
+      ];
+    }
   }
 
   // Sắp xếp: khi phân trang bằng cursor (_id < decodedId), bắt buộc sort theo { _id: -1 }
   // để tránh vòng lặp vô hạn khi createdAt khác thứ tự _id (Inventory/Catalog allPages loop bug)
+  const normalizedSort = (sort || '').toUpperCase();
   let sortCriteria = { _id: -1 };
   if (!parsedPage && cursor) {
     sortCriteria = { _id: -1 };
-  } else if (sort === 'NEWEST') {
+  } else if (normalizedSort === 'NEWEST') {
     sortCriteria = { createdAt: -1, _id: -1 };
-  } else if (sort === 'NAME_ASC') {
+  } else if (normalizedSort === 'NAME_ASC') {
     sortCriteria = { name: 1, _id: 1 };
-  } else if (sort === 'NAME_DESC') {
+  } else if (normalizedSort === 'NAME_DESC') {
     sortCriteria = { name: -1, _id: -1 };
-  } else if (sort === 'PRICE_ASC') {
-    sortCriteria = { 'variants.price': 1, _id: 1 };
-  } else if (sort === 'PRICE_DESC') {
-    sortCriteria = { 'variants.price': -1, _id: -1 };
+  } else if (normalizedSort === 'PRICE_ASC') {
+    sortCriteria = { displayPrice: 1, minFinalPrice: 1, 'variants.price': 1, _id: 1 };
+  } else if (normalizedSort === 'PRICE_DESC') {
+    sortCriteria = { displayPrice: -1, minFinalPrice: -1, 'variants.price': -1, _id: -1 };
   }
 
   // Lọc sản phẩm còn tồn kho khả dụng trực tiếp từ InventoryStock nếu inStockOnly = true
