@@ -13,6 +13,7 @@
     "seed:content": "babel-node src/seeds/contentSeed.js",
     "seed:uat": "babel-node src/seeds/uatSeed.js",
     "seed:uat-prod": "babel-node src/seeds/productionUatSeed.js",
+    "seed:dashboard-uat": "babel-node src/seeds/dashboardUatSeed.js",
     "seed:legacy-products": "babel-node src/seeds/migrateLegacyProducts.js",
     "inspect:data": "babel-node scripts/inspectData.js",
     "check:clean": "babel-node scripts/verifyCleanData.js",

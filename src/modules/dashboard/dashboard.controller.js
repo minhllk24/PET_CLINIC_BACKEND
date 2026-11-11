@@ -35,3 +35,12 @@ export const getServiceStats = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getAttentionBacklog = async (req, res, next) => {
+  try {
+    const data = await dashboardService.getAttentionBacklog(req.query, req.actor);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -56,4 +56,8 @@ const schema = new mongoose.Schema({
   version: { type: Number, default: 1 }
 }, { timestamps: true, optimisticConcurrency: true, versionKey: 'version' });
 
+schema.index({ fulfillmentBranchId: 1, createdAt: 1 });
+schema.index({ status: 1, deliveredAt: 1, fulfillmentBranchId: 1 });
+schema.index({ status: 1, createdAt: 1, fulfillmentBranchId: 1 });
+
 export default mongoose.model('Order', schema);

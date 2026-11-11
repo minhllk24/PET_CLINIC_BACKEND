@@ -1132,6 +1132,7 @@ export const finalizeRecord = async (id, data = {}, actor) => {
         const allRecordsFinalized = otherRecords.every((r) => r.status === 'FINALIZED');
         if (allSegmentsComplete && allRecordsFinalized && appointment.status !== 'COMPLETED') {
           appointment.status = 'COMPLETED';
+          appointment.completedAt = appointment.completedAt || now;
           if (typeof appointment.save === 'function') {
             await saveWithSession(appointment, session);
           }

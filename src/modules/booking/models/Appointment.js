@@ -103,6 +103,7 @@ const schema = new mongoose.Schema(
       prepaidOutcome: { type: String, default: null },
     },
     holdExpiresAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
     prepaymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
     reviewerStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'StaffProfile', default: null },
     source: { type: String, default: 'ONLINE' },
@@ -112,5 +113,9 @@ const schema = new mongoose.Schema(
   },
   { timestamps: true, optimisticConcurrency: true, versionKey: 'version' }
 );
+
+schema.index({ branchId: 1, createdAt: 1 });
+schema.index({ branchId: 1, status: 1, scheduledStart: 1 });
+schema.index({ status: 1, completedAt: 1, branchId: 1 });
 
 export default mongoose.model('Appointment', schema);

@@ -19,4 +19,7 @@ router.get('/low-stock', dashboardController.getLowStockAlerts);
 // 4. Bảng xếp hạng dịch vụ phổ biến (Service Popularity)
 router.get('/service-stats', dashboardController.getServiceStats);
 
+// 5. Backlog cần xử lý ngay & lịch hẹn 24h tới (Action / Attention Needed)
+router.get('/attention', dashboardController.getAttentionBacklog);
+
 export default router;

@@ -12,5 +12,6 @@ const schema = new mongoose.Schema({
 // Unique inventory location projection
 schema.index({ branchId: 1, inventoryItemId: 1 }, { unique: true });
 schema.index({ branchId: 1, quantity: 1 });
+schema.index({ thresholdConfigured: 1, quantity: 1, branchId: 1 });
 
 export default mongoose.models.InventoryStock || mongoose.model('InventoryStock', schema);

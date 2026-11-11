@@ -29,5 +29,6 @@ const schema = new mongoose.Schema({
 });
 
 schema.index({ orderId: 1, cause: 1 });
+schema.index({ status: 1, refundedAt: 1, cause: 1 });
 
 export default mongoose.model('OrderRefund', schema);

@@ -1393,7 +1393,8 @@ export const runProductionUatSeed = async () => {
               branchId: br._id,
               inventoryItemId: invItem._id,
               quantity: qty,
-              threshold: 10
+              lowStockThreshold: 10,
+              thresholdConfigured: true
             }
           },
           { upsert: true }
@@ -2120,6 +2121,7 @@ export const runProductionUatSeed = async () => {
             serviceType: apt.serviceType,
             paymentMethod: 'PAY_AT_STORE',
             status: apt.status,
+            completedAt: apt.status === 'COMPLETED' ? aptEnd : null,
             reviewerStaffId: apt.reviewerStaffId || (apt.serviceType === 'MEDICAL' ? doctorAnProfile._id : null),
             scheduledStart: aptStart,
             scheduledEnd: aptEnd,
@@ -2147,7 +2149,8 @@ export const runProductionUatSeed = async () => {
                 scheduledStart: aptStart,
                 scheduledEnd: aptEnd,
                 assignedStaffId: apt.staff._id,
-                executionStatus: apt.execStatus || 'NOT_STARTED'
+                executionStatus: apt.execStatus || 'NOT_STARTED',
+                executionCompletedAt: (apt.execStatus === 'COMPLETED' || apt.status === 'COMPLETED') ? aptEnd : null
               }
             ],
             pricing: {

@@ -1791,12 +1791,25 @@ paths:
         in: query
         schema:
           type: string
-          format: date-time
       - name: to
         in: query
         schema:
           type: string
-          format: date-time
+      - name: createdFrom
+        in: query
+        schema:
+          type: string
+      - name: createdTo
+        in: query
+        schema:
+          type: string
+      - name: dateField
+        in: query
+        schema:
+          type: string
+          enum:
+          - scheduledStart
+          - createdAt
       - name: limit
         in: query
         schema:
@@ -3323,7 +3336,7 @@ paths:
   /dashboard/summary:
     get:
       operationId: dashboardSummary
-      summary: Tong quan co ban
+      summary: Tong quan KPI Dashboard M23 (legacy + M23 canonical payload)
       tags:
       - Dashboard
       security:
@@ -3343,9 +3356,25 @@ paths:
         schema:
           type: string
           format: date
+      - name: preset
+        in: query
+        schema:
+          type: string
+          enum:
+          - today
+          - 7d
+          - 30d
+          - this_week
+          - this_month
+          - this_year
+      - name: timezone
+        in: query
+        schema:
+          type: string
+          default: Asia/Ho_Chi_Minh
       responses:
         '200':
-          description: Summary
+          description: Summary wrapped inside { success, data }
           content:
             application/json:
               schema:
@@ -3363,7 +3392,226 @@ paths:
         roles:
         - MANAGER
         - ADMIN
-        scope: 'Manager: tong hop tu resource trong assignedBranchIds; ADMIN ALL'
+        scope: 'Manager: tong hop tu resource trong assignedBranchIds; ADMIN ALL hoac 1 branch'
+        resolver: Dashboard
+      x-audience:
+      - admin
+  /dashboard/revenue-analytics:
+    get:
+      operationId: dashboardRevenueAnalytics
+      summary: Chuoi doanh thu thuc te (COMPLETED Orders + COMPLETED Appointments + OrderRefund REFUNDED)
+      tags:
+      - Dashboard
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: preset
+        in: query
+        schema:
+          type: string
+          enum:
+          - today
+          - 7d
+          - 30d
+          - this_week
+          - this_month
+          - this_year
+      - name: timezone
+        in: query
+        schema:
+          type: string
+          default: Asia/Ho_Chi_Minh
+      responses:
+        '200':
+          description: Revenue analytics series wrapped inside { success, data }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardRevenueAnalytics'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - MANAGER
+        - ADMIN
+        scope: 'Manager: chi nhom assignedBranchIds; ADMIN ALL hoac 1 branch'
+        resolver: Dashboard
+      x-audience:
+      - admin
+  /dashboard/service-stats:
+    get:
+      operationId: dashboardServiceStats
+      summary: Top dich vu co nhieu luot execution COMPLETED nhat trong ky
+      tags:
+      - Dashboard
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: preset
+        in: query
+        schema:
+          type: string
+      - name: timezone
+        in: query
+        schema:
+          type: string
+          default: Asia/Ho_Chi_Minh
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+      responses:
+        '200':
+          description: Service popularity ranking wrapped inside { success, data }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardServiceStats'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - MANAGER
+        - ADMIN
+        scope: 'Manager: chi nhom assignedBranchIds; ADMIN ALL hoac 1 branch'
+        resolver: Dashboard
+      x-audience:
+      - admin
+  /dashboard/low-stock:
+    get:
+      operationId: dashboardLowStock
+      summary: Canh bao ton kho thap / het hang theo SKU x Chi nhanh
+      tags:
+      - Dashboard
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+      responses:
+        '200':
+          description: Low stock alerts wrapped inside { success, data }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardLowStock'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - MANAGER
+        - ADMIN
+        scope: 'Manager: chi nhom assignedBranchIds; ADMIN ALL hoac 1 branch'
+        resolver: Dashboard
+      x-audience:
+      - admin
+  /dashboard/attention:
+    get:
+      operationId: dashboardAttention
+      summary: Backlog don hang can xu ly va lich hen sap dien ra trong 24 gio toi
+      tags:
+      - Dashboard
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: branchId
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+      - name: includeShipped
+        in: query
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Actionable backlog wrapped inside { success, data }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardAttention'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - MANAGER
+        - ADMIN
+        scope: 'Manager: chi nhom assignedBranchIds; ADMIN ALL hoac 1 branch'
         resolver: Dashboard
       x-audience:
       - admin
@@ -6242,12 +6490,18 @@ paths:
         in: query
         schema:
           type: string
-          format: date-time
       - name: to
         in: query
         schema:
           type: string
-          format: date-time
+      - name: dateFrom
+        in: query
+        schema:
+          type: string
+      - name: dateTo
+        in: query
+        schema:
+          type: string
       - name: limit
         in: query
         schema:
@@ -10426,9 +10680,78 @@ components:
       - orderId
       - amount
       - status
+    DashboardKpiMetric:
+      type: object
+      properties:
+        current:
+          type: number
+        previous:
+          type: number
+        delta:
+          type: number
+        changePercent:
+          type:
+          - number
+          - 'null'
+        currency:
+          type: string
+        trend:
+          type: array
+          items:
+            type: object
+            properties:
+              periodStart:
+                type: string
+              value:
+                type: number
     DashboardSummary:
       type: object
       properties:
+        range:
+          type: object
+          properties:
+            from:
+              type: string
+            to:
+              type: string
+            previousFrom:
+              type: string
+            previousTo:
+              type: string
+            granularity:
+              type: string
+              enum:
+              - hour
+              - day
+              - week
+              - month
+            timezone:
+              type: string
+            branchIds:
+              type: array
+              items:
+                type: string
+        kpis:
+          type: object
+          properties:
+            revenue:
+              $ref: '#/components/schemas/DashboardKpiMetric'
+            orders:
+              $ref: '#/components/schemas/DashboardKpiMetric'
+            appointments:
+              $ref: '#/components/schemas/DashboardKpiMetric'
+            activeCustomers:
+              $ref: '#/components/schemas/DashboardKpiMetric'
+        orderCountsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        appointmentCountsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        statusCatalog:
+          type: object
         orders:
           type: integer
         appointments:
@@ -10439,7 +10762,154 @@ components:
           type: integer
         lowStockItems:
           type: integer
-      additionalProperties: false
+        breakdown:
+          type: object
+    DashboardRevenueAnalytics:
+      type: object
+      properties:
+        currency:
+          type: string
+        granularity:
+          type: string
+          enum:
+          - hour
+          - day
+          - week
+          - month
+        range:
+          type: object
+        totalRevenue:
+          type: number
+        previousRevenue:
+          type: number
+        delta:
+          type: number
+        changePercent:
+          type:
+          - number
+          - 'null'
+        totals:
+          type: object
+          properties:
+            orderRevenue:
+              type: number
+            serviceRevenue:
+              type: number
+            refundAdjustment:
+              type: number
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              periodStart:
+                type: string
+              orderRevenue:
+                type: number
+              serviceRevenue:
+                type: number
+              refundAdjustment:
+                type: number
+              totalRevenue:
+                type: number
+    DashboardServiceStats:
+      type: object
+      properties:
+        range:
+          type: object
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              serviceId:
+                type:
+                - string
+                - 'null'
+              name:
+                type: string
+              serviceType:
+                type: string
+                enum:
+                - GROOMING
+                - MEDICAL
+              completedCount:
+                type: integer
+              revenue:
+                type:
+                - number
+                - 'null'
+    DashboardLowStock:
+      type: object
+      properties:
+        total:
+          type: integer
+        unconfiguredCount:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              stockId:
+                type: string
+              inventoryItemId:
+                type: string
+              branchId:
+                type: string
+              branchName:
+                type: string
+              branchCode:
+                type:
+                - string
+                - 'null'
+              sku:
+                type: string
+              name:
+                type: string
+              unit:
+                type: string
+              kind:
+                type: string
+                enum:
+                - PRODUCT
+                - MATERIAL
+              imageUrl:
+                type:
+                - string
+                - 'null'
+              quantity:
+                type: integer
+              lowStockThreshold:
+                type: integer
+              threshold:
+                type: integer
+              thresholdConfigured:
+                type: boolean
+              status:
+                type: string
+                enum:
+                - OUT_OF_STOCK
+                - LOW_STOCK
+    DashboardAttention:
+      type: object
+      properties:
+        branchIds:
+          type: array
+          items:
+            type: string
+        ordersTotal:
+          type: integer
+        appointmentsTotal:
+          type: integer
+        orders:
+          type: array
+          items:
+            type: object
+        appointments:
+          type: array
+          items:
+            type: object
     ServiceType:
       type: string
       enum:

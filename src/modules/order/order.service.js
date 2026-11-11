@@ -14,6 +14,7 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
 import { validateVoucherEligibility, calculateDiscount, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
 import { findActiveFlashSaleItem, consumeFlashSaleQuotaInSession, releaseFlashSaleQuotaInSession } from '../flash-sale/flashSale.service';
+import { buildOptionalVnDateFilter } from '../dashboard/dashboard.utils';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -653,8 +654,9 @@ export const listOrders = async (query = {}, actor) => {
   const filter = {};
   if (query.status) filter.status = query.status;
   if (query.customerId) filter.customerId = query.customerId;
-  if (query.branchId || query.fulfillmentBranchId) {
-    filter.fulfillmentBranchId = query.branchId || query.fulfillmentBranchId;
+  const requestedBranchId = query.branchId || query.fulfillmentBranchId;
+  if (requestedBranchId) {
+    filter.fulfillmentBranchId = requestedBranchId;
   }
   if (query.code) {
     filter.code = query.code.trim();
@@ -667,18 +669,11 @@ export const listOrders = async (query = {}, actor) => {
       { 'contactSnapshot.fullName': { $regex: s, $options: 'i' } }
     ];
   }
-  const dateFrom = query.dateFrom || query.startDate;
-  const dateTo = query.dateTo || query.endDate;
-  if (dateFrom || dateTo) {
-    filter.createdAt = {};
-    if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
-    if (dateTo) {
-      const dTo = new Date(dateTo);
-      if (typeof dateTo === 'string' && dateTo.length === 10) {
-        dTo.setHours(23, 59, 59, 999);
-      }
-      filter.createdAt.$lte = dTo;
-    }
+  const dateFrom = query.from || query.dateFrom || query.startDate;
+  const dateTo = query.to || query.dateTo || query.endDate;
+  const createdAtRange = buildOptionalVnDateFilter(dateFrom, dateTo);
+  if (createdAtRange) {
+    filter.createdAt = createdAtRange;
   }
 
   if (actor.systemRole === 'CUSTOMER') {
@@ -712,10 +707,24 @@ export const listOrders = async (query = {}, actor) => {
     filter.$or = orConditions;
   } else if (actor.systemRole === 'STAFF') {
     const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
-    filter.fulfillmentBranchId = { $in: staffBranches };
+    if (requestedBranchId) {
+      if (!staffBranches.includes(String(requestedBranchId))) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+      }
+      filter.fulfillmentBranchId = String(requestedBranchId);
+    } else {
+      filter.fulfillmentBranchId = { $in: staffBranches };
+    }
   } else if (actor.systemRole === 'MANAGER') {
     const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
-    filter.fulfillmentBranchId = { $in: mgrBranches };
+    if (requestedBranchId) {
+      if (!mgrBranches.includes(String(requestedBranchId))) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+      }
+      filter.fulfillmentBranchId = String(requestedBranchId);
+    } else {
+      filter.fulfillmentBranchId = { $in: mgrBranches };
+    }
   }
 
   if (query.cursor && mongoose.Types.ObjectId.isValid(query.cursor)) {

@@ -18,6 +18,7 @@ import {
   consumeQuotaInSession,
   restoreQuotaInSession,
 } from '../order/voucher.service';
+import { buildOptionalVnDateFilter } from '../dashboard/dashboard.utils';
 
 /**
  * Pure Serializer for a Service Segment (ServiceLine)
@@ -1098,8 +1099,12 @@ export const createInternalAppointment = async (data, actor) => {
 export const getAppointments = async (filters = {}, actor) => {
   const query = {};
 
-  if (filters.branchId && mongoose.Types.ObjectId.isValid(filters.branchId)) {
-    query.branchId = new mongoose.Types.ObjectId(filters.branchId);
+  const requestedBranchId = filters.branchId ? String(filters.branchId).trim() : null;
+  if (requestedBranchId) {
+    if (!mongoose.Types.ObjectId.isValid(requestedBranchId)) {
+      throw new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Invalid branchId format');
+    }
+    query.branchId = new mongoose.Types.ObjectId(requestedBranchId);
   }
   if (filters.customerId && mongoose.Types.ObjectId.isValid(filters.customerId)) {
     query.customerId = new mongoose.Types.ObjectId(filters.customerId);
@@ -1107,7 +1112,15 @@ export const getAppointments = async (filters = {}, actor) => {
   if (filters.status) {
     query.status = filters.status;
   }
-  if (filters.from || filters.to) {
+
+  // Clickthrough alignment: support createdAt filtering (createdFrom/createdTo or dateField=createdAt with from/to)
+  const useCreatedAt = filters.dateField === 'createdAt' || filters.createdFrom || filters.createdTo;
+  if (useCreatedAt) {
+    const rawCreatedFrom = filters.createdFrom || (filters.dateField === 'createdAt' ? filters.from : undefined);
+    const rawCreatedTo = filters.createdTo || (filters.dateField === 'createdAt' ? filters.to : undefined);
+    const createdAtFilter = buildOptionalVnDateFilter(rawCreatedFrom, rawCreatedTo);
+    if (createdAtFilter) query.createdAt = createdAtFilter;
+  } else if (filters.from || filters.to) {
     query.scheduledStart = {};
     if (filters.from) query.scheduledStart.$gte = new Date(filters.from);
     if (filters.to) query.scheduledStart.$lte = new Date(filters.to);
@@ -1119,9 +1132,26 @@ export const getAppointments = async (filters = {}, actor) => {
     if (role === 'CUSTOMER') {
       query.customerId = new mongoose.Types.ObjectId(actor.id || actor._id);
     } else if (role === 'RECEPTIONIST' && actor.authorizedBranchIds?.length > 0) {
-      query.branchId = { $in: actor.authorizedBranchIds.map((id) => new mongoose.Types.ObjectId(id)) };
-    } else if (role === 'MANAGER' && actor.assignedBranchIds?.length > 0) {
-      query.branchId = { $in: actor.assignedBranchIds.map((id) => new mongoose.Types.ObjectId(id)) };
+      const authBranches = actor.authorizedBranchIds.map((id) => id.toString());
+      if (requestedBranchId && !authBranches.includes(requestedBranchId)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+      }
+      if (!requestedBranchId) {
+        query.branchId = { $in: authBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+      }
+    } else if (role === 'MANAGER') {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((id) => id.toString());
+      if (mgrBranches.length === 0) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Manager account has no assigned branches');
+      }
+      if (requestedBranchId) {
+        if (!mgrBranches.includes(requestedBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+        }
+        query.branchId = new mongoose.Types.ObjectId(requestedBranchId);
+      } else {
+        query.branchId = { $in: mgrBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+      }
     }
   }
 
