@@ -618,33 +618,40 @@ router.post(['/appointments/quote', '/appointments/preview-pricing'], optionalAu
     const depositAmount = Math.round(finalAmount * 0.30);
     const balanceAmount = finalAmount - depositAmount;
 
+    const payloadData = {
+      subtotal,
+      voucherDiscount,
+      finalAmount,
+      total: finalAmount,
+      depositType: 'PERCENTAGE',
+      depositValue: 30,
+      depositAmount,
+      balanceAmount,
+      policy: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
+      policyText: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
+    };
+
     res.status(200).json({
       success: true,
-      data: {
-        subtotal,
-        voucherDiscount,
-        finalAmount,
-        total: finalAmount,
-        depositType: 'PERCENTAGE',
-        depositValue: 30,
-        depositAmount,
-        balanceAmount,
-        policy: 'Khách hủy trước 24h hoàn 100% cọc; hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-      },
+      data: payloadData,
+      ...payloadData,
     });
   } catch (err) {
+    const fallbackData = {
+      subtotal: 250000,
+      voucherDiscount: 0,
+      finalAmount: 250000,
+      depositType: 'PERCENTAGE',
+      depositValue: 30,
+      depositAmount: 75000,
+      balanceAmount: 175000,
+      policy: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
+      policyText: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
+    };
     res.status(200).json({
       success: true,
-      data: {
-        subtotal: 250000,
-        voucherDiscount: 0,
-        finalAmount: 250000,
-        depositType: 'PERCENTAGE',
-        depositValue: 30,
-        depositAmount: 75000,
-        balanceAmount: 175000,
-        policy: 'Khách hủy trước 24h hoàn 100% cọc; hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-      },
+      data: fallbackData,
+      ...fallbackData,
     });
   }
 });

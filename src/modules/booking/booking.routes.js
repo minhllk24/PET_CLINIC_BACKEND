@@ -12,8 +12,12 @@ router.post('/', optionalAuth, idempotency('appointmentsCreate', { required: tru
 // Availability Slot Query Alias for Frontend (GET /appointments/slots)
 router.get('/slots', optionalAuth, bookingController.getAvailability);
 router.get('/my-history', optionalAuth, bookingController.listAppointments);
+router.post('/preview-pricing', optionalAuth, bookingController.previewPricing);
+router.post('/quote', optionalAuth, bookingController.previewPricing);
 
-// Detail
+// Detail & Refund/Cancel Preview
+router.get('/:id/cancel-preview', optionalAuth, bookingController.getCancelPreview);
+router.get('/:id/refund-preview', optionalAuth, bookingController.getCancelPreview);
 router.get('/:id', optionalAuth, bookingController.getAppointmentById);
 router.post('/:id/checkout', optionalAuth, bookingController.checkoutAppointment);
 

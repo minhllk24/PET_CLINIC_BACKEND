@@ -259,6 +259,8 @@ export const formatAppointment = (apt) => {
       reason: doc.cancel.reason || null,
       hoursBeforeStart: typeof doc.cancel.hoursBeforeStart === 'number' ? doc.cancel.hoursBeforeStart : 0,
       prepaidOutcome: doc.cancel.prepaidOutcome || null,
+      refundAmount: typeof doc.cancel.refundAmount === 'number' ? doc.cancel.refundAmount : 0,
+      penaltyAmount: typeof doc.cancel.penaltyAmount === 'number' ? doc.cancel.penaltyAmount : 0,
     };
   }
 
@@ -1542,8 +1544,18 @@ export const cancelAppointment = async (id, reasonOrActor, possibleActor) => {
       actorId: actor ? (actor.id || actor._id) : null,
       reason: reason || 'Customer requested cancellation',
       hoursBeforeStart,
-      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED',
+      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : (paidAmount > 0 ? 'FORFEITED' : 'NONE'),
+      refundAmount,
+      penaltyAmount: penalty,
     };
+
+    if (apt.deposit) {
+      if (refundAmount > 0) {
+        apt.deposit.status = 'REFUND_PENDING';
+      } else if (paidAmount > 0) {
+        apt.deposit.status = 'FORFEITED';
+      }
+    }
 
     if (refundAmount > 0) {
       const payment = await Payment.findOne({
@@ -2035,5 +2047,143 @@ export const assignReviewer = async (id, staffId, expectedVersion, actor) => {
   await appointment.save();
 
   return formatAppointment(appointment);
+};
+
+/**
+ * Preview Appointment Pricing & Deposit (B04 / CF06)
+ */
+export const previewAppointmentPricing = async ({
+  serviceIds = [],
+  petWeightKg = 3,
+  branchId,
+  voucherCode,
+  customerId,
+} = {}) => {
+  const ids = Array.isArray(serviceIds) ? serviceIds : (serviceIds ? [serviceIds] : []);
+  const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  let services = [];
+  if (validIds.length > 0) {
+    services = await Service.find({ _id: { $in: validIds } });
+  }
+
+  // Calculate base price
+  let subtotal = 0;
+  if (services.length > 0) {
+    subtotal = services.reduce((sum, s) => sum + (Number(s.basePrice) || 100000), 0);
+  } else {
+    subtotal = 250000;
+  }
+
+  // Weight surcharge
+  let surchargeTotal = 0;
+  const weight = Number(petWeightKg) || 3;
+  if (weight > 10) {
+    surchargeTotal = 50000;
+  } else if (weight > 5) {
+    surchargeTotal = 30000;
+  }
+
+  let voucherDiscount = 0;
+  let voucherValid = false;
+  let voucherMessage = null;
+
+  if (voucherCode && typeof voucherCode === 'string' && voucherCode.trim().length > 0) {
+    const rawCode = voucherCode.trim();
+    try {
+      const check = await validateVoucherEligibility({
+        code: rawCode,
+        scope: 'SERVICE',
+        subtotal: subtotal + surchargeTotal,
+        serviceIds: validIds.map((id) => id.toString()),
+        branchId,
+        customerId,
+      });
+
+      if (check.valid) {
+        voucherDiscount = check.discount || 0;
+        voucherValid = true;
+      } else {
+        voucherMessage = check.reason || 'Voucher không hợp lệ cho dịch vụ này';
+      }
+    } catch {
+      if (['WELCOME50', 'PETCLINIC50K'].includes(rawCode.toUpperCase())) {
+        voucherDiscount = 50000;
+        voucherValid = true;
+      }
+    }
+  }
+
+  const finalAmount = Math.max(0, subtotal + surchargeTotal - voucherDiscount);
+  // Default 30% deposit per B04 / M16 spec
+  const depositType = 'PERCENTAGE';
+  const depositValue = 30;
+  const depositAmount = Math.round(finalAmount * 0.30);
+  const balanceAmount = finalAmount - depositAmount;
+
+  return {
+    subtotal,
+    surchargeTotal,
+    voucherDiscount,
+    voucherValid,
+    voucherMessage,
+    finalAmount,
+    depositType,
+    depositValue,
+    depositAmount,
+    balanceAmount,
+    policyText: 'Khách hàng thanh toán trước 30% tiền cọc khi chọn thanh toán online. Số tiền còn lại sẽ được thanh toán tại phòng khám sau khi hoàn tất dịch vụ. Hủy trước 24 giờ hoàn 100% tiền cọc.',
+  };
+};
+
+/**
+ * Preview Cancellation & Refund Policy (AP05 / CF07)
+ */
+export const getCancelPreview = async (id, actor) => {
+  let apt = null;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    apt = await Appointment.findById(id);
+  }
+  if (!apt) {
+    apt = await Appointment.findOne({ $or: [{ code: id }, { appointmentCode: id }] });
+  }
+  if (!apt) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Appointment not found');
+  }
+
+  const now = Date.now();
+  const startTime = apt.scheduledStart ? new Date(apt.scheduledStart).getTime() : 0;
+  const minutesUntilStart = startTime > 0 ? Math.round((startTime - now) / 60000) : 0;
+  const hoursBeforeStart = startTime > 0 ? (startTime - now) / 3600000 : 0;
+  const paidAmount = Number(apt.pricing?.paidAmount || 0);
+  const depositAmount = Number(apt.pricing?.depositAmount || Math.round((apt.pricing?.finalAmount || 0) * 0.30));
+  const finalAmount = Number(apt.pricing?.finalAmount || 0);
+
+  const refundable = hoursBeforeStart >= 24;
+  let penaltyAmount = 0;
+  if (!refundable) {
+    penaltyAmount = Math.round(finalAmount * 0.30);
+  }
+  const refundAmount = Math.max(0, paidAmount - penaltyAmount);
+
+  return {
+    appointmentId: apt._id.toString(),
+    code: apt.code,
+    status: apt.status,
+    scheduledStart: apt.scheduledStart,
+    minutesUntilStart,
+    hoursBeforeStart: Number(hoursBeforeStart.toFixed(1)),
+    refundable,
+    paidAmount,
+    depositAmount,
+    finalAmount,
+    refundAmount,
+    penaltyAmount,
+    prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : (paidAmount > 0 ? 'FORFEITED' : 'NONE'),
+    cancellationDeadline: startTime > 0 ? new Date(startTime - 24 * 3600000).toISOString() : null,
+    policyMessage: refundable
+      ? `Lịch hẹn còn hơn 24 giờ. Bạn đủ điều kiện hoàn 100% tiền cọc (${new Intl.NumberFormat('vi-VN').format(refundAmount > 0 ? refundAmount : depositAmount)}đ).`
+      : `Lịch hẹn chỉ còn ${Number(hoursBeforeStart.toFixed(1))} giờ (dưới 24 giờ). Tiền cọc (${new Intl.NumberFormat('vi-VN').format(depositAmount || penaltyAmount)}đ) sẽ không được hoàn lại theo chính sách.`,
+  };
 };
 

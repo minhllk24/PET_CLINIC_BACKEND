@@ -310,3 +310,37 @@ export const checkoutAppointment = async (req, res, next) => {
     next(error);
   }
 };
+
+export const previewPricing = async (req, res, next) => {
+  try {
+    const payload = req.body || {};
+    const result = await bookingService.previewAppointmentPricing({
+      serviceIds: payload.serviceIds || (payload.serviceId ? [payload.serviceId] : []),
+      petWeightKg: payload.petWeightKg || payload.petWeight || 3,
+      branchId: payload.branchId,
+      voucherCode: payload.voucherCode || payload.voucher_code,
+      customerId: req.actor?.id,
+    });
+    res.json({
+      success: true,
+      data: result,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCancelPreview = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await bookingService.getCancelPreview(id, req.actor);
+    res.json({
+      success: true,
+      data: result,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
