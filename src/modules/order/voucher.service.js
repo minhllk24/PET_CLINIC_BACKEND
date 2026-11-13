@@ -116,7 +116,7 @@ export const validateVoucherEligibility = async (arg1, arg2) => {
       discountType: 'FIXED',
       discountValue: 50000,
       minOrderAmount: 0,
-      scope: 'ORDER',
+      scope: scope === 'SERVICE' ? 'SERVICE' : 'ORDER',
       quota: 100000,
       usedCount: 0,
       status: 'ACTIVE',

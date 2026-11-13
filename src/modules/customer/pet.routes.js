@@ -98,9 +98,26 @@ export const createPetHandler = async (req, res, next) => {
   }
 };
 
+export const resolvePet = async (paramId) => {
+  if (!paramId) return null;
+  if (mongoose.Types.ObjectId.isValid(paramId)) {
+    const pet = await Pet.findById(paramId);
+    if (pet) return pet;
+  }
+  const clean = String(paramId).trim();
+  const searchName = clean.replace(/-/g, ' ');
+  return await Pet.findOne({
+    $or: [
+      { name: new RegExp(`^${clean}$`, 'i') },
+      { name: new RegExp(`^${searchName}$`, 'i') },
+      { breed: new RegExp(`^${clean}$`, 'i') },
+    ]
+  });
+};
+
 export const getPetHandler = async (req, res, next) => {
   try {
-    const pet = await Pet.findById(req.params.id);
+    const pet = await resolvePet(req.params.id);
     if (!pet) return res.status(404).json({ message: 'Pet not found' });
     res.json(pet);
   } catch (error) {
@@ -110,6 +127,9 @@ export const getPetHandler = async (req, res, next) => {
 
 export const updatePetHandler = async (req, res, next) => {
   try {
+    const existingPet = await resolvePet(req.params.id);
+    if (!existingPet) return res.status(404).json({ message: 'Pet not found' });
+
     let species = req.body.species || req.body.species_name;
     if (species) {
       species = String(species).toUpperCase();
@@ -132,8 +152,7 @@ export const updatePetHandler = async (req, res, next) => {
       ...(req.body.archived !== undefined ? { isArchived: Boolean(req.body.archived) } : {}),
     };
 
-    const pet = await Pet.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
-    if (!pet) return res.status(404).json({ message: 'Pet not found' });
+    const pet = await Pet.findByIdAndUpdate(existingPet._id, { $set: updates }, { new: true });
     res.json(pet);
   } catch (error) {
     next(error);
@@ -142,15 +161,16 @@ export const updatePetHandler = async (req, res, next) => {
 
 export const deletePetHandler = async (req, res, next) => {
   try {
+    const existingPet = await resolvePet(req.params.id);
+    if (!existingPet) return res.status(404).json({ message: 'Pet not found' });
     const permanent = req.query.permanent === 'true';
     let pet;
     if (permanent) {
-      pet = await Pet.findByIdAndDelete(req.params.id);
+      pet = await Pet.findByIdAndDelete(existingPet._id);
     } else {
-      pet = await Pet.findByIdAndUpdate(req.params.id, { $set: { isArchived: true } }, { new: true });
+      pet = await Pet.findByIdAndUpdate(existingPet._id, { $set: { isArchived: true } }, { new: true });
     }
-    if (!pet) return res.status(404).json({ message: 'Pet not found' });
-    res.json({ success: true, message: permanent ? 'Pet deleted successfully' : 'Pet archived successfully', pet });
+    res.json({ success: true, message: permanent ? 'Pet deleted successfully' : 'Pet archived successfully', pet: pet || existingPet });
   } catch (error) {
     next(error);
   }
