@@ -179,7 +179,7 @@ export const getCommunityPostsPublic = async (req, res, next) => {
 
 export const createRescuePet = async (req, res, next) => {
   try {
-    const pet = await contentService.createRescuePet(req.body);
+    const pet = await contentService.createRescuePet(req.body, req.actor);
     res.status(201).json({ success: true, data: pet });
   } catch (err) {
     next(err);
@@ -188,7 +188,7 @@ export const createRescuePet = async (req, res, next) => {
 
 export const getRescuePetsAdmin = async (req, res, next) => {
   try {
-    const data = await contentService.getRescuePetsAdmin(req.query);
+    const data = await contentService.getRescuePetsAdmin(req.query, req.actor);
     res.status(200).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -197,7 +197,7 @@ export const getRescuePetsAdmin = async (req, res, next) => {
 
 export const getRescuePetById = async (req, res, next) => {
   try {
-    const pet = await contentService.getRescuePetById(req.params.id);
+    const pet = await contentService.getRescuePetById(req.params.id, req.actor);
     res.status(200).json({ success: true, data: pet });
   } catch (err) {
     next(err);
@@ -206,7 +206,7 @@ export const getRescuePetById = async (req, res, next) => {
 
 export const updateRescuePet = async (req, res, next) => {
   try {
-    const pet = await contentService.updateRescuePet(req.params.id, req.body);
+    const pet = await contentService.updateRescuePet(req.params.id, req.body, req.actor);
     res.status(200).json({ success: true, data: pet });
   } catch (err) {
     next(err);
@@ -215,7 +215,7 @@ export const updateRescuePet = async (req, res, next) => {
 
 export const deleteRescuePet = async (req, res, next) => {
   try {
-    const result = await contentService.deleteRescuePet(req.params.id);
+    const result = await contentService.deleteRescuePet(req.params.id, req.actor);
     res.status(200).json(result);
   } catch (err) {
     next(err);
@@ -250,7 +250,7 @@ export const createAdoptionRequest = async (req, res, next) => {
 
 export const getAdoptionRequestsAdmin = async (req, res, next) => {
   try {
-    const data = await contentService.getAdoptionRequestsAdmin(req.query);
+    const data = await contentService.getAdoptionRequestsAdmin(req.query, req.actor);
     res.status(200).json({ success: true, data });
   } catch (err) {
     next(err);
@@ -259,7 +259,7 @@ export const getAdoptionRequestsAdmin = async (req, res, next) => {
 
 export const reviewAdoptionRequest = async (req, res, next) => {
   try {
-    const request = await contentService.reviewAdoptionRequest(req.params.id, req.body, req.actor?.id);
+    const request = await contentService.reviewAdoptionRequest(req.params.id, req.body, req.actor || req.actor?.id);
     res.status(200).json({ success: true, data: request });
   } catch (err) {
     next(err);

@@ -625,7 +625,10 @@ export const getOrderById = async (orderId, actor, guestToken) => {
         isOwner = true;
       }
     } else if (actor.systemRole === 'STAFF') {
-      const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+      if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can access order details');
+      }
+      const staffBranches = (actor.authorizedBranchIds || actor.assignedBranchIds || []).map((b) => b.toString());
       if (staffBranches.length === 0 || !staffBranches.includes(order.fulfillmentBranchId?.toString())) {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Order belongs to an unauthorized branch');
       }
@@ -706,7 +709,10 @@ export const listOrders = async (query = {}, actor) => {
     }
     filter.$or = orConditions;
   } else if (actor.systemRole === 'STAFF') {
-    const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can list orders');
+    }
+    const staffBranches = (actor.authorizedBranchIds || actor.assignedBranchIds || []).map((b) => b.toString());
     if (requestedBranchId) {
       if (!staffBranches.includes(String(requestedBranchId))) {
         throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
@@ -783,6 +789,12 @@ export const listOrders = async (query = {}, actor) => {
 };
 
 export const getOrderStats = async (query = {}, actor = null) => {
+  if (!actor) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view order stats');
+  }
+  if (actor.systemRole === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+    throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can view order stats');
+  }
   const filter = {};
   if (query.branchId || query.fulfillmentBranchId) {
     filter.fulfillmentBranchId = query.branchId || query.fulfillmentBranchId;
@@ -836,9 +848,36 @@ export const getOrderStats = async (query = {}, actor = null) => {
 };
 
 
+const assertOrderBranchScope = (actor, order) => {
+  const branchRef = order?.fulfillmentBranchId || order?.branchId;
+  if (!actor || !branchRef) return;
+  const orderBranch = branchRef.toString();
+  if (actor.systemRole === 'STAFF') {
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can process orders');
+    }
+    const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+    if (Array.isArray(rawBranches)) {
+      const branches = rawBranches.map((b) => b.toString());
+      if (branches.length === 0 || !branches.includes(orderBranch)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Order belongs to an unauthorized branch');
+      }
+    }
+  } else if (actor.systemRole === 'MANAGER') {
+    const rawBranches = actor.assignedBranchIds ?? actor.authorizedBranchIds;
+    if (Array.isArray(rawBranches)) {
+      const branches = rawBranches.map((b) => b.toString());
+      if (branches.length === 0 || !branches.includes(orderBranch)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Order belongs to an unassigned branch');
+      }
+    }
+  }
+};
+
 export const confirmOrder = async (orderId, actor) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
+  assertOrderBranchScope(actor, order);
 
   if (order.status !== 'PENDING') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot confirm order in ${order.status} state`);
@@ -864,6 +903,7 @@ export const confirmOrder = async (orderId, actor) => {
 export const processOrder = async (orderId, actor) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
+  assertOrderBranchScope(actor, order);
 
   if (order.status !== 'CONFIRMED') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot process order in ${order.status} state`);
@@ -882,6 +922,7 @@ export const processOrder = async (orderId, actor) => {
 export const shipOrder = async (orderId, shipData = {}, actor) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
+  assertOrderBranchScope(actor, order);
 
   if (order.status !== 'PROCESSING') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot ship order in ${order.status} state`);
@@ -905,6 +946,7 @@ export const shipOrder = async (orderId, shipData = {}, actor) => {
 export const markDelivered = async (orderId, actor) => {
   const order = await Order.findById(orderId);
   if (!order) throw new AppError(404, 'Not Found', 'ORDER_NOT_FOUND', 'Order not found');
+  assertOrderBranchScope(actor, order);
 
   if (order.status !== 'SHIPPED') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot mark delivered in ${order.status} state`);
@@ -954,6 +996,10 @@ export const cancelOrder = async (orderId, actor, reason = 'Cancelled', isCustom
         note: reason,
         items: []
       };
+    }
+
+    if (!isCustomer) {
+      assertOrderBranchScope(actor, order);
     }
 
     if (isCustomer && !['PENDING', 'CONFIRMED'].includes(order.status)) {

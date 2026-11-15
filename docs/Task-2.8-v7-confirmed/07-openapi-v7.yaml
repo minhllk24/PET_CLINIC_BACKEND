@@ -1397,6 +1397,7 @@ paths:
       x-authz:
         auth: bearer
         roles:
+        - MANAGER
         - ADMIN
         scope: 'Manager: Staff co authorizedBranchIds giao assignedBranchIds; ADMIN ALL'
         audit: staff.create|role.assign
@@ -1447,6 +1448,7 @@ paths:
       x-authz:
         auth: bearer
         roles:
+        - MANAGER
         - ADMIN
         scope: 'Manager: Staff co authorizedBranchIds giao assignedBranchIds; ADMIN ALL'
         audit: role.assign
@@ -1495,6 +1497,7 @@ paths:
       x-authz:
         auth: bearer
         roles:
+        - MANAGER
         - ADMIN
         scope: 'Manager: Staff co authorizedBranchIds giao assignedBranchIds; ADMIN ALL'
         audit: branch.assign
@@ -6991,9 +6994,10 @@ paths:
       x-authz:
         auth: bearer
         roles:
+        - STAFF
         - MANAGER
         - ADMIN
-        scope: GLOBAL. ADMIN ghi; MANAGER chi doc
+        scope: GLOBAL. ADMIN ghi; MANAGER/STAFF chi doc
         resolver: Voucher
       x-audience:
       - admin
@@ -7041,6 +7045,44 @@ paths:
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
   /vouchers/{id}:
+    get:
+      operationId: vouchersGet
+      summary: Xem chi tiet voucher
+      tags:
+      - Voucher
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Voucher
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Voucher'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-authz:
+        auth: bearer
+        roles:
+        - STAFF
+        - MANAGER
+        - ADMIN
+        scope: GLOBAL. ADMIN ghi; MANAGER/STAFF chi doc
+        resolver: Voucher
+      x-audience:
+      - admin
     patch:
       operationId: vouchersUpdate
       summary: Sua voucher

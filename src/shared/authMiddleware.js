@@ -111,13 +111,18 @@ export const requireRole = (allowedSystemRoles, allowedStaffSubRoles = []) => {
       const actorStaffSubRole = req.actor.staffSubRole;
 
       let hasRole = false;
-      if (allowedSystemRoles.includes(actorSystemRole)) {
-        hasRole = true;
-      }
-      if (actorSystemRole === 'STAFF' && actorStaffSubRole && allowedSystemRoles.includes(actorStaffSubRole)) {
-        hasRole = true;
-      }
-      if (allowedStaffSubRoles.length > 0 && actorSystemRole === 'STAFF' && allowedStaffSubRoles.includes(actorStaffSubRole)) {
+      if (actorSystemRole === 'STAFF') {
+        if (allowedStaffSubRoles.length > 0) {
+          if (actorStaffSubRole && allowedStaffSubRoles.includes(actorStaffSubRole)) {
+            hasRole = true;
+          }
+        } else if (
+          allowedSystemRoles.includes('STAFF') ||
+          (actorStaffSubRole && allowedSystemRoles.includes(actorStaffSubRole))
+        ) {
+          hasRole = true;
+        }
+      } else if (allowedSystemRoles.includes(actorSystemRole)) {
         hasRole = true;
       }
 

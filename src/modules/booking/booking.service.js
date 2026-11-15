@@ -1131,18 +1131,29 @@ export const getAppointments = async (filters = {}, actor) => {
   // Scoping based on Role
   if (actor) {
     const role = actor.systemRole || actor.role;
+    const isReceptionist = role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST');
+    const isClinicalStaff =
+      ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role) ||
+      (role === 'STAFF' && (!actor.staffSubRole || actor.staffSubRole !== 'RECEPTIONIST'));
+
     if (role === 'CUSTOMER') {
       query.customerId = new mongoose.Types.ObjectId(actor.id || actor._id);
-    } else if (role === 'RECEPTIONIST' && actor.authorizedBranchIds?.length > 0) {
-      const authBranches = actor.authorizedBranchIds.map((id) => id.toString());
-      if (requestedBranchId && !authBranches.includes(requestedBranchId)) {
-        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
-      }
-      if (!requestedBranchId) {
-        query.branchId = { $in: authBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+    } else if (isReceptionist) {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches)) {
+        const authBranches = rawBranches.map((id) => (id._id || id).toString());
+        if (authBranches.length === 0) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Receptionist account has no assigned branches');
+        }
+        if (requestedBranchId && !authBranches.includes(requestedBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+        }
+        if (!requestedBranchId) {
+          query.branchId = { $in: authBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+        }
       }
     } else if (role === 'MANAGER') {
-      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((id) => id.toString());
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((id) => (id._id || id).toString());
       if (mgrBranches.length === 0) {
         throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Manager account has no assigned branches');
       }
@@ -1153,6 +1164,34 @@ export const getAppointments = async (filters = {}, actor) => {
         query.branchId = new mongoose.Types.ObjectId(requestedBranchId);
       } else {
         query.branchId = { $in: mgrBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+      }
+    } else if (isClinicalStaff) {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches) && rawBranches.length > 0) {
+        const authBranches = rawBranches.map((id) => (id._id || id).toString());
+        if (requestedBranchId && !authBranches.includes(requestedBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+        }
+        if (!requestedBranchId) {
+          query.branchId = { $in: authBranches.map((id) => new mongoose.Types.ObjectId(id)) };
+        }
+      }
+      const actorId = (actor.id || actor._id)?.toString();
+      if (actorId) {
+        const staffObjectIds = [new mongoose.Types.ObjectId(actorId)];
+        if (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction) {
+          const profile = await StaffProfile.findOne({ userId: actorId }).select('_id').lean();
+          if (profile?._id) {
+            staffObjectIds.push(new mongoose.Types.ObjectId(profile._id));
+          }
+        }
+        const assignmentFilter = {
+          $or: [
+            { 'services.assignedStaffId': { $in: staffObjectIds } },
+            { reviewerStaffId: { $in: staffObjectIds } },
+          ],
+        };
+        query.$and = [...(query.$and || []), assignmentFilter];
       }
     }
   }
@@ -1182,9 +1221,56 @@ export const getAppointmentById = async (id, actor, guestToken) => {
   // Check scoping
   if (actor) {
     const role = actor.systemRole || actor.role;
+    const actorId = (actor.id || actor._id)?.toString();
+    const isReceptionist = role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST');
+    const isClinicalStaff =
+      ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role) ||
+      (role === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST');
+
     if (role === 'CUSTOMER') {
-      if (appointment.customerId && appointment.customerId.toString() !== (actor.id || actor._id).toString()) {
+      if (appointment.customerId && appointment.customerId.toString() !== actorId) {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Access denied to this appointment');
+      }
+    } else if (role === 'MANAGER') {
+      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => (b._id || b).toString());
+      const aptBranchId = (appointment.branchId?._id || appointment.branchId)?.toString();
+      if (mgrBranches.length === 0 || !aptBranchId || !mgrBranches.includes(aptBranchId)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch appointment');
+      }
+    } else if (isReceptionist) {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches)) {
+        const authBranches = rawBranches.map((b) => (b._id || b).toString());
+        const aptBranchId = (appointment.branchId?._id || appointment.branchId)?.toString();
+        if (authBranches.length === 0 || !aptBranchId || !authBranches.includes(aptBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch appointment');
+        }
+      }
+    } else if (isClinicalStaff) {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches) && rawBranches.length > 0) {
+        const authBranches = rawBranches.map((b) => (b._id || b).toString());
+        const aptBranchId = (appointment.branchId?._id || appointment.branchId)?.toString();
+        if (aptBranchId && !authBranches.includes(aptBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch appointment');
+        }
+      }
+      if (actorId) {
+        const staffIds = [actorId];
+        if (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction) {
+          const profile = await StaffProfile.findOne({ userId: actorId }).select('_id').lean();
+          if (profile?._id) {
+            staffIds.push(profile._id.toString());
+          }
+        }
+        const isAssigned =
+          (appointment.services || []).some(
+            (s) => s.assignedStaffId && staffIds.includes((s.assignedStaffId._id || s.assignedStaffId).toString())
+          ) ||
+          (appointment.reviewerStaffId && staffIds.includes((appointment.reviewerStaffId._id || appointment.reviewerStaffId).toString()));
+        if (!isAssigned) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You are not assigned to this appointment');
+        }
       }
     }
   }
@@ -1795,7 +1881,9 @@ export const reassignSegmentStaff = async (id, serviceId, newStaffId, actor) => 
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
-    const segment = apt.services.find((s) => s.serviceId.toString() === serviceId.toString());
+    const segment = serviceId
+    ? apt.services.find((s) => s.serviceId.toString() === serviceId.toString())
+    : apt.services?.[0];
     if (!segment) {
       throw new AppError(
         404,
@@ -1869,9 +1957,45 @@ export const startSegment = async (id, serviceId, actor) => {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
   }
 
-  const segment = apt.services.find((s) => s.serviceId.toString() === serviceId.toString());
+  const segment = serviceId
+    ? apt.services.find((s) => s.serviceId.toString() === serviceId.toString())
+    : apt.services?.[0];
   if (!segment) {
     throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', 'Segment not found');
+  }
+
+  if (actor) {
+    const role = actor.systemRole || actor.role;
+    if (role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST')) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Receptionist cannot start clinical/grooming segments');
+    }
+    if (role === 'STAFF' || ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role)) {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches) && rawBranches.length > 0) {
+        const authBranches = rawBranches.map((b) => (b._id || b).toString());
+        const aptBranchId = (apt.branchId?._id || apt.branchId)?.toString();
+        if (aptBranchId && !authBranches.includes(aptBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+        }
+      }
+      if (actor.staffSubRole && segment.requiredStaffRole && segment.requiredStaffRole !== actor.staffSubRole) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Staff sub-role does not match segment requirement');
+      }
+      const actorId = (actor.id || actor._id)?.toString();
+      if (segment.assignedStaffId && actorId) {
+        const staffIds = [actorId];
+        if (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction) {
+          const profile = await StaffProfile.findOne({ userId: actorId }).select('_id').lean();
+          if (profile?._id) {
+            staffIds.push(profile._id.toString());
+          }
+        }
+        const assignedId = (segment.assignedStaffId._id || segment.assignedStaffId).toString();
+        if (!staffIds.includes(assignedId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You are not assigned to start this service segment');
+        }
+      }
+    }
   }
 
   segment.executionStatus = 'IN_PROGRESS';
@@ -1949,6 +2073,25 @@ export const checkInAppointment = async (id, data = {}, actor) => {
   const apt = await Appointment.findById(id).populate('branchId');
   if (!apt) {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+  }
+
+  if (actor) {
+    const role = actor.systemRole || actor.role;
+    if (['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role) || (role === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST')) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only receptionists, managers, or admins can check in appointments');
+    }
+    if (role === 'MANAGER' || role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST')) {
+      const rawBranches = role === 'MANAGER'
+        ? actor.assignedBranchIds || actor.authorizedBranchIds
+        : actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches)) {
+        const authBranches = rawBranches.map((b) => (b._id || b).toString());
+        const aptBranchId = (apt.branchId?._id || apt.branchId)?.toString();
+        if (authBranches.length === 0 || !aptBranchId || !authBranches.includes(aptBranchId)) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
+        }
+      }
+    }
   }
 
   apt.checkInStatus = 'ARRIVED';

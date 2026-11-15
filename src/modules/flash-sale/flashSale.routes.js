@@ -8,10 +8,10 @@ const router = express.Router();
 // Public: Get currently active/running Flash Sale campaign
 router.get('/active', optionalAuth, flashSaleController.getActiveFlashSale);
 
-// Protected Admin/Manager routes
-router.get('/', authenticate, requireRole(['ADMIN', 'MANAGER']), flashSaleController.listFlashSales);
+// Protected Admin/Manager/Staff read routes; Admin-only write routes
+router.get('/', authenticate, requireRole(['ADMIN', 'MANAGER', 'STAFF']), flashSaleController.listFlashSales);
 router.post('/', authenticate, requireRole(['ADMIN']), idempotency('flashSaleCreate', { required: false }), flashSaleController.createFlashSale);
-router.get('/:id', authenticate, requireRole(['ADMIN', 'MANAGER']), flashSaleController.getFlashSaleById);
+router.get('/:id', authenticate, requireRole(['ADMIN', 'MANAGER', 'STAFF']), flashSaleController.getFlashSaleById);
 router.patch('/:id', authenticate, requireRole(['ADMIN']), idempotency('flashSaleUpdate', { required: false }), flashSaleController.updateFlashSale);
 router.put('/:id', authenticate, requireRole(['ADMIN']), idempotency('flashSaleUpdate', { required: false }), flashSaleController.updateFlashSale);
 router.post('/:id/publish', authenticate, requireRole(['ADMIN']), idempotency('flashSalePublish', { required: false }), flashSaleController.publishFlashSale);

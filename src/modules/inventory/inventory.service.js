@@ -594,7 +594,7 @@ export const listStocks = async (query, actor) => {
 };
 
 export const listTransactions = async (query, actor) => {
-  const resolvedActor = await resolveInventoryActor(actor, ['ADMIN', 'MANAGER', 'STAFF']);
+  const resolvedActor = await resolveInventoryActor(actor, ['ADMIN', 'MANAGER']);
   const filter = {};
   if (query.branchId) {
     filter.branchId = assertInventoryBranchScope(resolvedActor, query.branchId);

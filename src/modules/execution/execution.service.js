@@ -528,6 +528,12 @@ export const getRecordById = async (id, actor = {}) => {
   }
 
   // Authorization check
+  if (actor.systemRole === 'MANAGER') {
+    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
+    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
+    }
+  }
   if (actor.systemRole === 'STAFF') {
     let staffProfileId = null;
     try {
@@ -570,6 +576,13 @@ export const updateMaterials = async (id, data, actor) => {
   const record = await ServiceRecord.findById(id);
   if (!record) {
     throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Service record not found');
+  }
+
+  if (actor?.systemRole === 'MANAGER') {
+    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
+    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
+    }
   }
 
   if (!['IN_PROGRESS', 'REOPENED'].includes(record.status)) {
@@ -660,6 +673,13 @@ export const updateProfessional = async (id, data, actor) => {
     throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Service record not found');
   }
 
+  if (actor?.systemRole === 'MANAGER') {
+    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
+    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
+    }
+  }
+
   if (record.recordType !== 'MEDICAL') {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Professional clinical data can only be recorded for MEDICAL records');
   }
@@ -730,6 +750,13 @@ export const reopenRecord = async (id, data, actor) => {
     throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Service record not found');
   }
 
+  if (actor?.systemRole === 'MANAGER') {
+    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
+    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
+    }
+  }
+
   if (record.status !== 'FINALIZED') {
     throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, 'Only FINALIZED records can be reopened');
   }
@@ -756,6 +783,12 @@ export const getRevisions = async (id, actor = {}) => {
   }
 
   // Authorization check
+  if (actor.systemRole === 'MANAGER') {
+    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
+    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
+      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
+    }
+  }
   if (actor.systemRole === 'STAFF') {
     let staffProfileId = null;
     try {

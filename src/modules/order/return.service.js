@@ -297,7 +297,10 @@ export const listReturns = async (query = {}, actor) => {
       filter.orderId = { $in: branchOrders.map((o) => o._id) };
     }
   } else if (actor.systemRole === 'STAFF') {
-    const staffBranches = (actor.authorizedBranchIds || []).map((b) => b.toString());
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can view order returns');
+    }
+    const staffBranches = (actor.authorizedBranchIds || actor.assignedBranchIds || []).map((b) => b.toString());
     const branchOrders = await Order.find({ fulfillmentBranchId: { $in: staffBranches } }).select('_id');
     filter.orderId = { $in: branchOrders.map((o) => o._id) };
   } else if (query.branchId) {
@@ -375,6 +378,9 @@ export const getReturnById = async (returnId, actor) => {
       }
     }
   } else if (actor.systemRole === 'STAFF') {
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can access order return details');
+    }
     if (parentOrder?.fulfillmentBranchId && (actor.assignedBranchIds || actor.authorizedBranchIds)) {
       const staffBranches = (actor.authorizedBranchIds || actor.assignedBranchIds || []).map((b) => b.toString());
       if (staffBranches.length === 0 || !staffBranches.includes(parentOrder.fulfillmentBranchId?.toString())) {
@@ -386,9 +392,40 @@ export const getReturnById = async (returnId, actor) => {
   return { returnDoc: ret, parentOrder };
 };
 
+const assertReturnOperatorScope = async (ret, actor) => {
+  if (!actor) return;
+  if (actor.systemRole === 'STAFF') {
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can process order returns');
+    }
+    const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+    if (Array.isArray(rawBranches) && ret.orderId) {
+      const parentOrder = await Order.findById(ret.orderId).select('fulfillmentBranchId');
+      if (parentOrder?.fulfillmentBranchId) {
+        const branches = rawBranches.map((b) => b.toString());
+        if (branches.length === 0 || !branches.includes(parentOrder.fulfillmentBranchId.toString())) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Return belongs to an unauthorized branch');
+        }
+      }
+    }
+  } else if (actor.systemRole === 'MANAGER') {
+    const rawBranches = actor.assignedBranchIds ?? actor.authorizedBranchIds;
+    if (Array.isArray(rawBranches) && ret.orderId) {
+      const parentOrder = await Order.findById(ret.orderId).select('fulfillmentBranchId');
+      if (parentOrder?.fulfillmentBranchId) {
+        const branches = rawBranches.map((b) => b.toString());
+        if (branches.length === 0 || !branches.includes(parentOrder.fulfillmentBranchId.toString())) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Return belongs to an unassigned branch');
+        }
+      }
+    }
+  }
+};
+
 export const processReturn = async (returnId, actor) => {
   const ret = await OrderReturn.findById(returnId);
   if (!ret) throw new AppError(404, 'Not Found', 'ORDER_RETURN_NOT_FOUND', 'Order return not found');
+  await assertReturnOperatorScope(ret, actor);
 
   if (ret.status !== 'REQUESTED') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot process return in ${ret.status} state`);
@@ -413,6 +450,7 @@ export const processReturn = async (returnId, actor) => {
 export const receiveReturn = async (returnId, receiveData = {}, actor) => {
   const ret = await OrderReturn.findById(returnId);
   if (!ret) throw new AppError(404, 'Not Found', 'ORDER_RETURN_NOT_FOUND', 'Order return not found');
+  await assertReturnOperatorScope(ret, actor);
 
   if (ret.status !== 'PROCESSING') {
     throw new AppError(400, 'Bad Request', 'INVALID_STATE_TRANSITION', `Cannot receive return in ${ret.status} state`);
@@ -616,6 +654,12 @@ export const rejectReturn = async (returnId, rejectData = {}, actor) => {
 
     const order = await Order.findById(ret.orderId).session(session);
     if (order) {
+      if (actor.systemRole === 'MANAGER' && order.fulfillmentBranchId && (actor.assignedBranchIds || actor.authorizedBranchIds)) {
+        const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => b.toString());
+        if (mgrBranches.length === 0 || !mgrBranches.includes(order.fulfillmentBranchId?.toString())) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Cannot reject return for an unassigned branch');
+        }
+      }
       // Release returnReservedQty on Order items
       for (const retItem of ret.items) {
         const lineItem = order.items.find((i) => i.orderItemId.toString() === retItem.orderItemId.toString());

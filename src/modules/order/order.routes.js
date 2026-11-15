@@ -2,6 +2,8 @@ import express from 'express';
 import * as orderController from './order.controller';
 import { optionalAuth, requireRole } from '../../shared/authMiddleware';
 import { idempotency } from '../../middleware/idempotencyMiddleware';
+import AppError from '../../utils/AppError';
+import { ErrorCodes } from '../../shared/errorCodes';
 
 const router = express.Router();
 const orderOperators = requireRole(['STAFF', 'MANAGER', 'ADMIN'], ['RECEPTIONIST']);
@@ -32,13 +34,31 @@ router.patch('/:id/mark-delivered', orderOperators, orderController.markDelivere
 // Staff cancel
 router.post('/:id/staff-cancel', orderOperators, idempotency('ordersStaffCancel', { required: true }), orderController.staffCancelOrder);
 router.post('/:id/cancel', optionalAuth, idempotency('ordersCancel', { required: false }), (req, res, next) => {
-  if (req.actor && ['STAFF', 'MANAGER', 'ADMIN'].includes(req.actor.systemRole) && req.body && req.body.reason) {
+  if (req.actor?.systemRole === 'STAFF' && req.actor.staffSubRole !== 'RECEPTIONIST') {
+    return next(new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can cancel orders'));
+  }
+  if (
+    req.actor &&
+    (['MANAGER', 'ADMIN'].includes(req.actor.systemRole) ||
+      (req.actor.systemRole === 'STAFF' && req.actor.staffSubRole === 'RECEPTIONIST')) &&
+    req.body &&
+    req.body.reason
+  ) {
     return orderController.staffCancelOrder(req, res, next);
   }
   return orderController.customerCancelOrder(req, res, next);
 });
 router.patch('/:id/cancel', optionalAuth, idempotency('ordersCancel', { required: false }), (req, res, next) => {
-  if (req.actor && ['STAFF', 'MANAGER', 'ADMIN'].includes(req.actor.systemRole) && req.body && req.body.reason) {
+  if (req.actor?.systemRole === 'STAFF' && req.actor.staffSubRole !== 'RECEPTIONIST') {
+    return next(new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can cancel orders'));
+  }
+  if (
+    req.actor &&
+    (['MANAGER', 'ADMIN'].includes(req.actor.systemRole) ||
+      (req.actor.systemRole === 'STAFF' && req.actor.staffSubRole === 'RECEPTIONIST')) &&
+    req.body &&
+    req.body.reason
+  ) {
     return orderController.staffCancelOrder(req, res, next);
   }
   return orderController.customerCancelOrder(req, res, next);

@@ -4,6 +4,7 @@ import User from '../../models/User';
 import RefreshSession from '../../models/RefreshSession';
 import Appointment from '../booking/models/Appointment';
 import Order from '../order/models/Order';
+import StaffProfile from '../staff/models/StaffProfile';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { recordAuditLog } from '../../utils/auditLogger';
@@ -165,6 +166,64 @@ export const getCustomerById = async (id, actor = {}) => {
     const hasBranchAccess = (customer.activityBranchIds || []).some((b) => branchIds.includes(b.toString()));
     if (!hasBranchAccess) {
       throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Customer is outside your assigned branches');
+    }
+  }
+
+  // Staff subrole scoping check
+  if (actor.systemRole === 'STAFF') {
+    if (actor.staffSubRole === 'RECEPTIONIST') {
+      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
+      if (Array.isArray(rawBranches)) {
+        const branchIds = rawBranches.map((b) => (b._id || b).toString());
+        if (branchIds.length === 0) {
+          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Receptionist account has no assigned branches');
+        }
+        const customerActivityBranches = (customer.activityBranchIds || []).map((b) => b.toString());
+        const hasActivityMatch = customerActivityBranches.some((b) => branchIds.includes(b));
+        if (!hasActivityMatch) {
+          const branchObjIds = branchIds.filter((b) => mongoose.Types.ObjectId.isValid(b)).map((b) => new mongoose.Types.ObjectId(b));
+          const userIdRef = customer.userId?._id || customer.userId;
+          const customerFilter = userIdRef
+            ? { $or: [{ customerId: userIdRef }, ...(customer.phone ? [{ guestPhone: customer.phone }] : [])] }
+            : customer.phone
+            ? { guestPhone: customer.phone }
+            : null;
+          const [hasOrder, hasAppointment] = customerFilter && branchObjIds.length > 0
+            ? await Promise.all([
+                userIdRef ? Order.exists({ customerId: userIdRef, branchId: { $in: branchObjIds } }) : null,
+                Appointment.exists({ ...customerFilter, branchId: { $in: branchObjIds } }),
+              ])
+            : [null, null];
+          if (!hasOrder && !hasAppointment) {
+            throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Customer is outside your assigned branches');
+          }
+        }
+      }
+    } else if (actor.staffSubRole) {
+      const actorId = (actor.id || actor._id)?.toString();
+      const staffIds = actorId ? [new mongoose.Types.ObjectId(actorId)] : [];
+      if (actorId) {
+        const profile = await StaffProfile.findOne({ userId: actorId }).select('_id').lean();
+        if (profile?._id) {
+          staffIds.push(new mongoose.Types.ObjectId(profile._id));
+        }
+      }
+      const userIdRef = customer.userId?._id || customer.userId;
+      const customerOr = [];
+      if (userIdRef) customerOr.push({ customerId: userIdRef });
+      if (customer.phone) customerOr.push({ guestPhone: customer.phone });
+      const hasAssignedAppointment =
+        staffIds.length > 0 && customerOr.length > 0
+          ? await Appointment.exists({
+              $and: [
+                { $or: customerOr },
+                { $or: [{ 'services.assignedStaffId': { $in: staffIds } }, { reviewerStaffId: { $in: staffIds } }] },
+              ],
+            })
+          : null;
+      if (!hasAssignedAppointment) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to view this customer');
+      }
     }
   }
 

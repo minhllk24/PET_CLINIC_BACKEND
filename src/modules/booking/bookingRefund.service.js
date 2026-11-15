@@ -118,13 +118,24 @@ export const listRefunds = async (query = {}, actor = null) => {
     filter.status = status;
   }
 
-  if (actor && actor.systemRole === 'CUSTOMER') {
+  if (!actor) {
+    throw new AppError(401, 'Unauthenticated', ErrorCodes.UNAUTHENTICATED, 'Authentication required to list refunds');
+  }
+
+  if (actor.systemRole === 'CUSTOMER') {
     // Only own appointments
     const ownApts = await Appointment.find({ customerId: actor.id }).select('_id');
     filter.appointmentId = { $in: ownApts.map((a) => a._id) };
-  } else if (actor && actor.systemRole === 'STAFF' && actor.authorizedBranchIds?.length > 0) {
-    // Scoped by authorized branches
-    const branchApts = await Appointment.find({ branchId: { $in: actor.authorizedBranchIds } }).select('_id');
+  } else if (actor.systemRole === 'STAFF') {
+    if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can access booking refunds');
+    }
+    const staffBranches = actor.authorizedBranchIds || actor.assignedBranchIds || [];
+    const branchApts = await Appointment.find({ branchId: { $in: staffBranches } }).select('_id');
+    filter.appointmentId = { $in: branchApts.map((a) => a._id) };
+  } else if (actor.systemRole === 'MANAGER') {
+    const mgrBranches = actor.assignedBranchIds || actor.authorizedBranchIds || [];
+    const branchApts = await Appointment.find({ branchId: { $in: mgrBranches } }).select('_id');
     filter.appointmentId = { $in: branchApts.map((a) => a._id) };
   }
 
@@ -144,10 +155,40 @@ export const listRefunds = async (query = {}, actor = null) => {
   };
 };
 
+const assertRefundBranchScope = async (refund, actor) => {
+  if (!actor || actor.systemRole === 'ADMIN') return;
+  if (actor.systemRole === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
+    throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Receptionist can handle booking refunds');
+  }
+  if (!['STAFF', 'MANAGER'].includes(actor.systemRole)) return;
+  const rawBranches =
+    actor.systemRole === 'STAFF'
+      ? (actor.authorizedBranchIds ?? actor.assignedBranchIds)
+      : (actor.assignedBranchIds ?? actor.authorizedBranchIds);
+  if (!Array.isArray(rawBranches)) return;
+  let branchStr = refund?.branchId ? (refund.branchId._id || refund.branchId).toString() : null;
+  if (!branchStr && refund?.appointmentId) {
+    const apt = await Appointment.findById(refund.appointmentId).select('branchId');
+    branchStr = apt?.branchId ? apt.branchId.toString() : null;
+  }
+  if (!branchStr) return;
+  const branches = rawBranches.map((b) => (b._id || b).toString());
+  if (branches.length === 0 || !branches.includes(branchStr)) {
+    throw new AppError(
+      403,
+      'Forbidden',
+      ErrorCodes.BRANCH_SCOPE_ERROR,
+      actor.systemRole === 'STAFF'
+        ? 'Booking refund belongs to an unauthorized branch'
+        : 'Booking refund belongs to an unassigned branch'
+    );
+  }
+};
+
 /**
  * Get refund detail by ID
  */
-export const getRefundById = async (id, actor = null) => {
+export const getRefundById = async (id, actor = null, guestToken = null) => {
   if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid refund ID');
   }
@@ -155,6 +196,21 @@ export const getRefundById = async (id, actor = null) => {
   const refund = await BookingRefund.findById(id);
   if (!refund) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Booking refund not found');
+  }
+
+  if (!actor && !guestToken) {
+    throw new AppError(401, 'Unauthenticated', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view booking refund');
+  }
+
+  if (actor && actor.systemRole !== 'ADMIN') {
+    if (actor.systemRole === 'CUSTOMER') {
+      const apt = await Appointment.findById(refund.appointmentId).select('customerId branchId');
+      if (!apt?.customerId || apt.customerId.toString() !== actor.id.toString()) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to view this booking refund');
+      }
+    } else {
+      await assertRefundBranchScope(refund, actor);
+    }
   }
 
   return formatBookingRefund(refund);
@@ -168,6 +224,7 @@ export const receiveRefund = async (id, note, actor) => {
   if (!refund) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Booking refund not found');
   }
+  await assertRefundBranchScope(refund, actor);
 
   if (refund.status !== 'REQUESTED') {
     throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, `Cannot receive refund in ${refund.status} status`);
@@ -193,6 +250,7 @@ export const approveRefund = async (id, note, actor) => {
   if (!refund) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Booking refund not found');
   }
+  await assertRefundBranchScope(refund, actor);
 
   if (refund.status !== 'PROCESSING') {
     throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, `Cannot approve refund in ${refund.status} status`);
@@ -261,6 +319,7 @@ export const rejectRefund = async (id, reason, actor) => {
   if (!refund) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Booking refund not found');
   }
+  await assertRefundBranchScope(refund, actor);
 
   if (refund.status !== 'PROCESSING') {
     throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, `Cannot reject refund in ${refund.status} status`);
@@ -294,6 +353,7 @@ export const overrideRefund = async (id, overrideData, actor) => {
   if (!refund) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Booking refund not found');
   }
+  await assertRefundBranchScope(refund, actor);
 
   refund.history.push({
     status: refund.status,

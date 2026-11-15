@@ -413,7 +413,8 @@ export const updateUserStatus = async (id, { status, reason }, actor = null) => 
  */
 export const updateUserRole = async (id, { systemRole, staffSubRole, assignedBranchIds = [] }, actor = null) => {
   const allowedRoles = ['ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER'];
-  if (!systemRole || !allowedRoles.includes(systemRole.toUpperCase())) {
+  const normalizedTargetRole = systemRole ? systemRole.toUpperCase() : '';
+  if (!normalizedTargetRole || !allowedRoles.includes(normalizedTargetRole)) {
     throw new AppError(400, 'Bad Request', 'INVALID_ROLE', `systemRole must be one of: ${allowedRoles.join(', ')}`);
   }
 
@@ -422,7 +423,16 @@ export const updateUserRole = async (id, { systemRole, staffSubRole, assignedBra
     throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
   }
 
-  user.systemRole = systemRole.toUpperCase();
+  if (user.systemRole === 'STAFF' && normalizedTargetRole === 'MANAGER') {
+    throw new AppError(
+      409,
+      'Conflict',
+      'INVALID_STATE_TRANSITION',
+      'Không thể chuyển trực tiếp tài khoản STAFF thành MANAGER. Vui lòng tạo tài khoản Manager qua POST /api/v1/managers với assignedBranchIds.'
+    );
+  }
+
+  user.systemRole = normalizedTargetRole;
   if (user.systemRole === 'STAFF') {
     if (!staffSubRole) {
       throw new AppError(400, 'Bad Request', 'STAFF_SUB_ROLE_REQUIRED', 'staffSubRole is required for STAFF');
@@ -440,9 +450,9 @@ export const updateUserRole = async (id, { systemRole, staffSubRole, assignedBra
 
   await user.save();
 
-  // Manage StaffProfile
+  // Manage StaffProfile (only for STAFF; MANAGER uses User.assignedBranchIds)
   let staffProfile = await StaffProfile.findOne({ userId: user._id });
-  if (user.systemRole === 'STAFF' || user.systemRole === 'MANAGER') {
+  if (user.systemRole === 'STAFF') {
     if (!staffProfile) {
       const prefix = user.staffSubRole ? user.staffSubRole.slice(0, 3) : 'STF';
       staffProfile = new StaffProfile({

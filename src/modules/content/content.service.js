@@ -25,6 +25,23 @@ const slugify = (text) => {
     .replace(/-+/g, '-');
 };
 
+const getManagerAssignedBranchIds = (actor) =>
+  (actor?.assignedBranchIds || actor?.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
+
+const assertRescueBranchScope = (actor, targetBranchId) => {
+  if (!actor || actor.systemRole !== 'MANAGER' || !targetBranchId) return;
+  const branchStr = (targetBranchId?._id || targetBranchId).toString();
+  const assigned = getManagerAssignedBranchIds(actor);
+  if (!assigned.includes(branchStr)) {
+    throw new AppError(
+      403,
+      'Forbidden',
+      'BRANCH_SCOPE_ERROR',
+      'Rescue pet belongs to a branch outside your assigned branches'
+    );
+  }
+};
+
 /**
  * Server-side HTML Sanitizer (Strips <script>, inline event handlers, javascript: pseudo-protocol)
  */
@@ -1008,7 +1025,7 @@ export const contentService = {
   // 3. RESCUE PETS & ADOPTION
   // =========================================================================
 
-  async createRescuePet(data) {
+  async createRescuePet(data, actor = null) {
     const {
       petName,
       species,
@@ -1032,6 +1049,10 @@ export const contentService = {
     // BE-FIX-08: Strictly require images - NO fake Unsplash fallback
     if (!images || !Array.isArray(images) || images.length === 0 || !images[0]) {
       throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
+    }
+
+    if (branchId) {
+      assertRescueBranchScope(actor, branchId);
     }
 
     // Resolve supportPartner details if provided
@@ -1076,11 +1097,21 @@ export const contentService = {
     return rescuePet;
   },
 
-  async getRescuePetsAdmin({ status, species, branchId, page = 1, limit = 10 }) {
+  async getRescuePetsAdmin({ status, species, branchId, page = 1, limit = 10 }, actor = null) {
     const query = {};
     if (status) query.status = status;
     if (species) query.species = species;
-    if (branchId) query.branchId = branchId;
+    if (actor && actor.systemRole === 'MANAGER') {
+      const assigned = getManagerAssignedBranchIds(actor);
+      if (branchId) {
+        assertRescueBranchScope(actor, branchId);
+        query.branchId = branchId;
+      } else {
+        query.$or = [{ branchId: { $in: assigned } }, { branchId: null }];
+      }
+    } else if (branchId) {
+      query.branchId = branchId;
+    }
 
     const parsedLimit = Math.min(200, Math.max(1, Number(limit) || 10));
     const parsedPage = Math.max(1, Number(page) || 1);
@@ -1106,7 +1137,7 @@ export const contentService = {
     };
   },
 
-  async getRescuePetById(id) {
+  async getRescuePetById(id, actor = null) {
     const query = {
       $or: [
         { petCode: id.toUpperCase() },
@@ -1117,11 +1148,15 @@ export const contentService = {
     if (!pet) {
       throw new AppError(404, 'Không tìm thấy hồ sơ thú cưng cứu hộ', 'NOT_FOUND');
     }
+    assertRescueBranchScope(actor, pet.branchId);
     return pet;
   },
 
-  async updateRescuePet(id, data) {
-    const pet = await this.getRescuePetById(id);
+  async updateRescuePet(id, data, actor = null) {
+    const pet = await this.getRescuePetById(id, actor);
+    if (data.branchId !== undefined && data.branchId !== null) {
+      assertRescueBranchScope(actor, data.branchId);
+    }
     const updatable = [
       'petName', 'species', 'breed', 'gender', 'ageDescription', 'healthStatus',
       'rescueStory', 'branchId', 'supportNeeds', 'supportPartnerId',
@@ -1168,8 +1203,8 @@ export const contentService = {
     return pet;
   },
 
-  async deleteRescuePet(id) {
-    const pet = await this.getRescuePetById(id);
+  async deleteRescuePet(id, actor = null) {
+    const pet = await this.getRescuePetById(id, actor);
     await RescuePet.deleteOne({ _id: pet._id });
     return { success: true, message: 'Đã xóa hồ sơ thú cưng cứu hộ' };
   },
@@ -1262,16 +1297,30 @@ export const contentService = {
     return request;
   },
 
-  async getAdoptionRequestsAdmin({ status, rescuePetId, page = 1, limit = 10 }) {
+  async getAdoptionRequestsAdmin({ status, rescuePetId, page = 1, limit = 10 }, actor = null) {
     const query = {};
     if (status) query.status = status;
-    if (rescuePetId) query.rescuePetId = rescuePetId;
+    if (actor && actor.systemRole === 'MANAGER') {
+      const assigned = getManagerAssignedBranchIds(actor);
+      if (rescuePetId) {
+        const targetPet = await RescuePet.findById(rescuePetId).select('branchId');
+        if (targetPet) assertRescueBranchScope(actor, targetPet.branchId);
+        query.rescuePetId = rescuePetId;
+      } else {
+        const allowedPets = await RescuePet.find({
+          $or: [{ branchId: { $in: assigned } }, { branchId: null }],
+        }).select('_id');
+        query.rescuePetId = { $in: allowedPets.map((p) => p._id) };
+      }
+    } else if (rescuePetId) {
+      query.rescuePetId = rescuePetId;
+    }
 
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
     const [total, items] = await Promise.all([
       AdoptionRequest.countDocuments(query),
       AdoptionRequest.find(query)
-        .populate('rescuePetId', 'petCode petName species breed images status')
+        .populate('rescuePetId', 'petCode petName species breed images status branchId')
         .populate('customerId', 'fullName phone email')
         .populate('reviewedBy', 'fullName email')
         .sort({ createdAt: -1 })
@@ -1288,7 +1337,7 @@ export const contentService = {
     };
   },
 
-  async reviewAdoptionRequest(id, { status, reviewNote }, reviewerId) {
+  async reviewAdoptionRequest(id, { status, reviewNote }, reviewerOrActor) {
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       throw new AppError(400, 'Trạng thái xét duyệt phải là APPROVED hoặc REJECTED', 'VALIDATION_ERROR');
     }
@@ -1296,6 +1345,16 @@ export const contentService = {
     const request = await AdoptionRequest.findById(id);
     if (!request) {
       throw new AppError(404, 'Không tìm thấy đơn đăng ký nhận nuôi', 'NOT_FOUND');
+    }
+
+    const actor = typeof reviewerOrActor === 'object' && reviewerOrActor !== null && reviewerOrActor.systemRole
+      ? reviewerOrActor
+      : null;
+    const reviewerId = actor ? actor.id : reviewerOrActor;
+
+    if (actor && actor.systemRole === 'MANAGER' && request.rescuePetId) {
+      const pet = await RescuePet.findById(request.rescuePetId).select('branchId');
+      if (pet) assertRescueBranchScope(actor, pet.branchId);
     }
 
     request.status = status;

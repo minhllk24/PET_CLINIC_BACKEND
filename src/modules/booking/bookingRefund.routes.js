@@ -27,7 +27,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
 // Get refund by ID
 router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
-    const result = await refundService.getRefundById(req.params.id, req.actor);
+    const result = await refundService.getRefundById(req.params.id, req.actor, req.headers['x-guest-lookup-token']);
     res.json(result);
   } catch (error) {
     next(error);
@@ -35,7 +35,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 });
 
 // Receptionist receives refund (REQUESTED -> PROCESSING)
-router.post('/:id/receive', authenticate, requireRole(['STAFF', 'MANAGER', 'ADMIN']), async (req, res, next) => {
+router.post('/:id/receive', authenticate, requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), async (req, res, next) => {
   try {
     const result = await refundService.receiveRefund(req.params.id, req.body?.note, req.actor);
     res.json(result);
