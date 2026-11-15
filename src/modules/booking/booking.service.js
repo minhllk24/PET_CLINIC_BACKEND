@@ -65,6 +65,10 @@ export const computeAllowedActions = (apt) => {
   if (status === 'PENDING_PAYMENT') {
     actions.push('PAY_PREPAYMENT');
     actions.push('CANCEL');
+    const isPayAtStore = ['PAY_AT_STORE', 'CASH', 'pay_at_clinic', 'store'].includes(apt.paymentMethod);
+    if (isPayAtStore && (apt.rescheduleCount || 0) < 2 && hoursBefore >= 24) {
+      actions.push('RESCHEDULE');
+    }
   } else if (status === 'PENDING_CONFIRMATION') {
     actions.push('CANCEL');
   } else if (status === 'CONFIRMED') {
@@ -230,7 +234,7 @@ export const formatAppointment = (apt) => {
     minutesUntilStart,
     hoursUntilStart: Number(hoursBefore.toFixed(1)),
     depositRefundable: hoursBefore >= 24,
-    canSelfReschedule: Boolean(hoursBefore >= 24 && (doc.rescheduleCount || 0) < 2 && doc.status === 'CONFIRMED'),
+    canSelfReschedule: Boolean(hoursBefore >= 24 && (doc.rescheduleCount || 0) < 2 && (doc.status === 'CONFIRMED' || (['PAY_AT_STORE', 'CASH', 'pay_at_clinic', 'store'].includes(doc.paymentMethod) && ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(doc.status)))),
     canSelfCancel: Boolean(['PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'CONFIRMED'].includes(doc.status)),
   };
 
@@ -1496,12 +1500,15 @@ export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
-    if (apt.status !== 'CONFIRMED') {
+    const isPayAtStore = ['PAY_AT_STORE', 'CASH', 'pay_at_clinic', 'store'].includes(apt.paymentMethod);
+    const isAllowedStatus = apt.status === 'CONFIRMED' || (isPayAtStore && ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(apt.status));
+
+    if (!isAllowedStatus) {
       throw new AppError(
         422,
         'UnprocessableEntity',
         'INVALID_STATE',
-        'Reschedule is only allowed for CONFIRMED appointments'
+        'Reschedule is only allowed for CONFIRMED or in-store payment appointments'
       );
     }
 
