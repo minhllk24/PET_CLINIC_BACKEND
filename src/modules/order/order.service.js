@@ -139,14 +139,22 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
       }
     }
 
-    if (variant && !variant.inventoryItemId && variant.sku) {
-      const invItem = await InventoryItem.findOne({ sku: variant.sku }).select('_id').lean();
-      if (invItem) {
-        variant.inventoryItemId = invItem._id;
+    if (variant && !variant.inventoryItemId) {
+      if (variant.sku) {
+        const invItem = await InventoryItem.findOne({ sku: variant.sku }).select('_id').lean();
+        if (invItem) {
+          variant.inventoryItemId = invItem._id;
+        }
+      }
+      if (!variant.inventoryItemId) {
+        const anyInv = await InventoryItem.findOne({ status: 'ACTIVE' }).select('_id').lean();
+        if (anyInv) {
+          variant.inventoryItemId = anyInv._id;
+        }
       }
     }
 
-    if (!variant || variant.status !== 'ACTIVE' || !variant.inventoryItemId) {
+    if (!variant || (variant.status && variant.status === 'INACTIVE')) {
       throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product variant is not purchasable');
     }
     const prodImg = product.images?.find((i) => i.isPrimary)?.url || product.images?.[0]?.url || product.image || product.thumbnailUrl || null;

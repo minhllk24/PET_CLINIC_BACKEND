@@ -852,7 +852,11 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         ],
         services: {
           $elemMatch: {
-            serviceId: service._id,
+            $or: [
+              { serviceId: service._id },
+              { requiredStaffRole: service.requiredStaffRole },
+              { serviceType: service.serviceType },
+            ],
             scheduledStart: { $lt: segEnd },
             scheduledEnd: { $gt: segStart },
           },

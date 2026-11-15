@@ -222,7 +222,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
       };
     }
     if (!config) {
-      configMap.set(s._id.toString(), { enabled: true, capacity: 2, availability: [] });
+      configMap.set(s._id.toString(), { enabled: true, capacity: 3, availability: [] });
     }
   }
 
@@ -398,11 +398,18 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         }
       }
 
-      // Check capacity: count distinct concurrent bookings during [segStart, segEnd]
+      // Check capacity: count distinct concurrent bookings at this branch during [segStart, segEnd]
+      // Any active appointment sharing the same role or serviceType consumes branch concurrency capacity
       const concurrentBookings = activeBookings.filter((apt) => {
         return (apt.services || []).some((seg) => {
           const segServiceId = (seg.serviceId?._id || seg.serviceId)?.toString();
-          if (segServiceId !== sId) return false;
+          const segRole = seg.requiredStaffRole;
+          const segType = seg.serviceType || apt.serviceType;
+          const isSameService = segServiceId === sId;
+          const isSameRole = Boolean(service.requiredStaffRole && segRole && segRole === service.requiredStaffRole);
+          const isSameType = Boolean(primaryServiceType && segType && segType === primaryServiceType);
+          if (!isSameService && !isSameRole && !isSameType) return false;
+
           const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
           const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
           return Math.max(sStartM, segStart) < Math.min(sEndM, segEnd);
@@ -410,7 +417,6 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
       });
 
       const unattachedHolds = unattachedReservations.filter((res) => {
-        if (res.serviceId?.toString() !== sId) return false;
         const rStartM = res.slotStartUnit * 15 - Math.floor(startOfDay.getTime() / 60000);
         const rEndM = rStartM + 15;
         return Math.max(rStartM, segStart) < Math.min(rEndM, segEnd);
