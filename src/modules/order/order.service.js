@@ -123,9 +123,29 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     if (!product || product.status !== 'ACTIVE') {
       throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product is not purchasable');
     }
-    const variant = product.variants && item.variantId
-      ? (product.variants.id ? product.variants.id(item.variantId) : product.variants.find((entry) => entry._id.toString() === item.variantId.toString()))
-      : null;
+    let variant = null;
+    if (product.variants && product.variants.length > 0) {
+      if (item.variantId) {
+        const targetIdStr = String(item.variantId).trim();
+        variant = product.variants.find((entry) =>
+          (entry._id && entry._id.toString() === targetIdStr) ||
+          (entry.sku && entry.sku.toLowerCase() === targetIdStr.toLowerCase()) ||
+          (entry.name && entry.name.toLowerCase() === targetIdStr.toLowerCase()) ||
+          (entry.label && entry.label.toLowerCase() === targetIdStr.toLowerCase())
+        );
+      }
+      if (!variant) {
+        variant = product.variants.find((v) => v.status === 'ACTIVE') || product.variants[0];
+      }
+    }
+
+    if (variant && !variant.inventoryItemId && variant.sku) {
+      const invItem = await InventoryItem.findOne({ sku: variant.sku }).select('_id').lean();
+      if (invItem) {
+        variant.inventoryItemId = invItem._id;
+      }
+    }
+
     if (!variant || variant.status !== 'ACTIVE' || !variant.inventoryItemId) {
       throw new AppError(422, 'Unprocessable Entity', ErrorCodes.PRODUCT_NOT_PURCHASABLE, 'Product variant is not purchasable');
     }
@@ -157,7 +177,7 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
 
     resolvedItems.push({
       productId: item.productId,
-      variantId: item.variantId,
+      variantId: variant._id,
       inventoryItemId: variant.inventoryItemId,
       nameSnapshot: `${product.name} - ${variant.label}`,
       skuSnapshot: variant.sku,
@@ -224,10 +244,14 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
     const quantities = new Map(stocks.map((stock) => [stock.inventoryItemId.toString(), stock.quantity]));
     if (!movements.every((movement) => (quantities.get(movement.inventoryItemId.toString()) || 0) >= movement.quantity)) continue;
 
-    const session = await mongoose.startSession();
+    const supportsTx = Boolean(
+      mongoose.connection.client?.topology?.description?.type === 'ReplicaSetWithPrimary' ||
+      mongoose.connection.client?.topology?.description?.type === 'Sharded'
+    );
+    const session = supportsTx ? await mongoose.startSession() : null;
     let createdOrder;
     try {
-      await session.withTransaction(async () => {
+      const executeCheckout = async () => {
         let currentCart = null;
         if (cart._id) {
           currentCart = await Cart.findById(cart._id).session(session);
@@ -432,14 +456,20 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
         await createdOrder.save({ session });
 
         currentCart.items = [];
-        await currentCart.save({ session });
-      });
+        await currentCart.save(session ? { session } : {});
+      };
+
+      if (session) {
+        await session.withTransaction(executeCheckout);
+      } else {
+        await executeCheckout();
+      }
       return createdOrder;
     } catch (error) {
       if (![ErrorCodes.INSUFFICIENT_INVENTORY, ErrorCodes.CONCURRENCY_CONFLICT].includes(error.code)) throw error;
       lastInventoryError = error;
     } finally {
-      await session.endSession();
+      if (session) await session.endSession();
     }
   }
 

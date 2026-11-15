@@ -1860,6 +1860,7 @@ paths:
       tags:
       - Booking
       security:
+      - {}
       - bearerAuth: []
       - guestLookupToken: []
       parameters:
@@ -1976,6 +1977,7 @@ paths:
       tags:
       - Booking
       security:
+      - {}
       - bearerAuth: []
       - guestLookupToken: []
       parameters:

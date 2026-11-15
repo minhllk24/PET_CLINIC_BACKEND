@@ -301,62 +301,26 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     return true;
   });
 
-  // Extract occupied segments: serviceId, startMins, endMins, assignedStaffId, isHold
-  const occupiedSegments = [];
-  for (const apt of activeBookings) {
-    const isHold = ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(apt.status);
-    if (apt.services && Array.isArray(apt.services)) {
-      for (const seg of apt.services) {
-        if (seg.scheduledStart && seg.scheduledEnd) {
-          const segStartMins = Math.floor(
-            (new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000
-          );
-          const segEndMins = Math.floor(
-            (new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000
-          );
-          occupiedSegments.push({
-            appointmentId: apt._id ? apt._id.toString() : null,
-            serviceId: (seg.serviceId?._id || seg.serviceId)?.toString(),
-            assignedStaffId: seg.assignedStaffId ? seg.assignedStaffId.toString() : null,
-            startMins: segStartMins,
-            endMins: segEndMins,
-            isHold,
-          });
-        }
-      }
-    }
-  }
+  const knownAppointmentIds = new Set(activeBookings.map((apt) => apt._id ? apt._id.toString() : null).filter(Boolean));
 
-  // Also extract active SlotReservations for that date
+  // Extract active SlotReservations for that date (only unattached holds to avoid double counting)
   const minUnit = Math.floor(startOfDay.getTime() / (15 * 60000));
   const maxUnit = Math.floor(endOfDay.getTime() / (15 * 60000));
-  let activeReservations = [];
+  let unattachedReservations = [];
   if (mongoose.connection.readyState === 1) {
     try {
-      activeReservations = await SlotReservation.find({
+      const allActiveRes = await SlotReservation.find({
         branchId: new mongoose.Types.ObjectId(branchId),
         status: { $in: ['HELD', 'CONFIRMED'] },
         slotStartUnit: { $gte: minUnit, $lte: maxUnit },
         $or: [{ holdExpiresAt: { $gt: now } }, { holdExpiresAt: null }],
       });
+      unattachedReservations = allActiveRes.filter((res) => {
+        return !res.appointmentId || !knownAppointmentIds.has(res.appointmentId.toString());
+      });
     } catch {
-      activeReservations = [];
+      unattachedReservations = [];
     }
-  }
-
-  for (const res of activeReservations) {
-    const resStartMs = res.slotStartUnit * 15 * 60000;
-    const resEndMs = resStartMs + 15 * 60000;
-    const segStartMins = Math.floor((resStartMs - startOfDay.getTime()) / 60000);
-    const segEndMins = Math.floor((resEndMs - startOfDay.getTime()) / 60000);
-    occupiedSegments.push({
-      appointmentId: res.appointmentId ? res.appointmentId.toString() : null,
-      serviceId: res.serviceId ? res.serviceId.toString() : null,
-      assignedStaffId: res.staffId ? res.staffId.toString() : null,
-      startMins: segStartMins,
-      endMins: segEndMins,
-      isHold: res.status === 'HELD',
-    });
   }
 
   // 7. Extract Blocked Windows from configs
@@ -434,36 +398,55 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         }
       }
 
-      // Check capacity: count overlapping active segments of this service
-      const concurrentSegments = occupiedSegments.filter((occ) => {
-        return occ.serviceId === sId && Math.max(occ.startMins, segStart) < Math.min(occ.endMins, segEnd);
+      // Check capacity: count distinct concurrent bookings during [segStart, segEnd]
+      const concurrentBookings = activeBookings.filter((apt) => {
+        return (apt.services || []).some((seg) => {
+          const segServiceId = (seg.serviceId?._id || seg.serviceId)?.toString();
+          if (segServiceId !== sId) return false;
+          const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
+          const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
+          return Math.max(sStartM, segStart) < Math.min(sEndM, segEnd);
+        });
       });
 
-      const bookedSegments = concurrentSegments.filter((s) => !s.isHold);
-      const heldSegments = concurrentSegments.filter((s) => s.isHold);
+      const unattachedHolds = unattachedReservations.filter((res) => {
+        if (res.serviceId?.toString() !== sId) return false;
+        const rStartM = res.slotStartUnit * 15 - Math.floor(startOfDay.getTime() / 60000);
+        const rEndM = rStartM + 15;
+        return Math.max(rStartM, segStart) < Math.min(rEndM, segEnd);
+      });
 
-      totalBookedCount = Math.max(totalBookedCount, bookedSegments.length);
-      totalHeldCount = Math.max(totalHeldCount, heldSegments.length);
+      const distinctHoldCount = new Set(unattachedHolds.map((r) => r.staffId?.toString()).filter(Boolean)).size || (unattachedHolds.length > 0 ? 1 : 0);
 
-      const remainingForSegment = Math.max(0, capacity - concurrentSegments.length);
+      const bookedCount = concurrentBookings.length;
+      const heldCount = distinctHoldCount;
+      const totalOccupiedForSegment = bookedCount + heldCount;
+
+      totalBookedCount = Math.max(totalBookedCount, bookedCount);
+      totalHeldCount = Math.max(totalHeldCount, heldCount);
+
+      const remainingForSegment = Math.max(0, capacity - totalOccupiedForSegment);
       if (remainingForSegment < minRemainingCapacity) {
         minRemainingCapacity = remainingForSegment;
       }
 
       // Check staff availability:
-      const occupiedStaffIds = new Set(
-        occupiedSegments
-          .filter(
-            (occ) =>
-              occ.assignedStaffId &&
-              Math.max(occ.startMins, segStart) < Math.min(occ.endMins, segEnd)
-          )
-          .map((occ) => occ.assignedStaffId)
-      );
+      const occupiedStaffIds = new Set();
+      for (const apt of concurrentBookings) {
+        for (const seg of apt.services || []) {
+          if (seg.assignedStaffId) {
+            const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
+            const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
+            if (Math.max(sStartM, segStart) < Math.min(sEndM, segEnd)) {
+              occupiedStaffIds.add(seg.assignedStaffId.toString());
+            }
+          }
+        }
+      }
+      for (const res of unattachedHolds) {
+        if (res.staffId) occupiedStaffIds.add(res.staffId.toString());
+      }
 
-      // Check staff availability:
-      // If shifts are scheduled for this required role, ensure staff is available.
-      // If no shifts are scheduled yet for this role on this date, fallback to branch capacity.
       const matchingRoleShifts = staffShifts.filter(
         (shift) => !service.requiredStaffRole || shift.subRole === service.requiredStaffRole
       );
@@ -507,14 +490,19 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
       remaining = 0;
     }
 
+    const slotValue = `${minutesToTime(slotStart)} - ${minutesToTime(slotEnd)}`;
     const slotData = {
+      id: `slot-${branchId}-${date}-${minutesToTime(slotStart)}`,
       start: createDateTimeISO(date, minutesToTime(slotStart)),
       end: createDateTimeISO(date, minutesToTime(slotEnd)),
+      value: slotValue,
       bookedCount: totalBookedCount,
       heldCount: totalHeldCount,
       occupiedCount,
       totalCount: totalSlotCapacity,
-      remaining: status === 'AVAILABLE' ? Math.max(1, remaining) : 0,
+      maxAppointments: totalSlotCapacity,
+      remaining: status === 'AVAILABLE' ? remaining : 0,
+      available: status === 'AVAILABLE' && remaining > 0,
       status,
       timezone: 'Asia/Ho_Chi_Minh',
       segments: slotSegments,
