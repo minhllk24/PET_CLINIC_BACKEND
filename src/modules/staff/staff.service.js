@@ -475,6 +475,17 @@ export const updateStaff = async (id, data, actor = null) => {
 
   const user = profile.userId;
 
+  const requestedSystemRole = (data.systemRole || data.role || '').toString().trim().toUpperCase();
+  const requestedSubRole = (data.staffSubRole || '').toString().trim().toUpperCase();
+  if (requestedSystemRole === 'MANAGER' || requestedSubRole === 'MANAGER') {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      'Không thể chuyển trực tiếp tài khoản STAFF thành MANAGER. Vui lòng tạo tài khoản Manager qua POST /api/v1/managers với assignedBranchIds.'
+    );
+  }
+
   // Manager scope check
   if (actor && actor.systemRole === 'MANAGER') {
     const assignedIds = (actor.assignedBranchIds || []).map((b) => b.toString());

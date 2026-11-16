@@ -294,7 +294,21 @@ export const updateUser = async (id, data = {}, actor = null) => {
     throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
   }
 
-  const { fullName, phone, email, assignedBranchIds, branchIds, homeBranchId, staffSubRole } = data;
+  const { fullName, phone, email, assignedBranchIds, branchIds, homeBranchId, staffSubRole, systemRole, role } = data;
+  const requestedSystemRole = (systemRole || role || '').toString().trim().toUpperCase();
+  const requestedSubRole = (staffSubRole || '').toString().trim().toUpperCase();
+
+  if (
+    user.systemRole === 'STAFF' &&
+    (requestedSystemRole === 'MANAGER' || requestedSubRole === 'MANAGER')
+  ) {
+    throw new AppError(
+      409,
+      'Conflict',
+      'INVALID_STATE_TRANSITION',
+      'Không thể chuyển trực tiếp tài khoản STAFF thành MANAGER. Vui lòng tạo tài khoản Manager qua POST /api/v1/managers với assignedBranchIds.'
+    );
+  }
 
   if (fullName !== undefined) {
     if (typeof fullName !== 'string' || fullName.trim().length < 2) {

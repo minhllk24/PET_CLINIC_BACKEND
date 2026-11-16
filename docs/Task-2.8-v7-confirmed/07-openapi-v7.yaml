@@ -4179,8 +4179,9 @@ paths:
         roles:
         - CARE_STAFF_GROOMER(GROOMING)
         - NURSE(MEDICAL)
+        - VETERINARIAN(MEDICAL)
         scope: ServiceRecord.branchId trong scope + actor thuoc assignedStaffIds cua segment tuong ung; Care/Groomer
-          chi sua GROOMING, Nurse chi sua MEDICAL. Manager/Admin chi doc qua endpoint GET.
+          chi sua GROOMING, Nurse/Veterinarian duoc phan cong sua MEDICAL. Manager/Admin chi doc qua endpoint GET.
         stateTransition: 'GROOMING: IN_PROGRESS|REOPENED -> materials update; MEDICAL: IN_PROGRESS|REOPENED -> materials
           update; FINALIZED -> 409 INVALID_STATE_TRANSITION'
         audit: material.update

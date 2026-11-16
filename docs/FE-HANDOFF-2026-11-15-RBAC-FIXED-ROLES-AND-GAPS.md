@@ -3,9 +3,9 @@
 
 > **Kính gửi:** Đội ngũ Kỹ sư Frontend (`DR_PETS_HOUSE_ANGULAR` / Web Admin / Customer Portal) & QA  
 > **Tài liệu nghiệp vụ căn cứ:** [`docs/WEB2-RBAC-FIXED-ROLES-BE-GAPS-2026-11-14.md`](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/docs/WEB2-RBAC-FIXED-ROLES-BE-GAPS-2026-11-14.md) (từ Sheet `feature` Workspace 13) & [`implementation_plan.md`](file:///C:/Users/Ly%20Le%20Minh/.gemini/antigravity/brain/e3863087-c00e-4ede-bfc9-06579a4c06da/implementation_plan.md)  
-> **Trạng thái:** ✅ **HOÀN TẤT TRIỂN KHAI & NGHIỆM THU – ĐÃ COMMIT & PUSH GIT – 14/14 MATRIX TEST PASS – 199/199 REGRESSION TEST PASS – OPENAPI V6/V7 ĐỒNG BỘ**  
-> **Commit Hash:** `18b48b6` trên nhánh `feat/foundation-v6`  
-> **Ngày bàn giao:** 15/11/2026  
+> **Trạng thái:** ✅ **HOÀN TẤT TRIỂN KHAI & NGHIỆM THU – 15/15 MATRIX TEST PASS – 200/200 REGRESSION TEST PASS – OPENAPI V6/V7 ĐỒNG BỘ**  
+> **Nhánh Git:** `feat/foundation-v6`  
+> **Ngày cập nhật:** 16/11/2026  
 > **OpenAPI Specs:** [`docs/07-openapi-v6.yaml`](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/docs/07-openapi-v6.yaml) & [`docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml`](file:///d:/A1.%20Lap%20Trinh%20Web/Group_Project_Pet_Clinic/PET_CLINIC_BACKEND/docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml)  
 
 ---
@@ -88,20 +88,27 @@ Các endpoint trước đây bị khóa cứng `ADMIN` hoặc `ADMIN, MANAGER`, 
   * `POST /:id/receive`: Dành riêng cho `['RECEPTIONIST', 'MANAGER', 'ADMIN']` (kiểm tra branch scope).
 
 ### B3 — Ràng buộc Phân công chuyên môn (Booking, Bệnh án, Khách hàng & Ca trực)
-* **Check-in vs Start Segment:**
+* **Check-in vs Start Segment & Luồng Thực Thi Dịch Vụ (Cập nhật 16/11/2026):**
   * `POST /api/v1/appointments/:id/check-in`: Dành cho `['RECEPTIONIST', 'MANAGER', 'ADMIN']` (kiểm tra `branchId`).
-  * `POST /api/v1/appointments/:id/start`: Dành riêng cho nhân viên lâm sàng `['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']`. Backend xác thực nhân viên gọi API phải khớp với `assignedStaffId` của dịch vụ và `requiredStaffRole == staffSubRole`. Lễ tân không thể bắt đầu dịch vụ lâm sàng.
-* **Hồ sơ dịch vụ & Bệnh án (`/api/v1/service-records`):**
-  * `PATCH /:id/professional`: Khóa theo vai trò y tế (`VETERINARIAN` khám chữa bệnh, `NURSE` điều dưỡng). Lễ tân không có quyền ghi chép lâm sàng.
-  * `POST /:id/reopen`, `GET /:id/revisions`: `MANAGER` chỉ được mở lại hoặc xem lịch sử sửa đổi bệnh án thuộc chi nhánh được gán (`assignedBranchIds`).
+  * **Chặn tuyệt đối `ADMIN` và `MANAGER` ở nút "Bắt đầu dịch vụ" & toàn bộ các nút ở luồng thực thi sau đó:**
+    * `POST/PATCH /api/v1/appointments/:id/start`: Chỉ cho phép nhân viên chuyên môn `['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']` khớp `assignedStaffId` và `requiredStaffRole`. `ADMIN`, `MANAGER`, `RECEPTIONIST`, `CUSTOMER` nhận `403 AUTHORIZATION_ERROR`.
+    * `POST /api/v1/service-records` (tạo hồ sơ): Chỉ `['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']` (`ADMIN`/`MANAGER`/`RECEPTIONIST` -> `403`).
+    * `PUT/PATCH /api/v1/service-records/:id/materials` (cập nhật vật tư thực tế): Chỉ `['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']` được phân công (`CARE_STAFF_GROOMER` cho `GROOMING`; `NURSE`/`VETERINARIAN` cho `MEDICAL`). `ADMIN` và `MANAGER` bị chặn `403` (chỉ được đọc qua `GET`).
+    * `PUT/PATCH /api/v1/service-records/:id/professional` (ghi chẩn đoán/điều trị): Chỉ `VETERINARIAN` được phân công/reviewer cho `MEDICAL`. `ADMIN`, `MANAGER`, `NURSE`, `RECEPTIONIST`, `GROOMER` bị chặn `403`.
+    * `POST/PATCH /api/v1/service-records/:id/submit-review`: Chỉ `NURSE` được phân công (`ADMIN`/`MANAGER` -> `403`).
+    * `POST/PATCH /api/v1/service-records/:id/finalize`: Chỉ `VETERINARIAN` (`MEDICAL`) / `CARE_STAFF_GROOMER` (`GROOMING`) được phân công (`ADMIN`/`MANAGER` -> `403`).
+    * `POST /api/v1/service-records/:id/reopen`, `GET /revisions`: `MANAGER` (trong `assignedBranchIds`) & `ADMIN` giữ quyền giám sát/mở khóa sau `FINALIZED` (kèm audit `reason`).
 * **Tra cứu thông tin khách hàng (`/api/v1/customers`):**
   * `GET /customers/lookup?phone=...`: Chỉ cho phép `['ADMIN', 'MANAGER', 'RECEPTIONIST']` để phục vụ đón tiếp khách tại quầy. Vet, Nurse, Groomer bị chặn `403`.
   * `GET /customers/:id`: `RECEPTIONIST` chỉ xem được khách hàng từng phát sinh đơn hàng hoặc lịch hẹn tại chi nhánh mình. Nhân viên lâm sàng chỉ xem được khách hàng có lịch hẹn mà chính nhân viên đó được phân công điều trị.
 * **Xem lịch làm việc cá nhân (`/api/v1/staff/:staffId/shifts`):**
   * Nhân viên `STAFF` chỉ được phép xem lịch ca trực của chính mình (`staffId === user._id` hoặc `staffProfile._id`). Cố tình xem ca trực của đồng nghiệp khác sẽ bị từ chối `403 AUTHORIZATION_ERROR`.
 
-### B4 — Khóa chặn chuyển đổi trực tiếp `STAFF -> MANAGER`
-* Tại `PATCH /api/v1/admin/users/:id/role`: Nếu tài khoản hiện tại là `STAFF` mà Admin cố đổi sang `MANAGER`, Backend sẽ trả về lỗi nghiệp vụ:
+### B4 — Khóa chặn chuyển đổi trực tiếp `STAFF -> MANAGER` trên mọi màn chỉnh sửa
+* Chặn đồng bộ trên cả 3 API chỉnh sửa tài khoản/nhân sự:
+  1. `PATCH /api/v1/admin/users/:id/role`: Nếu user hiện tại là `STAFF` mà target role là `MANAGER` → trả `409 INVALID_STATE_TRANSITION`.
+  2. `PUT / PATCH /api/v1/admin/users/:id` (màn Edit User): Nếu payload gửi kèm `systemRole: 'MANAGER'` / `role: 'MANAGER'` / `staffSubRole: 'MANAGER'` cho tài khoản `STAFF` → trả `409 INVALID_STATE_TRANSITION`.
+  3. `PATCH /api/v1/staff/:id` (màn Edit Staff): OpenAPI (`400 VALIDATION_ERROR`) và service layer (`409 INVALID_STATE_TRANSITION`) đều từ chối nâng thẳng `STAFF -> MANAGER`.
   ```json
   {
     "type": "https://errors.drpetshouse.lat/invalid-state-transition",
@@ -111,7 +118,7 @@ Các endpoint trước đây bị khóa cứng `ADMIN` hoặc `ADMIN, MANAGER`, 
     "detail": "Không thể chuyển trực tiếp tài khoản STAFF thành MANAGER. Vui lòng tạo tài khoản Manager qua POST /api/v1/managers với assignedBranchIds."
   }
   ```
-* **Frontend Lưu ý:** Trên giao diện User Management, khi chọn tài khoản có role `STAFF`, dropdown chuyển đổi role cần disable option `MANAGER` và hiển thị tooltip hướng dẫn tạo tài khoản tại trang Quản lý Quản lý chi nhánh (`/admin/managers`).
+* **Frontend Bắt Buộc Cập Nhật:** Trong màn hình chỉnh sửa nhân viên / user, nếu tài khoản đang là `STAFF`, **không cho phép chọn `MANAGER`** ở dropdown role (lý do: ràng buộc ca trực sắp tới, lịch hẹn đang phân công, phân quyền chi nhánh). Muốn có tài khoản Manager phải tạo mới qua `POST /api/v1/managers`.
 
 ### B5 — Giới hạn Nhật ký Biến động Kho (`/inventory/transactions`)
 * `GET /api/v1/inventory/transactions` chỉ cho phép `ADMIN` và `MANAGER`. Toàn bộ `STAFF` bị chặn `403`.
@@ -210,11 +217,18 @@ export function canPerformClinicalSegment(user: AuthUserToken, segmentRequiredRo
 * **Menu Diễn đàn Cộng đồng (Kiểm duyệt):** Nút "Xóa bài" hiển thị cho `ADMIN` và `MANAGER` (chỉ kích hoạt khi bài khác trạng thái `PENDING`).
 * **Menu Thú cưng Cứu hộ:** Hiển thị cho `ADMIN` và `MANAGER`. Lưu ý khi Manager thêm mới hoặc duyệt đơn, dropdown chi nhánh chỉ bao gồm các chi nhánh thuộc `assignedBranchIds`.
 
-### 6.3 Xử lý Action Buttons tại các Màn hình chi tiết
+### 6.3 Xử lý Action Buttons tại các Màn hình chi tiết (Cập nhật Rule 16/11/2026)
 1. **Màn hình Chi tiết Lịch hẹn (`/admin/appointments/:id`):**
    - Nút **"Đón tiếp / Check-in"**: Chỉ enable nếu `canManageOrders(currentUser)` và lịch hẹn thuộc chi nhánh của user.
-   - Nút **"Bắt đầu dịch vụ"**: Chỉ enable nếu `currentUser.staffSubRole === segment.requiredStaffRole` VÀ `currentUser.id === segment.assignedStaffId`.
-2. **Màn hình Đổi trả hàng (`/admin/order-returns/:id`):**
+   - Nút **"Bắt đầu dịch vụ" (`/start`)**: **Ẩn/Disable với `ADMIN` và `MANAGER`**. Chỉ hiển thị/enable cho `STAFF` chuyên môn (`CARE_STAFF_GROOMER`, `NURSE`, `VETERINARIAN`) thỏa `currentUser.staffSubRole === segment.requiredStaffRole` VÀ `assignedStaffId` khớp nhân viên đó.
+2. **Màn hình Thực thi Dịch vụ / Bệnh án (`/admin/service-records/:id`):**
+   - **Toàn bộ các nút trong luồng thực thi sau khi bắt đầu dịch vụ** (*Tạo hồ sơ, Cập nhật vật tư, Ghi chẩn đoán/điều trị, Gửi duyệt Vet, Hoàn tất/Chốt hồ sơ*): **Ẩn/Disable với `ADMIN` và `MANAGER`** (FE chỉ hiển thị chế độ **Read-only** + nút **Mở lại hồ sơ `/reopen`** khi trạng thái là `FINALIZED`).
+   - *Cập nhật vật tư:* Chỉ `CARE_STAFF_GROOMER` (GROOMING) hoặc `NURSE`/`VETERINARIAN` được phân công (MEDICAL).
+   - *Ghi chẩn đoán/điều trị & Chốt hồ sơ MEDICAL:* Chỉ `VETERINARIAN` được phân công.
+   - *Gửi duyệt:* Chỉ `NURSE` được phân công.
+3. **Màn hình Chỉnh sửa Tài khoản / Nhân sự:**
+   - Khi tài khoản đang có role `STAFF`, loại bỏ/disable lựa chọn chuyển sang `MANAGER` (cả BE `/admin/users/:id/role`, `/admin/users/:id`, `/staff/:id` đều trả `409` / `400`).
+4. **Màn hình Đổi trả hàng (`/admin/order-returns/:id`):**
    - Nút **"Tiếp nhận hàng hoàn"**: Kích hoạt cho `RECEPTIONIST` và `MANAGER`.
    - Nút **"Phê duyệt hoàn tiền" / "Từ chối hoàn tiền"**: Kích hoạt cho `MANAGER` và `ADMIN`. Disable đối với `RECEPTIONIST`.
 
@@ -226,48 +240,50 @@ Tất cả các ca kiểm thử bảo mật và phân quyền đã được ki�
 
 ### 7.1 Kết Quả Suite Ma Trận RBAC Mới (`tests/integration/rbac-fixed-roles-matrix.test.js`)
 ```text
-PASS tests/integration/rbac-fixed-roles-matrix.test.js (5.205 s)
+PASS tests/integration/rbac-fixed-roles-matrix.test.js (4.742 s)
   WEB2 RBAC Fixed Roles Matrix & Branch/SubRole Enforcement
     G1: Voucher RBAC (STAFF read-only, ADMIN write)
-      √ allows ADMIN, MANAGER, and all 4 STAFF subroles to GET /vouchers and /vouchers/:id; denies CUSTOMER & Guest (1166 ms)
-      √ denies STAFF and MANAGER on POST /vouchers and PATCH /vouchers/:id with 403 (414 ms)
+      √ allows ADMIN, MANAGER, and all 4 STAFF subroles to GET /vouchers and /vouchers/:id; denies CUSTOMER & Guest
+      √ denies STAFF and MANAGER on POST /vouchers and PATCH /vouchers/:id with 403
     G2: Flash Sale RBAC (STAFF read-only, ADMIN write/publish/pause)
-      √ allows STAFF (all subroles), MANAGER, and ADMIN to GET /flash-sales & /:id; blocks write/publish/pause with 403 (149 ms)
+      √ allows STAFF (all subroles), MANAGER, and ADMIN to GET /flash-sales & /:id; blocks write/publish/pause with 403
     G3-G5: Admin Content (Blog/FirstAid, Community, Rescue Branch Scope)
-      √ allows MANAGER CRUD/Delete on /admin/content/posts and blocks STAFF (33 ms)
-      √ allows MANAGER to DELETE approved /api/v1/admin/community/posts/:id; blocks STAFF (15 ms)
-      √ enforces assignedBranchIds scope for MANAGER on RescuePet create/delete & adoptions review (37 ms)
+      √ allows MANAGER CRUD/Delete on /admin/content/posts and blocks STAFF
+      √ allows MANAGER to DELETE approved /api/v1/admin/community/posts/:id; blocks STAFF
+      √ enforces assignedBranchIds scope for MANAGER on RescuePet create/delete & adoptions review
     B1 & B2: STAFF SubRole & Branch Isolation on Commerce/Refunds/Inventory
-      √ blocks non-RECEPTIONIST STAFF from Orders list/detail/cancel/mutations while allowing in-branch RECEPTIONIST (95 ms)
-      √ enforces RECEPTIONIST/MANAGER separation & branch scope on OrderReturns and BookingRefunds (574 ms)
-      √ restricts GET /inventory/transactions to ADMIN & MANAGER only (186 ms)
+      √ blocks non-RECEPTIONIST STAFF from Orders list/detail/cancel/mutations while allowing in-branch RECEPTIONIST
+      √ enforces RECEPTIONIST/MANAGER separation & branch scope on OrderReturns and BookingRefunds
+      √ restricts GET /inventory/transactions to ADMIN & MANAGER only
     B3: Booking, ServiceRecord, Customer & Staff Self-Shift Scoping
-      √ enforces check-in (RECEPTIONIST/MANAGER/ADMIN) & start segment (assigned clinical staff) (255 ms)
-      √ restricts GET /customers/lookup and GET /customers/:id for non-receptionist STAFF (64 ms)
-      √ blocks RECEPTIONIST from clinical ServiceRecord writes & blocks MANAGER out-of-branch reopen/revisions (284 ms)
-      √ restricts GET /staff/:staffId/shifts for STAFF to own shifts only (25 ms)
+      √ enforces check-in (RECEPTIONIST/MANAGER/ADMIN) & start segment (assigned clinical staff) [kèm chặn ADMIN/MANAGER]
+      √ restricts GET /customers/lookup and GET /customers/:id for non-receptionist STAFF
+      √ blocks RECEPTIONIST from clinical ServiceRecord writes & blocks MANAGER out-of-branch reopen/revisions
+      √ strictly blocks ADMIN and MANAGER from all downstream service-execution mutations (create/materials/professional/submit-review/finalize)
+      √ restricts GET /staff/:staffId/shifts for STAFF to own shifts only
     B4: Admin User Role Transition Guard
-      √ rejects direct STAFF -> MANAGER transition with 409 INVALID_STATE_TRANSITION (10 ms)
+      √ rejects direct STAFF -> MANAGER transition across /admin/users/:id/role, /admin/users/:id, and /staff/:id with 409 INVALID_STATE_TRANSITION
 
 Test Suites: 1 passed, 1 total
-Tests:       14 passed, 14 total
+Tests:       15 passed, 15 total
 ```
 
 ### 7.2 Kết Quả Toàn Bộ Regression Suite (17 Suites Chạy `--runInBand`)
 ```text
 Test Suites: 17 passed, 17 total
-Tests:       199 passed, 199 total
+Tests:       200 passed, 200 total
 Snapshots:   0 total
-Time:        174.324 s
+Time:        166.796 s
 Ran all test suites matching 17 affected modules.
 ```
 
 ### 7.3 Kiểm Tra Cú Pháp & Contract OpenAPI (v6 & v7)
 ```text
-docs/07-openapi-v6.yaml paths: 136 | vouchers.get: [ 'STAFF', 'MANAGER', 'ADMIN' ] | staff.post: [ 'MANAGER', 'ADMIN' ]
-docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml paths: 153 | vouchers.get: [ 'STAFF', 'MANAGER', 'ADMIN' ] | staff.post: [ 'MANAGER', 'ADMIN' ]
+docs/07-openapi-v6.yaml paths: 136 | materials: ['CARE_STAFF_GROOMER(GROOMING)', 'NURSE(MEDICAL)', 'VETERINARIAN(MEDICAL)'] | professional: ['VETERINARIAN']
+docs/Task-2.8-v7-confirmed/07-openapi-v7.yaml paths: 153 | materials: ['CARE_STAFF_GROOMER(GROOMING)', 'NURSE(MEDICAL)', 'VETERINARIAN(MEDICAL)'] | professional: ['VETERINARIAN']
 ```
 
 ---
 *Tài liệu được ban hành chính thức bởi Backend Lead & Security Auditor – Phòng khám Thú y Dr.Pet's House.*  
 *Mọi thắc mắc trong quá trình tích hợp, vui lòng liên hệ trực tiếp qua kênh kỹ thuật Backend.*
+

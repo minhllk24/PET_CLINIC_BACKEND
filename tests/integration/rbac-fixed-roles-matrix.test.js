@@ -572,6 +572,17 @@ describe('WEB2 RBAC Fixed Roles Matrix & Branch/SubRole Enforcement', () => {
         .send({ serviceId, expectedVersion: 1 });
       expect(nurseStart.status).toBe(403);
 
+      // Admin and Manager CANNOT press "start service" (clinical staff only)
+      for (const roleKey of ['admin', 'managerQ1']) {
+        const execStart = await request(app)
+          .post(`/api/v1/appointments/${aptId}/start`)
+          .set('X-Forwarded-For', '10.10.0.12')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .set('Idempotency-Key', `idem-start-${roleKey}`)
+          .send({ serviceId, expectedVersion: 1 });
+        expect(execStart.status).toBe(403);
+      }
+
       // Unassigned Vet cannot view appointment detail
       const unassignedVetToken = sign({
         id: otherVetId,
@@ -656,6 +667,69 @@ describe('WEB2 RBAC Fixed Roles Matrix & Branch/SubRole Enforcement', () => {
       expect(mgrRevisions.body.code).toBe('BRANCH_SCOPE_ERROR');
     });
 
+    it('strictly blocks ADMIN and MANAGER from all downstream service-execution mutations (create/materials/professional/submit-review/finalize)', async () => {
+      const recId = oid();
+      const aptId = oid();
+      const matId = oid();
+      const serviceId = oid();
+
+      for (const roleKey of ['admin', 'managerQ1', 'receptionistQ1']) {
+        const createRes = await request(app)
+          .post('/api/v1/service-records')
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .send({ appointmentId: aptId, serviceType: 'MEDICAL' });
+        expect(createRes.status).toBe(403);
+
+        const putMatRes = await request(app)
+          .put(`/api/v1/service-records/${recId}/materials`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .send({
+            materials: [{ inventoryItemId: matId, actualQuantity: 1, unit: 'cái' }],
+            expectedVersion: 1,
+          });
+        expect(putMatRes.status).toBe(403);
+
+        const patchMatRes = await request(app)
+          .patch(`/api/v1/service-records/${recId}/materials`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .send({ materials: [], expectedVersion: 1 });
+        expect(patchMatRes.status).toBe(403);
+
+        const putProfRes = await request(app)
+          .put(`/api/v1/service-records/${recId}/professional`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .send({ diagnosis: 'Test', expectedVersion: 1 });
+        expect(putProfRes.status).toBe(403);
+
+        const patchProfRes = await request(app)
+          .patch(`/api/v1/service-records/${recId}/professional`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .send({ diagnosis: 'Test', expectedVersion: 1 });
+        expect(patchProfRes.status).toBe(403);
+
+        const submitRes = await request(app)
+          .post(`/api/v1/service-records/${recId}/submit-review`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .set('Idempotency-Key', `idem-sub-${roleKey}`)
+          .send({ serviceId, expectedVersion: 1 });
+        expect(submitRes.status).toBe(403);
+
+        const finRes = await request(app)
+          .post(`/api/v1/service-records/${recId}/finalize`)
+          .set('X-Forwarded-For', '10.10.0.13')
+          .set('Authorization', `Bearer ${TOKENS[roleKey]}`)
+          .set('Idempotency-Key', `idem-fin-${roleKey}`)
+          .send({ serviceId, expectedVersion: 1 });
+        expect(finRes.status).toBe(403);
+      }
+    });
+
     it('restricts GET /staff/:staffId/shifts for STAFF to own shifts only', async () => {
       const otherStaffId = oid();
       jest.spyOn(StaffProfile, 'findOne').mockImplementation(() => mockChain([], { _id: IDS.vetProfileQ1 }));
@@ -677,17 +751,29 @@ describe('WEB2 RBAC Fixed Roles Matrix & Branch/SubRole Enforcement', () => {
   });
 
   // =========================================================================
-  // B4: PATCH /api/v1/admin/users/:id/role forbids STAFF -> MANAGER
+  // B4: STAFF -> MANAGER role change blocked across ALL edit endpoints
   // =========================================================================
   describe('B4: Admin User Role Transition Guard', () => {
-    it('rejects direct STAFF -> MANAGER transition with 409 INVALID_STATE_TRANSITION', async () => {
+    it('rejects direct STAFF -> MANAGER transition across /admin/users/:id/role, /admin/users/:id, and /staff/:id with 409 INVALID_STATE_TRANSITION', async () => {
       const targetUserId = oid();
+      const targetProfileId = oid();
       jest.spyOn(User, 'findById').mockResolvedValue({
         _id: targetUserId,
         systemRole: 'STAFF',
         staffSubRole: 'RECEPTIONIST',
         assignedBranchIds: [BRANCH_Q1],
       });
+      jest.spyOn(StaffProfile, 'findById').mockImplementation(() =>
+        mockChain([], {
+          _id: targetProfileId,
+          staffSubRole: 'RECEPTIONIST',
+          userId: {
+            _id: targetUserId,
+            systemRole: 'STAFF',
+            staffSubRole: 'RECEPTIONIST',
+          },
+        })
+      );
 
       const res = await request(app)
         .patch(`/api/v1/admin/users/${targetUserId}/role`)
@@ -697,6 +783,24 @@ describe('WEB2 RBAC Fixed Roles Matrix & Branch/SubRole Enforcement', () => {
 
       expect(res.status).toBe(409);
       expect(res.body.code).toBe('INVALID_STATE_TRANSITION');
+
+      const editUserRes = await request(app)
+        .patch(`/api/v1/admin/users/${targetUserId}`)
+        .set('X-Forwarded-For', '10.10.0.11')
+        .set('Authorization', `Bearer ${TOKENS.admin}`)
+        .send({ systemRole: 'MANAGER', assignedBranchIds: [BRANCH_Q1] });
+
+      expect(editUserRes.status).toBe(409);
+      expect(editUserRes.body.code).toBe('INVALID_STATE_TRANSITION');
+
+      const editStaffRes = await request(app)
+        .patch(`/api/v1/staff/${targetProfileId}`)
+        .set('X-Forwarded-For', '10.10.0.11')
+        .set('Authorization', `Bearer ${TOKENS.admin}`)
+        .send({ staffSubRole: 'MANAGER' });
+
+      expect([400, 409]).toContain(editStaffRes.status);
+      expect(['VALIDATION_ERROR', 'INVALID_STATE_TRANSITION']).toContain(editStaffRes.body.code);
     });
   });
 });

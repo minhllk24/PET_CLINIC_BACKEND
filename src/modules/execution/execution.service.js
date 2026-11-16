@@ -386,7 +386,17 @@ const isAssignedToAppointment = async (appointment, actorId) => {
   ));
 };
 
+const CLINICAL_SUB_ROLES = ['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN'];
+
 export const createRecord = async (data, actor) => {
+  if (actor && (actor.systemRole !== 'STAFF' || !CLINICAL_SUB_ROLES.includes(actor.staffSubRole))) {
+    throw new AppError(
+      403,
+      'Forbidden',
+      ErrorCodes.AUTHORIZATION_ERROR,
+      'Only assigned clinical staff can create service records'
+    );
+  }
   const appointment = await Appointment.findById(data.appointmentId);
   if (!appointment) throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Appointment not found');
 
@@ -573,16 +583,18 @@ export const updateMaterials = async (id, data, actor) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid service record id format');
   }
 
+  if (!actor || actor.systemRole !== 'STAFF' || !CLINICAL_SUB_ROLES.includes(actor.staffSubRole)) {
+    throw new AppError(
+      403,
+      'Forbidden',
+      ErrorCodes.AUTHORIZATION_ERROR,
+      'Only assigned clinical staff can update service record materials'
+    );
+  }
+
   const record = await ServiceRecord.findById(id);
   if (!record) {
     throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Service record not found');
-  }
-
-  if (actor?.systemRole === 'MANAGER') {
-    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
-    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
-      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
-    }
   }
 
   if (!['IN_PROGRESS', 'REOPENED'].includes(record.status)) {
@@ -668,16 +680,13 @@ export const updateProfessional = async (id, data, actor) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid service record id format');
   }
 
+  if (!actor || actor.systemRole !== 'STAFF' || actor.staffSubRole !== 'VETERINARIAN') {
+    throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Veterinarian can record clinical data');
+  }
+
   const record = await ServiceRecord.findById(id);
   if (!record) {
     throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Service record not found');
-  }
-
-  if (actor?.systemRole === 'MANAGER') {
-    const branchIds = (actor.assignedBranchIds || []).map((b) => (b._id || b).toString());
-    if (branchIds.length === 0 || (record.branchId && !branchIds.includes(record.branchId.toString()))) {
-      throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch service record');
-    }
   }
 
   if (record.recordType !== 'MEDICAL') {

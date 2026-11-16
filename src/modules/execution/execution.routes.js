@@ -9,8 +9,8 @@ const router = express.Router();
 router.get('/', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), executionController.listRecords);
 router.get('/records', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), executionController.listRecords);
 
-router.post('/', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.createRecord);
-router.post('/records', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.createRecord);
+router.post('/', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.createRecord);
+router.post('/records', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.createRecord);
 
 // Detail & Revisions
 router.get('/:id/revisions', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.getRevisions);
@@ -19,31 +19,31 @@ router.get('/records/:id/revisions', requireRole(['STAFF', 'MANAGER', 'ADMIN']),
 router.get('/:id', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), executionController.getRecordById);
 router.get('/records/:id', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), executionController.getRecordById);
 
-// Update Materials (OpenAPI uses PUT; allow PATCH as well)
-router.put('/:id/materials', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.updateMaterials);
-router.patch('/:id/materials', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.updateMaterials);
-router.put('/records/:id/materials', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.updateMaterials);
-router.patch('/records/:id/materials', requireRole(['STAFF', 'MANAGER', 'ADMIN']), executionController.updateMaterials);
+// Update Materials (OpenAPI uses PUT; allow PATCH as well - Clinical Staff only; Admin/Manager read-only)
+router.put('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
+router.patch('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
+router.put('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
+router.patch('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
 
-// Update Professional (OpenAPI uses PUT; allow PATCH as well)
+// Update Professional (OpenAPI uses PUT; allow PATCH as well - Veterinarian only; Admin/Manager read-only)
 router.put(
   '/:id/professional',
-  requireRole(['STAFF', 'ADMIN'], ['VETERINARIAN']),
+  requireRole(['VETERINARIAN']),
   executionController.updateProfessional
 );
 router.patch(
   '/:id/professional',
-  requireRole(['STAFF', 'ADMIN'], ['VETERINARIAN']),
+  requireRole(['VETERINARIAN']),
   executionController.updateProfessional
 );
 router.put(
   '/records/:id/professional',
-  requireRole(['STAFF', 'ADMIN'], ['VETERINARIAN']),
+  requireRole(['VETERINARIAN']),
   executionController.updateProfessional
 );
 router.patch(
   '/records/:id/professional',
-  requireRole(['STAFF', 'ADMIN'], ['VETERINARIAN']),
+  requireRole(['VETERINARIAN']),
   executionController.updateProfessional
 );
 

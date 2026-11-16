@@ -2052,8 +2052,17 @@ export const startSegment = async (id, serviceId, actor) => {
 
   if (actor) {
     const role = actor.systemRole || actor.role;
-    if (role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST')) {
-      throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Receptionist cannot start clinical/grooming segments');
+    const clinicalSubRoles = ['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN'];
+    if (
+      ['ADMIN', 'MANAGER', 'CUSTOMER', 'RECEPTIONIST'].includes(role) ||
+      (role === 'STAFF' && !clinicalSubRoles.includes(actor.staffSubRole))
+    ) {
+      throw new AppError(
+        403,
+        'Forbidden',
+        ErrorCodes.AUTHORIZATION_ERROR,
+        'Only assigned clinical staff (Veterinarian, Nurse, Care Staff/Groomer) can start service segments'
+      );
     }
     if (role === 'STAFF' || ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role)) {
       const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
