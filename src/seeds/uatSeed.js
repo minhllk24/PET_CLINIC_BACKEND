@@ -72,7 +72,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     console.log(`   - Sản phẩm đa loài: 6 sản phẩm (Chó, Mèo, Thỏ/Bọ Ú, Chim/Vẹt, Cát vệ sinh, Đồ chơi KONG)`);
     console.log(`   - Tồn kho InventoryStock: 100 cái tại ${branch1.code}, 50 cái tại ${branch2.code}, 30 cái tại ${branch3.code}`);
     console.log(`   - Vouchers: 9 mã khuyến mãi (FREESHIP, GIAM10_CAP50, GIAM40K_DON150K, THUNHO20, ...)`);
-    console.log(`   - Đơn hàng UAT: 12 đơn hàng (ORD-UAT-01 đến 12) bao phủ đầy đủ luồng PENDING -> COMPLETED, Return & Refund`);
+    console.log(`   - Đơn hàng UAT: 12 đơn hàng (ORD-20261108-0001 đến 0012) bao phủ đầy đủ luồng PENDING -> COMPLETED, Return & Refund`);
     console.log('\n✅ [DRY-RUN] Kiểm tra hoàn tất thành công! Database KHÔNG bị thay đổi.');
     return;
   }
@@ -683,7 +683,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
   const UAT_ORDERS = [
     // TC01: Chờ xác nhận - COD
     {
-      code: 'ORD-UAT-01-PENDING-COD',
+      code: 'ORD-20261108-0001',
       status: 'PENDING',
       paymentMethod: 'COD',
       items: [
@@ -709,7 +709,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC02: Chờ thanh toán - ONLINE_MOCK
     {
-      code: 'ORD-UAT-02-PENDING-ONLINE',
+      code: 'ORD-20261108-0002',
       status: 'PENDING',
       paymentMethod: 'ONLINE_MOCK',
       items: [
@@ -735,7 +735,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC03: Đã xác nhận - COD
     {
-      code: 'ORD-UAT-03-CONFIRMED',
+      code: 'ORD-20261108-0003',
       status: 'CONFIRMED',
       paymentMethod: 'COD',
       items: [
@@ -764,7 +764,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC04: Đang đóng gói / xử lý - COD
     {
-      code: 'ORD-UAT-04-PROCESSING',
+      code: 'ORD-20261108-0004',
       status: 'PROCESSING',
       paymentMethod: 'COD',
       items: [
@@ -805,7 +805,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC05: Đang vận chuyển - COD
     {
-      code: 'ORD-UAT-05-SHIPPED',
+      code: 'ORD-20261108-0005',
       status: 'SHIPPED',
       paymentMethod: 'COD',
       items: [
@@ -836,7 +836,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC06: Giao thành công còn hạn đổi trả (2 ngày trước, có voucher GIAM10_CAP50)
     {
-      code: 'ORD-UAT-06-DELIVERED-RECENT',
+      code: 'ORD-20261108-0006',
       status: 'COMPLETED',
       paymentMethod: 'COD',
       deliveredAt: twoDaysAgo,
@@ -869,7 +869,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC07: Giao thành công hết hạn đổi trả (10 ngày trước)
     {
-      code: 'ORD-UAT-07-DELIVERED-EXPIRED',
+      code: 'ORD-20261108-0007',
       status: 'COMPLETED',
       paymentMethod: 'COD',
       deliveredAt: tenDaysAgo,
@@ -899,7 +899,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC08: Hoàn tất đơn hàng thanh toán Online
     {
-      code: 'ORD-UAT-08-COMPLETED-ONLINE',
+      code: 'ORD-20261108-0008',
       status: 'COMPLETED',
       paymentMethod: 'ONLINE_MOCK',
       deliveredAt: fifteenDaysAgo,
@@ -929,7 +929,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC09: Đã hủy bởi Khách hàng (COD)
     {
-      code: 'ORD-UAT-09-CANCELLED-CUSTOMER',
+      code: 'ORD-20261108-0009',
       status: 'CANCELLED',
       paymentMethod: 'COD',
       items: [
@@ -958,7 +958,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC10: Đã hủy do Hết hạn thanh toán Online
     {
-      code: 'ORD-UAT-10-CANCELLED-EXPIRED',
+      code: 'ORD-20261108-0010',
       status: 'CANCELLED',
       paymentMethod: 'ONLINE_MOCK',
       items: [
@@ -987,7 +987,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC11: Đơn hàng Đang có yêu cầu Đổi trả (Return REQUESTED)
     {
-      code: 'ORD-UAT-11-RETURN-REQUESTED',
+      code: 'ORD-20261108-0011',
       status: 'COMPLETED',
       paymentMethod: 'COD',
       deliveredAt: twoDaysAgo,
@@ -1019,7 +1019,7 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
     },
     // TC12: Đơn hàng Đã hoàn tất Đổi trả & Hoàn tiền (Return COMPLETED + Refunded)
     {
-      code: 'ORD-UAT-12-RETURN-REFUNDED',
+      code: 'ORD-20261108-0012',
       status: 'COMPLETED',
       paymentMethod: 'ONLINE_MOCK',
       deliveredAt: fiveDaysAgo(now),
@@ -1109,13 +1109,13 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
       await paymentDoc.save();
 
       // Xử lý tạo OrderReturn cho TC11
-      if (oData.code === 'ORD-UAT-11-RETURN-REQUESTED') {
+      if (oData.code === 'ORD-20261108-0011') {
         const item = orderDoc.items[0];
         await OrderReturn.findOneAndUpdate(
-          { code: 'RET-UAT-11' },
+          { code: 'RET-20261108-0011' },
           {
             $set: {
-              code: 'RET-UAT-11',
+              code: 'RET-20261108-0011',
               orderId: orderDoc._id,
               customerId,
               status: 'REQUESTED',
@@ -1143,17 +1143,17 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
           },
           { upsert: true }
         );
-        console.log(`   - [ORDER_RETURN] Đã tạo yêu cầu đổi trả RET-UAT-11 (REQUESTED) cho đơn ${oData.code}`);
+        console.log(`   - [ORDER_RETURN] Đã tạo yêu cầu đổi trả RET-20261108-0011 (REQUESTED) cho đơn ${oData.code}`);
       }
 
       // Xử lý tạo OrderReturn + OrderRefund cho TC12
-      if (oData.code === 'ORD-UAT-12-RETURN-REFUNDED') {
+      if (oData.code === 'ORD-20261108-0012') {
         const item = orderDoc.items[0];
         const refundDoc = await OrderRefund.findOneAndUpdate(
-          { code: 'REF-UAT-12' },
+          { code: 'REF-20261108-0012' },
           {
             $set: {
-              code: 'REF-UAT-12',
+              code: 'REF-20261108-0012',
               cause: 'RETURN',
               orderId: orderDoc._id,
               amount: item.unitPrice,
@@ -1170,10 +1170,10 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
         );
 
         await OrderReturn.findOneAndUpdate(
-          { code: 'RET-UAT-12' },
+          { code: 'RET-20261108-0012' },
           {
             $set: {
-              code: 'RET-UAT-12',
+              code: 'RET-20261108-0012',
               orderId: orderDoc._id,
               customerId,
               status: 'COMPLETED',
@@ -1207,9 +1207,9 @@ export const runUatSeed = async ({ dryRun = false } = {}) => {
           { upsert: true }
         );
 
-        refundDoc.orderReturnId = (await OrderReturn.findOne({ code: 'RET-UAT-12' }))._id;
+        refundDoc.orderReturnId = (await OrderReturn.findOne({ code: 'RET-20261108-0012' }))._id;
         await refundDoc.save();
-        console.log(`   - [ORDER_RETURN] Đã tạo RET-UAT-12 (COMPLETED) & REF-UAT-12 (REFUNDED) cho đơn ${oData.code}`);
+        console.log(`   - [ORDER_RETURN] Đã tạo RET-20261108-0012 (COMPLETED) & REF-20261108-0012 (REFUNDED) cho đơn ${oData.code}`);
       }
 
       console.log(`   - [ĐƠN HÀNG] Đã upsert ${oData.code.padEnd(28)} | ${oData.status.padEnd(10)} | ${oData.paymentMethod.padEnd(11)} | ${oData.pricing.totalAmount.toLocaleString('vi-VN')}đ`);

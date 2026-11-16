@@ -23,8 +23,11 @@ const vnAt = (ymd, hhmmss = '10:00:00') => new Date(`${ymd}T${hhmmss}.000+07:00`
 /**
  * Manual UAT seed for M23 Admin Dashboard (UAT-01..UAT-18).
  * Strictly isolated from app/server boot — run via `npm run seed:dashboard-uat`.
- * Idempotent: only upserts uniquely prefixed `ORD-UAT-*`, `APT-UAT-*`, `RET-UAT-*`, `RF-UAT-*` records.
+ * Idempotent: uses fixed deterministic ObjectIds (`6b23...90xx`) while emitting clean
+ * canonical codes (`ORD-YYYYMMDD-9xxx`, `APT-YYYYMMDD-9xxx`, `RET-YYYYMMDD-9xxx`, `REF-YYYYMMDD-9xxx`).
  */
+const m23Id = (suffix) => new mongoose.Types.ObjectId(`6b230000000000000000${String(suffix).padStart(4, '0')}`);
+const compactYmd = (ymd) => String(ymd).replace(/-/g, '');
 export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
   if (!mongoUri) {
@@ -65,7 +68,7 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
 
   const guest1 = await GuestContact.findOneAndUpdate(
     { phone: '0909888771' },
-    { $set: { fullName: 'Khách vãng lai UAT', phone: '0909888771', email: 'guest.uat@drpetshouse.vn' } },
+    { $set: { fullName: 'Phạm Hoàng Minh', phone: '0909888771', email: 'guest.minhph@drpetshouse.vn' } },
     { upsert: true, new: true }
   );
 
@@ -136,9 +139,15 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   const dMinus40 = shiftVnDate(todayVn, -40);
   const dPlus25 = shiftVnDate(todayVn, 25);
 
-  const upsertOrderWithTimestamps = async (code, doc) => {
+  // Cleanup any legacy UAT-prefixed test codes from older seeds before deterministic upsert
+  await Order.deleteMany({ code: /^ORD-UAT-/i });
+  await OrderReturn.deleteMany({ code: /^RET-UAT-/i });
+  await OrderRefund.deleteMany({ code: /^(RF|REF)-UAT-/i });
+  await Appointment.deleteMany({ code: /^APT-UAT-/i });
+
+  const upsertOrderWithTimestamps = async (id, doc) => {
     const res = await Order.findOneAndUpdate(
-      { code },
+      { _id: id },
       { $set: doc },
       { upsert: true, new: true, timestamps: false }
     );
@@ -171,25 +180,25 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   // UAT-01: Created previous period (-35d), delivered in current period (-2d) at Q1
-  await upsertOrderWithTimestamps('ORD-UAT-01', {
-    code: 'ORD-UAT-01',
+  await upsertOrderWithTimestamps(m23Id(9001), {
+    code: `ORD-${compactYmd(dMinus35)}-9001`,
     customerId: cust1?._id || null,
-    contactSnapshot: { fullName: custUser1?.fullName || 'Khách UAT 01', phone: custUser1?.phone || '0900000001' },
+    contactSnapshot: { fullName: custUser1?.fullName || 'Nguyễn Minh Anh', phone: custUser1?.phone || '0900000001' },
     fulfillmentBranchId: br1._id,
     status: 'COMPLETED',
     paymentMethod: 'ONLINE_MOCK',
     items: [makeItem(p1, v1, 450000, 1, 50000)],
     pricing: { merchandiseSubtotal: 500000, voucherDiscount: 50000, shippingFee: 30000, totalAmount: 480000 },
     deliveredAt: vnAt(dMinus2, '14:30:00'),
-    statusHistory: [{ status: 'COMPLETED', at: vnAt(dMinus2, '14:30:00'), note: 'UAT-01 cross-period delivery' }],
+    statusHistory: [{ status: 'COMPLETED', at: vnAt(dMinus2, '14:30:00'), note: 'Giao hàng hoàn tất đa kỳ' }],
     createdAt: vnAt(dMinus35, '09:00:00'),
   });
 
   // UAT-01 + FREESHIP: Free shipping voucher must not subtract 30k twice from lineNet (Q1, Today)
-  await upsertOrderWithTimestamps('ORD-UAT-FREESHIP', {
-    code: 'ORD-UAT-FREESHIP',
+  await upsertOrderWithTimestamps(m23Id(9002), {
+    code: `ORD-${compactYmd(todayVn)}-9002`,
     customerId: cust1?._id || null,
-    contactSnapshot: { fullName: custUser1?.fullName || 'Khách UAT 01', phone: custUser1?.phone || '0900000001' },
+    contactSnapshot: { fullName: custUser1?.fullName || 'Nguyễn Minh Anh', phone: custUser1?.phone || '0900000001' },
     fulfillmentBranchId: br1._id,
     status: 'COMPLETED',
     paymentMethod: 'ONLINE_MOCK',
@@ -202,10 +211,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   // UAT-02: Order completed previous period (-40d) + Refunded current period (-5d) at Q1 (shippingRefunded excluded)
-  const ordUat02 = await upsertOrderWithTimestamps('ORD-UAT-02-SRC', {
-    code: 'ORD-UAT-02-SRC',
+  const ordUat02 = await upsertOrderWithTimestamps(m23Id(9003), {
+    code: `ORD-${compactYmd(dMinus40)}-9003`,
     customerId: cust2?._id || null,
-    contactSnapshot: { fullName: custUser2?.fullName || 'Khách UAT 02', phone: custUser2?.phone || '0900000002' },
+    contactSnapshot: { fullName: custUser2?.fullName || 'Trần Quốc Bảo', phone: custUser2?.phone || '0900000002' },
     fulfillmentBranchId: br1._id,
     status: 'COMPLETED',
     paymentMethod: 'ONLINE_MOCK',
@@ -216,14 +225,14 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   const retUat02 = await OrderReturn.findOneAndUpdate(
-    { code: 'RET-UAT-02' },
+    { _id: m23Id(9102) },
     {
       $set: {
-        code: 'RET-UAT-02',
+        code: `RET-${compactYmd(dMinus5)}-9002`,
         orderId: ordUat02._id,
         customerId: ordUat02.customerId,
         status: 'COMPLETED',
-        reason: 'UAT-02 cross-period return',
+        reason: 'Sản phẩm bị lỗi bao bì khi giao nhận',
         items: [],
         refundBreakdown: { merchandiseNet: 150000, shippingRefunded: 30000, total: 180000 },
       },
@@ -232,10 +241,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   );
 
   await OrderRefund.findOneAndUpdate(
-    { code: 'RF-UAT-02' },
+    { _id: m23Id(9202) },
     {
       $set: {
-        code: 'RF-UAT-02',
+        code: `REF-${compactYmd(dMinus5)}-9002`,
         cause: 'RETURN',
         orderReturnId: retUat02._id,
         orderId: ordUat02._id,
@@ -248,10 +257,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   );
 
   // Cancellation Refund Guard at Q7 (must NOT affect Q7 revenue because order never completed)
-  const ordUatCancel = await upsertOrderWithTimestamps('ORD-UAT-CANCEL', {
-    code: 'ORD-UAT-CANCEL',
+  const ordUatCancel = await upsertOrderWithTimestamps(m23Id(9004), {
+    code: `ORD-${compactYmd(dMinus5)}-9004`,
     customerId: cust2?._id || null,
-    contactSnapshot: { fullName: custUser2?.fullName || 'Khách UAT Cancel', phone: '0900000002' },
+    contactSnapshot: { fullName: custUser2?.fullName || 'Trần Quốc Bảo', phone: '0900000002' },
     fulfillmentBranchId: br2._id,
     status: 'CANCELLED',
     paymentMethod: 'ONLINE_MOCK',
@@ -261,10 +270,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   await OrderRefund.findOneAndUpdate(
-    { code: 'RF-UAT-CANCEL' },
+    { _id: m23Id(9203) },
     {
       $set: {
-        code: 'RF-UAT-CANCEL',
+        code: `REF-${compactYmd(dMinus5)}-9003`,
         cause: 'CANCELLATION',
         orderId: ordUatCancel._id,
         amount: 250000,
@@ -276,10 +285,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   );
 
   // UAT-18: Negative net revenue day/range at Binh Thanh (dMinus12: only refund -250k, 0 sales on dMinus12)
-  const ordUatBtSrc = await upsertOrderWithTimestamps('ORD-UAT-BT-SRC', {
-    code: 'ORD-UAT-BT-SRC',
+  const ordUatBtSrc = await upsertOrderWithTimestamps(m23Id(9005), {
+    code: `ORD-${compactYmd(dMinus40)}-9005`,
     customerId: cust1?._id || null,
-    contactSnapshot: { fullName: custUser1?.fullName || 'Khách UAT BT', phone: '0900000001' },
+    contactSnapshot: { fullName: custUser1?.fullName || 'Nguyễn Minh Anh', phone: '0900000001' },
     fulfillmentBranchId: br3._id,
     status: 'COMPLETED',
     paymentMethod: 'ONLINE_MOCK',
@@ -290,10 +299,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   await OrderRefund.findOneAndUpdate(
-    { code: 'RF-UAT-BT-NEG' },
+    { _id: m23Id(9204) },
     {
       $set: {
-        code: 'RF-UAT-BT-NEG',
+        code: `REF-${compactYmd(dMinus12)}-9004`,
         cause: 'RETURN',
         orderId: ordUatBtSrc._id,
         amount: 250000,
@@ -305,8 +314,8 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   );
 
   // UAT-07 + UAT-14: Guest order & overdue >30d backlog PENDING order
-  await upsertOrderWithTimestamps('ORD-UAT-GUEST', {
-    code: 'ORD-UAT-GUEST',
+  await upsertOrderWithTimestamps(m23Id(9006), {
+    code: `ORD-${compactYmd(dMinus1)}-9006`,
     customerId: null,
     guestContactId: guest1._id,
     contactSnapshot: { fullName: guest1.fullName, phone: guest1.phone },
@@ -319,10 +328,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
     createdAt: vnAt(dMinus1, '12:00:00'),
   });
 
-  await upsertOrderWithTimestamps('ORD-UAT-BACKLOG-OLD', {
-    code: 'ORD-UAT-BACKLOG-OLD',
+  await upsertOrderWithTimestamps(m23Id(9007), {
+    code: `ORD-${compactYmd(dMinus35)}-9007`,
     customerId: cust2?._id || null,
-    contactSnapshot: { fullName: 'Đơn tồn đọng > 35 ngày (UAT-14)', phone: '0900000099' },
+    contactSnapshot: { fullName: 'Đoàn Thảo Vy', phone: '0900000099' },
     fulfillmentBranchId: br1._id,
     status: 'PENDING',
     paymentMethod: 'COD',
@@ -332,9 +341,9 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   // 5. Appointments UAT-03, UAT-04, UAT-05, UAT-14, UAT-17
-  const upsertAppointmentWithTimestamps = async (code, doc) => {
+  const upsertAppointmentWithTimestamps = async (id, doc) => {
     const res = await Appointment.findOneAndUpdate(
-      { code },
+      { _id: id },
       { $set: doc },
       { upsert: true, new: true, timestamps: false }
     );
@@ -351,12 +360,12 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   };
 
   // UAT-03: Created in current period (-2d), scheduled next month (+25d), Guest
-  await upsertAppointmentWithTimestamps('APT-UAT-03', {
-    code: 'APT-UAT-03',
+  await upsertAppointmentWithTimestamps(m23Id(9301), {
+    code: `APT-${compactYmd(dMinus2)}-9001`,
     customerId: null,
     guestContactId: guest1._id,
     contactSnapshot: { fullName: guest1.fullName, phone: guest1.phone },
-    petSnapshot: { name: 'Milo Guest' },
+    petSnapshot: { name: 'Milo' },
     branchId: br1._id,
     serviceType: 'MEDICAL',
     paymentMethod: 'PAY_AT_STORE',
@@ -385,10 +394,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   // UAT-04: 2 COMPLETED segments + 1 IN_PROGRESS segment while appointment status is IN_PROGRESS
-  await upsertAppointmentWithTimestamps('APT-UAT-04', {
-    code: 'APT-UAT-04',
+  await upsertAppointmentWithTimestamps(m23Id(9302), {
+    code: `APT-${compactYmd(dMinus10)}-9002`,
     customerId: cust1?._id || null,
-    contactSnapshot: { fullName: custUser1?.fullName || 'Khách UAT 04', phone: '0900000001' },
+    contactSnapshot: { fullName: custUser1?.fullName || 'Nguyễn Minh Anh', phone: '0900000001' },
     petSnapshot: { name: 'Buddy' },
     branchId: br1._id,
     serviceType: 'MIXED',
@@ -446,10 +455,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   });
 
   // UAT-05: Deposit 30% + 70% balance COMPLETED appointment today at Q1 -> counts 420k once
-  await upsertAppointmentWithTimestamps('APT-UAT-05', {
-    code: 'APT-UAT-05',
+  await upsertAppointmentWithTimestamps(m23Id(9303), {
+    code: `APT-${compactYmd(dMinus5)}-9003`,
     customerId: cust1?._id || null,
-    contactSnapshot: { fullName: custUser1?.fullName || 'Khách UAT 05', phone: '0900000001' },
+    contactSnapshot: { fullName: custUser1?.fullName || 'Nguyễn Minh Anh', phone: '0900000001' },
     petSnapshot: { name: 'Luna' },
     branchId: br1._id,
     serviceType: 'MEDICAL',
@@ -483,10 +492,10 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
   // UAT-14: Upcoming appointment within next 24h (now + 3h) at Q1
   const upcomingStart = new Date(now.getTime() + 3 * 60 * 60 * 1000);
   const upcomingEnd = new Date(upcomingStart.getTime() + 60 * 60 * 1000);
-  await upsertAppointmentWithTimestamps('APT-UAT-UPCOMING-24H', {
-    code: 'APT-UAT-UPCOMING-24H',
+  await upsertAppointmentWithTimestamps(m23Id(9304), {
+    code: `APT-${compactYmd(dMinus1)}-9004`,
     customerId: cust2?._id || null,
-    contactSnapshot: { fullName: 'Khách hẹn sắp tới (24h UAT)', phone: '0900000088' },
+    contactSnapshot: { fullName: custUser2?.fullName || 'Trần Quốc Bảo', phone: '0900000088' },
     petSnapshot: { name: 'Lucky' },
     branchId: br1._id,
     serviceType: 'GROOMING',
@@ -516,15 +525,15 @@ export const seedDashboardUat = async ({ closeConnection = true } = {}) => {
 
   // UAT-17: Remaining Appointment statuses (PENDING_PAYMENT, PENDING_CONFIRMATION, NO_SHOW)
   const extraStatuses = [
-    { code: 'APT-UAT-ST-PP', status: 'PENDING_PAYMENT', branchId: br2._id },
-    { code: 'APT-UAT-ST-PC', status: 'PENDING_CONFIRMATION', branchId: br2._id },
-    { code: 'APT-UAT-ST-NS', status: 'NO_SHOW', branchId: br2._id },
+    { id: m23Id(9305), code: `APT-${compactYmd(dMinus1)}-9005`, status: 'PENDING_PAYMENT', branchId: br2._id },
+    { id: m23Id(9306), code: `APT-${compactYmd(dMinus1)}-9006`, status: 'PENDING_CONFIRMATION', branchId: br2._id },
+    { id: m23Id(9307), code: `APT-${compactYmd(dMinus1)}-9007`, status: 'NO_SHOW', branchId: br2._id },
   ];
   for (const st of extraStatuses) {
-    await upsertAppointmentWithTimestamps(st.code, {
+    await upsertAppointmentWithTimestamps(st.id, {
       code: st.code,
       customerId: cust2?._id || null,
-      contactSnapshot: { fullName: 'Khách Trạng Thái UAT', phone: '0900000077' },
+      contactSnapshot: { fullName: custUser2?.fullName || 'Lê Hoàng Nam', phone: '0900000077' },
       petSnapshot: { name: 'Mimi' },
       branchId: st.branchId,
       serviceType: 'MEDICAL',

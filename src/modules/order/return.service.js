@@ -7,6 +7,7 @@ import Product from '../catalog/models/Product';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
+import { generateUniqueDocumentCode } from '../../utils/codeGenerator';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -222,8 +223,9 @@ export const createReturn = async (data, actor, guestToken) => {
 
     await freshOrder.save({ session });
 
+    const returnCode = await generateUniqueDocumentCode(OrderReturn, 'RET', { session });
     const orderReturn = new OrderReturn({
-      code: `RET-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`,
+      code: returnCode,
       orderId: freshOrder._id,
       customerId: freshOrder.customerId,
       guestContactId: freshOrder.guestContactId,
@@ -587,8 +589,9 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
 
     await order.save({ session });
 
+    const refundCode = await generateUniqueDocumentCode(OrderRefund, 'REF', { session });
     const refund = new OrderRefund({
-      code: `REF-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`,
+      code: refundCode,
       cause: 'RETURN',
       orderReturnId: ret._id,
       orderId: order._id,

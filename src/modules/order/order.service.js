@@ -15,6 +15,7 @@ import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/in
 import { validateVoucherEligibility, calculateDiscount, consumeQuotaInSession, restoreQuotaInSession } from './voucher.service';
 import { findActiveFlashSaleItem, consumeFlashSaleQuotaInSession, releaseFlashSaleQuotaInSession } from '../flash-sale/flashSale.service';
 import { buildOptionalVnDateFilter } from '../dashboard/dashboard.utils';
+import { formatCompactVnDate, generateUniqueDocumentCode } from '../../utils/codeGenerator';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURN_WINDOW_MS = RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -30,57 +31,13 @@ const aggregateMovements = (items) => {
 
 let dailyOrderSeq = 1;
 export const makeOrderCode = (date = new Date()) => {
-  const d = new Date(date);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
+  const ymd = formatCompactVnDate(date);
   const seq = String(dailyOrderSeq++).padStart(4, '0');
-  return `ORD-${yyyy}${mm}${dd}-${seq}`;
+  return `ORD-${ymd}-${seq}`;
 };
 
-export const generateUniqueOrderCode = async (session = null) => {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const prefix = `ORD-${yyyy}${mm}${dd}-`;
-
-  try {
-    const todayStart = new Date(d);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const latestOrder = await Order.findOne({ code: new RegExp(`^${prefix}`) })
-      .session(session || undefined)
-      .sort({ code: -1 })
-      .select('code')
-      .lean();
-
-    let seq = 1;
-    if (latestOrder && latestOrder.code) {
-      const parts = latestOrder.code.split('-');
-      const num = parseInt(parts[2], 10);
-      if (!isNaN(num)) {
-        seq = num + 1;
-      }
-    }
-
-    for (let i = 0; i < 50; i++) {
-      const candidate = `${prefix}${String(seq + i).padStart(4, '0')}`;
-      const exists = await Order.findOne({ code: candidate })
-        .session(session || undefined)
-        .select('_id')
-        .lean();
-      if (!exists) {
-        return candidate;
-      }
-    }
-  } catch (err) {
-    // Fallback if query fails
-  }
-
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}${Date.now().toString().slice(-4)}-${rand}`;
-};
+export const generateUniqueOrderCode = async (session = null) =>
+  generateUniqueDocumentCode(Order, 'ORD', { session });
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
   const { cartId, paymentMethod, shippingAddress, contact, voucherCode, note } = data;
@@ -1083,8 +1040,9 @@ export const cancelOrder = async (orderId, actor, reason = 'Cancelled', isCustom
       if (payment.status === 'PAID') {
         payment.status = 'REFUND_PENDING';
         // Create OrderRefund with cause CANCELLATION
+        const refundCode = await generateUniqueDocumentCode(OrderRefund, 'REF', { session });
         const refund = new OrderRefund({
-          code: `REF-${Date.now()}-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`,
+          code: refundCode,
           cause: 'CANCELLATION',
           orderId: order._id,
           amount: payment.amount,
