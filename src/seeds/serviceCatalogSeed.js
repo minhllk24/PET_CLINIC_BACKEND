@@ -52,9 +52,10 @@ export const seedServiceCatalog = async () => {
 
   const branches = [];
   for (const bData of branchesData) {
+    const { _id, ...updateFields } = bData;
     const branch = await Branch.findOneAndUpdate(
       { code: bData.code },
-      { $set: bData },
+      { $set: updateFields, $setOnInsert: { _id } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     branches.push(branch);
