@@ -2,8 +2,109 @@ import mongoose from 'mongoose';
 import Service from './models/Service';
 import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import Branch from '../branch/models/Branch';
+import Pet from '../customer/models/Pet';
 import { getNextSequence } from '../../models/Counter';
 import AppError from '../../utils/AppError';
+
+export const GROOMING_WEIGHT_TIERS = [
+  { tier: 'XS', label: 'XS (< 5 kg)', shortLabel: '< 5 kg', maxExclusive: 5 },
+  { tier: 'S', label: 'S (5 – <10 kg)', shortLabel: '5 – <10 kg', minInclusive: 5, maxExclusive: 10 },
+  { tier: 'M', label: 'M (10 – <20 kg)', shortLabel: '10 – <20 kg', minInclusive: 10, maxExclusive: 20 },
+  { tier: 'L', label: 'L (20 – 30 kg)', shortLabel: '20 – 30 kg', minInclusive: 20, maxInclusive: 30 },
+  { tier: 'XL', label: 'XL (> 30 kg) - Liên hệ / Báo giá', shortLabel: '> 30 kg', minExclusive: 30, requiresQuote: true },
+];
+
+export const resolveWeightTierCode = (weightKg) => {
+  if (weightKg === null || weightKg === undefined || weightKg === '') return null;
+  const w = Number(weightKg);
+  if (Number.isNaN(w) || w <= 0) return null;
+  if (w < 5) return 'XS';
+  if (w < 10) return 'S';
+  if (w < 20) return 'M';
+  if (w <= 30) return 'L';
+  return 'XL';
+};
+
+export const resolveServiceWeightPricing = (service, weightKg = null) => {
+  const sObj = service?.toObject ? service.toObject() : service;
+  if (!sObj) {
+    return { weightMissing: false, tier: null, price: null, requiresQuote: false, variantLabel: null };
+  }
+
+  if (sObj.serviceType !== 'GROOMING') {
+    const isContactOnly = sObj.bookingMode === 'CONTACT_ONLY';
+    const isRequestOnly = sObj.bookingMode === 'REQUEST_ONLY';
+    const numericPrice = Number(sObj.basePrice || 0);
+    return {
+      weightMissing: false,
+      tier: null,
+      tierLabel: null,
+      mode: isContactOnly ? 'QUOTE' : 'FIXED',
+      price: isContactOnly ? null : numericPrice,
+      requiresQuote: isContactOnly || isRequestOnly,
+      variantLabel: null,
+      priceDisplay: isContactOnly
+        ? 'Báo giá sau tiếp nhận'
+        : (isRequestOnly ? `Từ ${numericPrice.toLocaleString('vi-VN')}đ` : null),
+    };
+  }
+
+  const tierCode = resolveWeightTierCode(weightKg);
+  if (!tierCode) {
+    return {
+      weightMissing: true,
+      tier: null,
+      tierLabel: null,
+      mode: 'WEIGHT_REQUIRED',
+      price: null,
+      requiresQuote: false,
+      variantLabel: null,
+      priceDisplay: null,
+    };
+  }
+
+  const variants = Array.isArray(sObj.priceVariants) ? sObj.priceVariants : [];
+  const w = Number(weightKg);
+  const matched =
+    variants.find((v) => String(v.tier || '').toUpperCase() === tierCode) ||
+    variants.find((v) => {
+      const hasMin = v.minWeightKg !== undefined && v.minWeightKg !== null;
+      const hasMax = v.maxWeightKg !== undefined && v.maxWeightKg !== null;
+      return (!hasMin || w >= Number(v.minWeightKg)) && (!hasMax || w <= Number(v.maxWeightKg));
+    }) ||
+    null;
+
+  if (tierCode === 'XL' || matched?.mode === 'QUOTE') {
+    const label = matched?.label || 'XL (> 30 kg) - Liên hệ / Báo giá';
+    return {
+      weightMissing: false,
+      tier: 'XL',
+      tierLabel: label,
+      mode: 'QUOTE',
+      price: null,
+      requiresQuote: true,
+      variantLabel: label,
+      priceDisplay: 'Liên hệ / Báo giá',
+    };
+  }
+
+  const resolvedPrice =
+    matched && matched.price !== null && matched.price !== undefined
+      ? Number(matched.price)
+      : Number(sObj.basePrice || 0);
+  const label = matched?.label || GROOMING_WEIGHT_TIERS.find((t) => t.tier === tierCode)?.label || tierCode;
+
+  return {
+    weightMissing: false,
+    tier: tierCode,
+    tierLabel: label,
+    mode: 'FIXED',
+    price: resolvedPrice,
+    requiresQuote: false,
+    variantLabel: label,
+    priceDisplay: `${resolvedPrice.toLocaleString('vi-VN')}đ`,
+  };
+};
 
 const encodeCursor = (id) => Buffer.from(id.toString()).toString('base64');
 const decodeCursor = (cursor) => {
@@ -26,6 +127,7 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
     totalBranchCount = undefined,
     branchConfig = undefined,
     branchId = undefined,
+    petWeightKg = undefined,
   } = opts;
 
   const obj = service.toObject ? service.toObject() : service;
@@ -143,6 +245,22 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
     }
   }
 
+  if (obj.bookingMode === 'CONTACT_ONLY' && Number(obj.basePrice || 0) === 0) {
+    res.priceDisplay = 'Báo giá sau tiếp nhận';
+  } else if (obj.bookingMode === 'REQUEST_ONLY') {
+    res.priceDisplay = `Từ ${Number(obj.basePrice || 0).toLocaleString('vi-VN')}đ`;
+  }
+
+  if (petWeightKg !== undefined && petWeightKg !== null && petWeightKg !== '') {
+    const resolved = resolveServiceWeightPricing(obj, petWeightKg);
+    res.resolvedTier = resolved.tier;
+    res.resolvedPrice = resolved.price;
+    res.requiresQuote = resolved.requiresQuote;
+    res.weightMissing = resolved.weightMissing;
+    res.variantLabel = resolved.variantLabel;
+    if (resolved.priceDisplay) res.priceDisplay = resolved.priceDisplay;
+  }
+
   return res;
 };
 
@@ -211,6 +329,9 @@ export const listServices = async ({
   status,
   search,
   branchId = null,
+  petId = null,
+  petWeightKg = null,
+  weightKg = null,
   isAvailable = null,
   sort = null,
   limit = 20,
@@ -220,6 +341,18 @@ export const listServices = async ({
 }) => {
   if (mongoose.connection.readyState !== 1 && !Service.find?._isMockFunction) {
     return { items: [], services: [], DT: [], EC: 0, total: 0, totalItems: 0, page: 1, totalPages: 1, limit: 20, nextCursor: null };
+  }
+  let effectiveWeightKg = petWeightKg ?? weightKg ?? null;
+  if (
+    (effectiveWeightKg === null || effectiveWeightKg === undefined || effectiveWeightKg === '') &&
+    petId &&
+    mongoose.Types.ObjectId.isValid(petId) &&
+    (mongoose.connection.readyState === 1 || Pet.findById?._isMockFunction)
+  ) {
+    const petDoc = await Pet.findById(petId).select('weightKg').lean();
+    if (petDoc && petDoc.weightKg > 0) {
+      effectiveWeightKg = petDoc.weightKg;
+    }
   }
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 200);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
@@ -326,7 +459,7 @@ export const listServices = async ({
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
   // Sorting
-  let sortCriteria = { _id: 1 };
+  let sortCriteria = { code: 1, _id: 1 };
   if (sort === 'NAME_ASC') sortCriteria = { name: 1, _id: 1 };
   else if (sort === 'NAME_DESC') sortCriteria = { name: -1, _id: -1 };
   else if (sort === 'PRICE_ASC') sortCriteria = { basePrice: 1, _id: 1 };
@@ -418,6 +551,7 @@ export const listServices = async ({
       totalBranchCount,
       branchConfig,
       branchId: validBranchId,
+      petWeightKg: effectiveWeightKg,
     });
   });
 
@@ -435,7 +569,7 @@ export const listServices = async ({
   };
 };
 
-export const getServiceById = async (id, actor = null, branchId = null) => {
+export const getServiceById = async (id, actor = null, branchId = null, petWeightKg = null, petId = null) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
   }
@@ -448,6 +582,19 @@ export const getServiceById = async (id, actor = null, branchId = null) => {
   const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
   if (!isInternal && service.status !== 'ACTIVE') {
     throw new AppError(404, 'NotFound', 'RESOURCE_NOT_FOUND', 'Service not found');
+  }
+
+  let effectiveWeightKg = petWeightKg;
+  if (
+    (effectiveWeightKg === null || effectiveWeightKg === undefined || effectiveWeightKg === '') &&
+    petId &&
+    mongoose.Types.ObjectId.isValid(petId) &&
+    (mongoose.connection.readyState === 1 || Pet.findById?._isMockFunction)
+  ) {
+    const petDoc = await Pet.findById(petId).select('weightKg').lean();
+    if (petDoc && petDoc.weightKg > 0) {
+      effectiveWeightKg = petDoc.weightKg;
+    }
   }
 
   const [enabledBranchCount, totalBranchCount] = await Promise.all([
@@ -470,6 +617,7 @@ export const getServiceById = async (id, actor = null, branchId = null) => {
     totalBranchCount,
     branchConfig,
     branchId: validBranchId,
+    petWeightKg: effectiveWeightKg,
   });
 };
 

@@ -1130,6 +1130,20 @@ paths:
           - DURATION_ASC
           - DURATION_DESC
           - NEWEST
+      - name: petId
+        in: query
+        schema:
+          type: string
+      - name: petWeightKg
+        in: query
+        schema:
+          type: number
+          minimum: 0
+      - name: weightKg
+        in: query
+        schema:
+          type: number
+          minimum: 0
       responses:
         '200':
           description: Services
@@ -1245,6 +1259,20 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/ObjectId'
+      - name: petId
+        in: query
+        schema:
+          type: string
+      - name: petWeightKg
+        in: query
+        schema:
+          type: number
+          minimum: 0
+      - name: weightKg
+        in: query
+        schema:
+          type: number
+          minimum: 0
       responses:
         '200':
           description: Service

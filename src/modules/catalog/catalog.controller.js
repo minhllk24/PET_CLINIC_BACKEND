@@ -186,7 +186,13 @@ export const createService = async (req, res, next) => {
 
 export const getServiceById = async (req, res, next) => {
   try {
-    const result = await serviceCatalogService.getServiceById(req.params.id, req.actor, req.query.branchId);
+    const result = await serviceCatalogService.getServiceById(
+      req.params.id,
+      req.actor,
+      req.query.branchId,
+      req.query.petWeightKg ?? req.query.weightKg ?? null,
+      req.query.petId || null
+    );
     res.json(result);
   } catch (error) {
     next(error);

@@ -475,186 +475,118 @@ router.get('/reviews/can-review/product/:productId', optionalAuth, (req, res) =>
   res.status(200).json({ success: true, canReview: true });
 });
 
-// 8. Bảng giá dịch vụ (Service Pricing Matrix)
-router.get('/services/pricing-matrix', (req, res) => {
+// 8. Bảng giá dịch vụ (Service Pricing Matrix - synced with Service Catalog & docs/catalog (2).xlsx)
+router.get('/services/pricing-matrix', async (_req, res) => {
+  const canonicalFallback = [
+    {
+      category_name: 'Khám & Điều trị thú y',
+      weight_ranges: [{ label: 'Bảng giá chuẩn (Mọi cân nặng)' }],
+      services: [
+        { code: 'MED01', service_name: 'Khám sức khỏe tổng quát', durationMinutes: 30, bookingMode: 'BOOKABLE', requiredStaffRole: 'VETERINARIAN', prices: [{ price: 150000, is_contact: false }] },
+        { code: 'MED02', service_name: 'Tiêm phòng', durationMinutes: 20, bookingMode: 'BOOKABLE', requiredStaffRole: 'VETERINARIAN', prices: [{ price: 200000, is_contact: false }] },
+        { code: 'MED03', service_name: 'Xét nghiệm máu / Test nhanh', durationMinutes: 30, bookingMode: 'BOOKABLE', requiredStaffRole: 'VETERINARIAN', prices: [{ price: 250000, is_contact: false }] },
+        { code: 'MED04', service_name: 'Siêu âm', durationMinutes: 30, bookingMode: 'BOOKABLE', requiredStaffRole: 'VETERINARIAN', prices: [{ price: 250000, is_contact: false }] },
+        { code: 'MED05', service_name: 'Thay băng / Chăm sóc sau điều trị', durationMinutes: 30, bookingMode: 'BOOKABLE', requiredStaffRole: 'NURSE', prices: [{ price: 120000, is_contact: false }] },
+        { code: 'MED06', service_name: 'Phẫu thuật / Triệt sản', durationMinutes: 120, bookingMode: 'REQUEST_ONLY', requiredStaffRole: 'VETERINARIAN', prices: [{ price: 800000, is_contact: true, label: 'Từ 800.000đ' }] },
+        { code: 'MED07', service_name: 'Cấp cứu 24/7', durationMinutes: null, bookingMode: 'CONTACT_ONLY', requiredStaffRole: 'VETERINARIAN', prices: [{ price: null, is_contact: true, label: 'Báo giá sau tiếp nhận' }] },
+      ],
+    },
+    {
+      category_name: 'Grooming & Spa thú cưng',
+      weight_ranges: [
+        { tier: 'XS', label: 'XS (< 5 kg)' },
+        { tier: 'S', label: 'S (5 – <10 kg)' },
+        { tier: 'M', label: 'M (10 – <20 kg)' },
+        { tier: 'L', label: 'L (20 – 30 kg)' },
+        { tier: 'XL', label: 'XL (> 30 kg)' },
+      ],
+      services: [
+        { code: 'GRM01', service_name: 'Tắm & Sấy khô', durationMinutes: 60, prices: [{ price: 70000, is_contact: false }, { price: 100000, is_contact: false }, { price: 170000, is_contact: false }, { price: 270000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM02', service_name: 'Massage chuyên sâu', durationMinutes: 45, prices: [{ price: 75000, is_contact: false }, { price: 110000, is_contact: false }, { price: 180000, is_contact: false }, { price: 280000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM03', service_name: 'Vệ sinh răng miệng', durationMinutes: 20, prices: [{ price: 45000, is_contact: false }, { price: 70000, is_contact: false }, { price: 120000, is_contact: false }, { price: 180000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM04', service_name: 'Cắt & mài móng', durationMinutes: 20, prices: [{ price: 45000, is_contact: false }, { price: 60000, is_contact: false }, { price: 95000, is_contact: false }, { price: 145000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM05', service_name: 'Chăm sóc bàn chân', durationMinutes: 25, prices: [{ price: 45000, is_contact: false }, { price: 60000, is_contact: false }, { price: 95000, is_contact: false }, { price: 145000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM06', service_name: 'Điều trị ký sinh trùng ngoài da', durationMinutes: 45, prices: [{ price: 110000, is_contact: false }, { price: 150000, is_contact: false }, { price: 250000, is_contact: false }, { price: 365000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM07', service_name: 'Cắt tỉa tạo kiểu', durationMinutes: 90, prices: [{ price: 85000, is_contact: false }, { price: 130000, is_contact: false }, { price: 240000, is_contact: false }, { price: 380000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM08', service_name: 'Nhuộm lông thời trang', durationMinutes: 120, prices: [{ price: 120000, is_contact: false }, { price: 180000, is_contact: false }, { price: 340000, is_contact: false }, { price: 540000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'GRM09', service_name: 'Vắt tuyến hôi', durationMinutes: 20, prices: [{ price: 65000, is_contact: false }, { price: 90000, is_contact: false }, { price: 135000, is_contact: false }, { price: 200000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'CMB01', service_name: 'Combo Tắm 11 bước', durationMinutes: 120, prices: [{ price: 180000, is_contact: false }, { price: 230000, is_contact: false }, { price: 385000, is_contact: false }, { price: 525000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'CMB02', service_name: 'Combo Tắm cơ bản & cắt tỉa lông', durationMinutes: 150, prices: [{ price: 135000, is_contact: false }, { price: 190000, is_contact: false }, { price: 325000, is_contact: false }, { price: 485000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+        { code: 'CMB03', service_name: 'Combo Chăm sóc & bảo vệ móng', durationMinutes: 45, prices: [{ price: 100000, is_contact: false }, { price: 135000, is_contact: false }, { price: 210000, is_contact: false }, { price: 300000, is_contact: false }, { price: null, is_contact: true, label: 'Liên hệ' }] },
+      ],
+    },
+  ];
+
+  try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState === 1) {
+      const Service = require('../catalog/models/Service').default || require('../catalog/models/Service');
+      const liveServices = await Service.find({ status: 'ACTIVE' }).sort({ code: 1 }).lean();
+      if (Array.isArray(liveServices) && liveServices.length > 0) {
+        const medServices = liveServices.filter((s) => s.serviceType === 'MEDICAL').map((s) => ({
+          id: s._id.toString(),
+          code: s.code,
+          service_name: s.name,
+          durationMinutes: s.bookingMode === 'CONTACT_ONLY' ? null : s.durationMinutes,
+          bookingMode: s.bookingMode,
+          requiredStaffRole: s.requiredStaffRole,
+          prices: [
+            {
+              price: s.bookingMode === 'CONTACT_ONLY' ? null : Number(s.basePrice || 0),
+              is_contact: s.bookingMode === 'CONTACT_ONLY' || s.bookingMode === 'REQUEST_ONLY',
+              label: s.bookingMode === 'CONTACT_ONLY' ? 'Báo giá sau tiếp nhận' : undefined,
+            },
+          ],
+        }));
+
+        const tiers = ['XS', 'S', 'M', 'L', 'XL'];
+        const grmServices = liveServices
+          .filter((s) => s.serviceType === 'GROOMING')
+          .sort((a, b) => {
+            const aGrm = String(a.code || '').startsWith('GRM') ? 0 : 1;
+            const bGrm = String(b.code || '').startsWith('GRM') ? 0 : 1;
+            if (aGrm !== bGrm) return aGrm - bGrm;
+            return String(a.code || '').localeCompare(String(b.code || ''));
+          })
+          .map((s) => {
+            const variantMap = new Map((s.priceVariants || []).map((v) => [String(v.tier || '').toUpperCase(), v]));
+            return {
+              id: s._id.toString(),
+              code: s.code,
+              service_name: s.name,
+              durationMinutes: s.durationMinutes,
+              bookingMode: s.bookingMode,
+              requiredStaffRole: s.requiredStaffRole,
+              prices: tiers.map((t) => {
+                const v = variantMap.get(t);
+                if (!v || v.mode === 'QUOTE' || t === 'XL') {
+                  return { tier: t, price: null, is_contact: true, label: 'Liên hệ' };
+                }
+                return { tier: t, price: Number(v.price ?? s.basePrice ?? 0), is_contact: false };
+              }),
+            };
+          });
+
+        return res.status(200).json({
+          success: true,
+          data: [
+            { ...canonicalFallback[0], services: medServices },
+            { ...canonicalFallback[1], services: grmServices },
+          ],
+        });
+      }
+    }
+  } catch {
+    // fallback safely to canonical static matrix
+  }
+
   res.status(200).json({
     success: true,
-    data: [
-      {
-        category_name: 'Khám & Điều trị thú y',
-        weight_ranges: [
-          { label: 'Chó/Mèo nhỏ (< 5kg)' },
-          { label: 'Chó/Mèo vừa (5 - 10kg)' },
-          { label: 'Chó lớn (> 10kg)' },
-        ],
-        services: [
-          {
-            service_name: 'Khám lâm sàng tổng quát',
-            prices: [
-              { price: 100000, is_contact: false },
-              { price: 150000, is_contact: false },
-              { price: 200000, is_contact: false },
-            ],
-          },
-          {
-            service_name: 'Tiêm phòng vắc-xin 5/7 bệnh',
-            prices: [
-              { price: 250000, is_contact: false },
-              { price: 250000, is_contact: false },
-              { price: 300000, is_contact: false },
-            ],
-          },
-          {
-            service_name: 'Phẫu thuật ngoại khoa & Triệt sản',
-            prices: [
-              { price: 500000, is_contact: true },
-              { price: 700000, is_contact: true },
-              { price: 1000000, is_contact: true },
-            ],
-          },
-        ],
-      },
-      {
-        category_name: 'Grooming & Spa thú cưng',
-        weight_ranges: [
-          { label: '< 5kg' },
-          { label: '5 - 10kg' },
-          { label: '10 - 20kg' },
-          { label: '> 20kg' },
-        ],
-        services: [
-          {
-            service_name: 'Tắm vệ sinh & sấy chải',
-            prices: [
-              { price: 120000, is_contact: false },
-              { price: 180000, is_contact: false },
-              { price: 250000, is_contact: false },
-              { price: 350000, is_contact: false },
-            ],
-          },
-          {
-            service_name: 'Cắt tỉa lông tạo kiểu nghệ thuật',
-            prices: [
-              { price: 250000, is_contact: false },
-              { price: 350000, is_contact: false },
-              { price: 450000, is_contact: false },
-              { price: 600000, is_contact: false },
-            ],
-          },
-          {
-            service_name: 'Vệ sinh tai, cắt móng & vắt tuyến hôi',
-            prices: [
-              { price: 50000, is_contact: false },
-              { price: 70000, is_contact: false },
-              { price: 90000, is_contact: false },
-              { price: 120000, is_contact: false },
-            ],
-          },
-        ],
-      },
-      {
-        category_name: 'Combo siêu tiết kiệm',
-        weight_ranges: [
-          { label: '< 5kg' },
-          { label: '5 - 10kg' },
-          { label: '10 - 20kg' },
-          { label: '> 20kg' },
-        ],
-        services: [
-          {
-            service_name: 'Combo Tắm Spa + Cắt Tỉa Toàn Diện (Tiết kiệm 25%)',
-            prices: [
-              { price: 300000, is_contact: false },
-              { price: 420000, is_contact: false },
-              { price: 550000, is_contact: false },
-              { price: 750000, is_contact: false },
-            ],
-          },
-        ],
-      },
-    ],
+    data: canonicalFallback,
   });
 });
 
-// 9. Báo giá & Dự tính tiền cọc đặt lịch (Appointment Pricing & Deposit Quote)
-router.post(['/appointments/quote', '/appointments/preview-pricing'], optionalAuth, async (req, res) => {
-  try {
-    const { serviceIds, voucherCode } = req.body || {};
-    let subtotal = 0;
-    if (Array.isArray(serviceIds) && serviceIds.length > 0) {
-      try {
-        const Service = require('../catalog/models/Service').default || require('../catalog/models/Service');
-        const services = await Service.find({ _id: { $in: serviceIds } }).lean();
-        subtotal = services.reduce((sum, s) => sum + (Number(s.basePrice || s.price || 0)), 0);
-      } catch {
-        subtotal = 300000;
-      }
-    }
-    if (subtotal === 0) {
-      subtotal = 250000; // Mặc định gói dịch vụ cơ bản
-    }
-
-    let voucherDiscount = 0;
-    if (voucherCode) {
-      try {
-        const Voucher = require('../order/models/Voucher').default || require('../order/models/Voucher');
-        const voucher = await Voucher.findOne({ code: String(voucherCode).trim().toUpperCase(), status: 'ACTIVE' }).lean();
-        if (voucher) {
-          if (voucher.discountType === 'PERCENT') {
-            voucherDiscount = Math.round((subtotal * (voucher.discountValue || 0)) / 100);
-            if (voucher.maxDiscountAmount && voucherDiscount > voucher.maxDiscountAmount) {
-              voucherDiscount = voucher.maxDiscountAmount;
-            }
-          } else {
-            voucherDiscount = voucher.discountValue || 0;
-          }
-        }
-      } catch {
-        // voucher error fallback
-      }
-    }
-
-    const finalAmount = Math.max(0, subtotal - voucherDiscount);
-    const depositAmount = Math.round(finalAmount * 0.30);
-    const balanceAmount = finalAmount - depositAmount;
-
-    const payloadData = {
-      subtotal,
-      voucherDiscount,
-      finalAmount,
-      total: finalAmount,
-      depositType: 'PERCENTAGE',
-      depositValue: 30,
-      depositAmount,
-      balanceAmount,
-      policy: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-      policyText: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-    };
-
-    res.status(200).json({
-      success: true,
-      data: payloadData,
-      ...payloadData,
-    });
-  } catch (err) {
-    const fallbackData = {
-      subtotal: 250000,
-      voucherDiscount: 0,
-      finalAmount: 250000,
-      depositType: 'PERCENTAGE',
-      depositValue: 30,
-      depositAmount: 75000,
-      balanceAmount: 175000,
-      policy: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-      policyText: 'Khách hủy trước 24h hoàn 100% cọc (30%); hủy dưới 24h hoặc vắng mặt không hoàn cọc.',
-    };
-    res.status(200).json({
-      success: true,
-      data: fallbackData,
-      ...fallbackData,
-    });
-  }
-});
+// Note: POST /appointments/quote & /appointments/preview-pricing are handled by bookingRoutes (bookingController.previewPricing)
 
 // 10. User Profile & Address Book Legacy/Angular Contract (/users/:userId & /addresses/:addressId)
 const formatAddressDto = (addr, userId = '') => {

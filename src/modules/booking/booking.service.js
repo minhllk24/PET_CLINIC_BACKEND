@@ -18,7 +18,12 @@ import {
   consumeQuotaInSession,
   restoreQuotaInSession,
 } from '../order/voucher.service';
+import {
+  resolveServiceWeightPricing,
+  resolveWeightTierCode,
+} from '../catalog/serviceCatalog.service';
 import { buildOptionalVnDateFilter } from '../dashboard/dashboard.utils';
+import { formatCompactVnDate } from '../../utils/codeGenerator';
 
 /**
  * Pure Serializer for a Service Segment (ServiceLine)
@@ -296,7 +301,7 @@ const safeUpdateReservations = async (filter, update, session) => {
  * Generate a unique Appointment Code
  */
 const generateAppointmentCode = () => {
-  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const datePart = formatCompactVnDate(new Date());
   const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `APT-${datePart}-${randomPart}`;
 };
@@ -801,6 +806,47 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       );
     }
 
+    // 3.5 Resolve Pet & Weight-Tier Guardrails for Grooming (docs/catalog (2).xlsx Rules 1-7)
+    let resolvedPetDoc = null;
+    if (petId && mongoose.Types.ObjectId.isValid(petId)) {
+      try {
+        const pq = Pet.findById(petId);
+        resolvedPetDoc = session && typeof pq?.session === 'function' ? await pq.session(session) : await pq;
+      } catch {
+        resolvedPetDoc = null;
+      }
+    }
+
+    const rawPetWeightKg =
+      pet?.weightKg !== undefined && pet?.weightKg !== null && pet?.weightKg !== ''
+        ? Number(pet.weightKg)
+        : (resolvedPetDoc?.weightKg !== undefined && resolvedPetDoc?.weightKg !== null
+          ? Number(resolvedPetDoc.weightKg)
+          : null);
+    const effectivePetWeightKg =
+      rawPetWeightKg !== null && !Number.isNaN(rawPetWeightKg) && rawPetWeightKg > 0
+        ? rawPetWeightKg
+        : null;
+
+    if (primaryServiceType === 'GROOMING' && !isInternalStaff && !data.isInternal) {
+      if (effectivePetWeightKg === null) {
+        throw new AppError(
+          422,
+          'UnprocessableEntity',
+          'WEIGHT_REQUIRED',
+          'Vui lòng cập nhật cân nặng thú cưng (weightKg) trước khi đặt lịch Grooming & Spa.'
+        );
+      }
+      if (effectivePetWeightKg > 30) {
+        throw new AppError(
+          422,
+          'UnprocessableEntity',
+          'REQUIRES_QUOTE',
+          'Thú cưng trên 30kg (tier XL) thuộc diện báo giá trực tiếp và không đặt qua luồng thông thường. Vui lòng liên hệ hoặc gửi yêu cầu tư vấn.'
+        );
+      }
+    }
+
     // 4. Validate BranchServiceConfig for all services
     const resolvedServiceIds = orderedServices.map((s) => s._id);
     const configs = await BranchServiceConfig.find({
@@ -907,15 +953,40 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       occupiedStaffIds.add(assignedStaffId.toString());
       prevStaffId = assignedStaffId;
 
+      const resolvedPricing = resolveServiceWeightPricing(service, effectivePetWeightKg);
+      if (
+        service.serviceType === 'GROOMING' &&
+        resolvedPricing.requiresQuote &&
+        !isInternalStaff &&
+        !data.isInternal
+      ) {
+        throw new AppError(
+          422,
+          'UnprocessableEntity',
+          'REQUIRES_QUOTE',
+          'Thú cưng trên 30kg (tier XL) thuộc diện báo giá trực tiếp và không đặt qua luồng thông thường.'
+        );
+      }
+
+      const customPrice = data.customUnitPrices?.[sId];
+      const snapshotUnitPrice =
+        customPrice !== undefined && customPrice !== null
+          ? Number(customPrice)
+          : (resolvedPricing.price !== null && resolvedPricing.price !== undefined
+            ? Number(resolvedPricing.price)
+            : Number(service.basePrice || 0));
+
       const variantLabel =
-        variantLabels && variantLabels[sId] ? variantLabels[sId] : null;
+        (variantLabels && variantLabels[sId]) ||
+        resolvedPricing.variantLabel ||
+        null;
 
       segments.push({
         serviceId: service._id,
         serviceName: service.name,
         serviceType: service.serviceType,
         variantLabel,
-        unitPrice: service.basePrice || 100000,
+        unitPrice: snapshotUnitPrice,
         durationMinutes: duration,
         requiredStaffRole: service.requiredStaffRole,
         bookingMode: service.bookingMode,
@@ -1013,27 +1084,20 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       });
     }
 
-    // Resolve pet snapshot if petId was provided
+    // Resolve pet snapshot if petId was provided (reuse resolvedPetDoc)
     let petSnapshot = pet || null;
-    if (petId && !petSnapshot && mongoose.Types.ObjectId.isValid(petId)) {
-      try {
-        const petDoc = await Pet.findById(petId).session(session);
-        if (petDoc) {
-          petSnapshot = {
-            name: petDoc.name,
-            species: petDoc.species || 'DOG',
-            breed: petDoc.breed || '',
-            gender: petDoc.gender || 'UNKNOWN',
-            ageYears: petDoc.ageYears || 0,
-            weightKg: petDoc.weightKg || 0,
-            healthStatus: petDoc.healthStatus || 'NORMAL',
-            medicalNotes: petDoc.medicalNotes || '',
-            photoUrl: petDoc.photoUrl || null,
-          };
-        }
-      } catch {
-        // Gracefully ignore error and keep petSnapshot
-      }
+    if (petId && !petSnapshot && resolvedPetDoc) {
+      petSnapshot = {
+        name: resolvedPetDoc.name,
+        species: resolvedPetDoc.species || 'DOG',
+        breed: resolvedPetDoc.breed || '',
+        gender: resolvedPetDoc.gender || 'UNKNOWN',
+        ageYears: resolvedPetDoc.ageYears || 0,
+        weightKg: resolvedPetDoc.weightKg || 0,
+        healthStatus: resolvedPetDoc.healthStatus || 'NORMAL',
+        medicalNotes: resolvedPetDoc.medicalNotes || '',
+        photoUrl: resolvedPetDoc.photoUrl || null,
+      };
     }
 
     // 8. Create Appointment
@@ -2288,11 +2352,13 @@ export const assignReviewer = async (id, staffId, expectedVersion, actor) => {
 };
 
 /**
- * Preview Appointment Pricing & Deposit (B04 / CF06)
+ * Preview Appointment Pricing & Deposit (Rules 1-9 in docs/catalog (2).xlsx)
+ * - Uses per-tier GROOMING pricing (XS/S/M/L fixed; XL >30kg = REQUIRES_QUOTE), never basePrice + surcharge
  */
 export const previewAppointmentPricing = async ({
   serviceIds = [],
-  petWeightKg = 3,
+  petId = null,
+  petWeightKg = null,
   branchId,
   voucherCode,
   customerId,
@@ -2300,26 +2366,101 @@ export const previewAppointmentPricing = async ({
   const ids = Array.isArray(serviceIds) ? serviceIds : (serviceIds ? [serviceIds] : []);
   const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
 
-  let services = [];
-  if (validIds.length > 0) {
-    services = await Service.find({ _id: { $in: validIds } });
+  let effectiveWeight =
+    petWeightKg !== null && petWeightKg !== undefined && petWeightKg !== '' && !Number.isNaN(Number(petWeightKg))
+      ? Number(petWeightKg)
+      : null;
+
+  if (
+    (effectiveWeight === null || effectiveWeight <= 0) &&
+    petId &&
+    mongoose.Types.ObjectId.isValid(petId) &&
+    (mongoose.connection.readyState === 1 || Pet.findById?._isMockFunction)
+  ) {
+    try {
+      const petDoc = await Pet.findById(petId).select('weightKg').lean();
+      if (petDoc && Number(petDoc.weightKg) > 0) {
+        effectiveWeight = Number(petDoc.weightKg);
+      }
+    } catch {
+      // ignore lookup fallback
+    }
   }
 
-  // Calculate base price
+  let services = [];
+  if (validIds.length > 0 && (mongoose.connection.readyState === 1 || Service.find?._isMockFunction)) {
+    try {
+      services = await Service.find({ _id: { $in: validIds } });
+    } catch {
+      services = [];
+    }
+  }
+
   let subtotal = 0;
+  let requiresQuote = false;
+  let weightMissing = false;
+  const breakdown = [];
+  const weightTier = effectiveWeight !== null && effectiveWeight > 0 ? resolveWeightTierCode(effectiveWeight) : null;
+
   if (services.length > 0) {
-    subtotal = services.reduce((sum, s) => sum + (Number(s.basePrice) || 100000), 0);
+    for (const s of services) {
+      const resolved = resolveServiceWeightPricing(s, effectiveWeight);
+      if (resolved.weightMissing) {
+        weightMissing = true;
+      }
+      if (resolved.requiresQuote) {
+        requiresQuote = true;
+      }
+      const linePrice =
+        resolved.price !== null && resolved.price !== undefined
+          ? Number(resolved.price)
+          : (s.serviceType === 'GROOMING' && resolved.weightMissing ? Number(s.basePrice || 0) : 0);
+
+      if (!resolved.requiresQuote) {
+        subtotal += linePrice;
+      }
+
+      breakdown.push({
+        serviceId: (s._id || s.id).toString(),
+        code: s.code || null,
+        name: s.name,
+        serviceType: s.serviceType,
+        bookingMode: s.bookingMode,
+        resolvedTier: resolved.tier,
+        variantLabel: resolved.variantLabel,
+        requiresQuote: resolved.requiresQuote,
+        weightMissing: resolved.weightMissing,
+        unitPrice: resolved.requiresQuote ? null : linePrice,
+      });
+    }
   } else {
     subtotal = 250000;
   }
 
-  // Weight surcharge
-  let surchargeTotal = 0;
-  const weight = Number(petWeightKg) || 3;
-  if (weight > 10) {
-    surchargeTotal = 50000;
-  } else if (weight > 5) {
-    surchargeTotal = 30000;
+  // Weight-based pricing replaces legacy surcharge completely
+  const surchargeTotal = 0;
+
+  if (requiresQuote) {
+    return {
+      subtotal: null,
+      surchargeTotal: 0,
+      weightKg: effectiveWeight,
+      weightTier,
+      weightMissing,
+      requiresQuote: true,
+      quoteReason: weightTier === 'XL' ? 'WEIGHT_XL_REQUIRES_QUOTE' : 'BOOKING_MODE_REQUIRES_QUOTE',
+      quoteMessage: 'Thú cưng trên 30kg (XL) hoặc dịch vụ chuyên biệt cần báo giá trực tiếp. Vui lòng liên hệ chi nhánh hoặc gửi yêu cầu tư vấn.',
+      breakdown,
+      voucherDiscount: 0,
+      voucherValid: false,
+      voucherMessage: null,
+      finalAmount: null,
+      depositType: 'PERCENTAGE',
+      depositValue: 30,
+      depositAmount: null,
+      balanceAmount: null,
+      policyText: 'Khách hàng thanh toán trước 30% tiền cọc khi chọn thanh toán online. Số tiền còn lại sẽ được thanh toán tại phòng khám sau khi hoàn tất dịch vụ. Hủy trước 24 giờ hoàn 100% tiền cọc.',
+    };
   }
 
   let voucherDiscount = 0;
@@ -2332,7 +2473,7 @@ export const previewAppointmentPricing = async ({
       const check = await validateVoucherEligibility({
         code: rawCode,
         scope: 'SERVICE',
-        subtotal: subtotal + surchargeTotal,
+        subtotal,
         serviceIds: validIds.map((id) => id.toString()),
         branchId,
         customerId,
@@ -2352,8 +2493,7 @@ export const previewAppointmentPricing = async ({
     }
   }
 
-  const finalAmount = Math.max(0, subtotal + surchargeTotal - voucherDiscount);
-  // Default 30% deposit per B04 / M16 spec
+  const finalAmount = Math.max(0, subtotal - voucherDiscount);
   const depositType = 'PERCENTAGE';
   const depositValue = 30;
   const depositAmount = Math.round(finalAmount * 0.30);
@@ -2362,6 +2502,11 @@ export const previewAppointmentPricing = async ({
   return {
     subtotal,
     surchargeTotal,
+    weightKg: effectiveWeight,
+    weightTier,
+    weightMissing,
+    requiresQuote: false,
+    breakdown,
     voucherDiscount,
     voucherValid,
     voucherMessage,

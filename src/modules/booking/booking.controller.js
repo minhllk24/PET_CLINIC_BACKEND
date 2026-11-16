@@ -316,7 +316,8 @@ export const previewPricing = async (req, res, next) => {
     const payload = req.body || {};
     const result = await bookingService.previewAppointmentPricing({
       serviceIds: payload.serviceIds || (payload.serviceId ? [payload.serviceId] : []),
-      petWeightKg: payload.petWeightKg || payload.petWeight || 3,
+      petId: payload.petId || payload.pet_id || null,
+      petWeightKg: payload.petWeightKg ?? payload.petWeight ?? payload.weightKg ?? null,
       branchId: payload.branchId,
       voucherCode: payload.voucherCode || payload.voucher_code,
       customerId: req.actor?.id,

@@ -7,6 +7,7 @@ const schema = new mongoose.Schema({
   unit: { type: String, required: true, default: 'cái', trim: true },
   category: { type: String, trim: true, default: null },
   categoryName: { type: String, trim: true, default: null },
+  serviceType: { type: String, enum: ['SHARED', 'GROOMING', 'MEDICAL', null], default: null },
   usageType: { type: String, enum: ['SALE', 'SERVICE_SUPPLY', 'SHARED'], default: 'SERVICE_SUPPLY', index: true },
   status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' }
 }, { timestamps: true });
