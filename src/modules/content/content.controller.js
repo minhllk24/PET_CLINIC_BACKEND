@@ -291,7 +291,8 @@ export const addCommunityComment = async (req, res, next) => {
 
 export const addCommentReply = async (req, res, next) => {
   try {
-    const comment = await contentService.addCommentReply(req.params.id, req.body, req.actor);
+    const commentId = req.params.id || req.params.commentId;
+    const comment = await contentService.addCommentReply(commentId, req.body, req.actor);
     res.status(201).json({ success: true, data: comment });
   } catch (err) {
     next(err);

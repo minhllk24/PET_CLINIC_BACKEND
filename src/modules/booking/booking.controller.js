@@ -84,6 +84,14 @@ export const createInternalAppointment = async (req, res, next) => {
 
 export const listAppointments = async (req, res, next) => {
   try {
+    const isMyHistory = req.path.includes('my-history') || req.baseUrl.includes('my-history') || req.originalUrl?.includes('my-history');
+    if (isMyHistory && !req.actor) {
+      return res.status(401).json({
+        success: false,
+        code: 'UNAUTHENTICATED',
+        message: 'Vui lòng đăng nhập để xem lịch sử đặt lịch',
+      });
+    }
     const result = await bookingService.getAppointments(req.query, req.actor);
     res.json(result);
   } catch (error) {

@@ -1284,7 +1284,19 @@ export const getAppointments = async (filters = {}, actor) => {
       (role === 'STAFF' && (!actor.staffSubRole || actor.staffSubRole !== 'RECEPTIONIST'));
 
     if (role === 'CUSTOMER') {
-      query.customerId = new mongoose.Types.ObjectId(actor.id || actor._id);
+      const actorUserId = actor.id || actor._id;
+      const validCustomerIds = [];
+      if (mongoose.Types.ObjectId.isValid(actorUserId)) {
+        validCustomerIds.push(new mongoose.Types.ObjectId(actorUserId));
+      }
+      try {
+        const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+        const cust = await CustomerModel.findOne({ userId: actorUserId }).select('_id').lean();
+        if (cust?._id) {
+          validCustomerIds.push(cust._id);
+        }
+      } catch (_e) {}
+      query.customerId = { $in: validCustomerIds };
     } else if (isReceptionist) {
       const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
       if (Array.isArray(rawBranches)) {
@@ -1375,7 +1387,16 @@ export const getAppointmentById = async (id, actor, guestToken) => {
       (role === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST');
 
     if (role === 'CUSTOMER') {
-      if (appointment.customerId && appointment.customerId.toString() !== actorId) {
+      const allowedCustomerIds = [actorId];
+      try {
+        const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+        const cust = await CustomerModel.findOne({ userId: actorId }).select('_id').lean();
+        if (cust?._id) {
+          allowedCustomerIds.push(cust._id.toString());
+        }
+      } catch (_e) {}
+      const aptCustId = (appointment.customerId?._id || appointment.customerId)?.toString();
+      if (aptCustId && !allowedCustomerIds.includes(aptCustId)) {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Access denied to this appointment');
       }
     } else if (role === 'MANAGER') {
@@ -2112,6 +2133,16 @@ export const startSegment = async (id, serviceId, actor) => {
     : apt.services?.[0];
   if (!segment) {
     throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', 'Segment not found');
+  }
+
+  // BE-HANDOFF 2026-11-16: Bắt buộc assignedStaffId tồn tại và đã hoàn tất thủ tục Check-in
+  if (!segment.assignedStaffId) {
+    throw new AppError(422, 'UnprocessableEntity', 'STAFF_NOT_ASSIGNED', 'Dịch vụ này chưa được phân công nhân viên chuyên môn phụ trách');
+  }
+
+  const isCheckedIn = apt.checkInStatus === 'CHECKED_IN' || apt.status === 'CHECKED_IN' || Boolean(apt.checkedInAt);
+  if (!isCheckedIn) {
+    throw new AppError(422, 'UnprocessableEntity', 'CHECKIN_REQUIRED', 'Bệnh nhân chưa hoàn tất thủ tục Check-in tại quầy. Không thể bắt đầu ca khám/chăm sóc.');
   }
 
   if (actor) {

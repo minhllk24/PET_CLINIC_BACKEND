@@ -388,7 +388,7 @@ export const contentService = {
     }
 
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
-    const [total, items] = await Promise.all([
+    const [total, rawItems] = await Promise.all([
       Post.countDocuments(query),
       Post.find(query)
         .populate('authorId', 'fullName')
@@ -396,6 +396,19 @@ export const contentService = {
         .skip(skip)
         .limit(Number(limit)),
     ]);
+
+    const items = rawItems.map((doc) => {
+      const obj = doc.toObject ? doc.toObject() : doc;
+      const isUrgent = obj.urgencyLevel === 'URGENT';
+      const cleanVideo = (obj.videoUrl && String(obj.videoUrl).trim() !== '') ? String(obj.videoUrl).trim() : null;
+      return {
+        ...obj,
+        urgent: isUrgent,
+        urgencyLevel: obj.urgencyLevel || 'NORMAL',
+        video_url: cleanVideo,
+        videoUrl: cleanVideo,
+      };
+    });
 
     return {
       items,
@@ -420,7 +433,18 @@ export const contentService = {
     }
     // Tăng lượt xem không chặn response
     Post.updateOne({ _id: post._id }, { $inc: { viewCount: 1 } }).catch(() => {});
-    return post;
+    
+    const postObj = post.toObject ? post.toObject() : post;
+    const isUrgent = postObj.urgencyLevel === 'URGENT';
+    const cleanVideo = (postObj.videoUrl && String(postObj.videoUrl).trim() !== '') ? String(postObj.videoUrl).trim() : null;
+
+    return {
+      ...postObj,
+      urgent: isUrgent,
+      urgencyLevel: postObj.urgencyLevel || 'NORMAL',
+      video_url: cleanVideo,
+      videoUrl: cleanVideo,
+    };
   },
 
   async getFeaturedPosts() {
@@ -471,7 +495,21 @@ export const contentService = {
       throw new AppError(400, 'Tiêu đề và nội dung bài viết cộng đồng là bắt buộc', 'VALIDATION_ERROR');
     }
 
-    const customer = await Customer.findOne({ userId: actor.id });
+    if (Array.isArray(imageUrls) && imageUrls.some((u) => typeof u === 'string' && u.trim().startsWith('blob:'))) {
+      throw new AppError(400, 'Không chấp nhận ảnh dạng blob URL tạm thời. Vui lòng upload ảnh qua media endpoint hợp lệ trước khi đăng bài.', 'INVALID_MEDIA_URL');
+    }
+
+    let customer = await Customer.findOne({ userId: actor.id });
+    if (!customer) {
+      customer = await Customer.findById(actor.id);
+    }
+    if (!customer && (actor.systemRole === 'CUSTOMER' || actor.role === 'CUSTOMER')) {
+      customer = await Customer.create({
+        userId: actor.id,
+        fullName: actor.fullName || 'Thành viên yêu thú cưng',
+        accountStatus: 'ACTIVE',
+      });
+    }
     if (!customer) {
       throw new AppError(403, 'Chỉ có tài khoản khách hàng thành viên mới được đăng bài chia sẻ', 'AUTHORIZATION_ERROR');
     }
@@ -481,24 +519,31 @@ export const contentService = {
       HOI_DAP: 'Hỏi đáp',
       MEO_VAT: 'Mẹo vặt',
       KINH_NGHIEM: 'Kinh nghiệm',
+      GENERAL: 'Chung',
+      DISCUSSION: 'Thảo luận',
+      SHARE: 'Chia sẻ',
     };
     const postType = type && typeLabels[type] ? type : 'KHOANH_KHAC';
 
     const post = await CommunityPost.create({
-      title,
-      content,
+      title: title.trim(),
+      content: content.trim(),
       type: postType,
       typeLabel: typeLabels[postType],
-      imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+      imageUrls: Array.isArray(imageUrls) ? imageUrls.filter((u) => typeof u === 'string' && !u.startsWith('blob:')) : [],
       authorCustomerId: customer._id,
       authorNameSnapshot: customer.fullName || actor.fullName || 'Thành viên yêu thú cưng',
       authorAvatarSnapshot: customer.avatarUrl || null,
-      status: 'PENDING', // Bắt buộc vào hàng đợi duyệt
+      status: 'PENDING', // Bắt buộc vào hàng đợi duyệt, không chấp nhận bypass APPROVED từ client
       reportCount: 0,
       hasOpenReport: false,
     });
 
-    return post;
+    const postObj = post.toObject ? post.toObject() : post;
+    return {
+      ...postObj,
+      id: postObj._id?.toString(),
+    };
   },
 
   async createCommunityPostAdmin(data, actor) {
@@ -681,9 +726,16 @@ export const contentService = {
     if (!customer) {
       customer = await Customer.findById(actor.id);
     }
+    if (!customer && (actor.systemRole === 'CUSTOMER' || actor.role === 'CUSTOMER')) {
+      customer = await Customer.create({
+        userId: actor.id,
+        fullName: actor.fullName || 'Khách hàng',
+        accountStatus: 'ACTIVE',
+      });
+    }
     const customerId = customer ? customer._id : actor.id;
-    const authorName = customer?.fullName || actor.fullName || 'Khách hàng';
-    const authorAvatar = customer?.avatarUrl || null;
+    const authorName = customer?.fullName || actor.fullName || data.author || 'Khách hàng';
+    const authorAvatar = customer?.avatarUrl || data.avatar || null;
 
     const comment = await CommunityComment.create({
       postId: post._id,
@@ -695,7 +747,14 @@ export const contentService = {
     });
 
     await CommunityPost.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
-    return comment;
+    
+    const commentObj = comment.toObject ? comment.toObject() : comment;
+    return {
+      ...commentObj,
+      id: commentObj._id?.toString(),
+      author: commentObj.authorNameSnapshot,
+      avatar: commentObj.authorAvatarSnapshot,
+    };
   },
 
   async addCommentReply(commentId, data, actor) {
@@ -726,7 +785,7 @@ export const contentService = {
   async getCommunityComments(postId, { page = 1, limit = 20 } = {}) {
     const query = { postId };
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
-    const [total, items] = await Promise.all([
+    const [total, rawItems] = await Promise.all([
       CommunityComment.countDocuments(query),
       CommunityComment.find(query)
         .sort({ createdAt: -1 })
@@ -734,9 +793,21 @@ export const contentService = {
         .limit(Number(limit)),
     ]);
 
+    const items = rawItems.map((doc) => {
+      const obj = doc.toObject ? doc.toObject() : doc;
+      return {
+        ...obj,
+        id: obj._id?.toString(),
+        author: obj.authorNameSnapshot,
+        avatar: obj.authorAvatarSnapshot,
+      };
+    });
+
     return {
       items,
+      comments: items,
       total,
+      totalRows: total,
       page: Number(page),
       limit: Number(limit),
       totalPages: Math.ceil(total / Number(limit)) || 1,
@@ -1051,7 +1122,13 @@ export const contentService = {
       throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
     }
 
-    if (branchId) {
+    const role = actor?.systemRole || actor?.role;
+    if (role === 'MANAGER') {
+      if (!branchId) {
+        throw new AppError(400, 'Tài khoản Quản lý (Manager) bắt buộc phải chỉ định chi nhánh cứu trợ (branchId is required)', 'BRANCH_REQUIRED');
+      }
+      assertRescueBranchScope(actor, branchId);
+    } else if (branchId) {
       assertRescueBranchScope(actor, branchId);
     }
 

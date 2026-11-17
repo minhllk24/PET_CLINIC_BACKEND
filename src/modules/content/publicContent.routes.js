@@ -57,77 +57,25 @@ router.get(['/posts/:slug', '/public/posts/:slug'], (req, res, next) => {
 });
 
 // =========================================================================
-// 2. COMMUNITY POSTS
+// 2. COMMUNITY POSTS & INTERACTIONS (BE-HANDOFF 2026-11-16)
 // =========================================================================
 router.get(['/community/posts', '/public/community/posts'], contentController.getCommunityPostsPublic);
-router.post('/community/posts', authenticate, contentController.createCommunityPost);
-router.get('/community/posts/:id/comments', contentController.getCommunityComments);
-router.post('/community/posts/:id/comments', authenticate, contentController.addCommunityComment);
-router.post('/community/comments/:id/replies', authenticate, contentController.addCommentReply);
-router.post('/community/posts/:id/reports', authenticate, contentController.reportCommunityPost);
-router.post('/community/posts/:id/like', authenticate, contentController.likeCommunityPost);
-router.post('/community/posts/:id/unlike', authenticate, contentController.unlikeCommunityPost);
+router.post(['/community/posts', '/public/community/posts'], authenticate, contentController.createCommunityPost);
 
-// Comments & Likes for Community / Blog Posts
-router.get(['/posts/:id/comments', '/community/posts/:id/comments', '/public/posts/:id/comments'], (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: {
-      comments: [],
-      totalRows: 0,
-      totalPages: 1,
-    },
-  });
-});
+// Comments (both canonical /community/posts/:id/comments and legacy /posts/:id/comments)
+router.get(['/community/posts/:id/comments', '/posts/:id/comments', '/public/posts/:id/comments'], contentController.getCommunityComments);
+router.post(['/community/posts/:id/comments', '/posts/:id/comments', '/public/posts/:id/comments'], authenticate, contentController.addCommunityComment);
 
-router.post(['/posts/:id/comments', '/community/posts/:id/comments', '/public/posts/:id/comments'], (req, res) => {
-  const { content, author, avatar, userId } = req.body || {};
-  res.status(201).json({
-    success: true,
-    data: {
-      id: `cmt-${Date.now()}`,
-      content: content || '',
-      author: author || req.user?.fullName || req.user?.name || 'Bạn',
-      avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
-      userId: userId || req.user?._id || req.user?.id || '',
-      createdAt: new Date().toISOString(),
-    },
-  });
-});
+// Replies (both canonical /community/comments/:id/replies and legacy /posts/comments/:commentId/reply)
+router.post(['/community/comments/:id/replies', '/community/comments/:id/reply', '/posts/comments/:id/reply', '/public/posts/comments/:id/reply', '/posts/comments/:commentId/reply', '/public/posts/comments/:commentId/reply'], authenticate, contentController.addCommentReply);
 
-router.post(['/posts/comments/:commentId/reply', '/public/posts/comments/:commentId/reply'], (req, res) => {
-  const { content, author, avatar, userId, replyTo } = req.body || {};
-  res.status(201).json({
-    success: true,
-    data: {
-      id: `reply-${Date.now()}`,
-      content: content || '',
-      author: author || req.user?.fullName || req.user?.name || 'Bạn',
-      avatar: avatar || req.user?.avatar || req.user?.avatarUrl || req.user?.photoUrl || '',
-      userId: userId || req.user?._id || req.user?.id || '',
-      replyTo: replyTo || '',
-      createdAt: new Date().toISOString(),
-    },
-  });
-});
+// Reports
+router.post(['/community/posts/:id/reports', '/posts/:id/reports'], authenticate, contentController.reportCommunityPost);
 
-router.post(['/posts/:id/like', '/community/posts/:id/like', '/public/posts/:id/like'], async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      const CommunityPost = mongoose.models.CommunityPost;
-      if (CommunityPost) {
-        await CommunityPost.findByIdAndUpdate(id, { $inc: { likesCount: 1 } });
-      }
-    }
-  } catch {
-    // Ignore error
-  }
-  res.status(200).json({
-    success: true,
-    message: 'Thành công',
-  });
-});
+// Likes & Unlikes
+router.post(['/community/posts/:id/like', '/posts/:id/like', '/public/posts/:id/like'], authenticate, contentController.likeCommunityPost);
+router.post(['/community/posts/:id/unlike', '/posts/:id/unlike', '/public/posts/:id/unlike'], authenticate, contentController.unlikeCommunityPost);
+router.delete(['/community/posts/:id/like', '/posts/:id/like', '/public/posts/:id/like'], authenticate, contentController.unlikeCommunityPost);
 
 // =========================================================================
 // 3. RESCUE PETS & ADOPTIONS
