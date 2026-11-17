@@ -4,6 +4,7 @@ import Service from '../catalog/models/Service';
 import Category from '../catalog/models/Category';
 import * as catalogService from '../catalog/catalog.service';
 import * as serviceCatalogService from '../catalog/serviceCatalog.service';
+import { buildVietnameseSearchRegex } from '../../shared/searchUtils';
 
 /**
  * Lấy gợi ý từ khóa tìm kiếm (Search Suggestions)
@@ -34,13 +35,14 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(escaped, 'i');
+  const vnRegex = buildVietnameseSearchRegex(trimmed) || regex;
 
   try {
     const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
 
     const productQuery = {
       $or: [
-        { name: regex },
+        { name: vnRegex },
         { productCode: regex },
         { 'variants.sku': regex }
       ]
@@ -54,7 +56,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
 
     const serviceQuery = {
       $or: [
-        { name: regex },
+        { name: vnRegex },
         { code: regex }
       ]
     };
@@ -63,7 +65,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
     }
 
     const categoryQuery = {
-      name: regex,
+      name: vnRegex,
       status: 'ACTIVE'
     };
 

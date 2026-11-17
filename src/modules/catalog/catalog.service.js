@@ -11,6 +11,7 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import legacyPlaceholderImages from './legacyPlaceholderImages';
 import curatedLegacyImages from './curatedLegacyImages';
 import { uploadBase64ToCloudinary } from '../upload/upload.service';
+import { buildVietnameseSearchRegex } from '../../shared/searchUtils';
 
 // Helper: chuyển chuỗi thành slug
 const slugify = (text) => {
@@ -566,18 +567,20 @@ export const listProducts = async (params = {}, actor = null) => {
     }
   }
 
-  // Search q (hỗ trợ q, filter, keyword, search)
+  // Search q (hỗ trợ q, filter, keyword, search, hỗ trợ tiếng Việt không dấu & có dấu)
   if (rawQ && String(rawQ).trim()) {
     const trimmed = String(rawQ).trim();
+    const vnRegex = buildVietnameseSearchRegex(trimmed);
+    const textCond = vnRegex ? vnRegex : { $regex: trimmed, $options: 'i' };
     query.$or = [
-      { name: { $regex: trimmed, $options: 'i' } },
+      { name: textCond },
       { productCode: { $regex: trimmed, $options: 'i' } },
       { 'variants.sku': { $regex: trimmed, $options: 'i' } },
-      { description: { $regex: trimmed, $options: 'i' } }
+      { description: textCond }
     ];
   }
 
-  // Price range: Lọc theo Giá bán khởi điểm hiển thị thực tế (Card Display Price / minFinalPrice)
+  // Price range: Lọc theo variants.price theo chuẩn spec & index, đồng thời đảm bảo card displayPrice đúng khoảng
   if (rawMinPrice !== undefined || rawMaxPrice !== undefined) {
     const priceFilter = {};
     if (rawMinPrice !== undefined && !isNaN(parseInt(rawMinPrice, 10))) {
@@ -587,14 +590,18 @@ export const listProducts = async (params = {}, actor = null) => {
       priceFilter.$lte = parseInt(rawMaxPrice, 10);
     }
     if (Object.keys(priceFilter).length > 0) {
-      query.$or = [
-        { displayPrice: priceFilter },
-        { minFinalPrice: priceFilter },
-        { sellingPrice: priceFilter },
-        { price: priceFilter },
-        { 'variants.0.finalPrice': priceFilter },
-        { 'variants.0.price': priceFilter }
-      ];
+      query['variants.price'] = priceFilter;
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { displayPrice: priceFilter },
+          { minFinalPrice: priceFilter },
+          { sellingPrice: priceFilter },
+          { price: priceFilter },
+          { 'variants.0.finalPrice': priceFilter },
+          { 'variants.0.price': priceFilter }
+        ]
+      });
     }
   }
 
@@ -611,9 +618,9 @@ export const listProducts = async (params = {}, actor = null) => {
   } else if (normalizedSort === 'NAME_DESC') {
     sortCriteria = { name: -1, _id: -1 };
   } else if (normalizedSort === 'PRICE_ASC') {
-    sortCriteria = { displayPrice: 1, minFinalPrice: 1, 'variants.price': 1, _id: 1 };
+    sortCriteria = { 'variants.price': 1, _id: 1 };
   } else if (normalizedSort === 'PRICE_DESC') {
-    sortCriteria = { displayPrice: -1, minFinalPrice: -1, 'variants.price': -1, _id: -1 };
+    sortCriteria = { 'variants.price': -1, _id: -1 };
   }
 
   // Lọc sản phẩm còn tồn kho khả dụng trực tiếp từ InventoryStock nếu inStockOnly = true

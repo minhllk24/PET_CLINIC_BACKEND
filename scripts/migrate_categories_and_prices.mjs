@@ -116,6 +116,31 @@ async function run() {
   await mongoose.connect(process.env.MONGODB_URI);
   const db = mongoose.connection.db;
 
+  // Đảm bảo 5 danh mục chuẩn tồn tại trong collection categories
+  const standardCategories = [
+    { _id: CATEGORY_MAP.THUC_AN, name: 'Thức ăn', slug: 'thuc-an', status: 'ACTIVE', sortOrder: 1 },
+    { _id: CATEGORY_MAP.THIET_YEU, name: 'Đồ dùng thiết yếu', slug: 'do-dung-thiet-yeu', status: 'ACTIVE', sortOrder: 2 },
+    { _id: CATEGORY_MAP.SUC_KHOE, name: 'Chăm sóc sức khỏe', slug: 'cham-soc-suc-khoe', status: 'ACTIVE', sortOrder: 3 },
+    { _id: CATEGORY_MAP.DO_CHOI, name: 'Đồ chơi', slug: 'do-choi', status: 'ACTIVE', sortOrder: 4 },
+    { _id: CATEGORY_MAP.PHU_KIEN, name: 'Phụ kiện', slug: 'phu-kien', status: 'ACTIVE', sortOrder: 5 }
+  ];
+
+  // Xóa các category cũ trùng slug để tránh lỗi duplicate key slug_1
+  const canonicalSlugs = ['thuc-an', 'do-dung-thiet-yeu', 'cham-soc-suc-khoe', 'do-choi', 'phu-kien'];
+  await db.collection('categories').deleteMany({
+    slug: { $in: canonicalSlugs },
+    _id: { $nin: Object.values(CATEGORY_MAP) }
+  });
+
+  for (const cat of standardCategories) {
+    await db.collection('categories').updateOne(
+      { _id: cat._id },
+      { $set: cat },
+      { upsert: true }
+    );
+  }
+  console.log('Đã đồng bộ 5 danh mục chuẩn vào collection categories.');
+
   const products = await db.collection('products').find().toArray();
   console.log(`Bắt đầu đồng bộ danh mục & khoảng giá cho ${products.length} sản phẩm...`);
 

@@ -5,6 +5,7 @@ import Branch from '../branch/models/Branch';
 import Pet from '../customer/models/Pet';
 import { getNextSequence } from '../../models/Counter';
 import AppError from '../../utils/AppError';
+import { buildVietnameseSearchRegex } from '../../shared/searchUtils';
 
 export const GROOMING_WEIGHT_TIERS = [
   { tier: 'XS', label: 'XS (< 5 kg)', shortLabel: '< 5 kg', maxExclusive: 5 },
@@ -403,11 +404,14 @@ export const listServices = async ({
   if (requiredStaffRole) filter.requiredStaffRole = requiredStaffRole;
 
   if (search) {
-    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const trimmed = search.trim();
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const vnRegex = buildVietnameseSearchRegex(trimmed);
+    const textCond = vnRegex ? vnRegex : { $regex: escaped, $options: 'i' };
     filter.$or = [
-      { name: { $regex: escaped, $options: 'i' } },
+      { name: textCond },
       { code: { $regex: escaped, $options: 'i' } },
-      { description: { $regex: escaped, $options: 'i' } },
+      { description: textCond },
     ];
   }
 
