@@ -26,13 +26,15 @@ const requireGuestAuth = (req, res, next) => {
   }
 };
 
-// Request OTP for guest lookup (supports both /lookup/otp and /lookup/request-otp)
-router.post(['/lookup/otp', '/lookup/request-otp'], async (req, res, next) => {
+// Request OTP for guest lookup (supports /lookup/otp, /lookup/request-otp, /otp, /request-otp, /send-otp)
+router.post(['/lookup/otp', '/lookup/request-otp', '/otp', '/request-otp', '/send-otp'], async (req, res, next) => {
   try {
     const result = await guestService.requestGuestOtp(req.body);
     const isStandardOpenApi = req.path.endsWith('/lookup/otp');
     if (isStandardOpenApi) {
       res.status(202).json({
+        success: true,
+        message: result.message || 'OTP sent successfully',
         challengeId: result.challengeId,
         expiresIn: result.expiresIn,
         ...(result.debugOtp ? { debugOtp: result.debugOtp, otp: result.otp } : {}),
@@ -45,8 +47,8 @@ router.post(['/lookup/otp', '/lookup/request-otp'], async (req, res, next) => {
   }
 });
 
-// Verify OTP for guest lookup (supports both /lookup/verify and /lookup/verify-otp)
-router.post(['/lookup/verify', '/lookup/verify-otp'], async (req, res, next) => {
+// Verify OTP for guest lookup (supports /lookup/verify, /lookup/verify-otp, /verify, /verify-otp)
+router.post(['/lookup/verify', '/lookup/verify-otp', '/verify', '/verify-otp'], async (req, res, next) => {
   try {
     const result = await guestService.verifyGuestOtp(req.body);
     res.status(200).json(result);

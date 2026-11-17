@@ -11,6 +11,17 @@ const schema = new mongoose.Schema({
   healthStatus: { type: String, default: 'NORMAL' },
   medicalNotes: { type: String, default: '' },
   photoUrl: { type: String, default: null },
+  doctorName: { type: String, trim: true, default: '' },
+  medicalRecordFileUrl: { type: String, trim: true, default: null },
+  medicalRecords: [{
+    doctorName: { type: String, trim: true, default: '' },
+    fileUrl: { type: String, trim: true, default: '' },
+    fileName: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
+    examinationDate: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now },
+  }],
+  status: { type: String, enum: ['ACTIVE', 'HIDDEN'], default: 'ACTIVE', index: true },
   isArchived: { type: Boolean, default: false }
 }, { timestamps: true });
 

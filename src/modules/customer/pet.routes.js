@@ -24,19 +24,78 @@ export const resolveCustomerIds = async (rawId, actor) => {
   return [...new Set(ids)];
 };
 
+export const normalizePetStatus = (rawStatus, rawArchived) => {
+  if (rawStatus !== undefined && rawStatus !== null) {
+    const s = String(rawStatus).trim().toUpperCase();
+    if (s === 'HIDDEN' || s === 'ẨN' || s === 'INACTIVE' || s === 'ARCHIVED') {
+      return { status: 'HIDDEN', isArchived: true };
+    }
+    if (s === 'ACTIVE' || s === 'HOẠT ĐỘNG' || s === 'HOAT DONG') {
+      return { status: 'ACTIVE', isArchived: false };
+    }
+  }
+  if (rawArchived !== undefined && rawArchived !== null) {
+    const isArchived = Boolean(rawArchived);
+    return { status: isArchived ? 'HIDDEN' : 'ACTIVE', isArchived };
+  }
+  return { status: 'ACTIVE', isArchived: false };
+};
+
+export const parseMedicalRecords = (body) => {
+  const doctorName = (body.doctorName || body.attendingDoctor || body.doctor || body.bacSi || '').trim();
+  const medicalRecordFileUrl = body.medicalRecordFileUrl || body.fileUrl || body.medicalFile || body.recordFileUrl || null;
+  
+  let records = [];
+  if (Array.isArray(body.medicalRecords)) {
+    records = body.medicalRecords.map((r) => ({
+      doctorName: (r.doctorName || r.attendingDoctor || r.doctor || doctorName || '').trim(),
+      fileUrl: r.fileUrl || r.medicalRecordFileUrl || r.file || '',
+      fileName: r.fileName || r.name || '',
+      notes: r.notes || r.note || '',
+      examinationDate: r.examinationDate ? new Date(r.examinationDate) : null,
+      createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+    }));
+  } else if (Array.isArray(body.records)) {
+    records = body.records.map((r) => ({
+      doctorName: (r.doctorName || r.attendingDoctor || r.doctor || doctorName || '').trim(),
+      fileUrl: r.fileUrl || r.medicalRecordFileUrl || r.file || '',
+      fileName: r.fileName || r.name || '',
+      notes: r.notes || r.note || '',
+      examinationDate: r.examinationDate ? new Date(r.examinationDate) : null,
+      createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+    }));
+  } else if (medicalRecordFileUrl || doctorName) {
+    records.push({
+      doctorName,
+      fileUrl: medicalRecordFileUrl || '',
+      fileName: body.fileName || (medicalRecordFileUrl ? String(medicalRecordFileUrl).split('/').pop() : ''),
+      notes: body.medicalNotes || body.medical_note || '',
+      examinationDate: body.examinationDate ? new Date(body.examinationDate) : new Date(),
+      createdAt: new Date(),
+    });
+  }
+
+  return { doctorName, medicalRecordFileUrl, medicalRecords: records };
+};
+
 export const listPetsHandler = async (req, res, next) => {
   try {
     const rawId = req.params.customerId || req.params.id || (req.actor ? req.actor.id : null);
     const targetCustomerIds = await resolveCustomerIds(rawId, req.actor);
     const filter = targetCustomerIds.length > 0 ? { customerId: { $in: targetCustomerIds } } : {};
 
-    // Archiving filter: by default hide archived pets unless explicitly requested
-    if (req.query.includeArchived === 'true') {
+    // Archiving & Status filter
+    const statusQuery = req.query.status ? String(req.query.status).trim().toUpperCase() : null;
+    if (statusQuery === 'ALL' || req.query.includeArchived === 'true') {
       // return all
-    } else if (req.query.isArchived === 'true' || req.query.archived === 'true') {
-      filter.isArchived = true;
+    } else if (statusQuery === 'HIDDEN' || statusQuery === 'ẨN' || req.query.isArchived === 'true' || req.query.archived === 'true') {
+      filter.$or = [{ status: 'HIDDEN' }, { isArchived: true }];
+    } else if (statusQuery === 'ACTIVE' || statusQuery === 'HOẠT ĐỘNG') {
+      filter.status = 'ACTIVE';
+      filter.isArchived = { $ne: true };
     } else {
       filter.isArchived = { $ne: true };
+      filter.status = { $ne: 'HIDDEN' };
     }
 
     const pets = await Pet.find(filter).sort({ createdAt: -1 });
@@ -77,6 +136,12 @@ export const createPetHandler = async (req, res, next) => {
     else if (species.includes('MÈO') || species.includes('MEO')) species = 'CAT';
     else if (!['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'].includes(species)) species = 'OTHER';
 
+    const { status, isArchived } = normalizePetStatus(
+      req.body.status,
+      req.body.isArchived !== undefined ? req.body.isArchived : req.body.archived
+    );
+    const { doctorName, medicalRecordFileUrl, medicalRecords } = parseMedicalRecords(req.body);
+
     const petData = {
       name: req.body.name || req.body.pet_name,
       species,
@@ -87,7 +152,11 @@ export const createPetHandler = async (req, res, next) => {
       healthStatus: req.body.healthStatus || req.body.health_status || 'NORMAL',
       medicalNotes: req.body.medicalNotes || req.body.medical_note || '',
       photoUrl: req.body.photoUrl || req.body.avatar || req.body.profile_image_url || null,
-      isArchived: Boolean(req.body.isArchived || false),
+      doctorName,
+      medicalRecordFileUrl,
+      medicalRecords,
+      status,
+      isArchived,
       customerId,
     };
     const pet = new Pet(petData);
@@ -141,18 +210,81 @@ export const updatePetHandler = async (req, res, next) => {
     const updates = {
       ...(req.body.name || req.body.pet_name ? { name: req.body.name || req.body.pet_name } : {}),
       ...(species ? { species } : {}),
-      ...(req.body.breed || req.body.breed_name !== undefined ? { breed: req.body.breed || req.body.breed_name } : {}),
+      ...(req.body.breed !== undefined || req.body.breed_name !== undefined ? { breed: req.body.breed || req.body.breed_name } : {}),
       ...(req.body.gender ? { gender: req.body.gender.toUpperCase() } : {}),
       ...(req.body.ageYears !== undefined || req.body.age !== undefined ? { ageYears: Number(req.body.ageYears || req.body.age || 0) } : {}),
       ...(req.body.weightKg !== undefined || req.body.weight_kg !== undefined ? { weightKg: Number(req.body.weightKg || req.body.weight_kg || 0) } : {}),
       ...(req.body.healthStatus || req.body.health_status ? { healthStatus: req.body.healthStatus || req.body.health_status } : {}),
       ...(req.body.medicalNotes !== undefined || req.body.medical_note !== undefined ? { medicalNotes: req.body.medicalNotes || req.body.medical_note } : {}),
       ...(req.body.photoUrl || req.body.avatar || req.body.profile_image_url ? { photoUrl: req.body.photoUrl || req.body.avatar || req.body.profile_image_url } : {}),
-      ...(req.body.isArchived !== undefined ? { isArchived: Boolean(req.body.isArchived) } : {}),
-      ...(req.body.archived !== undefined ? { isArchived: Boolean(req.body.archived) } : {}),
     };
 
+    if (req.body.status !== undefined || req.body.isArchived !== undefined || req.body.archived !== undefined) {
+      const statusInfo = normalizePetStatus(
+        req.body.status,
+        req.body.isArchived !== undefined ? req.body.isArchived : req.body.archived
+      );
+      updates.status = statusInfo.status;
+      updates.isArchived = statusInfo.isArchived;
+    }
+
+    const incomingDoctorName = req.body.doctorName || req.body.attendingDoctor || req.body.doctor || req.body.bacSi;
+    if (incomingDoctorName !== undefined) {
+      updates.doctorName = String(incomingDoctorName).trim();
+    }
+
+    const incomingFileUrl = req.body.medicalRecordFileUrl || req.body.fileUrl || req.body.medicalFile || req.body.recordFileUrl;
+    if (incomingFileUrl !== undefined) {
+      updates.medicalRecordFileUrl = incomingFileUrl || null;
+    }
+
+    if (Array.isArray(req.body.medicalRecords)) {
+      updates.medicalRecords = req.body.medicalRecords.map((r) => ({
+        doctorName: (r.doctorName || r.attendingDoctor || r.doctor || updates.doctorName || existingPet.doctorName || '').trim(),
+        fileUrl: r.fileUrl || r.medicalRecordFileUrl || '',
+        fileName: r.fileName || r.name || '',
+        notes: r.notes || r.note || '',
+        examinationDate: r.examinationDate ? new Date(r.examinationDate) : null,
+        createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+      }));
+    } else if (Array.isArray(req.body.records)) {
+      updates.medicalRecords = req.body.records.map((r) => ({
+        doctorName: (r.doctorName || r.attendingDoctor || r.doctor || updates.doctorName || existingPet.doctorName || '').trim(),
+        fileUrl: r.fileUrl || r.medicalRecordFileUrl || '',
+        fileName: r.fileName || r.name || '',
+        notes: r.notes || r.note || '',
+        examinationDate: r.examinationDate ? new Date(r.examinationDate) : null,
+        createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+      }));
+    } else if (incomingFileUrl || incomingDoctorName) {
+      const rec = {
+        doctorName: updates.doctorName || existingPet.doctorName || '',
+        fileUrl: updates.medicalRecordFileUrl || existingPet.medicalRecordFileUrl || '',
+        fileName: req.body.fileName || (updates.medicalRecordFileUrl ? String(updates.medicalRecordFileUrl).split('/').pop() : ''),
+        notes: req.body.medicalNotes || existingPet.medicalNotes || '',
+        examinationDate: req.body.examinationDate ? new Date(req.body.examinationDate) : new Date(),
+        createdAt: new Date(),
+      };
+      updates.medicalRecords = [...(existingPet.medicalRecords || []), rec];
+    }
+
     const pet = await Pet.findByIdAndUpdate(existingPet._id, { $set: updates }, { new: true });
+    res.json(pet);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePetStatusHandler = async (req, res, next) => {
+  try {
+    const existingPet = await resolvePet(req.params.id);
+    if (!existingPet) return res.status(404).json({ message: 'Pet not found' });
+    const { status, isArchived } = normalizePetStatus(req.body.status, req.body.isArchived);
+    const pet = await Pet.findByIdAndUpdate(
+      existingPet._id,
+      { $set: { status, isArchived } },
+      { new: true }
+    );
     res.json(pet);
   } catch (error) {
     next(error);
@@ -168,7 +300,11 @@ export const deletePetHandler = async (req, res, next) => {
     if (permanent) {
       pet = await Pet.findByIdAndDelete(existingPet._id);
     } else {
-      pet = await Pet.findByIdAndUpdate(existingPet._id, { $set: { isArchived: true } }, { new: true });
+      pet = await Pet.findByIdAndUpdate(
+        existingPet._id,
+        { $set: { isArchived: true, status: 'HIDDEN' } },
+        { new: true }
+      );
     }
     res.json({ success: true, message: permanent ? 'Pet deleted successfully' : 'Pet archived successfully', pet: pet || existingPet });
   } catch (error) {
@@ -182,6 +318,8 @@ router.post('/', optionalAuth, createPetHandler);
 router.get('/:id', optionalAuth, getPetHandler);
 router.put('/:id', optionalAuth, updatePetHandler);
 router.patch('/:id', optionalAuth, updatePetHandler);
+router.patch('/:id/status', optionalAuth, updatePetStatusHandler);
+router.put('/:id/status', optionalAuth, updatePetStatusHandler);
 router.delete('/:id', optionalAuth, deletePetHandler);
 
 export default router;

@@ -15,7 +15,7 @@ router.post('/verify-otp', otpLimiter, authController.verifyOtp);
 router.post('/verify-register-otp', otpLimiter, authController.verifyOtp); // FE alias
 router.post('/resend-otp', otpLimiter, authController.resendOtp);
 router.post('/reset-password', authLimiter, authController.resetPassword);
-router.post('/google', authLimiter, authController.googleLogin);
+router.post(['/google', '/google-login', '/login/google', '/oauth/google'], authLimiter, authController.googleLogin);
 
 // Protected Authentication Endpoints
 router.post('/logout', authenticate, authController.logout);
