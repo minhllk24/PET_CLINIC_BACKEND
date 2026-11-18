@@ -622,17 +622,35 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           };
         });
 
+        const effectiveContact =
+          contact && (contact.phone || contact.email)
+            ? contact
+            : shippingAddress && (shippingAddress.phone || shippingAddress.email)
+            ? {
+                name: shippingAddress.recipientName || shippingAddress.fullName || 'Guest Customer',
+                phone: shippingAddress.phone,
+                email: shippingAddress.email,
+              }
+            : null;
+
         let guestContactId = undefined;
-        if (!actor && contact && (contact.phone || contact.email)) {
-          const cPhone = contact.phone ? contact.phone.trim() : null;
-          const cEmail = contact.email ? contact.email.trim().toLowerCase() : null;
-          const cName = (shippingAddress && shippingAddress.fullName) || contact.name || 'Guest Customer';
+        if (!actor && effectiveContact && (effectiveContact.phone || effectiveContact.email)) {
+          const cPhone = effectiveContact.phone ? effectiveContact.phone.trim() : null;
+          const cEmail = effectiveContact.email ? effectiveContact.email.trim().toLowerCase() : null;
+          const cName =
+            (shippingAddress && (shippingAddress.fullName || shippingAddress.recipientName)) ||
+            effectiveContact.name ||
+            'Guest Customer';
 
           let guest = null;
           if (cPhone) {
-            guest = await GuestContact.findOne({ phone: cPhone }).session(session);
+            let gq = GuestContact.findOne({ phone: cPhone });
+            if (session && typeof gq.session === 'function') gq = gq.session(session);
+            guest = await gq;
           } else if (cEmail) {
-            guest = await GuestContact.findOne({ email: cEmail }).session(session);
+            let gq = GuestContact.findOne({ email: cEmail });
+            if (session && typeof gq.session === 'function') gq = gq.session(session);
+            guest = await gq;
           }
 
           if (!guest) {
@@ -642,7 +660,7 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
               email: cEmail || undefined,
               activationStatus: 'NO_ACCOUNT',
             });
-            await guest.save({ session });
+            await guest.save(session ? { session } : {});
           }
           guestContactId = guest._id;
         }
@@ -660,7 +678,9 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           pricing: { merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount },
           voucher: appliedVoucher ? { voucherId: appliedVoucher._id, code: appliedVoucher.code } : undefined,
           shippingAddress,
-          contactSnapshot: contact ? { email: contact.email, phone: contact.phone } : {},
+          contactSnapshot: effectiveContact
+            ? { name: effectiveContact.name, email: effectiveContact.email, phone: effectiveContact.phone }
+            : {},
           statusHistory: [{ status: 'PENDING', at: new Date(), actorId: actor ? actor.id : undefined }]
         });
         await createdOrder.save({ session });

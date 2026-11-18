@@ -12,6 +12,8 @@ import Pet from '../../src/modules/customer/models/Pet';
 import Customer from '../../src/modules/customer/models/Customer';
 import GuestContact from '../../src/modules/customer/models/GuestContact';
 import Order from '../../src/modules/order/models/Order';
+import Cart from '../../src/modules/cart/models/Cart';
+import SystemSetting from '../../src/modules/settings/models/SystemSetting';
 import OrderReturn from '../../src/modules/order/models/OrderReturn';
 import Voucher from '../../src/modules/order/models/Voucher';
 import Branch from '../../src/modules/branch/models/Branch';
@@ -867,6 +869,191 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
         .send({ title: 'Updated title', content: 'Updated content here' });
       expect(editByOwner.status).toBe(200);
       expect(postDoc.title).toBe('Updated title');
+    });
+  });
+
+  // =========================================================================
+  // 8. GROUP 1 COMPLETION TESTS (QA-R1-01, QA-R1-02, QA-R1-05)
+  // =========================================================================
+  describe('8. Execution Check-In Guard, Rescue Branch Scope & Guest Canonical Checkout', () => {
+    it('QA-R1-01: Blocks creating ServiceRecord (409) when appointment checkInStatus !== ARRIVED and allows when ARRIVED', async () => {
+      const apptId = new mongoose.Types.ObjectId();
+      const unarrivedAppt = {
+        _id: apptId,
+        code: 'APT-R1-01',
+        branchId: branch1Id,
+        serviceType: 'GROOMING',
+        status: 'CONFIRMED',
+        checkInStatus: 'PENDING',
+        services: [{ serviceId: new mongoose.Types.ObjectId(), assignedStaffId: staffProfile1Id }],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Appointment, 'findById').mockResolvedValue(unarrivedAppt);
+      jest.spyOn(StaffProfile, 'findOne').mockReturnValue(makeChainQuery({ _id: staffProfile1Id, userId: staff1Id }));
+      const createSpy = jest.spyOn(ServiceRecord.prototype, 'save');
+
+      await expect(
+        executionService.createRecord(
+          { appointmentId: apptId.toString(), actualMaterials: [] },
+          { id: staff1Id.toString(), systemRole: 'STAFF', staffSubRole: 'CARE_STAFF_GROOMER', assignedBranchIds: [branch1Id.toString()] }
+        )
+      ).rejects.toMatchObject({ status: 409, code: 'INVALID_STATE_TRANSITION' });
+
+      expect(unarrivedAppt.status).toBe('CONFIRMED');
+      expect(createSpy).not.toHaveBeenCalled();
+
+      // Now mark ARRIVED -> succeeds
+      unarrivedAppt.checkInStatus = 'ARRIVED';
+      jest.spyOn(ServiceRecord, 'findOne').mockResolvedValue(null);
+      jest.spyOn(ServiceRecord.prototype, 'save').mockImplementation(function () {
+        this._id = new mongoose.Types.ObjectId();
+        return Promise.resolve(this);
+      });
+      jest.spyOn(Customer, 'findById').mockReturnValue(makeChainQuery(null));
+      jest.spyOn(Pet, 'findById').mockReturnValue(makeChainQuery(null));
+      jest.spyOn(Branch, 'findById').mockReturnValue(makeChainQuery({ _id: branch1Id, name: 'Q1' }));
+      jest.spyOn(StaffProfile, 'find').mockReturnValue(makeChainQuery([{ _id: staffProfile1Id, fullName: 'Groomer A' }]));
+      jest.spyOn(Service, 'find').mockReturnValue(makeChainQuery([]));
+
+      const created = await executionService.createRecord(
+        { appointmentId: apptId.toString(), actualMaterials: [] },
+        { id: staff1Id.toString(), systemRole: 'STAFF', staffSubRole: 'CARE_STAFF_GROOMER', assignedBranchIds: [branch1Id.toString()] }
+      );
+      expect(created).toBeDefined();
+    });
+
+    it('QA-R1-02: Manager creating RescuePet requires assigned branchId (400 if missing, 403 if outside scope, 201 if valid)', async () => {
+      const managerToken = makeToken({
+        id: new mongoose.Types.ObjectId().toString(),
+        systemRole: 'MANAGER',
+        assignedBranchIds: [branch1Id.toString()],
+        authorizedBranchIds: [branch1Id.toString()],
+      });
+
+      const createSpy = jest.spyOn(RescuePet, 'create').mockImplementation(async (doc) => ({
+        _id: new mongoose.Types.ObjectId(),
+        ...doc,
+        toObject() { return this; },
+      }));
+      jest.spyOn(RescuePet, 'countDocuments').mockResolvedValue(0);
+
+      // Missing branchId -> 400
+      const missingRes = await request(app)
+        .post('/api/v1/admin/rescue/pets')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          petName: 'Mun',
+          species: 'CAT',
+          healthStatus: 'Khỏe mạnh',
+          rescueStory: 'Được cứu hộ tại công viên',
+          images: ['https://cdn.petclinic.vn/rescue/mun.jpg'],
+        });
+      expect(missingRes.status).toBe(400);
+      expect(createSpy).not.toHaveBeenCalled();
+
+      // Unassigned branch2Id -> 403
+      const forbiddenRes = await request(app)
+        .post('/api/v1/admin/rescue/pets')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          petName: 'Mun',
+          species: 'CAT',
+          branchId: branch2Id.toString(),
+          healthStatus: 'Khỏe mạnh',
+          rescueStory: 'Được cứu hộ tại công viên',
+          images: ['https://cdn.petclinic.vn/rescue/mun.jpg'],
+        });
+      expect(forbiddenRes.status).toBe(403);
+      expect(createSpy).not.toHaveBeenCalled();
+
+      // Assigned branch1Id -> 201
+      jest.spyOn(Branch, 'findById').mockResolvedValue({ _id: branch1Id, name: 'Chi nhánh Q1' });
+      const okRes = await request(app)
+        .post('/api/v1/admin/rescue/pets')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          petName: 'Mun',
+          species: 'CAT',
+          branchId: branch1Id.toString(),
+          healthStatus: 'Khỏe mạnh',
+          rescueStory: 'Được cứu hộ tại công viên',
+          images: ['https://cdn.petclinic.vn/rescue/mun.jpg'],
+        });
+      expect(okRes.status).toBe(201);
+      expect(createSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('QA-R1-05: Guest checkout via canonical POST /api/v1/checkout succeeds (201) with X-Guest-Cart-Token and creates NO User', async () => {
+      const cartId = new mongoose.Types.ObjectId();
+      const productId = new mongoose.Types.ObjectId();
+      const variantId = new mongoose.Types.ObjectId();
+      const invItemId = new mongoose.Types.ObjectId();
+      const guestContactDocId = new mongoose.Types.ObjectId();
+
+      const guestCart = {
+        _id: cartId,
+        tokenHash: 'guest-cart-token-r1-05',
+        items: [{ productId, variantId, quantity: 1 }],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Cart, 'findOne').mockReturnValue(makeChainQuery(guestCart));
+      jest.spyOn(Cart, 'findById').mockReturnValue(makeChainQuery(guestCart));
+      jest.spyOn(Product, 'findById').mockResolvedValue({
+        _id: productId,
+        name: 'Hạt Cho Chó',
+        status: 'ACTIVE',
+        variants: [{ _id: variantId, label: '1kg', sku: 'DOG-1KG', price: 150000, status: 'ACTIVE', inventoryItemId: invItemId }],
+      });
+      jest.spyOn(SystemSetting, 'findOne').mockReturnValue(
+        makeChainQuery({ key: 'commerce', value: { fulfillmentBranchPriority: [branch1Id], freeShippingThreshold: 500000 } })
+      );
+      jest.spyOn(Branch, 'findOne').mockReturnValue(makeChainQuery({ _id: branch1Id, status: 'ACTIVE', name: 'Q1', code: 'Q1' }));
+      jest.spyOn(Branch, 'findById').mockReturnValue(makeChainQuery({ _id: branch1Id, name: 'Q1', code: 'Q1' }));
+      jest.spyOn(InventoryStock, 'find').mockReturnValue(makeChainQuery([{ branchId: branch1Id, inventoryItemId: invItemId, quantity: 10, version: 1 }]));
+      jest.spyOn(InventoryStock, 'findOne').mockReturnValue(makeChainQuery({ _id: new mongoose.Types.ObjectId(), branchId: branch1Id, inventoryItemId: invItemId, quantity: 10, version: 1 }));
+      jest.spyOn(InventoryStock, 'findOneAndUpdate').mockResolvedValue({ branchId: branch1Id, inventoryItemId: invItemId, quantity: 9, version: 2 });
+      jest.spyOn(InventoryTransaction, 'findOne').mockReturnValue(makeChainQuery(null));
+      jest.spyOn(InventoryTransaction, 'create').mockResolvedValue([{ _id: new mongoose.Types.ObjectId() }]);
+      jest.spyOn(GuestContact, 'findOne').mockReturnValue(makeChainQuery(null));
+      jest.spyOn(GuestContact.prototype, 'save').mockImplementation(function () {
+        this._id = guestContactDocId;
+        return Promise.resolve(this);
+      });
+      jest.spyOn(Order, 'findOne').mockReturnValue(makeChainQuery(null));
+      jest.spyOn(Order.prototype, 'save').mockImplementation(function () {
+        return Promise.resolve(this);
+      });
+      jest.spyOn(Payment.prototype, 'save').mockImplementation(function () {
+        this._id = new mongoose.Types.ObjectId();
+        return Promise.resolve(this);
+      });
+      const userCreateSpy = jest.spyOn(User, 'create');
+
+      const res = await request(app)
+        .post('/api/v1/checkout')
+        .set('X-Guest-Cart-Token', 'guest-cart-token-r1-05')
+        .set('Idempotency-Key', `idemp-guest-checkout-${Date.now()}`)
+        .send({
+          cartId: cartId.toString(),
+          shippingAddress: {
+            recipientName: 'Khách Vãng Lai',
+            phone: '0912345678',
+            line1: '123 Lê Lợi',
+            city: 'Hồ Chí Minh',
+          },
+          contact: {
+            name: 'Khách Vãng Lai',
+            phone: '0912345678',
+            email: 'guest.r105@test.com',
+          },
+          paymentMethod: 'COD',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toHaveProperty('status', 'PENDING');
+      expect(userCreateSpy).not.toHaveBeenCalled();
     });
   });
 });

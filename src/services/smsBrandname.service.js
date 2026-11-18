@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import config from '../shared/config.js';
 import SmsLog from '../models/SmsLog.js';
 
@@ -201,22 +202,24 @@ export const sendSmsBrandname = async ({ phone, otp, purpose = 'OTP_VERIFICATION
     inMemorySmsQueue.pop();
   }
 
-  // Asynchronously persist to MongoDB SmsLog
-  SmsLog.create({
-    phone: local,
-    brandName: brand,
-    content,
-    otp,
-    purpose,
-    channel: 'SMS_BRANDNAME',
-    provider: sendResult.provider,
-    status: sendResult.status === 'SENT' ? 'SENT' : 'SIMULATED',
-    providerResponse: sendResult.providerResponse,
-    error: sendResult.error || null,
-  }).catch((dbErr) => {
-    // Non-blocking DB write
-    console.warn('[SMS BRANDNAME] Failed to persist SMS log to DB:', dbErr.message);
-  });
+  // Asynchronously persist to MongoDB SmsLog when DB is connected
+  if (mongoose.connection.readyState === 1) {
+    SmsLog.create({
+      phone: local,
+      brandName: brand,
+      content,
+      otp,
+      purpose,
+      channel: 'SMS_BRANDNAME',
+      provider: sendResult.provider,
+      status: sendResult.status === 'SENT' ? 'SENT' : 'SIMULATED',
+      providerResponse: sendResult.providerResponse,
+      error: sendResult.error || null,
+    }).catch((dbErr) => {
+      // Non-blocking DB write
+      console.warn('[SMS BRANDNAME] Failed to persist SMS log to DB:', dbErr.message);
+    });
+  }
 
   return {
     success: sendResult.status === 'SENT',
@@ -244,26 +247,28 @@ export const getLatestBrandnameSms = async (rawPhone = '') => {
     return inMemorySmsQueue[0];
   }
 
-  // 2. Fall back to MongoDB SmsLog query
-  try {
-    const query = local ? { phone: local } : {};
-    const dbRecord = await SmsLog.findOne(query).sort({ createdAt: -1 }).lean();
-    if (dbRecord) {
-      return {
-        id: dbRecord._id.toString(),
-        phone: dbRecord.phone,
-        brandName: dbRecord.brandName,
-        content: dbRecord.content,
-        otp: dbRecord.otp,
-        purpose: dbRecord.purpose,
-        channel: dbRecord.channel,
-        provider: dbRecord.provider,
-        status: dbRecord.status,
-        createdAt: dbRecord.createdAt,
-      };
+  // 2. Fall back to MongoDB SmsLog query when DB is connected
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const query = local ? { phone: local } : {};
+      const dbRecord = await SmsLog.findOne(query).sort({ createdAt: -1 }).lean();
+      if (dbRecord) {
+        return {
+          id: dbRecord._id.toString(),
+          phone: dbRecord.phone,
+          brandName: dbRecord.brandName,
+          content: dbRecord.content,
+          otp: dbRecord.otp,
+          purpose: dbRecord.purpose,
+          channel: dbRecord.channel,
+          provider: dbRecord.provider,
+          status: dbRecord.status,
+          createdAt: dbRecord.createdAt,
+        };
+      }
+    } catch (err) {
+      console.warn('[SMS BRANDNAME] DB read error in getLatestBrandnameSms:', err.message);
     }
-  } catch (err) {
-    console.warn('[SMS BRANDNAME] DB read error in getLatestBrandnameSms:', err.message);
   }
 
   return inMemorySmsQueue[0] || null;
@@ -274,12 +279,15 @@ export const getLatestBrandnameSms = async (rawPhone = '') => {
  */
 export const listRecentBrandnameSms = async ({ phone = '', limit = 10 } = {}) => {
   const { local } = normalizePhoneNumber(phone);
-  try {
-    const query = local ? { phone: local } : {};
-    return await SmsLog.find(query).sort({ createdAt: -1 }).limit(limit).lean();
-  } catch (_err) {
-    return inMemorySmsQueue.slice(0, limit);
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const query = local ? { phone: local } : {};
+      return await SmsLog.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+    } catch (_err) {
+      return inMemorySmsQueue.slice(0, limit);
+    }
   }
+  return inMemorySmsQueue.slice(0, limit);
 };
 
 export default {

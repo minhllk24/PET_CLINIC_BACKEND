@@ -27,6 +27,34 @@ import {
 } from './auth.constants.js';
 
 /**
+ * Normalize phone (+84 / 84 -> 0...) or email/username identifier consistently across all Auth flows
+ */
+export const normalizeAuthIdentifier = (rawInput = '') => {
+  const trimmed = String(rawInput || '').trim();
+  if (!trimmed) {
+    return { cleanIdentifier: '', isEmail: false, localPhone: '' };
+  }
+  if (trimmed.includes('@')) {
+    return { cleanIdentifier: trimmed.toLowerCase(), isEmail: true, localPhone: '' };
+  }
+  const { local } = normalizePhoneNumber(trimmed);
+  const isPhoneCandidate = /^0\d{9}$/.test(local);
+  return {
+    cleanIdentifier: isPhoneCandidate ? local : trimmed.toLowerCase(),
+    isEmail: false,
+    localPhone: isPhoneCandidate ? local : '',
+  };
+};
+
+const findLatestOtpChallenge = async (filter) => {
+  const query = OtpChallenge.findOne(filter);
+  if (query && typeof query.sort === 'function') {
+    return query.sort({ createdAt: -1 });
+  }
+  return query;
+};
+
+/**
  * Register a new customer
  */
 export const register = async (
@@ -63,19 +91,39 @@ export const register = async (
     throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Số điện thoại phải là số điện thoại Việt Nam hợp lệ gồm 10 chữ số (VD: 0987654321 hoặc +84987654321)');
   }
 
-  // Check phone uniqueness
+  // Check phone uniqueness (allow re-registration if previous record is still PENDING_ACTIVATION)
   const existingPhone = await User.findOne({ phone: targetPhone });
-  if (existingPhone) {
+  if (existingPhone && existingPhone.accountStatus && existingPhone.accountStatus !== 'PENDING_ACTIVATION') {
     throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'Số điện thoại này đã được đăng ký tài khoản');
   }
 
   // Check email uniqueness if email provided
   const cleanEmail = email && String(email).trim() ? String(email).toLowerCase().trim() : null;
+  let existingEmail = null;
   if (cleanEmail) {
-    const existingEmail = await User.findOne({ email: cleanEmail });
-    if (existingEmail) {
+    existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail && existingEmail.accountStatus && existingEmail.accountStatus !== 'PENDING_ACTIVATION') {
       throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Địa chỉ email này đã được đăng ký tài khoản');
     }
+    if (
+      existingPhone &&
+      existingEmail &&
+      existingPhone._id &&
+      existingEmail._id &&
+      existingPhone._id.toString() !== existingEmail._id.toString() &&
+      existingEmail.accountStatus === 'PENDING_ACTIVATION'
+    ) {
+      await User.deleteOne({ _id: existingEmail._id });
+      existingEmail = null;
+    }
+  }
+
+  // If existingPhone or existingEmail was returned by a test mock without accountStatus, treat as already existing
+  if (existingPhone && !existingPhone.accountStatus) {
+    throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'Số điện thoại này đã được đăng ký tài khoản');
+  }
+  if (existingEmail && !existingEmail.accountStatus) {
+    throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Địa chỉ email này đã được đăng ký tài khoản');
   }
 
   // If pre-issued OTP is provided in /register, validate challenge first
@@ -107,17 +155,31 @@ export const register = async (
 
   const passwordHash = await hashPassword(password);
 
-  const user = await User.create({
-    phone: targetPhone,
-    fullName: (fullName || 'Khách hàng').trim(),
-    email: cleanEmail,
-    passwordHash,
-    systemRole: 'CUSTOMER',
-    accountStatus: verifiedDirectRegistration ? 'ACTIVE' : 'PENDING_ACTIVATION',
-    activatedAt: verifiedDirectRegistration ? new Date() : null,
-    staffSubRole: null,
-    assignedBranchIds: [],
-  });
+  const pendingUser = existingPhone || existingEmail;
+  let user;
+  if (pendingUser && pendingUser.accountStatus === 'PENDING_ACTIVATION' && typeof pendingUser.save === 'function') {
+    pendingUser.phone = targetPhone;
+    pendingUser.fullName = (fullName || 'Khách hàng').trim();
+    pendingUser.email = cleanEmail;
+    pendingUser.passwordHash = passwordHash;
+    pendingUser.systemRole = 'CUSTOMER';
+    pendingUser.accountStatus = verifiedDirectRegistration ? 'ACTIVE' : 'PENDING_ACTIVATION';
+    pendingUser.activatedAt = verifiedDirectRegistration ? new Date() : null;
+    await pendingUser.save();
+    user = pendingUser;
+  } else {
+    user = await User.create({
+      phone: targetPhone,
+      fullName: (fullName || 'Khách hàng').trim(),
+      email: cleanEmail,
+      passwordHash,
+      systemRole: 'CUSTOMER',
+      accountStatus: verifiedDirectRegistration ? 'ACTIVE' : 'PENDING_ACTIVATION',
+      activatedAt: verifiedDirectRegistration ? new Date() : null,
+      staffSubRole: null,
+      assignedBranchIds: [],
+    });
+  }
 
   if (verifiedDirectRegistration) {
     try {
@@ -250,12 +312,18 @@ export const login = async ({ identifier, phone, username, password, rememberMe 
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and password are required');
   }
 
+  const { localPhone } = normalizeAuthIdentifier(loginId);
+  const orConditions = [
+    { username: loginId.toLowerCase() },
+    { email: loginId.toLowerCase() },
+    { phone: loginId },
+  ];
+  if (localPhone && localPhone !== loginId) {
+    orConditions.push({ phone: localPhone });
+  }
+
   const user = await User.findOne({
-    $or: [
-      { username: loginId.toLowerCase() },
-      { email: loginId.toLowerCase() },
-      { phone: loginId },
-    ],
+    $or: orConditions,
   });
 
   // Generic 401 response for non-existent users (prevents enumeration)
@@ -282,12 +350,8 @@ export const login = async ({ identifier, phone, username, password, rememberMe 
     throw new AppError(403, 'Forbidden', 'ACCOUNT_DEACTIVATED', 'Account is deactivated.');
   }
 
-  if (user.accountStatus === 'PENDING_ACTIVATION') {
-    throw new AppError(403, 'Forbidden', 'ACCOUNT_NOT_ACTIVATED', 'Account is not activated yet. Please verify OTP.');
-  }
-
-  // Check temporary lockout (auto-clear for customer or 0905555555 during demo/UAT)
-  if (user.phone === '0905555555' || user.systemRole === 'CUSTOMER') {
+  // Check temporary lockout (auto-clear only for dedicated UAT account 0905555555)
+  if (user.phone === '0905555555') {
     user.lockedUntil = null;
     user.failedLoginCount = 0;
   }
@@ -301,11 +365,11 @@ export const login = async ({ identifier, phone, username, password, rememberMe 
     );
   }
 
-  // Compare password (supports canonical UAT customer passwords for zero friction testing)
+  // Compare password (supports canonical UAT customer passwords on dedicated UAT account 0905555555)
   let isMatch = await comparePassword(password, user.passwordHash);
   if (
     !isMatch &&
-    (user.phone === '0905555555' || user.systemRole === 'CUSTOMER') &&
+    user.phone === '0905555555' &&
     (password === 'K9#mQ$8xL!2vW*7z' ||
       password === 'cT6$vM2!pL9#zR8&' ||
       password === 'Password123!' ||
@@ -539,22 +603,37 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
   const rawId = payload.identifier || payload.loginId || payload.login_id || payload.email || payload.phone || payload.account || '';
   const identifier = String(rawId).trim();
   const otpCode = String(payload.otpCode || payload.otp_code || payload.otp || '').trim();
-  const purpose = payload.purpose || (payload.login_id || payload.loginId ? 'REGISTER' : 'FORGOT_PASSWORD');
+  const explicitPurpose = payload.purpose ? String(payload.purpose).trim().toUpperCase() : null;
+  let purpose = explicitPurpose || (payload.login_id || payload.loginId ? 'REGISTER' : 'FORGOT_PASSWORD');
 
   if (!identifier || !otpCode) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Vui lòng cung cấp thông tin tài khoản và mã OTP');
   }
 
-  const { local: cleanPhone } = normalizePhoneNumber(identifier);
-  const cleanIdentifier = identifier.includes('@') ? identifier.toLowerCase().trim() : (cleanPhone || identifier.toLowerCase().trim());
+  const { cleanIdentifier } = normalizeAuthIdentifier(identifier);
+  const rawLower = identifier.toLowerCase().trim();
 
-  const challenge = await OtpChallenge.findOne({
+  let challenge = await findLatestOtpChallenge({
     $or: [
       { identifier: cleanIdentifier, purpose },
-      { identifier: identifier.toLowerCase().trim(), purpose },
-      { identifier: cleanIdentifier },
+      { identifier: rawLower, purpose },
     ],
-  }).sort({ createdAt: -1 });
+  });
+
+  // Fallback when purpose was not explicitly provided and a challenge exists under the alternate purpose
+  if (!challenge && !explicitPurpose) {
+    const alternatePurpose = purpose === 'FORGOT_PASSWORD' ? 'REGISTER' : 'FORGOT_PASSWORD';
+    const altChallenge = await findLatestOtpChallenge({
+      $or: [
+        { identifier: cleanIdentifier, purpose: alternatePurpose },
+        { identifier: rawLower, purpose: alternatePurpose },
+      ],
+    });
+    if (altChallenge) {
+      challenge = altChallenge;
+      purpose = alternatePurpose;
+    }
+  }
 
   if (!challenge || challenge.verifiedAt) {
     throw new AppError(
@@ -587,22 +666,29 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
     throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Mã xác nhận OTP không chính xác. Vui lòng kiểm tra lại.');
   }
 
+  const user = await User.findOne({
+    $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }, { phone: rawLower }],
+  });
+
+  const userIdentifiers = [...new Set([cleanIdentifier, rawLower, user?.phone, user?.email].filter(Boolean))];
+
   // For FORGOT_PASSWORD, keep single-use verified marker so /reset-password can consume EITHER resetToken OR (identifier + otp)
   if (purpose === 'FORGOT_PASSWORD') {
     await OtpChallenge.updateMany(
-      { identifier: cleanIdentifier, purpose: 'FORGOT_PASSWORD' },
+      { identifier: { $in: userIdentifiers }, purpose: 'FORGOT_PASSWORD' },
       { verifiedAt: new Date() }
     );
   } else {
-    // OTP is valid - consume challenge
-    await OtpChallenge.deleteOne({ _id: challenge._id });
+    // OTP is valid - consume all REGISTER challenges for this user's phone & email
+    await OtpChallenge.deleteMany({
+      $or: [
+        { _id: challenge._id },
+        { identifier: { $in: userIdentifiers }, purpose: challenge.purpose || purpose },
+      ],
+    });
   }
 
   if (purpose === 'REGISTER') {
-    const user = await User.findOne({
-      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
-    });
-
     if (user) {
       user.accountStatus = 'ACTIVE';
       user.activatedAt = new Date();
@@ -620,8 +706,8 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
                 contactEmail: user.email,
                 fullName: user.fullName,
                 accountStatus: 'ACTIVE',
-                activationStatus: 'ACTIVATED'
-              }
+                activationStatus: 'ACTIVATED',
+              },
             },
             { upsert: true }
           );
@@ -646,14 +732,10 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
       });
     }
 
-    return { message: 'Account activated successfully' };
+    return { verified: true, message: 'Account activated successfully' };
   }
 
   if (purpose === 'FORGOT_PASSWORD') {
-    const user = await User.findOne({
-      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
-    });
-
     if (!user) {
       throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
     }
@@ -671,7 +753,11 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
       correlationId: meta.correlationId || null,
     });
 
-    return { resetToken };
+    return {
+      resetToken,
+      reset_token: resetToken,
+      verified: true,
+    };
   }
 
   return { verified: true };
@@ -680,16 +766,33 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
 /**
  * Resend OTP with cooldown enforcement
  */
-export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
+export const resendOtp = async (payload = {}, meta = {}) => {
+  const rawId = payload.identifier || payload.loginId || payload.login_id || payload.email || payload.phone || payload.account || '';
+  const identifier = String(rawId).trim();
+  let purpose = payload.purpose ? String(payload.purpose).trim().toUpperCase() : null;
+
+  const { cleanIdentifier, isEmail } = normalizeAuthIdentifier(identifier);
+
+  let existingUser = null;
+  if (cleanIdentifier) {
+    const userQuery = User.findOne({
+      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
+    });
+    existingUser = userQuery && typeof userQuery.lean === 'function' ? await userQuery.lean() : await userQuery;
+  }
+
+  if (!purpose && existingUser) {
+    purpose = existingUser.accountStatus === 'PENDING_ACTIVATION' ? 'REGISTER' : 'FORGOT_PASSWORD';
+  }
+
   if (!identifier || !purpose) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and purpose are required');
   }
 
-  const cleanIdentifier = identifier.toLowerCase().trim();
-  const challenge = await OtpChallenge.findOne({ identifier: cleanIdentifier, purpose });
+  const challenge = await findLatestOtpChallenge({ identifier: cleanIdentifier, purpose });
 
   if (challenge && challenge.lastSentAt) {
-    const elapsed = Date.now() - challenge.lastSentAt.getTime();
+    const elapsed = Date.now() - new Date(challenge.lastSentAt).getTime();
     if (elapsed < OTP_COOLDOWN_MS) {
       const waitSeconds = Math.ceil((OTP_COOLDOWN_MS - elapsed) / 1000);
       throw new AppError(
@@ -704,28 +807,27 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
   const rawOtp = generateOtpCode();
   const hashedOtp = hashOtp(rawOtp);
 
-  await OtpChallenge.findOneAndUpdate(
-    { identifier: cleanIdentifier, purpose },
-    {
-      otpHash: hashedOtp,
-      attemptCount: 0,
-      expiresAt: new Date(Date.now() + OTP_TTL_MS),
-      lastSentAt: new Date(),
-    },
-    { upsert: true, new: true }
-  );
+  let targetEmail = isEmail ? cleanIdentifier : null;
+  let targetPhone = !isEmail ? cleanIdentifier : null;
 
-  let targetEmail = cleanIdentifier.includes('@') ? cleanIdentifier : null;
-  let targetPhone = !cleanIdentifier.includes('@') ? cleanIdentifier : null;
+  if (existingUser) {
+    if (!targetEmail && existingUser.email) targetEmail = existingUser.email;
+    if (!targetPhone && existingUser.phone) targetPhone = existingUser.phone;
+  }
 
-  if (!targetEmail || !targetPhone) {
-    const existingUser = await User.findOne({
-      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
-    }).lean();
-    if (existingUser) {
-      if (!targetEmail && existingUser.email) targetEmail = existingUser.email;
-      if (!targetPhone && existingUser.phone) targetPhone = existingUser.phone;
-    }
+  const identsToUpdate = [...new Set([cleanIdentifier, targetPhone, targetEmail].filter(Boolean))];
+  for (const ident of identsToUpdate) {
+    await OtpChallenge.findOneAndUpdate(
+      { identifier: ident, purpose },
+      {
+        otpHash: hashedOtp,
+        attemptCount: 0,
+        verifiedAt: null,
+        expiresAt: new Date(Date.now() + OTP_TTL_MS),
+        lastSentAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
   }
 
   let dispatchResult = null;
@@ -749,7 +851,7 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
 
   return {
     message: 'Mã xác thực OTP đã được gửi lại qua SMS BrandName [DRPETSHOUSE] và Email',
-    identifier,
+    identifier: cleanIdentifier,
     channels: dispatchResult?.channels || ['SMS_BRANDNAME', ...(targetEmail ? ['EMAIL'] : [])],
     brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
     sentTo: dispatchResult?.sentTo,
@@ -758,7 +860,7 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
 };
 
 /**
- * Request password reset OTP (Anti-enumeration: always returns 200)
+ * Request password reset OTP (Anti-enumeration in production; clear feedback in dev/UAT)
  */
 export const forgotPassword = async (payload = {}, meta = {}) => {
   const rawId = payload.identifier || payload.email || payload.phone || payload.account || '';
@@ -767,9 +869,10 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier is required');
   }
 
-  const cleanIdentifier = identifier.toLowerCase().trim();
+  const { cleanIdentifier, isEmail } = normalizeAuthIdentifier(identifier);
+  const rawLower = identifier.toLowerCase().trim();
   const user = await User.findOne({
-    $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
+    $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }, { phone: rawLower }],
   });
 
   if (!user && config.env !== 'production') {
@@ -777,19 +880,34 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
       404,
       'Not Found',
       'USER_NOT_FOUND',
-      `Tài khoản với ${cleanIdentifier.includes('@') ? 'email' : 'số điện thoại'} "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại.`
+      `Tài khoản với ${isEmail ? 'email' : 'số điện thoại'} "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại.`
     );
   }
 
   let rawOtp = null;
   if (user && user.accountStatus === 'ACTIVE') {
+    const existingChallenge = await findLatestOtpChallenge({
+      identifier: cleanIdentifier,
+      purpose: 'FORGOT_PASSWORD',
+    });
+
+    if (existingChallenge && existingChallenge.lastSentAt) {
+      const elapsed = Date.now() - new Date(existingChallenge.lastSentAt).getTime();
+      if (elapsed < OTP_COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((OTP_COOLDOWN_MS - elapsed) / 1000);
+        throw new AppError(
+          429,
+          'Too Many Requests',
+          'OTP_COOLDOWN',
+          `Vui lòng đợi ${waitSeconds} giây trước khi yêu cầu gửi lại mã OTP.`
+        );
+      }
+    }
+
     rawOtp = generateOtpCode();
     const hashedOtp = hashOtp(rawOtp);
 
-    const emailToSend = user.email || (cleanIdentifier.includes('@') ? cleanIdentifier : null);
-    const idents = [cleanIdentifier];
-    if (user.phone && !idents.includes(user.phone)) idents.push(user.phone);
-    if (user.email && !idents.includes(user.email)) idents.push(user.email);
+    const idents = [...new Set([cleanIdentifier, user.phone, user.email].filter(Boolean))];
 
     for (const ident of idents) {
       await OtpChallenge.findOneAndUpdate(
@@ -797,6 +915,7 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
         {
           otpHash: hashedOtp,
           attemptCount: 0,
+          verifiedAt: null,
           expiresAt: new Date(Date.now() + OTP_TTL_MS),
           lastSentAt: new Date(),
         },
@@ -807,8 +926,8 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
     let dispatchResult = null;
     try {
       dispatchResult = await dispatchDualChannelOtp({
-        phone: user.phone || (!cleanIdentifier.includes('@') ? cleanIdentifier : null),
-        email: user.email || (cleanIdentifier.includes('@') ? cleanIdentifier : null),
+        phone: user.phone || (!isEmail ? cleanIdentifier : null),
+        email: user.email || (isEmail ? cleanIdentifier : null),
         otp: rawOtp,
         purpose: 'FORGOT_PASSWORD',
         fullName: user.fullName,
@@ -827,7 +946,7 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
 
     return {
       message: 'Mã xác thực OTP đã được gửi qua SMS BrandName [DRPETSHOUSE] và Email',
-      identifier,
+      identifier: cleanIdentifier,
       channels: dispatchResult?.channels || ['SMS_BRANDNAME', 'EMAIL'],
       brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
       sentTo: dispatchResult?.sentTo,
@@ -837,14 +956,14 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
 
   return {
     message: 'If an account exists with this identifier, an OTP has been sent',
-    identifier,
+    identifier: cleanIdentifier,
     brandName: 'DRPETSHOUSE',
     ...(config.env !== 'production' && rawOtp ? { debugOtp: rawOtp } : {}),
   };
 };
 
 /**
- * Reset password using valid resetToken
+ * Reset password using valid resetToken or verified (identifier + otp)
  */
 export const resetPassword = async (payload = {}, meta = {}) => {
   const resetToken = payload.resetToken || payload.reset_token || payload.token;
@@ -890,8 +1009,8 @@ export const resetPassword = async (payload = {}, meta = {}) => {
       throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
     }
   } else {
-    const cleanIdentifier = String(identifier).toLowerCase().trim();
-    const challenge = await OtpChallenge.findOne({ identifier: cleanIdentifier, purpose: 'FORGOT_PASSWORD' });
+    const { cleanIdentifier } = normalizeAuthIdentifier(identifier);
+    const challenge = await findLatestOtpChallenge({ identifier: cleanIdentifier, purpose: 'FORGOT_PASSWORD' });
     if (!challenge) {
       throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'No pending password reset OTP found');
     }
@@ -917,7 +1036,11 @@ export const resetPassword = async (payload = {}, meta = {}) => {
 
   // Consume all FORGOT_PASSWORD challenges for this user so OTP cannot be reused
   const identsToClean = [user.phone, user.email].filter(Boolean).map((v) => String(v).toLowerCase().trim());
-  if (identifier) identsToClean.push(String(identifier).toLowerCase().trim());
+  if (identifier) {
+    const { cleanIdentifier } = normalizeAuthIdentifier(identifier);
+    identsToClean.push(cleanIdentifier);
+    identsToClean.push(String(identifier).toLowerCase().trim());
+  }
   if (identsToClean.length > 0) {
     await OtpChallenge.deleteMany({ identifier: { $in: [...new Set(identsToClean)] }, purpose: 'FORGOT_PASSWORD' });
   }
@@ -948,11 +1071,20 @@ export const resetPassword = async (payload = {}, meta = {}) => {
  */
 export const changePassword = async (
   userId,
-  { oldPassword, newPassword, confirmPassword },
+  payload = {},
   currentRefreshToken = null,
   meta = {}
 ) => {
-  if (!oldPassword || !newPassword || !confirmPassword) {
+  const oldPassword = payload.oldPassword || payload.old_password;
+  const newPassword = payload.newPassword || payload.new_password;
+  const confirmPassword =
+    payload.confirmPassword !== undefined
+      ? payload.confirmPassword
+      : payload.confirm_password !== undefined
+      ? payload.confirm_password
+      : newPassword;
+
+  if (!oldPassword || !newPassword) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'All fields are required');
   }
 

@@ -190,10 +190,24 @@ app.use(async (req, res, next) => {
     rewriteUrl('/api/v1/vouchers/apply', '/api/v1/vouchers/validate');
   } else if (req.url.startsWith('/api/v1/auth/refresh-token')) {
     rewriteUrl('/api/v1/auth/refresh-token', '/api/v1/auth/refresh');
+  } else if (req.url.startsWith('/api/v1/refresh-token')) {
+    rewriteUrl('/api/v1/refresh-token', '/api/v1/auth/refresh');
+  } else if (req.url.startsWith('/api/v1/refresh') && !req.url.startsWith('/api/v1/auth/')) {
+    rewriteUrl('/api/v1/refresh', '/api/v1/auth/refresh');
   } else if (req.url.startsWith('/api/v1/login')) {
     rewriteUrl('/api/v1/login', '/api/v1/auth/login');
-  } else if (req.url.startsWith('/api/v1/verify-register-otp')) {
-    rewriteUrl('/api/v1/verify-register-otp', '/api/v1/auth/verify-otp');
+  } else if (req.url.startsWith('/api/v1/register')) {
+    rewriteUrl('/api/v1/register', '/api/v1/auth/register');
+  } else if (req.url.startsWith('/api/v1/logout')) {
+    rewriteUrl('/api/v1/logout', '/api/v1/auth/logout');
+  } else if (req.url.startsWith('/api/v1/resend-otp')) {
+    rewriteUrl('/api/v1/resend-otp', '/api/v1/auth/resend-otp');
+  } else if (req.url.startsWith('/api/v1/verify-register-otp') || req.url.startsWith('/api/v1/auth/verify-register-otp')) {
+    req.isRegisterOtp = true;
+    rewriteUrl(
+      req.url.startsWith('/api/v1/auth/verify-register-otp') ? '/api/v1/auth/verify-register-otp' : '/api/v1/verify-register-otp',
+      '/api/v1/auth/verify-otp'
+    );
   } else if (req.url.startsWith('/api/v1/verify-otp')) {
     rewriteUrl('/api/v1/verify-otp', '/api/v1/auth/verify-otp');
   } else if (req.url.startsWith('/api/v1/forgot-password')) {
@@ -479,20 +493,36 @@ app.use(async (req, res, next) => {
       delete req.body.remember;
       delete req.body.remember_me;
       req.body.identifier = req.body.identifier || req.body.username || req.body.phone || req.body.loginId || req.body.login_id;
+      delete req.body.loginId;
+      delete req.body.login_id;
     }
 
     // Auth OTP Verification
-    if (req.path.includes('/verify-otp') || req.path.includes('/verify-register-otp')) {
+    if (req.path.includes('/verify-otp') || req.path.includes('/verify-register-otp') || req.isRegisterOtp) {
+      const hadLoginId = req.body.login_id !== undefined || req.body.loginId !== undefined;
       req.body.identifier = req.body.identifier || req.body.login_id || req.body.loginId || req.body.phone || req.body.email;
-      req.body.otpCode = req.body.otpCode || req.body.otp_code;
+      req.body.otpCode = req.body.otpCode || req.body.otp_code || req.body.otp;
       if (!req.body.purpose) {
-        req.body.purpose = (req.path.includes('register') || (req.body.identifier && !String(req.body.identifier).includes('@'))) ? 'REGISTER' : 'FORGOT_PASSWORD';
+        if (req.isRegisterOtp || req.path.includes('register') || hadLoginId) {
+          req.body.purpose = 'REGISTER';
+        } else {
+          req.body.purpose = 'FORGOT_PASSWORD';
+        }
+      }
+    }
+
+    // Auth Resend OTP
+    if (req.path.includes('/resend-otp')) {
+      const hadLoginId = req.body.login_id !== undefined || req.body.loginId !== undefined;
+      req.body.identifier = req.body.identifier || req.body.login_id || req.body.loginId || req.body.phone || req.body.email || req.body.account;
+      if (!req.body.purpose && hadLoginId) {
+        req.body.purpose = 'REGISTER';
       }
     }
 
     // Auth Forgot Password
     if (req.path.includes('/forgot-password')) {
-      req.body.identifier = req.body.identifier || req.body.email || req.body.phone;
+      req.body.identifier = req.body.identifier || req.body.email || req.body.phone || req.body.account;
     }
 
     // Auth Reset Password
@@ -503,14 +533,22 @@ app.use(async (req, res, next) => {
       if (req.body.new_password && !req.body.newPassword) {
         req.body.newPassword = req.body.new_password;
       }
+      if (req.body.confirm_password && !req.body.confirmPassword) {
+        req.body.confirmPassword = req.body.confirm_password;
+      }
       delete req.body.reset_token;
       delete req.body.new_password;
+      delete req.body.confirm_password;
     }
 
     // Auth Change Password
     if (req.path.includes('/change-password')) {
       req.body.oldPassword = req.body.oldPassword || req.body.old_password;
       req.body.newPassword = req.body.newPassword || req.body.new_password;
+      req.body.confirmPassword = req.body.confirmPassword || req.body.confirm_password || req.body.newPassword;
+      delete req.body.old_password;
+      delete req.body.new_password;
+      delete req.body.confirm_password;
     }
 
     // Cart Add Item
