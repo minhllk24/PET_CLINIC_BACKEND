@@ -51,13 +51,14 @@ export const requestRefund = async (data, actor, guestToken) => {
     throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, 'Appointment must be CANCELLED or NO_SHOW to request refund');
   }
 
-  // Find prepayment/payment
+  // Find prepayment/payment (supports PAID and REFUND_PENDING after cancellation)
   const payment = await Payment.findOne({
-    'target.id': appointment._id,
-    status: { $in: ['PAID', 'PENDING'] },
+    $or: [{ 'target.id': appointment._id }, { targetId: appointment._id }],
+    status: { $in: ['PAID', 'REFUND_PENDING', 'PENDING'] },
   });
 
-  if (!payment || !payment.paidAmount || payment.paidAmount <= 0) {
+  const paidAmount = Number(payment?.amount ?? payment?.paidAmount ?? 0);
+  if (!payment || paidAmount <= 0) {
     throw new AppError(422, 'UnprocessableEntity', ErrorCodes.BUSINESS_RULE_VIOLATION, 'No refundable prepayment found for this appointment');
   }
 
@@ -70,18 +71,31 @@ export const requestRefund = async (data, actor, guestToken) => {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'A refund request already exists for this payment');
   }
 
-  // Calculate refund amount based on cancellation policy
-  let rule = 'CUSTOMER_EARLY_FULL';
-  let refundableAmount = payment.paidAmount;
+  // Calculate refund amount based on cancellation timestamp (not refund request creation timestamp)
+  const cancelledBy = appointment.cancel?.by || null;
+  const cancelledAt = appointment.cancel?.at ? new Date(appointment.cancel.at) : (appointment.cancelledAt ? new Date(appointment.cancelledAt) : new Date());
+  const isStoreOrSystemCancel =
+    cancelledBy === 'STORE' ||
+    cancelledBy === 'SYSTEM' ||
+    appointment.cancellationReason === 'SYSTEM_TIMEOUT' ||
+    appointment.cancellationReason === 'STORE_CANCEL';
 
-  if (appointment.cancellationReason === 'SYSTEM_TIMEOUT' || appointment.cancellationReason === 'STORE_CANCEL') {
+  const hoursBeforeAtCancel =
+    appointment.scheduledStart
+      ? (new Date(appointment.scheduledStart).getTime() - cancelledAt.getTime()) / 3600000
+      : 24;
+
+  let rule = 'CUSTOMER_EARLY_FULL';
+  let refundableAmount = paidAmount;
+
+  if (isStoreOrSystemCancel) {
     rule = 'SYSTEM_FULL';
-    refundableAmount = payment.paidAmount;
-  } else if (appointment.status === 'NO_SHOW' || (appointment.scheduledStart && (new Date(appointment.scheduledStart) - new Date()) < 24 * 3600000)) {
+    refundableAmount = paidAmount;
+  } else if (appointment.status === 'NO_SHOW' || hoursBeforeAtCancel < 24) {
     rule = 'CUSTOMER_LATE_RETAIN_30';
-    const finalAmount = appointment.pricing?.finalAmount || payment.paidAmount;
+    const finalAmount = appointment.pricing?.finalAmount || paidAmount;
     const retainedAmount = Math.round(finalAmount * 0.3);
-    refundableAmount = Math.max(0, payment.paidAmount - retainedAmount);
+    refundableAmount = Math.max(0, paidAmount - retainedAmount);
   }
 
   if (refundableAmount <= 0) {
@@ -284,7 +298,8 @@ export const approveRefund = async (id, note, actor) => {
     const payment = await Payment.findById(refund.paymentId).session(session);
     if (payment) {
       payment.refundedAmount = (payment.refundedAmount || 0) + refund.amount;
-      if (payment.refundedAmount >= payment.paidAmount) {
+      const totalPaid = Number(payment.amount ?? payment.paidAmount ?? 0);
+      if (payment.refundedAmount >= totalPaid && totalPaid > 0) {
         payment.status = 'REFUNDED';
       }
       await payment.save({ session });

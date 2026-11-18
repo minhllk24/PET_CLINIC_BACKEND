@@ -87,7 +87,7 @@ export const getPostBySlugPublic = async (req, res, next) => {
 
 export const getFeaturedPosts = async (req, res, next) => {
   try {
-    const data = await contentService.getFeaturedPosts();
+    const data = await contentService.getFeaturedPosts(req.query.limit);
     if (!data || data.length === 0) {
       return next();
     }
@@ -99,13 +99,49 @@ export const getFeaturedPosts = async (req, res, next) => {
 
 export const getTrendingPosts = async (req, res, next) => {
   try {
-    const data = await contentService.getTrendingPosts();
+    const data = await contentService.getTrendingPosts(req.query.limit);
     if (!data || data.length === 0) {
       return next();
     }
     res.status(200).json({ success: true, data });
   } catch (err) {
     next();
+  }
+};
+
+export const getRecentPosts = async (req, res, next) => {
+  try {
+    const data = await contentService.getRecentPosts(req.query.limit, req.query.postType);
+    if (!data || data.length === 0) {
+      return next();
+    }
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next();
+  }
+};
+
+export const getRelatedPosts = async (req, res, next) => {
+  try {
+    const data = await contentService.getRelatedPosts({
+      slug: req.params.slug || req.query.slug,
+      id: req.query.id || req.query.postId,
+      category: req.query.category,
+      tag: req.query.tag,
+      limit: req.query.limit,
+    });
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPostTags = async (req, res, next) => {
+  try {
+    const data = await contentService.getPostTags(req.query.postType);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -241,7 +277,11 @@ export const getRescuePetsPublic = async (req, res, next) => {
 
 export const createAdoptionRequest = async (req, res, next) => {
   try {
-    const request = await contentService.createAdoptionRequest(req.body, req.actor);
+    const request = await contentService.createAdoptionRequest(
+      req.body,
+      req.actor,
+      req.headers['idempotency-key'] || null
+    );
     res.status(201).json({
       success: true,
       data: request,
@@ -289,6 +329,16 @@ export const addCommunityComment = async (req, res, next) => {
     const comment = await contentService.addCommunityComment(req.params.id, req.body, req.actor);
     const commentObj = comment.toObject ? comment.toObject() : comment;
     res.status(201).json({ success: true, data: commentObj, ...commentObj });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateCommunityPost = async (req, res, next) => {
+  try {
+    const post = await contentService.updateCommunityPost(req.params.id, req.body, req.actor);
+    const postObj = post.toObject ? post.toObject() : post;
+    res.status(200).json({ success: true, data: postObj, ...postObj });
   } catch (err) {
     next(err);
   }

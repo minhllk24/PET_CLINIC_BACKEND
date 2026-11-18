@@ -1,4 +1,5 @@
 import AppError from '../utils/AppError';
+import { verifyGuestToken } from '../modules/customer/guest.service';
 
 export const authorizeRequest = (req, res, next) => {
   // If the route doesn't have openapi spec, or doesn't have x-authz, skip
@@ -7,7 +8,7 @@ export const authorizeRequest = (req, res, next) => {
   }
 
   const authz = req.openapi.schema['x-authz'];
-  
+
   // If it's public, allow anyone (authenticated or guest)
   if (
     authz.scope === 'public' ||
@@ -16,15 +17,30 @@ export const authorizeRequest = (req, res, next) => {
     return next();
   }
 
+  const roles = Array.isArray(authz.roles) ? authz.roles : [];
+  const allowsGuestLookup =
+    roles.some((r) => typeof r === 'string' && r.startsWith('guest(') && (r.includes('lookup') || r.includes('verified'))) ||
+    authz.auth === 'lookup token' ||
+    (typeof authz.auth === 'string' && authz.auth.includes('guest lookup token'));
+  const allowsGuestCart =
+    roles.some((r) => typeof r === 'string' && (r === 'guest(token)' || r === 'guest(cart token)'));
+
   // If route allows guest lookup token and header is present
-  if (
-    !req.actor &&
-    req.headers['x-guest-lookup-token'] &&
-    (
-      (authz.roles && (authz.roles.includes('guest(lookup token)') || authz.roles.includes('guest(verified)'))) ||
-      authz.auth === 'lookup token'
-    )
-  ) {
+  const guestLookupHeader = req.headers['x-guest-lookup-token'];
+  if (!req.actor && guestLookupHeader && allowsGuestLookup) {
+    try {
+      if (!req.guest) {
+        req.guest = verifyGuestToken(String(guestLookupHeader).trim());
+      }
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  // If route allows guest cart token (e.g., /checkout, /checkout/quote, /cart/*)
+  const guestCartHeader = req.headers['x-guest-cart-token'];
+  if (!req.actor && typeof guestCartHeader === 'string' && guestCartHeader.trim().length > 0 && allowsGuestCart) {
     return next();
   }
 

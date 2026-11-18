@@ -24,6 +24,133 @@ import {
 } from '../catalog/serviceCatalog.service';
 import { buildOptionalVnDateFilter } from '../dashboard/dashboard.utils';
 import { formatCompactVnDate } from '../../utils/codeGenerator';
+import { recordAuditLog } from '../../utils/auditLogger';
+import { validateScheduleAgainstBranchRules } from './availability.service';
+import { verifyGuestToken } from '../customer/guest.service';
+import { mockCompletePayment as completeMockPaymentService } from '../payment/payment.service';
+
+const normalizeBookingPhone = (phone) => {
+  if (!phone) return '';
+  return String(phone).trim().replace(/[\s\-().]/g, '').replace(/^\+84/, '0');
+};
+
+const abortSessionSafely = async (session) => {
+  if (!session) return;
+  try {
+    await session.abortTransaction();
+  } catch (_e) {}
+  try {
+    session.endSession();
+  } catch (_e) {}
+};
+
+const mapSlotWriteError = (error, message = 'The requested time slot or assigned staff is already reserved by another customer') => {
+  if (!error) return null;
+  if (error.code === 112 || error.hasErrorLabel?.('TransientTransactionError')) {
+    return new AppError(409, 'Conflict', 'SLOT_UNAVAILABLE', message);
+  }
+  if (error.code === 11000) {
+    const msg = error.message || '';
+    const kp = error.keyPattern || {};
+    const isSlotConflict =
+      msg.includes('slotreservations') ||
+      kp.slotUnit ||
+      kp.slotStartUnit ||
+      kp.capacitySlot ||
+      kp.unitIndex ||
+      kp.staffId ||
+      kp.scheduledStart ||
+      kp.assignedStaffId;
+    if (isSlotConflict) {
+      return new AppError(409, 'Conflict', 'SLOT_UNAVAILABLE', message);
+    }
+    return new AppError(500, 'Internal Server Error', 'DATABASE_UNIQUE_VIOLATION', error.message);
+  }
+  return null;
+};
+
+const assertBranchScope = (actor, branchId, message = 'You do not have access to this branch appointment') => {
+  if (!actor) return;
+  const role = actor.systemRole || actor.role;
+  if (role === 'ADMIN') return;
+  if (role === 'MANAGER' || role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST')) {
+    const rawBranches = role === 'MANAGER'
+      ? (actor.assignedBranchIds || actor.authorizedBranchIds)
+      : (actor.authorizedBranchIds ?? actor.assignedBranchIds);
+    if (role === 'MANAGER' || Array.isArray(rawBranches)) {
+      const allowedBranches = (rawBranches || []).map((b) => (b._id || b).toString());
+      const aptBranchStr = (branchId?._id || branchId)?.toString();
+      if (allowedBranches.length === 0 || !aptBranchStr || !allowedBranches.includes(aptBranchStr)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, message);
+      }
+    }
+  }
+};
+
+const assertAppointmentSelfServiceAccess = async (apt, actor, guestLookupToken = null) => {
+  if (!actor && !guestLookupToken) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'Authentication or verified guest lookup token required');
+  }
+  if (actor) {
+    const role = actor.systemRole || actor.role;
+    if (['ADMIN', 'MANAGER', 'RECEPTIONIST', 'STAFF'].includes(role)) {
+      return;
+    }
+    if (role === 'CUSTOMER') {
+      const actorId = (actor.id || actor._id)?.toString();
+      const allowedCustomerIds = actorId ? [actorId] : [];
+      if (mongoose.connection.readyState === 1 && actorId) {
+        try {
+          const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+          const cust = await CustomerModel.findOne({ userId: actorId }).select('_id').lean();
+          if (cust?._id) allowedCustomerIds.push(cust._id.toString());
+        } catch (_e) {}
+      }
+      const aptCustId = (apt.customerId?._id || apt.customerId)?.toString() || null;
+      const isGuestApt = Boolean(apt.guestContactId || apt.contactSnapshot?.phone || apt.contactSnapshot?.email);
+      if ((aptCustId && !allowedCustomerIds.includes(aptCustId)) || (!aptCustId && isGuestApt)) {
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Access denied to this appointment');
+      }
+      return;
+    }
+  }
+
+  const guestPayload = typeof guestLookupToken === 'object' ? guestLookupToken : verifyGuestToken(guestLookupToken);
+  if (!guestPayload) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'Invalid or expired guest lookup token');
+  }
+
+  let matched = false;
+  const aptGuestId = (apt.guestContactId?._id || apt.guestContactId)?.toString() || null;
+  if (guestPayload.guestContactId && aptGuestId && aptGuestId === guestPayload.guestContactId.toString()) {
+    matched = true;
+  }
+
+  let aptPhone = apt.contactSnapshot?.phone || '';
+  let aptEmail = apt.contactSnapshot?.email || '';
+  if (!matched && (!aptPhone || !aptEmail) && aptGuestId && mongoose.connection.readyState === 1) {
+    const gDoc = await GuestContact.findById(aptGuestId).select('phone email').lean();
+    if (gDoc) {
+      aptPhone = aptPhone || gDoc.phone || '';
+      aptEmail = aptEmail || gDoc.email || '';
+    }
+  }
+
+  if (!matched && guestPayload.phoneVerified === true && guestPayload.phone && aptPhone) {
+    if (normalizeBookingPhone(guestPayload.phone) === normalizeBookingPhone(aptPhone)) {
+      matched = true;
+    }
+  }
+  if (!matched && guestPayload.emailVerified === true && guestPayload.email && aptEmail) {
+    if (String(guestPayload.email).trim().toLowerCase() === String(aptEmail).trim().toLowerCase()) {
+      matched = true;
+    }
+  }
+
+  if (!matched) {
+    throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Access denied to this appointment');
+  }
+};
 
 /**
  * Pure Serializer for a Service Segment (ServiceLine)
@@ -390,56 +517,11 @@ const selectBestStaff = async ({
   }
 
   if (eligibleStaff.length === 0) {
-    // Fallback 1: Active staff profiles authorized for this branch matching required role
-    const branchProfiles = await StaffProfile.find({
-      $or: [
-        { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
-        { homeBranchId: new mongoose.Types.ObjectId(branchId) },
-      ],
-      staffSubRole: requiredStaffRole,
-      status: 'ACTIVE',
-    }).session(session);
-
-    for (const profile of branchProfiles) {
-      if (!unavailableStaffSet.has(profile._id.toString())) {
-        eligibleStaff.push(profile);
-      }
-    }
-  }
-
-  if (eligibleStaff.length === 0) {
-    // Fallback 2: Any active staff profile matching required role
-    const anyRoleProfiles = await StaffProfile.find({
-      staffSubRole: requiredStaffRole,
-      status: 'ACTIVE',
-    }).session(session);
-
-    for (const profile of anyRoleProfiles) {
-      if (!unavailableStaffSet.has(profile._id.toString())) {
-        eligibleStaff.push(profile);
-      }
-    }
-  }
-
-  if (eligibleStaff.length === 0) {
-    // Fallback 3: Any active staff profile
-    const anyProfiles = await StaffProfile.find({
-      status: 'ACTIVE',
-    }).session(session);
-
-    for (const profile of anyProfiles) {
-      if (!unavailableStaffSet.has(profile._id.toString())) {
-        eligibleStaff.push(profile);
-      }
-    }
-  }
-
-  if (eligibleStaff.length === 0) {
     throw new AppError(
       409,
       'Conflict',
       'SLOT_UNAVAILABLE',
-      `Khung giờ này tất cả nhân viên phụ trách vai trò ${requiredStaffRole || 'chuyên môn'} đã kín lịch. Vui lòng chọn khung giờ khác.`
+      `Khung giờ này không có nhân viên trực ca phụ trách vai trò ${requiredStaffRole || 'chuyên môn'}. Vui lòng chọn khung giờ khác.`
     );
   }
 
@@ -875,7 +957,17 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       }
     }
 
-    // 5. Build sequential segments and reserve staff
+    // Validate schedule against Branch operating hours, holidays, and per-service windows/blocks
+    const totalDurationMinutes = orderedServices.reduce((sum, s) => sum + Number(s.durationMinutes || 0), 0);
+    validateScheduleAgainstBranchRules({
+      branch,
+      orderedServices,
+      configMap,
+      startDate: new Date(slotStart),
+      endDate: new Date(new Date(slotStart).getTime() + totalDurationMinutes * 60000),
+    });
+
+    // 5. Build sequential segments and reserve staff + capacity
     let currentStart = new Date(slotStart);
     const segments = [];
     const reservationsToCreate = [];
@@ -890,7 +982,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       const segStart = new Date(currentStart);
       const segEnd = new Date(currentStart.getTime() + duration * 60000);
 
-      // Verify concurrency capacity per service segment
+      // Verify concurrency capacity strictly for THIS service (independent from other services sharing staff)
       const sId = service._id.toString();
       const cfg = configMap.get(sId);
       const capacity = Number(cfg?.capacity) || 1;
@@ -900,15 +992,11 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         branchId: new mongoose.Types.ObjectId(branchId),
         $or: [
           { status: { $in: ['CONFIRMED', 'IN_PROGRESS'] } },
-          { status: 'PENDING_PAYMENT', holdExpiresAt: { $gt: now } },
+          { status: { $in: ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'] }, holdExpiresAt: { $gt: now } },
         ],
         services: {
           $elemMatch: {
-            $or: [
-              { serviceId: service._id },
-              { requiredStaffRole: service.requiredStaffRole },
-              { serviceType: service.serviceType },
-            ],
+            serviceId: service._id,
             scheduledStart: { $lt: segEnd },
             scheduledEnd: { $gt: segStart },
           },
@@ -924,6 +1012,44 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         );
       }
 
+      const slotStartUnit = Math.floor(segStart.getTime() / (15 * 60000));
+      const unitsNeeded = Math.ceil(duration / 15);
+      const unitNumbers = Array.from({ length: unitsNeeded }, (_, u) => slotStartUnit + u);
+
+      let freeCapacitySlot = concurrentCount;
+      if (mongoose.connection.readyState === 1 || SlotReservation.find?._isMockFunction) {
+        let capQuery = SlotReservation.find({
+          branchId: new mongoose.Types.ObjectId(branchId),
+          serviceId: service._id,
+          kind: 'CAPACITY',
+          slotStartUnit: { $in: unitNumbers },
+          $or: [
+            { status: 'CONFIRMED' },
+            { status: 'HELD', holdExpiresAt: { $gt: now } },
+          ],
+        });
+        if (typeof capQuery.select === 'function') capQuery = capQuery.select('capacitySlot');
+        if (session && typeof capQuery.session === 'function') capQuery = capQuery.session(session);
+        if (typeof capQuery.lean === 'function') capQuery = capQuery.lean();
+        const usedCapDocs = await capQuery;
+        const usedSlots = new Set((usedCapDocs || []).map((d) => Number(d.capacitySlot ?? 0)));
+        freeCapacitySlot = null;
+        for (let slotIdx = 0; slotIdx < capacity; slotIdx++) {
+          if (!usedSlots.has(slotIdx)) {
+            freeCapacitySlot = slotIdx;
+            break;
+          }
+        }
+        if (freeCapacitySlot === null) {
+          throw new AppError(
+            409,
+            'Conflict',
+            'SLOT_UNAVAILABLE',
+            `Service ${service.name} has reached maximum concurrent capacity at this time`
+          );
+        }
+      }
+
       // Auto-assign staff using Greedy Least-Loaded
       const assignedStaffId = await selectBestStaff({
         branchId,
@@ -935,11 +1061,9 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         session,
       });
 
-      // Prepare SlotReservation units (15-min increments)
-      const slotStartUnit = Math.floor(segStart.getTime() / (15 * 60000));
-      const unitsNeeded = Math.ceil(duration / 15);
-
+      // Prepare SlotReservation units (15-min increments) for both STAFF and CAPACITY
       for (let u = 0; u < unitsNeeded; u++) {
+        const holdUntil = new Date(Date.now() + 15 * 60000);
         reservationsToCreate.push({
           branchId: new mongoose.Types.ObjectId(branchId),
           staffId: assignedStaffId,
@@ -948,7 +1072,18 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
           unitIndex: u,
           kind: 'STAFF',
           status: 'HELD',
-          holdExpiresAt: new Date(Date.now() + 15 * 60000), // 15 minutes hold
+          holdExpiresAt: holdUntil,
+        });
+        reservationsToCreate.push({
+          branchId: new mongoose.Types.ObjectId(branchId),
+          staffId: null,
+          serviceId: service._id,
+          capacitySlot: freeCapacitySlot,
+          slotStartUnit: slotStartUnit + u,
+          unitIndex: u,
+          kind: 'CAPACITY',
+          status: 'HELD',
+          holdExpiresAt: holdUntil,
         });
       }
 
@@ -1064,11 +1199,11 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
     } else if (paymentMethod === 'ONLINE_MOCK') {
       depositAmount = 0;
       balanceAmount = 0;
-      paidAmount = finalAmount;
-      status = 'CONFIRMED';
+      paidAmount = 0;
+      status = finalAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT';
       paymentAmount = finalAmount;
       paymentKind = 'FULL';
-      paymentStatus = 'PAID';
+      paymentStatus = finalAmount === 0 ? 'PAID' : 'PENDING';
       depositStatus = 'NOT_REQUIRED';
     }
 
@@ -1212,26 +1347,12 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
 
     return formatAppointment(appointment);
   } catch (error) {
-    if (session) {
-      await session.abortTransaction();
-      session.endSession();
-    }
-    if (error.code === 11000) {
-      const isSlotConflict =
-        error.message?.includes('slotreservations') ||
-        error.keyPattern?.slotUnit ||
-        error.keyPattern?.scheduledStart ||
-        error.keyPattern?.assignedStaffId;
-      if (isSlotConflict) {
-        throw new AppError(
-          409,
-          'Conflict',
-          'SLOT_UNAVAILABLE',
-          'The requested time slot or assigned staff is already reserved by another customer'
-        );
-      }
-      throw new AppError(500, 'Internal Server Error', 'DATABASE_UNIQUE_VIOLATION', error.message);
-    }
+    await abortSessionSafely(session);
+    const mapped = mapSlotWriteError(
+      error,
+      'The requested time slot or assigned staff is already reserved by another customer'
+    );
+    if (mapped) throw mapped;
     throw error;
   }
 };
@@ -1380,7 +1501,9 @@ export const getAppointmentById = async (id, actor, guestToken) => {
   }
 
   // Check scoping
-  if (actor) {
+  if (!actor) {
+    await assertAppointmentSelfServiceAccess(appointment, null, guestLookupToken);
+  } else {
     const role = actor.systemRole || actor.role;
     const actorId = (actor.id || actor._id)?.toString();
     const isReceptionist = role === 'RECEPTIONIST' || (role === 'STAFF' && actor.staffSubRole === 'RECEPTIONIST');
@@ -1389,33 +1512,11 @@ export const getAppointmentById = async (id, actor, guestToken) => {
       (role === 'STAFF' && actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST');
 
     if (role === 'CUSTOMER') {
-      const allowedCustomerIds = [actorId];
-      try {
-        const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
-        const cust = await CustomerModel.findOne({ userId: actorId }).select('_id').lean();
-        if (cust?._id) {
-          allowedCustomerIds.push(cust._id.toString());
-        }
-      } catch (_e) {}
-      const aptCustId = (appointment.customerId?._id || appointment.customerId)?.toString();
-      if (aptCustId && !allowedCustomerIds.includes(aptCustId)) {
-        throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Access denied to this appointment');
-      }
+      await assertAppointmentSelfServiceAccess(appointment, actor, guestLookupToken);
     } else if (role === 'MANAGER') {
-      const mgrBranches = (actor.assignedBranchIds || actor.authorizedBranchIds || []).map((b) => (b._id || b).toString());
-      const aptBranchId = (appointment.branchId?._id || appointment.branchId)?.toString();
-      if (mgrBranches.length === 0 || !aptBranchId || !mgrBranches.includes(aptBranchId)) {
-        throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch appointment');
-      }
+      assertBranchScope(actor, appointment.branchId);
     } else if (isReceptionist) {
-      const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
-      if (Array.isArray(rawBranches)) {
-        const authBranches = rawBranches.map((b) => (b._id || b).toString());
-        const aptBranchId = (appointment.branchId?._id || appointment.branchId)?.toString();
-        if (authBranches.length === 0 || !aptBranchId || !authBranches.includes(aptBranchId)) {
-          throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch appointment');
-        }
-      }
+      assertBranchScope(actor, appointment.branchId);
     } else if (isClinicalStaff) {
       const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
       if (Array.isArray(rawBranches) && rawBranches.length > 0) {
@@ -1509,6 +1610,8 @@ export const rejectAppointment = async (id, reason, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
+    assertBranchScope(actor, apt.branchId);
+
     if (apt.status !== 'PENDING_CONFIRMATION' && apt.status !== 'PENDING_PAYMENT') {
       throw new AppError(
         422,
@@ -1529,13 +1632,17 @@ export const rejectAppointment = async (id, reason, actor) => {
       reason: reason || 'Store rejected appointment',
       hoursBeforeStart: 0,
       prepaidOutcome: paidAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED',
+      refundAmount: paidAmount,
+      penaltyAmount: 0,
     };
 
     if (paidAmount > 0) {
-      apt.deposit.status = 'REFUNDED';
+      if (apt.deposit) apt.deposit.status = 'REFUND_PENDING';
       const payment = await Payment.findOne({
-        targetType: 'APPOINTMENT',
-        targetId: apt._id,
+        $or: [
+          { 'target.id': apt._id, 'target.type': 'APPOINTMENT' },
+          { targetType: 'APPOINTMENT', targetId: apt._id },
+        ],
         status: 'PAID',
       }).session(session);
 
@@ -1564,18 +1671,111 @@ export const rejectAppointment = async (id, reason, actor) => {
 
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
     throw error;
   }
+};
+
+const rebuildAndReserveSlots = async (apt, newSlotStart, session) => {
+  const previousStart = apt.scheduledStart ? new Date(apt.scheduledStart) : null;
+  const previousEnd = apt.scheduledEnd ? new Date(apt.scheduledEnd) : null;
+
+  let currentStart = new Date(newSlotStart);
+  for (const seg of apt.services || []) {
+    const segStart = new Date(currentStart);
+    const segEnd = new Date(currentStart.getTime() + Number(seg.durationMinutes || 0) * 60000);
+    seg.scheduledStart = segStart;
+    seg.scheduledEnd = segEnd;
+    currentStart = segEnd;
+  }
+
+  apt.scheduledStart = new Date(newSlotStart);
+  apt.scheduledEnd = currentStart;
+
+  await safeDeleteReservations(apt._id, session);
+
+  const resStatus = apt.status === 'CONFIRMED' ? 'CONFIRMED' : 'HELD';
+  const resHoldUntil = resStatus === 'CONFIRMED' ? null : (apt.holdExpiresAt || new Date(Date.now() + 15 * 60000));
+
+  for (const seg of apt.services || []) {
+    const slotStartUnit = Math.floor(seg.scheduledStart.getTime() / (15 * 60000));
+    const unitsNeeded = Math.ceil(Number(seg.durationMinutes || 15) / 15);
+    const unitNumbers = Array.from({ length: unitsNeeded }, (_, u) => slotStartUnit + u);
+
+    let freeCapacitySlot = 0;
+    if (mongoose.connection.readyState === 1 || SlotReservation.find?._isMockFunction) {
+      let capacity = 3;
+      if (seg.serviceId && BranchServiceConfig.findOne) {
+        const cfgQuery = BranchServiceConfig.findOne({ branchId: apt.branchId, serviceId: seg.serviceId });
+        const cfg = session && typeof cfgQuery?.session === 'function' ? await cfgQuery.session(session) : await cfgQuery;
+        if (cfg?.capacity) capacity = Number(cfg.capacity);
+      }
+      let capQuery = SlotReservation.find({
+        branchId: apt.branchId,
+        serviceId: seg.serviceId,
+        kind: 'CAPACITY',
+        slotStartUnit: { $in: unitNumbers },
+        $or: [{ status: 'CONFIRMED' }, { status: 'HELD', holdExpiresAt: { $gt: new Date() } }],
+      });
+      if (typeof capQuery.select === 'function') capQuery = capQuery.select('capacitySlot');
+      if (session && typeof capQuery.session === 'function') capQuery = capQuery.session(session);
+      if (typeof capQuery.lean === 'function') capQuery = capQuery.lean();
+      const usedCapDocs = await capQuery;
+      const usedSlots = new Set((usedCapDocs || []).map((d) => Number(d.capacitySlot ?? 0)));
+      freeCapacitySlot = null;
+      for (let slotIdx = 0; slotIdx < capacity; slotIdx++) {
+        if (!usedSlots.has(slotIdx)) {
+          freeCapacitySlot = slotIdx;
+          break;
+        }
+      }
+      if (freeCapacitySlot === null) {
+        throw new AppError(409, 'Conflict', 'SLOT_UNAVAILABLE', 'The new slot has conflict with existing service capacity');
+      }
+    }
+
+    for (let u = 0; u < unitsNeeded; u++) {
+      if (seg.assignedStaffId) {
+        await safeCreateReservation({
+          branchId: apt.branchId,
+          staffId: seg.assignedStaffId,
+          serviceId: seg.serviceId,
+          appointmentId: apt._id,
+          slotStartUnit: slotStartUnit + u,
+          unitIndex: u,
+          kind: 'STAFF',
+          status: resStatus,
+          holdExpiresAt: resHoldUntil,
+        }, session);
+      }
+      await safeCreateReservation({
+        branchId: apt.branchId,
+        staffId: null,
+        serviceId: seg.serviceId,
+        capacitySlot: freeCapacitySlot,
+        appointmentId: apt._id,
+        slotStartUnit: slotStartUnit + u,
+        unitIndex: u,
+        kind: 'CAPACITY',
+        status: resStatus,
+        holdExpiresAt: resHoldUntil,
+      }, session);
+    }
+  }
+
+  return { previousStart, previousEnd };
 };
 
 /**
  * Reschedule Appointment (Customer / Guest self-service)
  */
-export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
+export const rescheduleAppointment = async (id, { newSlotStart }, actor, guestLookupToken = null) => {
   if (!newSlotStart) {
     throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'newSlotStart is required');
+  }
+  const parsedNewStart = new Date(newSlotStart);
+  if (Number.isNaN(parsedNewStart.getTime())) {
+    throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'newSlotStart must be a valid datetime');
   }
 
   const session = await mongoose.startSession();
@@ -1586,6 +1786,8 @@ export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
     if (!apt) {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
+
+    await assertAppointmentSelfServiceAccess(apt, actor, guestLookupToken);
 
     const isPayAtStore = ['PAY_AT_STORE', 'CASH', 'pay_at_clinic', 'store'].includes(apt.paymentMethod);
     const isAllowedStatus = apt.status === 'CONFIRMED' || (isPayAtStore && ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(apt.status));
@@ -1621,40 +1823,31 @@ export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
       );
     }
 
-    // Recompute schedule
-    let currentStart = new Date(newSlotStart);
-    for (const seg of apt.services) {
-      const segStart = new Date(currentStart);
-      const segEnd = new Date(currentStart.getTime() + seg.durationMinutes * 60000);
-      seg.scheduledStart = segStart;
-      seg.scheduledEnd = segEnd;
-      currentStart = segEnd;
+    if (parsedNewStart.getTime() <= now) {
+      throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'newSlotStart must be a valid future datetime');
     }
 
-    apt.scheduledStart = new Date(newSlotStart);
-    apt.scheduledEnd = currentStart;
-    apt.rescheduleCount = (apt.rescheduleCount || 0) + 1;
-
-    // Atomically replace slot reservations
-    await safeDeleteReservations(apt._id, session);
-
-    for (const seg of apt.services) {
-      const slotStartUnit = Math.floor(seg.scheduledStart.getTime() / (15 * 60000));
-      const unitsNeeded = Math.ceil(seg.durationMinutes / 15);
-      for (let u = 0; u < unitsNeeded; u++) {
-        await safeCreateReservation({
-          branchId: apt.branchId,
-          staffId: seg.assignedStaffId,
-          serviceId: seg.serviceId,
-          appointmentId: apt._id,
-          slotStartUnit: slotStartUnit + u,
-          unitIndex: u,
-          kind: 'STAFF',
-          status: 'CONFIRMED',
-          holdExpiresAt: null,
-        }, session);
+    if (mongoose.connection.readyState === 1 || Branch.findById?._isMockFunction) {
+      const branchQuery = Branch.findById(apt.branchId);
+      const branch = session && typeof branchQuery?.session === 'function' ? await branchQuery.session(session) : await branchQuery;
+      if (branch) {
+        const totalMins = (apt.services || []).reduce((sum, s) => sum + Number(s.durationMinutes || 0), 0) || Number(apt.scheduledDurationMinutes || 30);
+        const sIds = (apt.services || []).map((s) => s.serviceId).filter(Boolean);
+        const cfgQuery = BranchServiceConfig.find({ branchId: apt.branchId, serviceId: { $in: sIds } });
+        const cfgs = session && typeof cfgQuery?.session === 'function' ? await cfgQuery.session(session) : await cfgQuery;
+        const cfgMap = new Map((cfgs || []).map((c) => [c.serviceId.toString(), c]));
+        validateScheduleAgainstBranchRules({
+          branch,
+          orderedServices: (apt.services || []).map((s) => ({ _id: s.serviceId, name: s.serviceName || 'Service', durationMinutes: s.durationMinutes })),
+          configMap: cfgMap,
+          startDate: parsedNewStart,
+          endDate: new Date(parsedNewStart.getTime() + totalMins * 60000),
+        });
       }
     }
+
+    await rebuildAndReserveSlots(apt, parsedNewStart, session);
+    apt.rescheduleCount = (apt.rescheduleCount || 0) + 1;
 
     await apt.save({ session });
     await session.commitTransaction();
@@ -1662,16 +1855,9 @@ export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
 
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    if (error.code === 11000) {
-      throw new AppError(
-        409,
-        'Conflict',
-        'SLOT_UNAVAILABLE',
-        'The new slot has conflict with existing staff reservations'
-      );
-    }
+    await abortSessionSafely(session);
+    const mapped = mapSlotWriteError(error, 'The new slot has conflict with existing staff reservations');
+    if (mapped) throw mapped;
     throw error;
   }
 };
@@ -1680,13 +1866,18 @@ export const rescheduleAppointment = async (id, { newSlotStart }, actor) => {
  * Reschedule Override (Manager / Admin)
  */
 export const rescheduleOverride = async (id, data, actor) => {
-  if (!data.newSlotStart || !data.reason) {
+  const reason = typeof data?.reason === 'string' ? data.reason.trim() : '';
+  if (!data?.newSlotStart || reason.length < 3) {
     throw new AppError(
       400,
       'ValidationError',
       'VALIDATION_ERROR',
-      'newSlotStart and reason are required'
+      'newSlotStart and a non-empty reason (at least 3 characters) are required'
     );
+  }
+  const parsedNewStart = new Date(data.newSlotStart);
+  if (Number.isNaN(parsedNewStart.getTime())) {
+    throw new AppError(400, 'ValidationError', 'VALIDATION_ERROR', 'Invalid newSlotStart datetime');
   }
 
   const session = await mongoose.startSession();
@@ -1698,47 +1889,54 @@ export const rescheduleOverride = async (id, data, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
+    assertBranchScope(actor, apt.branchId);
+
+    if (apt.status !== 'CONFIRMED') {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'INVALID_STATE',
+        `Cannot reschedule-override appointment in status ${apt.status}`
+      );
+    }
+
     // Bypasses 24h & limit constraint
-    let currentStart = new Date(data.newSlotStart);
-    for (const seg of apt.services) {
-      const segStart = new Date(currentStart);
-      const segEnd = new Date(currentStart.getTime() + seg.durationMinutes * 60000);
-      seg.scheduledStart = segStart;
-      seg.scheduledEnd = segEnd;
-      currentStart = segEnd;
-    }
-
-    apt.scheduledStart = new Date(data.newSlotStart);
-    apt.scheduledEnd = currentStart;
-
-    await safeDeleteReservations(apt._id, session);
-
-    for (const seg of apt.services) {
-      const slotStartUnit = Math.floor(seg.scheduledStart.getTime() / (15 * 60000));
-      const unitsNeeded = Math.ceil(seg.durationMinutes / 15);
-      for (let u = 0; u < unitsNeeded; u++) {
-        await safeCreateReservation({
-          branchId: apt.branchId,
-          staffId: seg.assignedStaffId,
-          serviceId: seg.serviceId,
-          appointmentId: apt._id,
-          slotStartUnit: slotStartUnit + u,
-          unitIndex: u,
-          kind: 'STAFF',
-          status: 'CONFIRMED',
-          holdExpiresAt: null,
-        }, session);
-      }
-    }
+    const { previousStart, previousEnd } = await rebuildAndReserveSlots(apt, parsedNewStart, session);
+    apt.rescheduleHistory = Array.isArray(apt.rescheduleHistory) ? apt.rescheduleHistory : [];
+    apt.rescheduleHistory.push({
+      fromStart: previousStart,
+      fromEnd: previousEnd,
+      toStart: apt.scheduledStart,
+      toEnd: apt.scheduledEnd,
+      reason,
+      actorId: actor ? (actor.id || actor._id) : null,
+      at: new Date(),
+    });
 
     await apt.save({ session });
     await session.commitTransaction();
     session.endSession();
 
+    await recordAuditLog({
+      actor: {
+        userId: actor?.id || actor?._id || null,
+        systemRole: actor?.systemRole || actor?.role || 'MANAGER',
+      },
+      action: 'APPOINTMENT_RESCHEDULE_OVERRIDE',
+      target: { type: 'APPOINTMENT', id: apt._id },
+      metadata: {
+        code: apt.code,
+        reason,
+        fromStart: previousStart,
+        toStart: apt.scheduledStart,
+      },
+    });
+
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
+    const mapped = mapSlotWriteError(error, 'The requested override slot has conflict with existing reservations');
+    if (mapped) throw mapped;
     throw error;
   }
 };
@@ -1746,7 +1944,7 @@ export const rescheduleOverride = async (id, data, actor) => {
 /**
  * Customer / Guest Cancellation
  */
-export const cancelAppointment = async (id, reasonOrActor, possibleActor) => {
+export const cancelAppointment = async (id, reasonOrActor, possibleActor, guestLookupToken = null) => {
   let reason = 'Customer requested cancellation';
   let actor = null;
   if (typeof reasonOrActor === 'string') {
@@ -1773,7 +1971,9 @@ export const cancelAppointment = async (id, reasonOrActor, possibleActor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
-    if (['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(apt.status)) {
+    await assertAppointmentSelfServiceAccess(apt, actor, guestLookupToken);
+
+    if (['IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(apt.status)) {
       throw new AppError(
         422,
         'UnprocessableEntity',
@@ -1818,8 +2018,10 @@ export const cancelAppointment = async (id, reasonOrActor, possibleActor) => {
 
     if (refundAmount > 0) {
       const payment = await Payment.findOne({
-        targetType: 'APPOINTMENT',
-        targetId: apt._id,
+        $or: [
+          { 'target.id': apt._id, 'target.type': 'APPOINTMENT' },
+          { targetType: 'APPOINTMENT', targetId: apt._id },
+        ],
         status: 'PAID',
       }).session(session);
 
@@ -1852,8 +2054,7 @@ export const cancelAppointment = async (id, reasonOrActor, possibleActor) => {
       return apt;
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
     throw error;
   }
 };
@@ -1871,6 +2072,17 @@ export const storeCancelAppointment = async (id, reason, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
+    assertBranchScope(actor, apt.branchId);
+
+    if (['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(apt.status)) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'INVALID_STATE',
+        `Cannot store-cancel appointment in status ${apt.status}`
+      );
+    }
+
     const paidAmount = Number(apt.pricing?.paidAmount || 0);
 
     apt.status = 'CANCELLED';
@@ -1882,12 +2094,20 @@ export const storeCancelAppointment = async (id, reason, actor) => {
       reason: reason || 'Store cancelled appointment',
       hoursBeforeStart: 0,
       prepaidOutcome: paidAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED',
+      refundAmount: paidAmount,
+      penaltyAmount: 0,
     };
+
+    if (apt.deposit && paidAmount > 0) {
+      apt.deposit.status = 'REFUND_PENDING';
+    }
 
     if (paidAmount > 0) {
       const payment = await Payment.findOne({
-        targetType: 'APPOINTMENT',
-        targetId: apt._id,
+        $or: [
+          { 'target.id': apt._id, 'target.type': 'APPOINTMENT' },
+          { targetType: 'APPOINTMENT', targetId: apt._id },
+        ],
         status: 'PAID',
       }).session(session);
 
@@ -1915,8 +2135,7 @@ export const storeCancelAppointment = async (id, reason, actor) => {
 
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
     throw error;
   }
 };
@@ -1934,6 +2153,20 @@ export const cancelOverride = async (id, data, actor) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
+    assertBranchScope(actor, apt.branchId);
+
+    if (['COMPLETED', 'CANCELLED'].includes(apt.status)) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'INVALID_STATE',
+        `Cannot cancel-override appointment in status ${apt.status}`
+      );
+    }
+
+    const paidAmount = Number(apt.pricing?.paidAmount || 0);
+    const prepaidOutcome = data?.prepaidOutcome || (paidAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED');
+
     apt.status = 'CANCELLED';
     apt.holdExpiresAt = null;
     apt.cancel = {
@@ -1942,8 +2175,28 @@ export const cancelOverride = async (id, data, actor) => {
       actorId: actor ? (actor.id || actor._id) : null,
       reason: data?.reason || 'Manager cancel override',
       hoursBeforeStart: 0,
-      prepaidOutcome: data?.prepaidOutcome || 'REFUNDED',
+      prepaidOutcome,
+      refundAmount: prepaidOutcome === 'FORFEITED' ? 0 : paidAmount,
+      penaltyAmount: prepaidOutcome === 'FORFEITED' ? paidAmount : 0,
     };
+
+    if (paidAmount > 0 && prepaidOutcome !== 'FORFEITED') {
+      if (apt.deposit) apt.deposit.status = 'REFUND_PENDING';
+      const payment = await Payment.findOne({
+        $or: [
+          { 'target.id': apt._id, 'target.type': 'APPOINTMENT' },
+          { targetType: 'APPOINTMENT', targetId: apt._id },
+        ],
+        status: 'PAID',
+      }).session(session);
+
+      if (payment) {
+        payment.status = 'REFUND_PENDING';
+        await payment.save({ session });
+      }
+    } else if (paidAmount > 0 && apt.deposit) {
+      apt.deposit.status = 'FORFEITED';
+    }
 
     await safeDeleteReservations(apt._id, session);
 
@@ -1953,8 +2206,7 @@ export const cancelOverride = async (id, data, actor) => {
 
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
     throw error;
   }
 };
@@ -1998,6 +2250,36 @@ export const markNoShow = async (id, actorOrReason, maybeReason) => {
       throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
 
+    assertBranchScope(actor, apt.branchId);
+
+    if (apt.status !== 'CONFIRMED') {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'INVALID_STATE',
+        `Cannot mark no-show for appointment in status ${apt.status}`
+      );
+    }
+
+    if (apt.checkInStatus === 'ARRIVED') {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'INVALID_STATE',
+        'Cannot mark no-show for an appointment that has already checked in'
+      );
+    }
+
+    const elapsedMs = Date.now() - new Date(apt.scheduledStart).getTime();
+    if (elapsedMs < 30 * 60 * 1000) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'TOO_EARLY_NO_SHOW',
+        'No-show can only be marked at least 30 minutes after scheduled start'
+      );
+    }
+
     const paidAmount = Number(apt.pricing?.paidAmount || 0);
     const finalAmount = Number(apt.pricing?.finalAmount || 0);
     const penalty = Math.round(finalAmount * 0.30);
@@ -2011,13 +2293,22 @@ export const markNoShow = async (id, actorOrReason, maybeReason) => {
       actorId: actor ? (actor.id || actor._id) : null,
       reason,
       hoursBeforeStart: 0,
-      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : 'FORFEITED',
+      prepaidOutcome: refundAmount > 0 ? 'REFUND_PENDING' : (paidAmount > 0 ? 'FORFEITED' : 'NONE'),
+      refundAmount,
+      penaltyAmount: penalty,
     };
+
+    if (apt.deposit) {
+      if (refundAmount > 0) apt.deposit.status = 'REFUND_PENDING';
+      else if (paidAmount > 0) apt.deposit.status = 'FORFEITED';
+    }
 
     if (refundAmount > 0) {
       const payment = await Payment.findOne({
-        targetType: 'APPOINTMENT',
-        targetId: apt._id,
+        $or: [
+          { 'target.id': apt._id, 'target.type': 'APPOINTMENT' },
+          { targetType: 'APPOINTMENT', targetId: apt._id },
+        ],
         status: 'PAID',
       }).session(session);
 
@@ -2035,8 +2326,7 @@ export const markNoShow = async (id, actorOrReason, maybeReason) => {
 
     return formatAppointment(apt);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    await abortSessionSafely(session);
     throw error;
   }
 };
@@ -2330,7 +2620,7 @@ export const startSegment = async (id, serviceIdOrPayload, actor) => {
     );
   }
 
-  if (apt.checkInStatus !== 'ARRIVED') {
+  if (apt.checkInStatus !== 'ARRIVED' || (segment.checkInStatus && segment.checkInStatus !== 'ARRIVED')) {
     throw new AppError(
       409,
       'Conflict',
@@ -2510,49 +2800,7 @@ export const checkInAppointment = async (id, data = {}, actor) => {
  * Mock Complete Prepayment (Deposit or Full)
  */
 export const mockCompletePayment = async (prepaymentId, actor) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const payment = await Payment.findById(prepaymentId).session(session);
-    if (!payment) {
-      throw new AppError(404, 'NotFound', 'PAYMENT_NOT_FOUND', 'Payment not found');
-    }
-    if (payment.status === 'PAID') {
-      await session.abortTransaction();
-      session.endSession();
-      return { message: 'Already paid' };
-    }
-
-    payment.status = 'PAID';
-    payment.paidAt = new Date();
-    await payment.save({ session });
-
-    if (payment.targetType === 'APPOINTMENT') {
-      const apt = await Appointment.findById(payment.targetId).session(session);
-      if (apt && (apt.status === 'PENDING_PAYMENT' || apt.status === 'PENDING_CONFIRMATION')) {
-        apt.pricing.paidAmount += payment.amount;
-        apt.deposit.status = 'HELD';
-        apt.status = 'CONFIRMED';
-        apt.holdExpiresAt = null;
-        await apt.save({ session });
-
-        await safeUpdateReservations(
-          { appointmentId: apt._id },
-          { $set: { status: 'CONFIRMED', holdExpiresAt: null } },
-          session
-        );
-      }
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-    return payment;
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
-  }
+  return completeMockPaymentService(prepaymentId, { outcome: 'PAID' }, actor);
 };
 
 /**

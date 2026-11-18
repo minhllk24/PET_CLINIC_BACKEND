@@ -7,6 +7,7 @@ import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { applyServiceRecordDelta } from '../inventory/inventory.service';
 import { resolveVetReviewer } from '../booking/booking.service';
+import { recordAuditLog } from '../../utils/auditLogger';
 
 const activeFinalizeLocks = new Map();
 
@@ -124,6 +125,26 @@ export const formatServiceRecord = (rec, enrichment = null) => {
   if (rawDate) {
     res.createdAt = new Date(rawDate).toISOString();
     res.date = new Date(rawDate).toISOString();
+  }
+  if (doc.updatedAt) {
+    res.updatedAt = new Date(doc.updatedAt).toISOString();
+  }
+  if (doc.updatedBy !== undefined) {
+    res.updatedBy = doc.updatedBy
+      ? {
+          userId: doc.updatedBy.userId ? (doc.updatedBy.userId._id || doc.updatedBy.userId).toString() : null,
+          name: doc.updatedBy.name || null,
+          role: doc.updatedBy.role || null,
+        }
+      : null;
+  }
+  if (doc.materialsUpdatedBy !== undefined) {
+    res.materialsUpdatedBy = doc.materialsUpdatedBy
+      ? (doc.materialsUpdatedBy._id || doc.materialsUpdatedBy).toString()
+      : null;
+  }
+  if (doc.materialsUpdatedAt) {
+    res.materialsUpdatedAt = new Date(doc.materialsUpdatedAt).toISOString();
   }
 
   // plannedMaterials
@@ -419,7 +440,7 @@ export const createRecord = async (data, actor) => {
       );
     }
   }
-  if (appointment.checkInStatus && appointment.checkInStatus !== 'ARRIVED') {
+  if (appointment.checkInStatus !== 'ARRIVED') {
     throw new AppError(
       409,
       'Conflict',
@@ -695,7 +716,15 @@ export const updateMaterials = async (id, data, actor) => {
     }
   }
 
-  const materials = (data.materials || []).map(m => ({
+  const now = new Date();
+  const previousMaterials = (record.actualMaterials || []).map((m) => ({
+    inventoryItemId: (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString() || null,
+    quantity: Number(m.quantity !== undefined ? m.quantity : (m.actualQuantity || 0)),
+    unit: m.unit || 'cái',
+    isExtra: Boolean(m.isExtra),
+  }));
+
+  const materials = (data.materials || []).map((m) => ({
     inventoryItemId: m.inventoryItemId || m.materialId,
     quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),
     unit: m.unit || 'cái',
@@ -705,7 +734,43 @@ export const updateMaterials = async (id, data, actor) => {
 
   record.actualMaterials = materials;
   record.version += 1;
+  record.updatedBy = {
+    userId: actor?.id || actor?._id || null,
+    name: actor?.fullName || actor?.name || null,
+    role: actor?.staffSubRole || actor?.systemRole || null,
+  };
+  record.materialsUpdatedBy = actor?.id || actor?._id || null;
+  record.materialsUpdatedAt = now;
+  record.materialAudit = Array.isArray(record.materialAudit) ? record.materialAudit : [];
+  record.materialAudit.push({
+    updatedBy: actor?.id || actor?._id || null,
+    updatedByRole: actor?.staffSubRole || actor?.systemRole || null,
+    updatedAt: now,
+    previousMaterials,
+    newMaterials: materials.map((m) => ({
+      inventoryItemId: m.inventoryItemId ? m.inventoryItemId.toString() : null,
+      quantity: m.quantity,
+      unit: m.unit,
+      isExtra: m.isExtra,
+    })),
+  });
   await record.save();
+
+  await recordAuditLog({
+    actor: {
+      userId: actor?.id || actor?._id || null,
+      systemRole: actor?.staffSubRole || actor?.systemRole || 'STAFF',
+    },
+    action: 'SERVICE_RECORD_MATERIAL_UPDATED',
+    target: { type: 'SERVICE_RECORD', id: record._id },
+    metadata: {
+      recordCode: record.code,
+      appointmentId: record.appointmentId,
+      version: record.version,
+      previousMaterials,
+      newMaterials: materials,
+    },
+  });
 
   const enriched = await enrichServiceRecords([record]);
   return enriched[0] || formatServiceRecord(record);

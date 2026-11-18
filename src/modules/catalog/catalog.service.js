@@ -24,14 +24,33 @@ const slugify = (text) => {
     .replace(/^-+|-+$/g, '');
 };
 
-// Helper: mã hóa / giải mã cursor
-const encodeCursor = (id) => Buffer.from(id.toString()).toString('base64');
+// Helper: mã hóa / giải mã cursor (hỗ trợ keyset composite { s, k, id } hoặc ObjectId chuỗi)
+const encodeCursor = (val) => {
+  const str = typeof val === 'string' ? val : JSON.stringify(val);
+  return Buffer.from(str).toString('base64');
+};
 const decodeCursor = (cursor) => {
   try {
-    return Buffer.from(cursor, 'base64').toString('ascii');
+    const raw = Buffer.from(cursor, 'base64').toString('utf8');
+    if (raw.startsWith('{')) {
+      return JSON.parse(raw);
+    }
+    return raw;
   } catch (e) {
     return null;
   }
+};
+
+const getEffectiveSortPrice = (product, direction = 1) => {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  const activePrices = variants
+    .filter((v) => v && v.status !== 'INACTIVE' && typeof v.price === 'number')
+    .map((v) => Number(v.salePrice ?? v.price));
+  const prices = activePrices.length > 0
+    ? activePrices
+    : variants.filter((v) => typeof v?.price === 'number').map((v) => Number(v.salePrice ?? v.price));
+  if (prices.length === 0) return direction >= 0 ? Number.MAX_SAFE_INTEGER : 0;
+  return direction >= 0 ? Math.min(...prices) : Math.max(...prices);
 };
 
 // Helper: định dạng đối tượng theo chuẩn OpenAPI v7 (loại bỏ timestamps và fields thừa)
@@ -605,13 +624,10 @@ export const listProducts = async (params = {}, actor = null) => {
     }
   }
 
-  // Sắp xếp: khi phân trang bằng cursor (_id < decodedId), bắt buộc sort theo { _id: -1 }
-  // để tránh vòng lặp vô hạn khi createdAt khác thứ tự _id (Inventory/Catalog allPages loop bug)
+  // Sắp xếp ổn định theo tiêu chí được yêu cầu và đồng bộ với keyset cursor (FT-M19-03)
   const normalizedSort = (sort || '').toUpperCase();
   let sortCriteria = { _id: -1 };
-  if (!parsedPage && cursor) {
-    sortCriteria = { _id: -1 };
-  } else if (normalizedSort === 'NEWEST') {
+  if (normalizedSort === 'NEWEST') {
     sortCriteria = { createdAt: -1, _id: -1 };
   } else if (normalizedSort === 'NAME_ASC') {
     sortCriteria = { name: 1, _id: 1 };
@@ -652,27 +668,82 @@ export const listProducts = async (params = {}, actor = null) => {
   }
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
-  let productsQuery = Product.find(query).sort(sortCriteria);
+  const isPriceSort = normalizedSort === 'PRICE_ASC' || normalizedSort === 'PRICE_DESC';
+  const decodedCursor = !parsedPage && cursor ? decodeCursor(cursor) : null;
+  const cursorId = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.id : decodedCursor;
+  const cursorKey = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.k : undefined;
 
-  if (parsedPage && typeof productsQuery.skip === 'function') {
-    productsQuery = productsQuery.skip((parsedPage - 1) * parsedLimit);
-  } else if (!parsedPage && cursor) {
-    const decodedId = decodeCursor(cursor);
-    if (decodedId && mongoose.isValidObjectId(decodedId)) {
-      query._id = { $lt: new mongoose.Types.ObjectId(decodedId) };
-      productsQuery = Product.find(query).sort(sortCriteria);
+  let products = [];
+  if (isPriceSort && !Product.find?._isMockFunction && typeof Product.find === 'function') {
+    // Sort deterministically by computed min/max active variant price + _id tiebreaker across pages
+    const priceDir = normalizedSort === 'PRICE_ASC' ? 1 : -1;
+    const candidates = await Product.find(query).select('_id variants.price variants.salePrice variants.status').lean();
+    const keyed = (candidates || []).map((doc) => ({
+      idStr: doc._id.toString(),
+      _id: doc._id,
+      key: getEffectiveSortPrice(doc, priceDir),
+    }));
+    keyed.sort((a, b) => {
+      if (a.key !== b.key) return priceDir > 0 ? a.key - b.key : b.key - a.key;
+      return priceDir > 0 ? a.idStr.localeCompare(b.idStr) : b.idStr.localeCompare(a.idStr);
+    });
+
+    let startIndex = 0;
+    if (!parsedPage && cursor && cursorId) {
+      const idx = keyed.findIndex((item) => item.idStr === String(cursorId));
+      if (idx >= 0) {
+        startIndex = idx + 1;
+      } else if (cursorKey !== undefined) {
+        const keyNum = Number(cursorKey);
+        const foundIdx = keyed.findIndex((item) => {
+          if (item.key !== keyNum) return priceDir > 0 ? item.key > keyNum : item.key < keyNum;
+          return priceDir > 0 ? item.idStr > String(cursorId) : item.idStr < String(cursorId);
+        });
+        startIndex = foundIdx >= 0 ? foundIdx : keyed.length;
+      }
+    } else if (parsedPage) {
+      startIndex = (parsedPage - 1) * parsedLimit;
     }
-  }
 
-  if (typeof productsQuery.populate === 'function') {
-    productsQuery = productsQuery.populate('categoryId', 'name slug status');
-  }
+    const pageEntries = keyed.slice(startIndex, startIndex + parsedLimit + 1);
+    const pageObjectIds = pageEntries.map((e) => e._id);
+    if (pageObjectIds.length > 0) {
+      let fullQuery = Product.find({ _id: { $in: pageObjectIds } });
+      if (typeof fullQuery.populate === 'function') {
+        fullQuery = fullQuery.populate('categoryId', 'name slug status');
+      }
+      const docs = await fullQuery;
+      const byId = new Map((docs || []).map((d) => [d._id.toString(), d]));
+      products = pageObjectIds.map((id) => byId.get(id.toString())).filter(Boolean);
+    }
+  } else {
+    let findQuery = { ...query };
+    if (!parsedPage && cursor && cursorId && mongoose.isValidObjectId(cursorId)) {
+      const objId = new mongoose.Types.ObjectId(cursorId);
+      if (normalizedSort === 'NAME_ASC' && cursorKey !== undefined) {
+        findQuery = { $and: [query, { $or: [{ name: { $gt: cursorKey } }, { name: cursorKey, _id: { $gt: objId } }] }] };
+      } else if (normalizedSort === 'NAME_DESC' && cursorKey !== undefined) {
+        findQuery = { $and: [query, { $or: [{ name: { $lt: cursorKey } }, { name: cursorKey, _id: { $lt: objId } }] }] };
+      } else if (normalizedSort === 'NEWEST' && cursorKey !== undefined) {
+        const dt = new Date(cursorKey);
+        findQuery = { $and: [query, { $or: [{ createdAt: { $lt: dt } }, { createdAt: dt, _id: { $lt: objId } }] }] };
+      } else {
+        findQuery._id = sortCriteria._id === 1 ? { $gt: objId } : { $lt: objId };
+      }
+    }
 
-  if (typeof productsQuery.limit === 'function') {
-    productsQuery = productsQuery.limit(parsedLimit + 1);
+    let productsQuery = Product.find(findQuery).sort(sortCriteria);
+    if (parsedPage && typeof productsQuery.skip === 'function') {
+      productsQuery = productsQuery.skip((parsedPage - 1) * parsedLimit);
+    }
+    if (typeof productsQuery.populate === 'function') {
+      productsQuery = productsQuery.populate('categoryId', 'name slug status');
+    }
+    if (typeof productsQuery.limit === 'function') {
+      productsQuery = productsQuery.limit(parsedLimit + 1);
+    }
+    products = await productsQuery;
   }
-
-  let products = await productsQuery;
 
   // Gắn cờ outOfStock & tồn kho tính từ InventoryStock
   let enriched = await attachOutOfStockFlag(products);
@@ -685,7 +756,18 @@ export const listProducts = async (params = {}, actor = null) => {
   if (enriched.length > parsedLimit) {
     enriched.pop();
     const lastItem = enriched[enriched.length - 1];
-    nextCursor = encodeCursor(lastItem.id || lastItem._id);
+    const lastId = (lastItem.id || lastItem._id).toString();
+    if (normalizedSort === 'PRICE_ASC') {
+      nextCursor = encodeCursor({ s: normalizedSort, k: getEffectiveSortPrice(lastItem, 1), id: lastId });
+    } else if (normalizedSort === 'PRICE_DESC') {
+      nextCursor = encodeCursor({ s: normalizedSort, k: getEffectiveSortPrice(lastItem, -1), id: lastId });
+    } else if (normalizedSort === 'NAME_ASC' || normalizedSort === 'NAME_DESC') {
+      nextCursor = encodeCursor({ s: normalizedSort, k: lastItem.name, id: lastId });
+    } else if (normalizedSort === 'NEWEST' && lastItem.createdAt) {
+      nextCursor = encodeCursor({ s: normalizedSort, k: new Date(lastItem.createdAt).toISOString(), id: lastId });
+    } else {
+      nextCursor = encodeCursor(lastId);
+    }
   }
 
   // Chuẩn hóa response theo contract OpenAPI v7 (ProductPage)

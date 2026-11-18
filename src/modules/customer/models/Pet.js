@@ -3,11 +3,18 @@ import mongoose from 'mongoose';
 const schema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
   name: { type: String, required: true, trim: true },
-  species: { type: String, enum: ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'], default: 'DOG' },
+  species: { type: String, enum: ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'], required: true },
   breed: { type: String, trim: true, default: '' },
   gender: { type: String, enum: ['MALE', 'FEMALE', 'UNKNOWN'], default: 'UNKNOWN' },
-  ageYears: { type: Number, default: 0 },
-  weightKg: { type: Number, default: 0 },
+  ageYears: { type: Number, default: 0, min: [0, 'ageYears cannot be negative'] },
+  weightKg: {
+    type: Number,
+    default: null,
+    validate: {
+      validator: (v) => v === null || v === undefined || (typeof v === 'number' && Number.isFinite(v) && v > 0),
+      message: 'weightKg must be greater than 0',
+    },
+  },
   healthStatus: { type: String, default: 'NORMAL' },
   medicalNotes: { type: String, default: '' },
   photoUrl: { type: String, default: null },

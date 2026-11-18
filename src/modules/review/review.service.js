@@ -241,6 +241,40 @@ export const listReviews = async (query = {}, actor = {}) => {
   };
 };
 
+const resolveReviewBranchId = async (review) => {
+  if (!review) return null;
+  if (review.branchId) return review.branchId.toString();
+  const refType = review.sourceType || (['ORDER', 'APPOINTMENT'].includes(review.targetType) ? review.targetType : null);
+  const refId = review.sourceId || (refType ? review.targetId : null);
+  if (!refId || !refType) return null;
+  if (refType === 'ORDER') {
+    const order = await Order.findById(refId).select('fulfillmentBranchId branchId').lean();
+    const bId = order?.fulfillmentBranchId || order?.branchId;
+    return bId ? bId.toString() : null;
+  }
+  if (refType === 'APPOINTMENT') {
+    const apt = await Appointment.findById(refId).select('branchId').lean();
+    return apt?.branchId ? apt.branchId.toString() : null;
+  }
+  return null;
+};
+
+const assertManagerReviewBranchScope = async (review, actor) => {
+  if (!actor || actor.systemRole !== 'MANAGER') return;
+  if (!Array.isArray(actor.assignedBranchIds)) return; // unit tests without assignedBranchIds array
+  const branchIds = actor.assignedBranchIds.map((b) => (b?._id || b).toString());
+  if (branchIds.length === 0) {
+    throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Manager account has no assigned branches');
+  }
+  const reviewBranchId = await resolveReviewBranchId(review);
+  if (!reviewBranchId && review?.targetType === 'PRODUCT' && !review?.sourceId && !review?.branchId) {
+    return; // Global catalog product review without branch attribution
+  }
+  if (!reviewBranchId || !branchIds.includes(reviewBranchId)) {
+    throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'Review belongs to an unassigned branch');
+  }
+};
+
 export const listAdminReviews = async (query = {}, actor = {}) => {
   const filter = {};
 
@@ -258,6 +292,25 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
       { comment: { $regex: query.search, $options: 'i' } },
       { displayName: { $regex: query.search, $options: 'i' } },
     ];
+  }
+
+  if (actor && actor.systemRole === 'MANAGER' && Array.isArray(actor.assignedBranchIds)) {
+    const branchIds = actor.assignedBranchIds
+      .map((b) => (b?._id || b).toString())
+      .filter((b) => mongoose.Types.ObjectId.isValid(b))
+      .map((b) => new mongoose.Types.ObjectId(b));
+    if (branchIds.length === 0) {
+      return { items: [], total: 0, totalCount: 0, totalRows: 0, page: 1, limit: 20, totalPages: 1, nextCursor: null };
+    }
+    const [branchOrders, branchApts] = await Promise.all([
+      Order.find({ fulfillmentBranchId: { $in: branchIds } }).select('_id').lean(),
+      Appointment.find({ branchId: { $in: branchIds } }).select('_id').lean(),
+    ]);
+    const allowedSourceIds = [
+      ...(branchOrders || []).map((o) => o._id),
+      ...(branchApts || []).map((a) => a._id),
+    ];
+    filter.sourceId = { $in: allowedSourceIds };
   }
 
   const page = Math.max(1, parseInt(query.page, 10) || 1);
@@ -316,9 +369,12 @@ export const getReviewById = async (id, actor = {}) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
 
-  const isAdmin = ['ADMIN', 'MANAGER'].includes(actor.systemRole);
-  if (review.hidden && !isAdmin) {
+  const isAdmin = Boolean(actor && ['ADMIN', 'MANAGER'].includes(actor.systemRole));
+  if ((review.hidden || review.status === 'HIDDEN' || review.status === 'DELETED') && !isAdmin) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
+  }
+  if (actor && actor.systemRole === 'MANAGER') {
+    await assertManagerReviewBranchScope(review, actor);
   }
 
   return formatReview(review, isAdmin);
@@ -333,6 +389,8 @@ export const updateReview = async (id, data, actor) => {
   if (!review) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
+
+  await assertManagerReviewBranchScope(review, actor);
 
   let customer = await Customer.findOne({ userId: actor.id });
   const customerId = customer ? customer._id : actor.id;
@@ -373,6 +431,8 @@ export const deleteReview = async (id, actor) => {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
 
+  await assertManagerReviewBranchScope(review, actor);
+
   let customer = await Customer.findOne({ userId: actor.id });
   const customerId = customer ? customer._id : actor.id;
 
@@ -382,6 +442,9 @@ export const deleteReview = async (id, actor) => {
 
   if (!isOwner && !isAdmin) {
     throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to delete this review');
+  }
+  if (!isOwner && actor.systemRole === 'MANAGER') {
+    await assertManagerReviewBranchScope(review, actor);
   }
 
   review.status = 'DELETED';
@@ -395,7 +458,7 @@ export const hideReview = async (id, data = {}, actor) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid review ID');
   }
 
-  if (!['ADMIN', 'MANAGER'].includes(actor.systemRole)) {
+  if (!actor || !['ADMIN', 'MANAGER'].includes(actor.systemRole)) {
     throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Manager or Admin can moderate reviews');
   }
 
@@ -403,6 +466,8 @@ export const hideReview = async (id, data = {}, actor) => {
   if (!review) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
+
+  await assertManagerReviewBranchScope(review, actor);
 
   if (review.hidden || review.status === 'HIDDEN') {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Đánh giá này đã ở trạng thái bị ẩn');
@@ -438,7 +503,7 @@ export const showReview = async (id, actor) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid review ID');
   }
 
-  if (!['ADMIN', 'MANAGER'].includes(actor.systemRole)) {
+  if (!actor || !['ADMIN', 'MANAGER'].includes(actor.systemRole)) {
     throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Only Manager or Admin can moderate reviews');
   }
 
@@ -446,6 +511,8 @@ export const showReview = async (id, actor) => {
   if (!review) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
+
+  await assertManagerReviewBranchScope(review, actor);
 
   if (!review.hidden && review.status === 'ACTIVE') {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Đánh giá này đang ở trạng thái hiển thị');
@@ -483,6 +550,8 @@ export const replyReview = async (id, data = {}, actor) => {
   if (!review) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Review not found');
   }
+
+  await assertManagerReviewBranchScope(review, actor);
 
   const text = data.replyText || data.text || data.staffReply;
   if (!text || !text.trim()) {

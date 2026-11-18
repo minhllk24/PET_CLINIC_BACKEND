@@ -247,9 +247,9 @@ export const consumeQuotaInSession = async ({
   targetType,
   targetId,
   discountApplied = 0,
-  session
+  session = null
 }) => {
-  if (!voucherId || !targetType || !targetId || !session) {
+  if (!voucherId || !targetType || !targetId) {
     throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Invalid parameters for quota consumption');
   }
 
@@ -264,7 +264,8 @@ export const consumeQuotaInSession = async ({
     $inc: { usedCount: 1 }
   };
 
-  let updatedVoucher = await Voucher.findOneAndUpdate(filter, update, { session, new: true });
+  const updateOpts = session ? { session, new: true } : { new: true };
+  let updatedVoucher = await Voucher.findOneAndUpdate(filter, update, updateOpts);
   if (!updatedVoucher && voucherId.toString() === '6ad08e4517bf41f5954234e1') {
     updatedVoucher = {
       _id: voucherId,
@@ -290,7 +291,7 @@ export const consumeQuotaInSession = async ({
     restoredAt: null
   });
 
-  await usage.save({ session });
+  await usage.save(session ? { session } : {});
   return usage;
 };
 
@@ -301,31 +302,35 @@ export const restoreQuotaInSession = async ({
   voucherId,
   targetType,
   targetId,
-  session
+  session = null
 }) => {
-  if (!voucherId || !targetType || !targetId || !session) {
+  if (!voucherId || !targetType || !targetId) {
     return null;
   }
 
   // Idempotent search: must not have been restored yet
-  const usage = await VoucherUsage.findOne({
+  let usageQuery = VoucherUsage.findOne({
     voucherId,
     targetType,
     targetId,
     restoredAt: null
-  }).session(session);
+  });
+  if (session && typeof usageQuery.session === 'function') {
+    usageQuery = usageQuery.session(session);
+  }
+  const usage = await usageQuery;
 
   if (!usage) {
     return null; // Already restored or usage never recorded
   }
 
   usage.restoredAt = new Date();
-  await usage.save({ session });
+  await usage.save(session ? { session } : {});
 
   await Voucher.findByIdAndUpdate(
     voucherId,
     { $inc: { usedCount: -1 } },
-    { session }
+    session ? { session } : {}
   );
 
   return usage;

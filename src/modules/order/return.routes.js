@@ -21,7 +21,12 @@ returnRouter.get('/', optionalAuth, returnController.listReturns);
 returnRouter.get('/:id', optionalAuth, returnController.getReturn);
 
 returnRouter.post('/:id/process', staffOrAbove, returnController.processReturn);
-returnRouter.post('/:id/receive', staffOrAbove, returnController.receiveReturn);
+returnRouter.post(
+  '/:id/receive',
+  staffOrAbove,
+  idempotency('orderReturnReceive', { required: false }),
+  returnController.receiveReturn
+);
 
 returnRouter.post('/:id/approve', managerOrAdmin, returnController.approveReturn);
 returnRouter.post('/:id/reject', managerOrAdmin, returnController.rejectReturn);

@@ -1,9 +1,37 @@
 import * as orderService from './order.service';
+import { verifyGuestToken } from '../customer/guest.service';
+
+const resolveVerifiedGuest = (req) => {
+  if (req.guest) return req.guest;
+  const raw = req.headers['x-guest-lookup-token'];
+  if (typeof raw === 'string' && raw.trim()) {
+    return verifyGuestToken(raw.trim());
+  }
+  return null;
+};
 
 export const checkoutCreateOrder = async (req, res, next) => {
   try {
     const order = await orderService.checkoutCreateOrder(req.body, req.actor, req.headers['x-guest-cart-token']);
     res.status(201).json(orderService.formatOrder(order));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const checkoutQuote = async (req, res, next) => {
+  try {
+    const quote = await orderService.checkoutQuote(req.body, req.actor, req.headers['x-guest-cart-token']);
+    res.status(200).json(quote);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const checkoutValidate = async (req, res, next) => {
+  try {
+    const result = await orderService.checkoutValidate(req.body, req.actor, req.headers['x-guest-cart-token']);
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -29,7 +57,8 @@ export const getOrderStats = async (req, res, next) => {
 
 export const getOrder = async (req, res, next) => {
   try {
-    const order = await orderService.getOrderById(req.params.id, req.actor, req.headers['x-guest-lookup-token']);
+    const guest = !req.actor ? resolveVerifiedGuest(req) : null;
+    const order = await orderService.getOrderById(req.params.id, req.actor, guest);
     res.json(orderService.formatOrder(order));
   } catch (error) {
     next(error);
@@ -92,7 +121,8 @@ export const customerCancelOrder = async (req, res, next) => {
 
 export const getReturnableItems = async (req, res, next) => {
   try {
-    const result = await orderService.getReturnableItems(req.params.id, req.actor, req.headers['x-guest-lookup-token']);
+    const guest = !req.actor ? resolveVerifiedGuest(req) : null;
+    const result = await orderService.getReturnableItems(req.params.id, req.actor, guest);
     res.json(result);
   } catch (error) {
     next(error);
@@ -101,7 +131,8 @@ export const getReturnableItems = async (req, res, next) => {
 
 export const getReturnQuote = async (req, res, next) => {
   try {
-    const result = await orderService.getReturnQuote(req.params.id, req.body.items, req.actor, req.headers['x-guest-lookup-token']);
+    const guest = !req.actor ? resolveVerifiedGuest(req) : null;
+    const result = await orderService.getReturnQuote(req.params.id, req.body.items, req.actor, guest);
     res.json(result);
   } catch (error) {
     next(error);

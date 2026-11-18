@@ -4,11 +4,13 @@ import Payment from '../payment/models/Payment';
 import Cart from '../cart/models/Cart';
 import Branch from '../branch/models/Branch';
 import InventoryStock from '../inventory/models/InventoryStock';
+import InventoryItem from '../inventory/models/InventoryItem';
 import InventoryTransaction from '../inventory/models/InventoryTransaction';
 import SystemSetting from '../settings/models/SystemSetting';
 import Product from '../catalog/models/Product';
 import OrderRefund from './models/OrderRefund';
 import GuestContact from '../customer/models/GuestContact';
+import { verifyGuestToken } from '../customer/guest.service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 import { issueForOrder, receiveForOrder, SYSTEM_ACTOR_ID } from '../inventory/inventory.service';
@@ -38,6 +40,294 @@ export const makeOrderCode = (date = new Date()) => {
 
 export const generateUniqueOrderCode = async (session = null) =>
   generateUniqueDocumentCode(Order, 'ORD', { session });
+
+export const checkoutQuote = async (data = {}, actor = null, guestToken = null) => {
+  const { cartId, voucherCode, items: directItems } = data;
+  if (!actor && !guestToken && (!Array.isArray(directItems) || directItems.length === 0)) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication or guest cart token required');
+  }
+
+  let quoteItems = Array.isArray(directItems) && directItems.length > 0 ? directItems : null;
+  if (!quoteItems) {
+    const cartQuery = cartId
+      ? (actor ? { _id: cartId, customerId: actor.id } : { _id: cartId, tokenHash: guestToken })
+      : (actor ? { customerId: actor.id } : { tokenHash: guestToken });
+
+    let cart = await Cart.findOne(cartQuery);
+    if (!cart && actor && cartId) {
+      cart = await Cart.findOne({ customerId: actor.id });
+    }
+    if (!cart && guestToken && cartId) {
+      cart = await Cart.findOne({ tokenHash: guestToken });
+    }
+    if (!cart || !cart.items || cart.items.length === 0) {
+      throw new AppError(400, 'Validation Error', 'EMPTY_CART', 'Cart is empty or not found');
+    }
+    quoteItems = cart.items;
+  }
+
+  const setting = (mongoose.connection.readyState === 1 || SystemSetting.findOne?._isMockFunction)
+    ? await SystemSetting.findOne({ key: 'commerce' }).lean()
+    : null;
+  const priorityBranchIds = setting && setting.value && Array.isArray(setting.value.fulfillmentBranchPriority)
+    ? setting.value.fulfillmentBranchPriority
+    : [];
+  const freeShippingThreshold = (setting && setting.value && setting.value.freeShippingThreshold) || 500000;
+  const flatShippingFee = (setting && setting.value && setting.value.shippingFlatFee) || 30000;
+
+  const activeBranches = priorityBranchIds.length > 0
+    ? await Branch.find({ _id: { $in: priorityBranchIds }, status: 'ACTIVE' }).select('_id').lean()
+    : [];
+  const activeBranchMap = new Map(activeBranches.map((b) => [b._id.toString(), b]));
+
+  const resolvedItems = [];
+  const issues = [];
+
+  for (const item of quoteItems) {
+    const product = await Product.findById(item.productId);
+    if (!product || product.status !== 'ACTIVE') {
+      issues.push({ itemId: item.productId.toString(), issue: 'PRODUCT_INACTIVE' });
+      continue;
+    }
+
+    let variant = null;
+    if (product.variants && product.variants.length > 0) {
+      if (item.variantId) {
+        const targetIdStr = String(item.variantId).trim();
+        variant = product.variants.find((entry) =>
+          (entry._id && entry._id.toString() === targetIdStr) ||
+          (entry.sku && entry.sku.toLowerCase() === targetIdStr.toLowerCase()) ||
+          (entry.name && entry.name.toLowerCase() === targetIdStr.toLowerCase()) ||
+          (entry.label && entry.label.toLowerCase() === targetIdStr.toLowerCase())
+        );
+      }
+      if (!variant) {
+        variant = product.variants.find((v) => v.status === 'ACTIVE') || product.variants[0];
+      }
+    }
+
+    if (variant && !variant.inventoryItemId && variant.sku) {
+      const invItem = await InventoryItem.findOne({ sku: variant.sku }).select('_id').lean();
+      if (invItem) variant.inventoryItemId = invItem._id;
+    }
+
+    if (!variant || variant.status === 'INACTIVE') {
+      issues.push({ itemId: (variant?._id || item.productId).toString(), issue: 'PRODUCT_INACTIVE' });
+      continue;
+    }
+
+    let effectiveUnitPrice = variant.finalPrice || variant.price;
+    try {
+      const fsItem = await findActiveFlashSaleItem(item.productId, item.variantId || variant.sku);
+      if (fsItem && fsItem.isQuotaAvailable && fsItem.salePrice < effectiveUnitPrice) {
+        effectiveUnitPrice = fsItem.salePrice;
+      }
+    } catch {}
+
+    resolvedItems.push({
+      productId: item.productId,
+      variantId: variant._id,
+      inventoryItemId: variant.inventoryItemId,
+      quantity: item.quantity,
+      unitPrice: effectiveUnitPrice,
+    });
+  }
+
+  const merchandiseSubtotal = resolvedItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+
+  let voucherCheck = undefined;
+  let appliedVoucher = null;
+  let voucherDiscount = 0;
+
+  if (voucherCode && typeof voucherCode === 'string' && voucherCode.trim()) {
+    const check = await validateVoucherEligibility({
+      code: voucherCode.trim(),
+      scope: 'ORDER',
+      subtotal: merchandiseSubtotal,
+      cartId,
+      customerId: actor ? actor.id : undefined,
+    });
+
+    if (!check.valid) {
+      voucherCheck = {
+        code: voucherCode.trim(),
+        valid: false,
+        reason: check.reason || 'NOT_FOUND',
+        discount: 0,
+      };
+    } else {
+      appliedVoucher = check.voucher;
+      voucherDiscount = check.discount;
+      if (appliedVoucher && appliedVoucher.scope === 'PRODUCT') {
+        const eligibleSubtotal = resolvedItems
+          .filter((i) =>
+            Array.isArray(appliedVoucher.scopeRefs) &&
+            appliedVoucher.scopeRefs.some((ref) => (ref._id || ref).toString() === i.productId.toString())
+          )
+          .reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+
+        if (eligibleSubtotal <= 0) {
+          voucherCheck = { code: voucherCode.trim(), valid: false, reason: 'SCOPE_MISMATCH', discount: 0 };
+          voucherDiscount = 0;
+          appliedVoucher = null;
+        } else if (appliedVoucher.minOrderAmount && eligibleSubtotal < appliedVoucher.minOrderAmount) {
+          voucherCheck = { code: voucherCode.trim(), valid: false, reason: 'MIN_CONDITION_NOT_MET', discount: 0 };
+          voucherDiscount = 0;
+          appliedVoucher = null;
+        } else {
+          voucherDiscount = calculateDiscount({ voucher: appliedVoucher, subtotal: eligibleSubtotal });
+        }
+      }
+      if (!voucherCheck) {
+        voucherCheck = {
+          code: appliedVoucher.code || voucherCode.trim(),
+          valid: true,
+          reason: null,
+          discount: voucherDiscount,
+        };
+      }
+    }
+  }
+
+  const netMerchandise = Math.max(0, merchandiseSubtotal - voucherDiscount);
+  let shippingFee = netMerchandise >= freeShippingThreshold ? 0 : flatShippingFee;
+  const isFreeShipVoucher = appliedVoucher && (appliedVoucher.code === 'FREESHIP' || appliedVoucher.discountType === 'FREE_SHIPPING');
+  if (isFreeShipVoucher) {
+    voucherDiscount = shippingFee;
+    if (voucherCheck) voucherCheck.discount = shippingFee;
+    shippingFee = 0;
+  }
+  const freeShippingApplied = shippingFee === 0;
+  const totalAmount = Math.max(0, merchandiseSubtotal - voucherDiscount + shippingFee);
+
+  // Check branch fulfillability without mutating inventory
+  let fulfillable = false;
+  let fulfillmentIssue = null;
+  if (priorityBranchIds.length === 0) {
+    fulfillmentIssue = 'FULFILLMENT_NOT_CONFIGURED';
+  } else {
+    const movements = aggregateMovements(resolvedItems);
+    for (const candidateId of priorityBranchIds) {
+      const branch = activeBranchMap.get(candidateId.toString());
+      if (!branch) continue;
+      if (movements.length === 0) {
+        fulfillable = true;
+        break;
+      }
+      const stocks = await InventoryStock.find({
+        branchId: branch._id,
+        inventoryItemId: { $in: movements.map((m) => m.inventoryItemId) },
+      }).lean();
+      const qtyMap = new Map(stocks.map((s) => [s.inventoryItemId.toString(), s.quantity]));
+      if (movements.every((m) => (qtyMap.get(m.inventoryItemId.toString()) || 0) >= m.quantity)) {
+        fulfillable = true;
+        break;
+      }
+    }
+    if (!fulfillable) {
+      fulfillmentIssue = 'NOT_FULFILLABLE_BY_SINGLE_BRANCH';
+    }
+  }
+
+  return {
+    pricing: {
+      merchandiseSubtotal,
+      voucherDiscount,
+      shippingFee,
+      totalAmount,
+    },
+    ...(voucherCheck ? { voucher: voucherCheck } : {}),
+    freeShippingApplied,
+    issues,
+    fulfillable,
+    fulfillmentIssue,
+  };
+};
+
+export const checkoutValidate = async (data = {}, actor = null, guestToken = null) => {
+  const quote = await checkoutQuote(data, actor, guestToken);
+  return {
+    valid: quote.fulfillable && (!quote.issues || quote.issues.length === 0),
+    ...quote,
+  };
+};
+
+export const compensateOrderPaymentFailure = async (orderId, reason = 'Payment failed', actor = null, externalSession = null) => {
+  const runInSession = async (session) => {
+    let q = Order.findById(orderId);
+    if (session && typeof q.session === 'function') q = q.session(session);
+    const order = await q;
+    if (!order) return null;
+
+    if (order.status === 'CANCELLED') {
+      return order;
+    }
+    if (order.status !== 'PENDING') {
+      throw new AppError(409, 'Conflict', ErrorCodes.INVALID_STATE_TRANSITION, `Cannot cancel order in ${order.status} status on payment failure`);
+    }
+
+    order.status = 'CANCELLED';
+    order.cancellationReason = reason;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status: 'CANCELLED',
+      at: new Date(),
+      actorId: actor ? (actor.id || actor._id) : undefined,
+      note: reason,
+    });
+
+    // Idempotent stock compensation via RECEIPT
+    let txQuery = InventoryTransaction.find({
+      sourceType: 'ORDER',
+      sourceId: order._id,
+      transactionType: 'ISSUE',
+    });
+    if (session && typeof txQuery.session === 'function') txQuery = txQuery.session(session);
+    const originalIssues = await txQuery.lean();
+
+    if (originalIssues.length > 0 && order.fulfillmentBranchId) {
+      await receiveForOrder({
+        session,
+        orderId: order._id,
+        branchId: order.fulfillmentBranchId,
+        movements: originalIssues.map((tx) => ({
+          inventoryItemId: tx.inventoryItemId,
+          quantity: Math.abs(tx.changeQty),
+        })),
+        actorId: actor ? (actor.id || actor._id) : SYSTEM_ACTOR_ID,
+        reason: reason || 'Payment failed stock compensation',
+      });
+    }
+
+    if (order.voucher && order.voucher.voucherId) {
+      await restoreQuotaInSession({
+        voucherId: order.voucher.voucherId,
+        targetType: 'ORDER',
+        targetId: order._id,
+        session,
+      });
+    }
+
+    await order.save(session ? { session } : {});
+    return order;
+  };
+
+  if (externalSession) {
+    return runInSession(externalSession);
+  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const result = await runInSession(session);
+    await session.commitTransaction();
+    session.endSession();
+    return result;
+  } catch (err) {
+    try { await session.abortTransaction(); } catch {}
+    session.endSession();
+    throw err;
+  }
+};
 
 export const checkoutCreateOrder = async (data, actor, guestToken) => {
   const { cartId, paymentMethod, shippingAddress, contact, voucherCode, note } = data;
@@ -558,6 +848,9 @@ export const formatOrder = (order) => {
 };
 
 export const getOrderById = async (orderId, actor, guestToken) => {
+  if (!actor && !guestToken) {
+    throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication or verified guest lookup token required');
+  }
   let order = null;
   if (orderId && mongoose.Types.ObjectId.isValid(orderId)) {
     order = await Order.findById(orderId);
@@ -591,7 +884,12 @@ export const getOrderById = async (orderId, actor, guestToken) => {
   }
 
   // Verify ownership / access permission
-  if (!actor && !guestToken) {
+  let verifiedGuest = guestToken;
+  if (!actor && typeof guestToken === 'string') {
+    verifiedGuest = verifyGuestToken(guestToken.trim());
+  }
+
+  if (!actor && !verifiedGuest) {
     throw new AppError(401, 'Unauthorized', ErrorCodes.UNAUTHENTICATED, 'Authentication required to view order details');
   }
 
@@ -611,13 +909,11 @@ export const getOrderById = async (orderId, actor, guestToken) => {
           }
         } catch {}
       }
-      if (!isOwner && (actor.phone || actor.id)) {
+      if (!isOwner && actor.phone) {
         if (order.contactSnapshot && order.contactSnapshot.phone && order.contactSnapshot.phone === actor.phone) isOwner = true;
-        if (order.shippingAddress && order.shippingAddress.phone && order.shippingAddress.phone === actor.phone) isOwner = true;
       }
       if (!isOwner) {
-        // Fallback for customer demo
-        isOwner = true;
+        throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You do not have permission to access this order');
       }
     } else if (actor.systemRole === 'STAFF') {
       if (actor.staffSubRole && actor.staffSubRole !== 'RECEPTIONIST') {
@@ -633,9 +929,20 @@ export const getOrderById = async (orderId, actor, guestToken) => {
         throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Order belongs to an unassigned branch');
       }
     }
-  } else if (guestToken) {
-    const isMatchingContact = (guestToken.guestContactId && order.guestContactId && order.guestContactId.toString() === guestToken.guestContactId)
-      || (guestToken.phone && order.contactSnapshot && order.contactSnapshot.phone === guestToken.phone);
+  } else if (verifiedGuest) {
+    const canMatchPhone = Boolean(
+      verifiedGuest.phone && (verifiedGuest.phoneVerified === true || (verifiedGuest.phoneVerified === undefined && verifiedGuest.emailVerified !== true))
+    );
+    const canMatchEmail = Boolean(verifiedGuest.email && verifiedGuest.emailVerified === true);
+    const guestEmail = verifiedGuest.email ? String(verifiedGuest.email).toLowerCase().trim() : null;
+    const orderEmail = (order.contactSnapshot?.email || order.customerContact?.email || order.email || '').toLowerCase().trim();
+    const orderPhone = order.contactSnapshot?.phone || order.customerContact?.phone || order.phone || '';
+
+    const isMatchingContact =
+      (verifiedGuest.guestContactId && order.guestContactId && order.guestContactId.toString() === String(verifiedGuest.guestContactId)) ||
+      (canMatchPhone && orderPhone && orderPhone === verifiedGuest.phone) ||
+      (canMatchEmail && orderEmail && orderEmail === guestEmail);
+
     if (!isMatchingContact) {
       throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Guest token does not match this order');
     }

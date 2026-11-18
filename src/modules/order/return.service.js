@@ -80,7 +80,7 @@ export const formatOrderReturn = (ret, parentOrder = null) => {
         requestedQty: item.requestedQty,
         receivedQty: isReceivedOrLater ? (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty) : (item.receivedQty !== undefined ? item.receivedQty : null),
         approvedQty: isReceivedOrLater ? (item.approvedQty !== undefined ? item.approvedQty : (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty)) : null,
-        restockedQty: isReceivedOrLater ? (item.restockedQty !== undefined ? item.restockedQty : (item.quality === 'DAMAGED' || item.quality === 'EXPIRED' ? 0 : (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty))) : null,
+        restockedQty: isReceivedOrLater ? (item.restockedQty !== undefined ? item.restockedQty : (item.quality === 'RESELLABLE' || !item.quality ? (item.receivedQty !== undefined ? item.receivedQty : item.requestedQty) : 0)) : null,
         quality: isReceivedOrLater ? (item.quality || 'RESELLABLE') : (item.quality || null),
         damageReason: item.damageReason || null,
         refundAmount: item.refundAmount
@@ -461,9 +461,21 @@ export const receiveReturn = async (returnId, receiveData = {}, actor) => {
   if (Array.isArray(receiveData.items) && receiveData.items.length > 0) {
     for (const rItem of receiveData.items) {
       const target = ret.items.find((i) => i.orderItemId.toString() === rItem.orderItemId?.toString());
-      if (target) {
-        if (typeof rItem.receivedQty === 'number') target.receivedQty = rItem.receivedQty;
-        if (rItem.quality) target.quality = rItem.quality;
+      if (!target) {
+        throw new AppError(404, 'Not Found', 'ITEM_NOT_FOUND', `Return item ${rItem.orderItemId} not found`);
+      }
+      const rawQty = rItem.receivedQty !== undefined ? rItem.receivedQty : rItem.quantity;
+      if (rawQty !== undefined) {
+        const qtyNum = Number(rawQty);
+        if (!Number.isFinite(qtyNum) || qtyNum < 0 || qtyNum > target.requestedQty) {
+          throw new AppError(400, 'Bad Request', 'VALIDATION_ERROR', `receivedQty must be between 0 and ${target.requestedQty}`);
+        }
+        target.receivedQty = qtyNum;
+      }
+      const rawQuality = rItem.quality || rItem.condition;
+      if (rawQuality) {
+        const normalized = String(rawQuality).trim().toUpperCase();
+        target.quality = normalized === 'ELIGIBLE' ? 'RESELLABLE' : normalized;
       }
     }
   }
@@ -553,7 +565,20 @@ export const approveReturn = async (returnId, approveData = {}, actor) => {
       });
     }
 
-    const finalRefund = calculatedRefundTotal > 0 ? calculatedRefundTotal : ret.refundBreakdown.total;
+    const totalAcceptedQty = ret.items.reduce(
+      (sum, retItem) => sum + (typeof retItem.receivedQty === 'number' ? retItem.receivedQty : retItem.requestedQty),
+      0
+    );
+    if (totalAcceptedQty <= 0 || calculatedRefundTotal <= 0) {
+      throw new AppError(
+        422,
+        'Unprocessable Entity',
+        'ZERO_RECEIVED_QUANTITY',
+        'Cannot approve refund when received quantity is 0'
+      );
+    }
+
+    const finalRefund = calculatedRefundTotal;
 
     const totalOrderMerchandiseNetPaid = (order.items || []).reduce(
       (sum, item) => sum + (Number(item.lineNet) || 0),

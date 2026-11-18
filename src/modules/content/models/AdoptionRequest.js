@@ -12,6 +12,7 @@ const applicantInfoSchema = new mongoose.Schema({
 
 const adoptionRequestSchema = new mongoose.Schema({
   requestCode: { type: String, required: true, unique: true, index: true, uppercase: true, trim: true },
+  idempotencyKey: { type: String, trim: true, default: undefined },
   rescuePetId: { type: mongoose.Schema.Types.ObjectId, ref: 'RescuePet', required: true, index: true },
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null, index: true },
   applicantInfo: { type: applicantInfoSchema, required: true },
@@ -30,6 +31,7 @@ const adoptionRequestSchema = new mongoose.Schema({
 });
 
 adoptionRequestSchema.index({ status: 1, createdAt: -1 });
+adoptionRequestSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
 
 const AdoptionRequest = mongoose.models.AdoptionRequest || mongoose.model('AdoptionRequest', adoptionRequestSchema);
 export default AdoptionRequest;

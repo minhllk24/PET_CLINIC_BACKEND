@@ -76,13 +76,29 @@ describe('Task 4.8: Content Management & Real-data Dashboard (Phase 1, 2, 3)', (
       expect(mockPost.save).toHaveBeenCalled();
     });
 
-    it('retrieves distinct categories and featured posts', async () => {
-      jest.spyOn(Post, 'distinct').mockResolvedValue(['Dinh dưỡng', 'Y tế & Bệnh học']);
+    it('retrieves canonical 4 blog categories without mixing First Aid categories', async () => {
+      jest.spyOn(Post, 'find').mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([
+            { category: 'Sức khỏe' },
+            { category: 'Dinh dưỡng' },
+            { category: 'Tâm lý' },
+            { category: 'Vệ sinh & Làm đẹp' },
+          ]),
+        }),
+      });
       const categories = await contentService.getPostCategories();
 
-      expect(categories).toHaveLength(2);
-      expect(categories[0].name).toBe('Dinh dưỡng');
-      expect(categories[0].slug).toBe('dinh-duong');
+      expect(categories).toHaveLength(4);
+      expect(categories.map((c) => c.name)).toEqual([
+        'Sức khỏe',
+        'Dinh dưỡng',
+        'Tâm lý',
+        'Vệ sinh & Làm đẹp',
+      ]);
+      expect(categories[0].slug).toBe('suc-khoe');
+      expect(categories[1].slug).toBe('dinh-duong');
+      expect(categories[0].postCount).toBe(1);
     });
   });
 

@@ -6,6 +6,7 @@ import ServiceRecord from '../execution/models/ServiceRecord';
 import CarePlanTaskState from './models/CarePlanTaskState';
 import Notification from '../notification/models/Notification';
 import { buildPetCarePlan } from './carePlan.rules';
+import { assertPetAccess } from '../customer/pet.routes';
 import AppError from '../../utils/AppError';
 
 const checkPetAccess = async (petId, actor) => {
@@ -18,13 +19,7 @@ const checkPetAccess = async (petId, actor) => {
     throw new AppError(404, 'Not Found', 'PET_NOT_FOUND', 'Pet not found');
   }
 
-  if (actor && actor.systemRole === 'CUSTOMER') {
-    const customer = await Customer.findOne({ userId: actor.id }).lean();
-    if (!customer || pet.customerId.toString() !== customer._id.toString()) {
-      throw new AppError(403, 'Forbidden', 'FORBIDDEN', 'Access denied to this pet');
-    }
-  }
-
+  await assertPetAccess(pet, actor, 'READ');
   return pet;
 };
 

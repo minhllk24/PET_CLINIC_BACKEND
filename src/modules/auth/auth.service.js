@@ -27,12 +27,40 @@ import {
 /**
  * Register a new customer
  */
-export const register = async ({ phone, fullName, email, password, confirmPassword }, meta = {}) => {
-  if (!password || !confirmPassword) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Password and confirmPassword are required');
+export const register = async (
+  { phone, fullName, email, password, confirmPassword, acceptTerms, otp },
+  meta = {}
+) => {
+  const cleanPhone = typeof phone === 'string' ? phone.trim() : '';
+  const cleanEmail = typeof email === 'string' && email.trim() ? email.toLowerCase().trim() : null;
+
+  if (acceptTerms === false) {
+    throw new AppError(400, 'Bad Request', 'TERMS_NOT_ACCEPTED', 'Terms and conditions must be accepted');
   }
 
-  if (password !== confirmPassword) {
+  if (!fullName || !String(fullName).trim() || !cleanPhone || !password) {
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'fullName, phone, and password are required');
+  }
+
+  // Validate phone format
+  if (!/^0[0-9]{9}$/.test(cleanPhone)) {
+    throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Phone must be a valid 10-digit Vietnamese number');
+  }
+
+  // Check uniqueness before optional confirmation mismatch checks
+  const existingPhone = await User.findOne({ phone: cleanPhone });
+  if (existingPhone) {
+    throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'This phone number is already registered');
+  }
+
+  if (cleanEmail) {
+    const existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail) {
+      throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'This email is already registered');
+    }
+  }
+
+  if (confirmPassword !== undefined && password !== confirmPassword) {
     throw new AppError(400, 'Bad Request', 'PASSWORD_MISMATCH', 'Passwords do not match');
   }
 
@@ -45,46 +73,124 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
     );
   }
 
-  // Validate phone format
-  if (!phone || !/^0[0-9]{9}$/.test(phone)) {
-    throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Phone must be a valid 10-digit Vietnamese number');
-  }
-
-  // Check phone uniqueness
-  const existingPhone = await User.findOne({ phone });
-  if (existingPhone) {
-    throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'This phone number is already registered');
-  }
-
-  // Check email uniqueness if email provided
-  if (email) {
-    const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existingEmail) {
-      throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'This email is already registered');
+  // If pre-issued OTP is provided in /register, validate challenge first
+  let verifiedDirectRegistration = false;
+  if (otp !== undefined && otp !== null && String(otp).trim() !== '') {
+    const idents = [cleanPhone, ...(cleanEmail ? [cleanEmail] : [])];
+    const challenge = await OtpChallenge.findOne({
+      identifier: { $in: idents },
+      purpose: { $in: ['REGISTER', 'ACTIVATION', 'GUEST_LOOKUP'] },
+    });
+    if (!challenge) {
+      throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'No pending OTP challenge found');
     }
+    if (challenge.expiresAt <= new Date()) {
+      await OtpChallenge.deleteOne({ _id: challenge._id });
+      throw new AppError(400, 'Bad Request', 'OTP_EXPIRED', 'OTP code has expired. Please request a new one.');
+    }
+    if (challenge.attemptCount >= MAX_OTP_ATTEMPTS) {
+      throw new AppError(429, 'Too Many Requests', 'MAX_OTP_ATTEMPTS_EXCEEDED', 'Maximum verification attempts exceeded');
+    }
+    if (!verifyOtp(String(otp).trim(), challenge.otpHash)) {
+      challenge.attemptCount += 1;
+      await challenge.save();
+      throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Invalid OTP code');
+    }
+    await OtpChallenge.deleteMany({ identifier: { $in: idents }, purpose: challenge.purpose });
+    verifiedDirectRegistration = true;
   }
 
-  // Hash password
   const passwordHash = await hashPassword(password);
 
-  // Create user with strict default privileges
   const user = await User.create({
-    phone,
-    fullName: fullName.trim(),
-    email: email ? email.toLowerCase().trim() : null,
+    phone: cleanPhone,
+    fullName: String(fullName).trim(),
+    email: cleanEmail,
     passwordHash,
     systemRole: 'CUSTOMER',
-    accountStatus: 'PENDING_ACTIVATION',
+    accountStatus: verifiedDirectRegistration ? 'ACTIVE' : 'PENDING_ACTIVATION',
+    activatedAt: verifiedDirectRegistration ? new Date() : null,
     staffSubRole: null,
     assignedBranchIds: [],
   });
 
-  // Generate and store OTP
+  if (verifiedDirectRegistration) {
+    try {
+      await Customer.findOneAndUpdate(
+        { userId: user._id },
+        {
+          $setOnInsert: {
+            userId: user._id,
+            contactPhone: user.phone,
+            contactEmail: user.email,
+            fullName: user.fullName,
+            accountStatus: 'ACTIVE',
+            activationStatus: 'ACTIVATED',
+          },
+        },
+        { upsert: true }
+      );
+    } catch (_err) {
+      // Provisioning fallback
+    }
+
+    const accessToken = jwt.sign(
+      {
+        id: user._id.toString(),
+        phone: user.phone || null,
+        email: user.email || null,
+        fullName: user.fullName || null,
+        systemRole: user.systemRole,
+        staffSubRole: user.staffSubRole,
+        assignedBranchIds: [],
+      },
+      config.jwt.accessSecret,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+    const rawRefreshToken = generateOpaqueToken();
+    const tokenHash = hashToken(rawRefreshToken);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_SHORT_TTL_MS);
+
+    await RefreshSession.create({
+      userId: user._id,
+      tokenHash,
+      userAgent: meta.userAgent || '',
+      ipAddress: meta.ip || '',
+      rememberMe: false,
+      expiresAt,
+    });
+
+    await recordAuditLog({
+      actor: { userId: user._id, systemRole: 'CUSTOMER', ipAddress: meta.ip || '' },
+      action: 'REGISTER',
+      target: { type: 'User', id: user._id },
+      correlationId: meta.correlationId || null,
+    });
+
+    return {
+      accessToken,
+      refreshToken: rawRefreshToken,
+      expiresAt,
+      identifier: cleanPhone,
+      user: {
+        id: user._id.toString(),
+        phone: user.phone,
+        fullName: user.fullName,
+        email: user.email,
+        systemRole: user.systemRole,
+        staffSubRole: user.staffSubRole,
+        accountStatus: user.accountStatus,
+        activatedAt: user.activatedAt,
+        assignedBranchIds: [],
+      },
+    };
+  }
+
+  // Generate and store OTP for two-step verification
   const rawOtp = generateOtpCode();
   const hashedOtp = hashOtp(rawOtp);
 
-  const cleanEmail = email ? email.toLowerCase().trim() : null;
-  const identifiersToSet = [phone];
+  const identifiersToSet = [cleanPhone];
   if (cleanEmail) identifiersToSet.push(cleanEmail);
 
   await OtpChallenge.deleteMany({ identifier: { $in: identifiersToSet }, purpose: 'REGISTER' });
@@ -107,7 +213,6 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
     }
   }
 
-  // Record audit log
   await recordAuditLog({
     actor: { userId: user._id, systemRole: 'CUSTOMER', ipAddress: meta.ip || '' },
     action: 'REGISTER',
@@ -117,7 +222,7 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
 
   return {
     message: 'OTP has been sent',
-    identifier: phone,
+    identifier: cleanPhone,
     ...(config.env !== 'production' ? { debugOtp: rawOtp } : {}),
   };
 };
@@ -424,8 +529,8 @@ export const verifyOtpCode = async ({ identifier, otpCode, purpose }, meta = {})
   const cleanIdentifier = identifier.toLowerCase().trim();
   const challenge = await OtpChallenge.findOne({ identifier: cleanIdentifier, purpose });
 
-  if (!challenge) {
-    throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'No pending OTP challenge found');
+  if (!challenge || challenge.verifiedAt) {
+    throw new AppError(400, 'Bad Request', 'INVALID_OTP', challenge?.verifiedAt ? 'OTP code has already been verified' : 'No pending OTP challenge found');
   }
 
   if (challenge.expiresAt <= new Date()) {
@@ -450,8 +555,16 @@ export const verifyOtpCode = async ({ identifier, otpCode, purpose }, meta = {})
     throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Invalid OTP code');
   }
 
-  // OTP is valid - consume challenge
-  await OtpChallenge.deleteOne({ _id: challenge._id });
+  // For FORGOT_PASSWORD, keep single-use verified marker so /reset-password can consume EITHER resetToken OR (identifier + otp)
+  if (purpose === 'FORGOT_PASSWORD') {
+    await OtpChallenge.updateMany(
+      { identifier: cleanIdentifier, purpose: 'FORGOT_PASSWORD' },
+      { verifiedAt: new Date() }
+    );
+  } else {
+    // OTP is valid - consume challenge
+    await OtpChallenge.deleteOne({ _id: challenge._id });
+  }
 
   if (purpose === 'REGISTER') {
     const user = await User.findOne({
@@ -659,12 +772,13 @@ export const forgotPassword = async ({ identifier }, meta = {}) => {
 /**
  * Reset password using valid resetToken
  */
-export const resetPassword = async ({ resetToken, newPassword, confirmPassword }, meta = {}) => {
-  if (!resetToken || !newPassword || !confirmPassword) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'All fields are required');
+export const resetPassword = async ({ resetToken, identifier, otp, newPassword, confirmPassword }, meta = {}) => {
+  const hasOtpFlow = Boolean(identifier && otp);
+  if ((!resetToken && !hasOtpFlow) || !newPassword) {
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'resetToken or (identifier and otp) and newPassword are required');
   }
 
-  if (newPassword !== confirmPassword) {
+  if (confirmPassword !== undefined && newPassword !== confirmPassword) {
     throw new AppError(400, 'Bad Request', 'PASSWORD_MISMATCH', 'Passwords do not match');
   }
 
@@ -677,14 +791,47 @@ export const resetPassword = async ({ resetToken, newPassword, confirmPassword }
     );
   }
 
-  const decoded = verifyResetToken(resetToken);
-  if (!decoded || !decoded.id) {
-    throw new AppError(400, 'Bad Request', 'INVALID_RESET_TOKEN', 'Reset token is invalid or expired');
+  let user = null;
+  if (resetToken) {
+    const decoded = verifyResetToken(resetToken);
+    if (!decoded || !decoded.id) {
+      throw new AppError(400, 'Bad Request', 'INVALID_RESET_TOKEN', 'Reset token is invalid or expired');
+    }
+    user = await User.findById(decoded.id);
+    if (!user) {
+      throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+    }
+  } else {
+    const cleanIdentifier = String(identifier).toLowerCase().trim();
+    const challenge = await OtpChallenge.findOne({ identifier: cleanIdentifier, purpose: 'FORGOT_PASSWORD' });
+    if (!challenge) {
+      throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'No pending password reset OTP found');
+    }
+    if (challenge.expiresAt <= new Date()) {
+      await OtpChallenge.deleteOne({ _id: challenge._id });
+      throw new AppError(400, 'Bad Request', 'OTP_EXPIRED', 'OTP code has expired. Please request a new one.');
+    }
+    if (challenge.attemptCount >= MAX_OTP_ATTEMPTS) {
+      throw new AppError(429, 'Too Many Requests', 'MAX_OTP_ATTEMPTS_EXCEEDED', 'Maximum verification attempts exceeded');
+    }
+    if (!verifyOtp(String(otp).trim(), challenge.otpHash)) {
+      challenge.attemptCount += 1;
+      await challenge.save();
+      throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Invalid OTP code');
+    }
+    user = await User.findOne({
+      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
+    });
+    if (!user) {
+      throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+    }
   }
 
-  const user = await User.findById(decoded.id);
-  if (!user) {
-    throw new AppError(404, 'Not Found', 'USER_NOT_FOUND', 'User not found');
+  // Consume all FORGOT_PASSWORD challenges for this user so OTP cannot be reused
+  const identsToClean = [user.phone, user.email].filter(Boolean).map((v) => String(v).toLowerCase().trim());
+  if (identifier) identsToClean.push(String(identifier).toLowerCase().trim());
+  if (identsToClean.length > 0) {
+    await OtpChallenge.deleteMany({ identifier: { $in: [...new Set(identsToClean)] }, purpose: 'FORGOT_PASSWORD' });
   }
 
   user.passwordHash = await hashPassword(newPassword);
@@ -873,13 +1020,7 @@ export const googleLogin = async (body = {}, meta = {}) => {
 
   const fallbackUser = body.userInfo || body.user || body.profile || {};
   if (!credential && !fallbackUser.email && !body.email) {
-    if (config.env !== 'production') {
-      body.email = 'google_user@test.com';
-      body.name = 'Người dùng Google';
-      body.sub = 'google_mock_sub_123';
-    } else {
-      throw new AppError(400, 'Bad Request', 'MISSING_CREDENTIAL', 'Google credential or token is required');
-    }
+    throw new AppError(400, 'Bad Request', 'MISSING_CREDENTIAL', 'Google credential or token is required');
   }
 
   let payload;

@@ -283,42 +283,47 @@ export const verifyGuestToken = (token) => {
  * Get guest transactions (orders & appointments)
  */
 export const getGuestTransactions = async (guestTokenPayload) => {
-  const { guestContactId, phone, email } = guestTokenPayload;
+  const { guestContactId, phone, email, phoneVerified, emailVerified } = guestTokenPayload || {};
   const objectId = mongoose.Types.ObjectId.isValid(guestContactId)
     ? new mongoose.Types.ObjectId(guestContactId)
     : null;
 
+  const canMatchPhone = Boolean(phone && (phoneVerified === true || (phoneVerified === undefined && emailVerified !== true)));
+  const canMatchEmail = Boolean(email && emailVerified === true);
+
   const orderConditions = [];
   if (objectId) orderConditions.push({ guestContactId: objectId });
-  if (phone) {
+  if (canMatchPhone) {
     orderConditions.push(
       { 'contactSnapshot.phone': phone },
       { 'customerContact.phone': phone },
       { phone }
     );
   }
-  if (email) {
+  if (canMatchEmail) {
+    const cleanEmail = String(email).toLowerCase().trim();
     orderConditions.push(
-      { 'contactSnapshot.email': email },
-      { 'customerContact.email': email },
-      { email }
+      { 'contactSnapshot.email': cleanEmail },
+      { 'customerContact.email': cleanEmail },
+      { email: cleanEmail }
     );
   }
 
   const appointmentConditions = [];
   if (objectId) appointmentConditions.push({ guestContactId: objectId });
-  if (phone) {
+  if (canMatchPhone) {
     appointmentConditions.push(
       { 'contactSnapshot.phone': phone },
       { 'customerContact.phone': phone },
       { phone }
     );
   }
-  if (email) {
+  if (canMatchEmail) {
+    const cleanEmail = String(email).toLowerCase().trim();
     appointmentConditions.push(
-      { 'contactSnapshot.email': email },
-      { 'customerContact.email': email },
-      { email }
+      { 'contactSnapshot.email': cleanEmail },
+      { 'customerContact.email': cleanEmail },
+      { email: cleanEmail }
     );
   }
 
@@ -438,9 +443,9 @@ export const completeActivation = async ({ token, otp, password, acceptTerms, fu
   const orderOrConditions = [{ guestContactId: guest._id }];
   const appointmentOrConditions = [{ guestContactId: guest._id }];
 
-  // Verified contact linking
+  // Verified contact linking (strictly require verified timestamp for phone/email)
   const isPhoneVerified = !!guest.phoneVerifiedAt;
-  const isEmailVerified = !!guest.emailVerifiedAt || !!guest.activationToken; // Token sent to email proves ownership
+  const isEmailVerified = !!guest.emailVerifiedAt;
 
   if (isPhoneVerified && guest.phone) {
     orderOrConditions.push({ 'contactSnapshot.phone': guest.phone });

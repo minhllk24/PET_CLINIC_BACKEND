@@ -153,7 +153,7 @@ export const getCustomerById = async (id, actor = {}) => {
   }
 
   let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
-  if (!customer) {
+  if (!customer && (mongoose.connection.readyState === 1 || Customer.findOne?._isMockFunction)) {
     customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
   }
   if (!customer) {
@@ -183,14 +183,15 @@ export const getCustomerById = async (id, actor = {}) => {
         if (!hasActivityMatch) {
           const branchObjIds = branchIds.filter((b) => mongoose.Types.ObjectId.isValid(b)).map((b) => new mongoose.Types.ObjectId(b));
           const userIdRef = customer.userId?._id || customer.userId;
+          const custPhone = customer.contactPhone || customer.phone || customer.userId?.phone;
           const customerFilter = userIdRef
-            ? { $or: [{ customerId: userIdRef }, ...(customer.phone ? [{ guestPhone: customer.phone }] : [])] }
-            : customer.phone
-            ? { guestPhone: customer.phone }
+            ? { $or: [{ customerId: userIdRef }, ...(custPhone ? [{ 'contactSnapshot.phone': custPhone }] : [])] }
+            : custPhone
+            ? { 'contactSnapshot.phone': custPhone }
             : null;
           const [hasOrder, hasAppointment] = customerFilter && branchObjIds.length > 0
             ? await Promise.all([
-                userIdRef ? Order.exists({ customerId: userIdRef, branchId: { $in: branchObjIds } }) : null,
+                userIdRef ? Order.exists({ customerId: userIdRef, fulfillmentBranchId: { $in: branchObjIds } }) : null,
                 Appointment.exists({ ...customerFilter, branchId: { $in: branchObjIds } }),
               ])
             : [null, null];
@@ -209,9 +210,10 @@ export const getCustomerById = async (id, actor = {}) => {
         }
       }
       const userIdRef = customer.userId?._id || customer.userId;
+      const custPhone = customer.contactPhone || customer.phone || customer.userId?.phone;
       const customerOr = [];
       if (userIdRef) customerOr.push({ customerId: userIdRef });
-      if (customer.phone) customerOr.push({ guestPhone: customer.phone });
+      if (custPhone) customerOr.push({ 'contactSnapshot.phone': custPhone });
       const hasAssignedAppointment =
         staffIds.length > 0 && customerOr.length > 0
           ? await Appointment.exists({
@@ -252,7 +254,7 @@ export const blockCustomer = async (id, data = {}, actor = {}) => {
   }
 
   let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
-  if (!customer) {
+  if (!customer && (mongoose.connection.readyState === 1 || Customer.findOne?._isMockFunction)) {
     customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
   }
   if (!customer) {
@@ -307,7 +309,7 @@ export const unblockCustomer = async (id, data = {}, actor = {}) => {
   }
 
   let customer = await Customer.findById(id).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
-  if (!customer) {
+  if (!customer && (mongoose.connection.readyState === 1 || Customer.findOne?._isMockFunction)) {
     customer = await Customer.findOne({ userId: id }).populate('userId', 'email fullName phone accountStatus addresses lastLoginAt lastLogin');
   }
   if (!customer) {

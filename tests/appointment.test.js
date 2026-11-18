@@ -93,6 +93,7 @@ describe('Priority P0 Appointment Management & Time Slot Engine Suite', () => {
         'PENDING',
         'HELD',
         'APPLIED',
+        'REFUND_PENDING',
         'REFUNDED',
         'FORFEITED',
       ]);

@@ -123,6 +123,7 @@ describe('Pet Profile Medical Records, Status, Google Auth & Guest OTP Suite', (
     test('GET /api/v1/pets/:id returns doctorName and medicalRecordFileUrl without data loss', async () => {
       const mockPet = {
         _id: petId,
+        customerId: customerUserId,
         name: 'Milu',
         species: 'DOG',
         doctorName: 'BS. Tran Van B',
@@ -153,6 +154,7 @@ describe('Pet Profile Medical Records, Status, Google Auth & Guest OTP Suite', (
     test('PATCH /api/v1/pets/:id updates doctorName, fileUrl, and appends to medicalRecords', async () => {
       const existingPet = {
         _id: petId,
+        customerId: customerUserId,
         name: 'Milu',
         doctorName: 'BS. Tran Van B',
         medicalRecordFileUrl: 'https://cdn.petclinic.vn/records/milu-benhan-2026.pdf',
@@ -189,6 +191,7 @@ describe('Pet Profile Medical Records, Status, Google Auth & Guest OTP Suite', (
     test('PATCH /api/v1/pets/:id/status updates status to HIDDEN and syncs isArchived = true', async () => {
       const existingPet = {
         _id: petId,
+        customerId: customerUserId,
         name: 'Milu',
         status: 'ACTIVE',
         isArchived: false,
@@ -215,6 +218,7 @@ describe('Pet Profile Medical Records, Status, Google Auth & Guest OTP Suite', (
     test('PATCH /api/v1/pets/:id/status updates status to ACTIVE and syncs isArchived = false', async () => {
       const existingPet = {
         _id: petId,
+        customerId: customerUserId,
         name: 'Milu',
         status: 'HIDDEN',
         isArchived: true,

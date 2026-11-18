@@ -35,6 +35,18 @@ export const register = async (req, res, next) => {
   try {
     const meta = getMeta(req);
     const result = await authService.register(req.body, meta);
+    if (result && result.accessToken && result.refreshToken) {
+      setRefreshCookie(res, result.refreshToken, result.expiresAt);
+      return sendCreated(
+        res,
+        formatAuthTokens({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresIn: parseInt(process.env.JWT_EXPIRES_IN_SEC || '900', 10),
+          user: result.user,
+        })
+      );
+    }
     return sendCreated(res, result);
   } catch (err) {
     next(err);

@@ -41,6 +41,22 @@ const schema = new mongoose.Schema({
   actualStartAt: { type: Date, default: Date.now },
   actualEndAt: { type: Date, default: null },
   finalizedAt: { type: Date, default: null },
+  updatedBy: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: null },
+    role: { type: String, default: null },
+  },
+  materialsUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  materialsUpdatedAt: { type: Date, default: null },
+  materialAudit: [
+    {
+      actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      actorName: { type: String, default: null },
+      actorRole: { type: String, default: null },
+      at: { type: Date, default: Date.now },
+      materialsCount: { type: Number, default: 0 },
+    },
+  ],
   version: { type: Number, default: 1, min: 1 }
 }, { timestamps: true });
 

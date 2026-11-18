@@ -6,6 +6,18 @@ import { idempotency } from '../../middleware/idempotencyMiddleware';
 const router = express.Router();
 
 router.post(
+  '/checkout/quote',
+  optionalAuth,
+  orderController.checkoutQuote
+);
+
+router.post(
+  '/checkout/validate',
+  optionalAuth,
+  orderController.checkoutValidate
+);
+
+router.post(
   '/checkout',
   optionalAuth,
   idempotency('checkoutCreateOrder', { required: true }),

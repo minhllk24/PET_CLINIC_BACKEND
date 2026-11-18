@@ -5,6 +5,7 @@ import InventoryItem from './models/InventoryItem';
 import Branch from '../branch/models/Branch';
 import User from '../../models/User';
 import Product from '../catalog/models/Product';
+import Category from '../catalog/models/Category';
 import ServiceRecord from '../execution/models/ServiceRecord';
 import ServiceRecordRevision from '../execution/models/ServiceRecordRevision';
 import AuditLog from '../../models/AuditLog';
@@ -472,7 +473,7 @@ export const updateThreshold = async (branchIdValue, inventoryItemIdValue, data,
 
 export const listInventoryItems = async (query, actor) => {
   await resolveInventoryActor(actor, ['ADMIN', 'MANAGER', 'STAFF']);
-  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 500);
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 1000);
   const filter = {};
   if (query.cursor) filter._id = { $gt: requireObjectId(query.cursor, 'cursor') };
   if (query.kind) filter.kind = query.kind;
@@ -489,26 +490,34 @@ export const listInventoryItems = async (query, actor) => {
     filter.$or = [{ sku: pattern }, { name: pattern }];
   }
 
-  const rows = await InventoryItem.find(filter)
-    .select('_id sku name kind unit status category categoryName usageType')
-    .sort({ _id: 1 })
-    .limit(limit + 1)
-    .lean();
+  // Parallelize InventoryItem, Product variants, and Categories in 1 DB round-trip (eliminates 2 sequential RTTs)
+  const [rows, products, categories] = await Promise.all([
+    InventoryItem.find(filter)
+      .select('_id sku name kind unit status category categoryName usageType')
+      .sort({ _id: 1 })
+      .limit(limit + 1)
+      .lean(),
+    Product.find({ 'variants.0': { $exists: true } })
+      .select('_id name productType usageType categoryId variants._id variants.label variants.inventoryItemId')
+      .lean(),
+    Category.find({})
+      .select('_id name')
+      .lean(),
+  ]);
+
   const hasMore = rows.length > limit;
   const sliced = rows.slice(0, limit);
-  const itemIds = sliced.map((item) => item._id);
 
-  // Link with Product Master variants using indexed 'variants.inventoryItemId'
-  const products = itemIds.length > 0
-    ? await Product.find({ 'variants.inventoryItemId': { $in: itemIds } })
-        .select('_id name productType usageType categoryId variants._id variants.label variants.inventoryItemId')
-        .populate('categoryId', 'name')
-        .lean()
-    : [];
+  const categoryNameById = new Map();
+  for (const cat of categories || []) {
+    if (cat && cat._id) {
+      categoryNameById.set(cat._id.toString(), cat.name);
+    }
+  }
 
   const productMap = new Map();
-  for (const product of products) {
-    const catName = product.categoryId?.name || null;
+  for (const product of products || []) {
+    const catName = product.categoryId ? categoryNameById.get(product.categoryId.toString()) || null : null;
     for (const variant of product.variants || []) {
       if (variant.inventoryItemId) {
         productMap.set(variant.inventoryItemId.toString(), {
@@ -545,51 +554,82 @@ export const listInventoryItems = async (query, actor) => {
       variantName: matched ? matched.variantName : null
     };
   });
-  return { items, nextCursor: hasMore ? rows[limit - 1]._id.toString() : null };
+  return { items, nextCursor: hasMore ? sliced[sliced.length - 1]._id.toString() : null };
 };
 
 export const listStocks = async (query, actor) => {
   const resolvedActor = await resolveInventoryActor(actor, ['ADMIN', 'MANAGER', 'STAFF']);
-  let branchIds;
-  if (query.branchId) {
-    branchIds = [assertInventoryBranchScope(resolvedActor, query.branchId)];
-  } else {
-    const scoped = inventoryBranchIdsForActor(resolvedActor);
-    if (scoped === null) {
-      branchIds = (await Branch.find({}).select('_id').sort({ _id: 1 }).lean()).map((branch) => branch._id.toString());
-    } else {
-      branchIds = scoped;
-    }
+  const scoped = query.branchId
+    ? [assertInventoryBranchScope(resolvedActor, query.branchId)]
+    : inventoryBranchIdsForActor(resolvedActor);
+
+  if (Array.isArray(scoped) && scoped.length === 0) {
+    return { items: [], nextCursor: null };
   }
-  if (branchIds.length === 0) return { items: [], nextCursor: null };
 
   const itemFilter = {};
   if (query.search) {
     const pattern = new RegExp(escapeRegex(query.search.trim()), 'i');
     itemFilter.$or = [{ sku: pattern }, { name: pattern }];
   }
-  const inventoryItems = await InventoryItem.find(itemFilter).select('_id').sort({ _id: 1 }).lean();
-  const itemIds = inventoryItems.map((item) => item._id.toString());
-  const rows = await InventoryStock.find({
-    branchId: { $in: branchIds },
-    inventoryItemId: { $in: itemIds }
-  })
-    .select('branchId inventoryItemId quantity lowStockThreshold thresholdConfigured version')
-    .lean();
-  const stockMap = new Map(rows.map((stock) => [`${stock.branchId}:${stock.inventoryItemId}`, stock]));
-  let materialized = [];
-  for (const branchId of branchIds.sort()) {
-    for (const inventoryItemId of itemIds) {
-      materialized.push(formatInventoryStock(stockMap.get(`${branchId}:${inventoryItemId}`), { branchId, inventoryItemId }));
-    }
-  }
-  if (query.lowStock === true || query.lowStock === 'true') materialized = materialized.filter((stock) => stock.lowStock);
 
-  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 1000);
+  const stockFilter = Array.isArray(scoped) ? { branchId: { $in: scoped } } : {};
+
+  // Parallelize Branch, InventoryItem, and InventoryStock in 1 DB round-trip (eliminates 2 sequential RTTs)
+  const [branchDocs, inventoryItems, rows] = await Promise.all([
+    scoped === null ? Branch.find({}).select('_id').sort({ _id: 1 }).lean() : Promise.resolve(null),
+    InventoryItem.find(itemFilter).select('_id').sort({ _id: 1 }).lean(),
+    InventoryStock.find(stockFilter)
+      .select('branchId inventoryItemId quantity lowStockThreshold thresholdConfigured version')
+      .lean(),
+  ]);
+
+  const branchIds = scoped === null
+    ? (branchDocs || []).map((branch) => branch._id.toString()).sort()
+    : [...scoped].sort();
+
+  if (branchIds.length === 0 || inventoryItems.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+
+  const itemIds = inventoryItems.map((item) => item._id.toString());
+  const stockMap = new Map();
+  for (const stock of rows || []) {
+    stockMap.set(`${stock.branchId.toString()}:${stock.inventoryItemId.toString()}`, stock);
+  }
+
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 2000);
   const offset = query.cursor && /^\d+$/.test(query.cursor) ? Number(query.cursor) : 0;
+  const lowStockOnly = query.lowStock === true || query.lowStock === 'true';
+
+  if (lowStockOnly) {
+    const materialized = [];
+    for (const branchId of branchIds) {
+      for (const inventoryItemId of itemIds) {
+        const formatted = formatInventoryStock(stockMap.get(`${branchId}:${inventoryItemId}`), { branchId, inventoryItemId });
+        if (formatted.lowStock) materialized.push(formatted);
+      }
+    }
+    return {
+      items: materialized.slice(offset, offset + limit),
+      nextCursor: offset + limit < materialized.length ? String(offset + limit) : null
+    };
+  }
+
+  // Direct mathematical slice avoids materializing unused branch x item objects on paginated queries
+  const totalCount = branchIds.length * itemIds.length;
+  const end = Math.min(offset + limit, totalCount);
+  const items = [];
+  const itemCount = itemIds.length;
+  for (let idx = offset; idx < end; idx++) {
+    const branchId = branchIds[Math.floor(idx / itemCount)];
+    const inventoryItemId = itemIds[idx % itemCount];
+    items.push(formatInventoryStock(stockMap.get(`${branchId}:${inventoryItemId}`), { branchId, inventoryItemId }));
+  }
+
   return {
-    items: materialized.slice(offset, offset + limit),
-    nextCursor: offset + limit < materialized.length ? String(offset + limit) : null
+    items,
+    nextCursor: end < totalCount ? String(end) : null
   };
 };
 
@@ -877,45 +917,65 @@ export const applyServiceRecordDelta = async ({
 
   const branchMeta = await resolveBranchMeta(branchId, session);
   const actorMeta = await resolveActorMeta(actorId || SYSTEM_ACTOR_ID, session);
-  const isInitialFinalize = Number(recordVersion) <= 1;
-  const transactionType = isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT';
-
   const resolvedCode = serviceRecordCode || (effectiveSourceId ? `SR-${normalizeId(effectiveSourceId).slice(-6).toUpperCase()}` : null);
-  let txReason;
-  if (isInitialFinalize) {
-    txReason = (reason && typeof reason === 'string' && reason.trim().length >= 3)
-      ? reason.trim()
-      : (resolvedCode ? `Xuất vật tư tiêu hao hồ sơ dịch vụ ${resolvedCode}` : 'Service record material finalization');
-  } else {
-    txReason = (reason && typeof reason === 'string' && reason.trim().length >= 3)
-      ? `Điều chỉnh vật tư hồ sơ ${resolvedCode || ''} (Lần ${recordVersion}): ${reason.trim()}`.replace(/\s+/g, ' ').trim()
-      : `Điều chỉnh chênh lệch vật tư hồ sơ dịch vụ ${resolvedCode || ''} (Lần ${recordVersion})`.replace(/\s+/g, ' ').trim();
+  const isInitialFinalize = Number(recordVersion) <= 1;
+
+  const positiveLines = lines.filter((l) => l.changeQty < 0); // delta > 0 consumes stock -> negative changeQty -> ISSUE
+  const negativeLines = lines.filter((l) => l.changeQty > 0); // delta < 0 returns stock -> positive changeQty -> ADJUSTMENT
+
+  const groups = [];
+  if (positiveLines.length > 0) {
+    groups.push({ type: isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT', items: positiveLines });
+  }
+  if (negativeLines.length > 0) {
+    groups.push({ type: isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT', items: negativeLines });
+  }
+  if (groups.length === 0) {
+    groups.push({ type: isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT', items: lines });
   }
 
-  const totalBeforeQty = lines.reduce((sum, l) => sum + l.beforeQty, 0);
-  const totalChangeQty = lines.reduce((sum, l) => sum + l.changeQty, 0);
-  const totalAfterQty = lines.reduce((sum, l) => sum + l.afterQty, 0);
+  const createdTransactions = [];
+  for (const grp of groups) {
+    const grpLines = grp.items;
+    const transactionType = grp.type;
 
-  const [transaction] = await InventoryTransaction.create([{
-    branchId,
-    branchName: branchMeta.branchName,
-    branchCode: branchMeta.branchCode,
-    inventoryItemId: activeDeltas[0].inventoryItemId,
-    transactionType,
-    beforeQty: totalBeforeQty,
-    changeQty: totalChangeQty,
-    afterQty: totalAfterQty,
-    actorId: actorId || SYSTEM_ACTOR_ID,
-    actorName: actorMeta.actorName,
-    actorRole: actorMeta.actorRole,
-    isSystemActor: actorMeta.isSystemActor,
-    reason: validateReason(txReason),
-    sourceType: 'SERVICE_RECORD',
-    sourceId: effectiveSourceId,
-    referenceCode: resolvedCode,
-    recordVersion,
-    items: lines
-  }], { session });
+    let txReason;
+    if (isInitialFinalize || transactionType === 'ISSUE') {
+      txReason = (reason && typeof reason === 'string' && reason.trim().length >= 3)
+        ? reason.trim()
+        : (resolvedCode ? `Xuất vật tư tiêu hao hồ sơ dịch vụ ${resolvedCode}` : 'Service record material consumption');
+    } else {
+      txReason = (reason && typeof reason === 'string' && reason.trim().length >= 3)
+        ? `Điều chỉnh vật tư hồ sơ ${resolvedCode || ''} (Lần ${recordVersion}): ${reason.trim()}`.replace(/\s+/g, ' ').trim()
+        : `Điều chỉnh chênh lệch vật tư hồ sơ dịch vụ ${resolvedCode || ''} (Lần ${recordVersion})`.replace(/\s+/g, ' ').trim();
+    }
 
-  return [{ transaction, stocks, replayed: false }];
+    const totalBeforeQty = grpLines.reduce((sum, l) => sum + l.beforeQty, 0);
+    const totalChangeQty = grpLines.reduce((sum, l) => sum + l.changeQty, 0);
+    const totalAfterQty = grpLines.reduce((sum, l) => sum + l.afterQty, 0);
+
+    const [transaction] = await InventoryTransaction.create([{
+      branchId,
+      branchName: branchMeta.branchName,
+      branchCode: branchMeta.branchCode,
+      inventoryItemId: grpLines[0].inventoryItemId,
+      transactionType,
+      beforeQty: totalBeforeQty,
+      changeQty: totalChangeQty,
+      afterQty: totalAfterQty,
+      actorId: actorId || SYSTEM_ACTOR_ID,
+      actorName: actorMeta.actorName,
+      actorRole: actorMeta.actorRole,
+      isSystemActor: actorMeta.isSystemActor,
+      reason: validateReason(txReason),
+      sourceType: 'SERVICE_RECORD',
+      sourceId: effectiveSourceId,
+      referenceCode: resolvedCode,
+      recordVersion,
+      items: grpLines
+    }], { session });
+    createdTransactions.push({ transaction, stocks, replayed: false });
+  }
+
+  return createdTransactions;
 };

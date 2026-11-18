@@ -8,7 +8,7 @@ import MedicalRecord from './models/MedicalRecord.js';
 import HealthDiary from './models/HealthDiary.js';
 import Reminder from './models/Reminder.js';
 import { optionalAuth } from '../../shared/authMiddleware.js';
-import { resolvePet } from './pet.routes.js';
+import { resolvePet, assertPetAccess } from './pet.routes.js';
 
 const router = express.Router();
 
@@ -51,6 +51,7 @@ router.get(['/pet/:petId', '/medical-records/pet/:petId'], optionalAuth, async (
     if (!pet) {
       return res.json([]);
     }
+    await assertPetAccess(pet, req.actor, 'READ');
 
     const records = await MedicalRecord.find({ petId: pet._id }).sort({ visitDate: -1, createdAt: -1 });
     
@@ -92,6 +93,7 @@ router.post(['/', '/medical-records'], parseMultipart, optionalAuth, async (req,
     if (!pet) {
       return res.status(404).json({ message: 'Không tìm thấy hồ sơ thú cưng' });
     }
+    await assertPetAccess(pet, req.actor, 'WRITE');
 
     const attachments = [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
@@ -170,6 +172,8 @@ router.put(['/:id', '/medical-records/:id'], parseMultipart, optionalAuth, async
     if (!existing) {
       return res.status(404).json({ message: 'Bệnh án không tồn tại' });
     }
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
 
     const updates = {};
     if (req.body.condition || req.body.record_name || req.body.recordName) {
@@ -226,6 +230,10 @@ router.put(['/:id', '/medical-records/:id'], parseMultipart, optionalAuth, async
 router.delete(['/:id', '/medical-records/:id'], optionalAuth, async (req, res, next) => {
   try {
     const id = req.params.id;
+    const existing = await MedicalRecord.findById(id);
+    if (!existing) return res.status(404).json({ message: 'Bệnh án không tồn tại' });
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
     await MedicalRecord.findByIdAndDelete(id);
     await Pet.updateMany(
       { 'medicalRecords._id': id },
@@ -247,6 +255,7 @@ healthDiaryRouter.get('/pet/:petId', optionalAuth, async (req, res, next) => {
   try {
     const pet = await resolvePet(req.params.petId);
     if (!pet) return res.json([]);
+    await assertPetAccess(pet, req.actor, 'READ');
     const diaries = await HealthDiary.find({ petId: pet._id }).sort({ entryDate: -1, createdAt: -1 });
     res.json(diaries);
   } catch (error) {
@@ -259,6 +268,7 @@ healthDiaryRouter.post('/', parseMultipart, optionalAuth, async (req, res, next)
     const rawPetId = req.body.petId || req.body.pet_id;
     const pet = await resolvePet(rawPetId);
     if (!pet) return res.status(404).json({ message: 'Pet not found' });
+    await assertPetAccess(pet, req.actor, 'WRITE');
 
     const attachments = [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
@@ -292,8 +302,11 @@ healthDiaryRouter.post('/', parseMultipart, optionalAuth, async (req, res, next)
 
 healthDiaryRouter.put('/:id', parseMultipart, optionalAuth, async (req, res, next) => {
   try {
+    const existing = await HealthDiary.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Diary not found' });
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
     const diary = await HealthDiary.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true });
-    if (!diary) return res.status(404).json({ message: 'Diary not found' });
     res.json(diary);
   } catch (error) {
     next(error);
@@ -302,6 +315,10 @@ healthDiaryRouter.put('/:id', parseMultipart, optionalAuth, async (req, res, nex
 
 healthDiaryRouter.delete('/:id', optionalAuth, async (req, res, next) => {
   try {
+    const existing = await HealthDiary.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Diary not found' });
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
     await HealthDiary.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Đã xóa nhật ký thành công' });
   } catch (error) {
@@ -319,6 +336,7 @@ reminderRouter.get('/pet/:petId', optionalAuth, async (req, res, next) => {
   try {
     const pet = await resolvePet(req.params.petId);
     if (!pet) return res.json([]);
+    await assertPetAccess(pet, req.actor, 'READ');
     const reminders = await Reminder.find({ petId: pet._id }).sort({ remindDate: 1 });
     res.json(reminders);
   } catch (error) {
@@ -331,6 +349,7 @@ reminderRouter.post('/', optionalAuth, async (req, res, next) => {
     const rawPetId = req.body.petId || req.body.pet_id;
     const pet = await resolvePet(rawPetId);
     if (!pet) return res.status(404).json({ message: 'Pet not found' });
+    await assertPetAccess(pet, req.actor, 'WRITE');
 
     const reminder = new Reminder({
       petId: pet._id,
@@ -352,12 +371,15 @@ reminderRouter.post('/', optionalAuth, async (req, res, next) => {
 
 reminderRouter.patch('/:id/complete', optionalAuth, async (req, res, next) => {
   try {
+    const existing = await Reminder.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Reminder not found' });
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
     const reminder = await Reminder.findByIdAndUpdate(
       req.params.id,
       { $set: { status: 'completed' } },
       { new: true }
     );
-    if (!reminder) return res.status(404).json({ message: 'Reminder not found' });
     res.json(reminder);
   } catch (error) {
     next(error);
@@ -366,6 +388,10 @@ reminderRouter.patch('/:id/complete', optionalAuth, async (req, res, next) => {
 
 reminderRouter.delete('/:id', optionalAuth, async (req, res, next) => {
   try {
+    const existing = await Reminder.findById(req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Reminder not found' });
+    const pet = await resolvePet(existing.petId);
+    if (pet) await assertPetAccess(pet, req.actor, 'WRITE');
     await Reminder.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Đã xóa nhắc lịch thành công' });
   } catch (error) {

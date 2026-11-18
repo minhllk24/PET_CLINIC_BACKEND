@@ -34,6 +34,10 @@ const otpChallengeSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  verifiedAt: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

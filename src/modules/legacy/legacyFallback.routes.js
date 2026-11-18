@@ -173,25 +173,33 @@ const samplePosts = [
   {
     id: 'post-1',
     title: 'Lịch tiêm phòng vắc-xin định kỳ cho chó mèo bạn cần biết',
-    slug: 'lich-tiem-phong-vac-xin-dinh-ky-cho-cho-meo',
-    category: 'Cẩm nang nuôi dưỡng',
+    slug: 'lich-tiem-phong-vac-xin-dinh-ky-cho-cho-meo-ban-can-biet',
+    category: 'Sức khỏe',
+    categorySlug: 'suc-khoe',
     excerpt: 'Bảo vệ thú cưng toàn diện trước các bệnh truyền nhiễm nguy hiểm bằng phác đồ tiêm chủng chuẩn quốc tế.',
     content: 'Tiêm phòng vắc-xin là biện pháp y tế dự phòng quan trọng nhất...',
-    thumbnail: '/assets/customer/images/blog/blog-1.png',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=800&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&w=800&q=80',
+    hashtags: ['#tiem-phong', '#suc-khoe', '#vac-xin'],
     publishedAt: new Date().toISOString(),
     views: 1250,
+    viewCount: 1250,
     likesCount: 98,
   },
   {
     id: 'post-2',
     title: 'Dinh dưỡng cân bằng cho thú cưng theo từng độ tuổi phát triển',
-    slug: 'dinh-duong-can-bang-cho-thu-cung-theo-tung-do-tuoi',
-    category: 'Dinh dưỡng thú cưng',
+    slug: 'dinh-duong-can-bang-cho-thu-cung-theo-tung-do-tuoi-phat-trien',
+    category: 'Dinh dưỡng',
+    categorySlug: 'dinh-duong',
     excerpt: 'Khám phá chế độ dinh dưỡng tối ưu từ sơ sinh, trưởng thành đến khi về già cho các bé cưng.',
     content: 'Chế độ ăn của chó mèo cần được điều chỉnh linh hoạt theo từng giai đoạn...',
-    thumbnail: '/assets/customer/images/blog/blog-2.png',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=800&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=800&q=80',
+    hashtags: ['#dinh-duong', '#cham-soc-thu-cung'],
     publishedAt: new Date().toISOString(),
     views: 980,
+    viewCount: 980,
     likesCount: 76,
   },
 ];
@@ -210,17 +218,43 @@ router.get('/posts/trending', (req, res) => {
   });
 });
 
+router.get(['/posts/recent', '/posts/latest', '/posts/quick-view'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: samplePosts,
+  });
+});
+
+router.get(['/posts/tags', '/post-tags'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: [
+      { id: 'tiem-phong', slug: 'tiem-phong', name: 'tiem-phong', count: 2 },
+      { id: 'dinh-duong', slug: 'dinh-duong', name: 'dinh-duong', count: 2 },
+    ],
+  });
+});
+
+router.get(['/posts/related', '/posts/:slug/related'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: samplePosts,
+  });
+});
+
 router.get('/posts', (req, res) => {
   res.status(200).json({
     success: true,
     data: {
       items: samplePosts,
+      posts: samplePosts,
       total: samplePosts.length,
+      totalRows: samplePosts.length,
     },
   });
 });
 
-router.get('/post-categories', (req, res) => {
+router.get(['/post-categories', '/posts/categories'], (req, res) => {
   res.status(200).json({
     success: true,
     data: [
@@ -228,7 +262,6 @@ router.get('/post-categories', (req, res) => {
       { id: 'nutrition', name: 'Dinh dưỡng', label: 'Dinh dưỡng', slug: 'dinh-duong' },
       { id: 'psychology', name: 'Tâm lý', label: 'Tâm lý', slug: 'tam-ly' },
       { id: 'grooming', name: 'Vệ sinh & Làm đẹp', label: 'Vệ sinh & Làm đẹp', slug: 've-sinh-lam-dep' },
-      { id: 'care', name: 'Chăm sóc', label: 'Chăm sóc', slug: 'cham-soc' },
     ],
   });
 });

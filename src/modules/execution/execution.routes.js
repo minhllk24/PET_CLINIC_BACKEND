@@ -20,10 +20,10 @@ router.get('/:id', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), execu
 router.get('/records/:id', requireRole(['STAFF', 'MANAGER', 'ADMIN', 'CUSTOMER']), executionController.getRecordById);
 
 // Update Materials (OpenAPI uses PUT; allow PATCH as well - Clinical Staff only; Admin/Manager read-only)
-router.put('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
-router.patch('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
-router.put('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
-router.patch('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), executionController.updateMaterials);
+router.put('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), idempotency('updateRecordMaterials', { required: false }), executionController.updateMaterials);
+router.patch('/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), idempotency('updateRecordMaterials', { required: false }), executionController.updateMaterials);
+router.put('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), idempotency('updateRecordMaterials', { required: false }), executionController.updateMaterials);
+router.patch('/records/:id/materials', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), idempotency('updateRecordMaterials', { required: false }), executionController.updateMaterials);
 
 // Update Professional (OpenAPI uses PUT; allow PATCH as well - Veterinarian only; Admin/Manager read-only)
 router.put(

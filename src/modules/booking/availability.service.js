@@ -34,6 +34,86 @@ export const createDateTimeISO = (dateStr, timeStr) => {
 };
 
 /**
+ * Shared validator verifying an appointment [startDate, endDate] obeys Branch holidays,
+ * openingHours, and BranchServiceConfig availability & blockedWindows (FT-M15-05).
+ */
+export const validateScheduleAgainstBranchRules = ({
+  branch,
+  orderedServices = [],
+  configMap = new Map(),
+  startDate,
+  endDate,
+}) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    throw new AppError(400, 'ValidationError', 'INVALID_TIME_RANGE', 'Invalid appointment time range');
+  }
+
+  const startDateStr = start.toISOString().slice(0, 10);
+  const endDateStr = new Date(end.getTime() - 1).toISOString().slice(0, 10);
+  if (startDateStr !== endDateStr) {
+    throw new AppError(422, 'UnprocessableEntity', 'OUTSIDE_OPERATING_HOURS', 'Appointment must finish within the same operating day');
+  }
+
+  const isHoliday = (branch.holidays || []).some((h) => h.date === startDateStr);
+  if (isHoliday) {
+    throw new AppError(422, 'UnprocessableEntity', 'BRANCH_HOLIDAY', 'Branch is closed for holiday on the selected date');
+  }
+
+  if (Array.isArray(branch.openingHours) && branch.openingHours.length > 0) {
+    const dayOfWeek = start.getUTCDay();
+    const dayOpening = branch.openingHours.find((h) => h.dayOfWeek === dayOfWeek);
+    if (!dayOpening || !dayOpening.open || !dayOpening.close) {
+      throw new AppError(422, 'UnprocessableEntity', 'OUTSIDE_OPERATING_HOURS', 'Branch is closed on the selected day');
+    }
+
+    const startOfDay = new Date(`${startDateStr}T00:00:00.000Z`).getTime();
+    const branchOpenMinutes = timeToMinutes(dayOpening.open);
+    const branchCloseMinutes = timeToMinutes(dayOpening.close);
+    const aptStartMins = Math.floor((start.getTime() - startOfDay) / 60000);
+    const aptEndMins = Math.ceil((end.getTime() - startOfDay) / 60000);
+
+    if (aptStartMins < branchOpenMinutes || aptEndMins > branchCloseMinutes) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'OUTSIDE_OPERATING_HOURS',
+        `Appointment (${minutesToTime(aptStartMins)}-${minutesToTime(aptEndMins)}) must fit within branch operating hours (${dayOpening.open}-${dayOpening.close})`
+      );
+    }
+
+    let cursorMs = start.getTime();
+    for (const service of orderedServices) {
+      const segStart = new Date(cursorMs);
+      const segEnd = new Date(cursorMs + Number(service.durationMinutes) * 60000);
+      const cfg = configMap.get(service._id.toString());
+
+      if (cfg?.blockedWindows && Array.isArray(cfg.blockedWindows)) {
+        const blocked = cfg.blockedWindows.some((bw) => new Date(bw.startAt) < segEnd && new Date(bw.endAt) > segStart);
+        if (blocked) {
+          throw new AppError(409, 'Conflict', 'SLOT_BLOCKED', `Service ${service.name} is blocked during the selected window`);
+        }
+      }
+
+      if (cfg?.availability && Array.isArray(cfg.availability) && cfg.availability.length > 0) {
+        const dayAvail = cfg.availability.filter((a) => a.dayOfWeek === dayOfWeek);
+        if (dayAvail.length > 0) {
+          const segStartMins = Math.floor((segStart.getTime() - startOfDay) / 60000);
+          const segEndMins = Math.ceil((segEnd.getTime() - startOfDay) / 60000);
+          const within = dayAvail.some((w) => segStartMins >= timeToMinutes(w.open) && segEndMins <= timeToMinutes(w.close));
+          if (!within) {
+            throw new AppError(422, 'UnprocessableEntity', 'OUTSIDE_SERVICE_AVAILABILITY', `Service ${service.name} is unavailable at the selected time`);
+          }
+        }
+      }
+
+      cursorMs = segEnd.getTime();
+    }
+  }
+};
+
+/**
  * Core Dynamic Availability Slot Engine (Zero manual slot creation)
  */
 export const getAvailability = async ({ serviceIds, branchId, date, includeFull = false }) => {
@@ -237,7 +317,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     endAt: { $gt: startOfDay },
   }).populate('staffId');
 
-  // Active qualified staff profiles mapped to their shift intervals
+  // Active qualified staff profiles mapped ONLY to real active Shifts at THIS branch (FT-M13-05)
   const staffShifts = [];
   for (const shift of shifts) {
     const profile = shift.staffId;
@@ -255,29 +335,6 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         subRole: profile.staffSubRole,
         startMins: shiftStartMins,
         endMins: shiftEndMins,
-      });
-    }
-  }
-
-  // If no explicit Shift records exist for this date, default to the active staff of this branch
-  // working standard opening hours (branchOpenMinutes to branchCloseMinutes)
-  if (staffShifts.length === 0) {
-    let branchStaff = await StaffProfile.find({
-      $or: [
-        { homeBranchId: new mongoose.Types.ObjectId(branchId) },
-        { authorizedBranchIds: new mongoose.Types.ObjectId(branchId) },
-      ],
-      status: 'ACTIVE',
-    });
-    if (branchStaff.length === 0) {
-      branchStaff = await StaffProfile.find({ status: 'ACTIVE' });
-    }
-    for (const profile of branchStaff) {
-      staffShifts.push({
-        staffId: profile._id.toString(),
-        subRole: profile.staffSubRole,
-        startMins: branchOpenMinutes,
-        endMins: branchCloseMinutes,
       });
     }
   }
@@ -363,6 +420,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     let totalBookedCount = 0;
     let totalHeldCount = 0;
     let staffUnavailable = false;
+    let minAvailableStaff = Infinity;
 
     // Track staff used across the sequential segments in this candidate slot
     for (const service of orderedServices) {
@@ -398,33 +456,40 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         }
       }
 
-      // Check capacity: count distinct concurrent bookings at this branch during [segStart, segEnd]
-      // Any active appointment sharing the same role or serviceType consumes branch concurrency capacity
-      const concurrentBookings = activeBookings.filter((apt) => {
+      // Separate per-service capacity check from qualified staff availability (FT-M12-02)
+      const overlappingBookingsAllServices = activeBookings.filter((apt) => {
         return (apt.services || []).some((seg) => {
-          const segServiceId = (seg.serviceId?._id || seg.serviceId)?.toString();
-          const segRole = seg.requiredStaffRole;
-          const segType = seg.serviceType || apt.serviceType;
-          const isSameService = segServiceId === sId;
-          const isSameRole = Boolean(service.requiredStaffRole && segRole && segRole === service.requiredStaffRole);
-          const isSameType = Boolean(primaryServiceType && segType && segType === primaryServiceType);
-          if (!isSameService && !isSameRole && !isSameType) return false;
-
           const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
           const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
           return Math.max(sStartM, segStart) < Math.min(sEndM, segEnd);
         });
       });
 
-      const unattachedHolds = unattachedReservations.filter((res) => {
+      const concurrentSameServiceBookings = overlappingBookingsAllServices.filter((apt) => {
+        return (apt.services || []).some((seg) => {
+          const segServiceId = (seg.serviceId?._id || seg.serviceId)?.toString();
+          if (segServiceId !== sId) return false;
+          const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
+          const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
+          return Math.max(sStartM, segStart) < Math.min(sEndM, segEnd);
+        });
+      });
+
+      const overlappingHoldsAllServices = unattachedReservations.filter((res) => {
         const rStartM = res.slotStartUnit * 15 - Math.floor(startOfDay.getTime() / 60000);
         const rEndM = rStartM + 15;
         return Math.max(rStartM, segStart) < Math.min(rEndM, segEnd);
       });
 
-      const distinctHoldCount = new Set(unattachedHolds.map((r) => r.staffId?.toString()).filter(Boolean)).size || (unattachedHolds.length > 0 ? 1 : 0);
+      const sameServiceHolds = overlappingHoldsAllServices.filter(
+        (res) => res.serviceId && res.serviceId.toString() === sId
+      );
 
-      const bookedCount = concurrentBookings.length;
+      const distinctHoldCount =
+        new Set(sameServiceHolds.map((r) => (r.capacitySlot ?? r.staffId)?.toString()).filter(Boolean)).size ||
+        (sameServiceHolds.length > 0 ? 1 : 0);
+
+      const bookedCount = concurrentSameServiceBookings.length;
       const heldCount = distinctHoldCount;
       const totalOccupiedForSegment = bookedCount + heldCount;
 
@@ -436,9 +501,9 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         minRemainingCapacity = remainingForSegment;
       }
 
-      // Check staff availability:
+      // Check staff availability across ALL bookings & holds occupying staff during [segStart, segEnd]
       const occupiedStaffIds = new Set();
-      for (const apt of concurrentBookings) {
+      for (const apt of overlappingBookingsAllServices) {
         for (const seg of apt.services || []) {
           if (seg.assignedStaffId) {
             const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
@@ -449,7 +514,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
           }
         }
       }
-      for (const res of unattachedHolds) {
+      for (const res of overlappingHoldsAllServices) {
         if (res.staffId) occupiedStaffIds.add(res.staffId.toString());
       }
 
@@ -457,18 +522,19 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         (shift) => !service.requiredStaffRole || shift.subRole === service.requiredStaffRole
       );
 
-      if (matchingRoleShifts.length > 0) {
-        const availableStaff = matchingRoleShifts.filter((shift) => {
-          return (
-            shift.startMins <= segStart &&
-            shift.endMins >= segEnd &&
-            !occupiedStaffIds.has(shift.staffId)
-          );
-        });
+      const availableStaff = matchingRoleShifts.filter((shift) => {
+        return (
+          shift.startMins <= segStart &&
+          shift.endMins >= segEnd &&
+          !occupiedStaffIds.has(shift.staffId)
+        );
+      });
 
-        if (availableStaff.length === 0) {
-          staffUnavailable = true;
-        }
+      if (availableStaff.length === 0) {
+        staffUnavailable = true;
+      }
+      if (availableStaff.length < minAvailableStaff) {
+        minAvailableStaff = availableStaff.length;
       }
 
       slotSegments.push({
@@ -482,6 +548,9 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
 
     const occupiedCount = totalBookedCount + totalHeldCount;
     let remaining = minRemainingCapacity === Infinity ? Math.max(0, totalSlotCapacity - occupiedCount) : minRemainingCapacity;
+    if (minAvailableStaff !== Infinity) {
+      remaining = Math.min(remaining, minAvailableStaff);
+    }
 
     if (staffUnavailable) {
       remaining = 0;

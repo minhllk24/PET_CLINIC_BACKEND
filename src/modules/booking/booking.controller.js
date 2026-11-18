@@ -104,7 +104,7 @@ export const getAppointmentById = async (req, res, next) => {
     const appointment = await bookingService.getAppointmentById(
       req.params.id,
       req.actor,
-      req.headers['x-guest-lookup-token']
+      req.guest || req.headers['x-guest-lookup-token']
     );
     res.json(appointment);
   } catch (error) {
@@ -139,7 +139,8 @@ export const rescheduleAppointment = async (req, res, next) => {
     const appointment = await bookingService.rescheduleAppointment(
       req.params.id,
       req.body,
-      req.actor
+      req.actor,
+      req.guest || req.headers['x-guest-lookup-token']
     );
     res.json(appointment);
   } catch (error) {
@@ -165,7 +166,8 @@ export const cancelAppointment = async (req, res, next) => {
     const appointment = await bookingService.cancelAppointment(
       req.params.id,
       req.body?.reason,
-      req.actor
+      req.actor,
+      req.guest || req.headers['x-guest-lookup-token']
     );
     res.json(appointment);
   } catch (error) {
@@ -286,36 +288,65 @@ export const assignReviewer = async (req, res, next) => {
 export const checkoutAppointment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { payment_method = 'store', paymentMethod = 'store', voucher_code, voucherCode } = req.body || {};
-    const method = payment_method || paymentMethod;
+    const { payment_method, paymentMethod } = req.body || {};
+    const rawMethod = payment_method || paymentMethod;
+    const normalizedMethod =
+      rawMethod === 'store' || rawMethod === 'PAY_AT_STORE'
+        ? 'PAY_AT_STORE'
+        : rawMethod === 'online' || rawMethod === 'ONLINE_MOCK'
+          ? 'ONLINE_MOCK'
+          : rawMethod;
 
-    let appointment = null;
     const Appointment = require('./models/Appointment').default || require('./models/Appointment');
+    let appointment = null;
     if (id && mongoose.isValidObjectId(id)) {
       appointment = await Appointment.findById(id);
     }
     if (!appointment && id) {
-      appointment = await Appointment.findOne({ $or: [{ code: id }, { appointmentCode: id }, { id }] });
+      appointment = await Appointment.findOne({ $or: [{ code: id }, { appointmentCode: id }] });
+    }
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        code: 'APPOINTMENT_NOT_FOUND',
+        message: 'Appointment not found',
+      });
     }
 
-    if (appointment) {
-      appointment.status = 'CONFIRMED';
-      appointment.paymentMethod = (method === 'store' || method === 'PAY_AT_STORE') ? 'PAY_AT_STORE' : (method === 'online' || method === 'ONLINE_MOCK') ? 'ONLINE_MOCK' : method;
+    if (['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(appointment.status)) {
+      return res.status(422).json({
+        success: false,
+        code: 'INVALID_STATE',
+        message: `Cannot checkout appointment in status ${appointment.status}`,
+      });
+    }
+
+    if (normalizedMethod) {
+      appointment.paymentMethod = normalizedMethod;
       await appointment.save();
     }
+
+    const isPaidConfirmed = appointment.status === 'CONFIRMED' || Number(appointment.pricing?.paidAmount || 0) >= Number(appointment.pricing?.finalAmount || 0);
+    const prepaymentId = appointment.prepaymentId ? appointment.prepaymentId.toString() : null;
 
     return res.status(200).json({
       success: true,
       data: {
-        id,
-        appointmentId: id,
-        status: 'CONFIRMED',
-        paymentMethod: (method === 'store' || method === 'PAY_AT_STORE') ? 'PAY_AT_STORE' : method,
-        paymentStatus: (method === 'store' || method === 'PAY_AT_STORE') ? 'WAITING_STORE_PAYMENT' : 'PAID',
-        message: 'Thanh toán lịch hẹn thành công'
+        id: appointment._id.toString(),
+        appointmentId: appointment._id.toString(),
+        prepaymentId,
+        paymentId: prepaymentId,
+        status: appointment.status,
+        paymentMethod: appointment.paymentMethod,
+        paymentStatus: isPaidConfirmed ? 'PAID' : 'PENDING',
+        message: isPaidConfirmed
+          ? 'Lịch hẹn đã được xác nhận thanh toán'
+          : 'Khởi tạo thanh toán lịch hẹn, vui lòng hoàn tất qua cổng thanh toán',
       },
-      status: 'SUCCESS',
-      message: 'Thanh toán lịch hẹn thành công'
+      status: appointment.status,
+      message: isPaidConfirmed
+        ? 'Lịch hẹn đã được xác nhận thanh toán'
+        : 'Khởi tạo thanh toán lịch hẹn, vui lòng hoàn tất qua cổng thanh toán',
     });
   } catch (error) {
     next(error);

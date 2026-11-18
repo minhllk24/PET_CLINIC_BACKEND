@@ -74,7 +74,7 @@ const schema = new mongoose.Schema(
     deposit: {
       status: {
         type: String,
-        enum: ['NOT_REQUIRED', 'PENDING', 'HELD', 'APPLIED', 'REFUNDED', 'FORFEITED'],
+        enum: ['NOT_REQUIRED', 'PENDING', 'HELD', 'APPLIED', 'REFUND_PENDING', 'REFUNDED', 'FORFEITED'],
         default: 'NOT_REQUIRED',
       },
       paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
@@ -94,6 +94,19 @@ const schema = new mongoose.Schema(
       default: 'PENDING_CONFIRMATION',
     },
     rescheduleCount: { type: Number, default: 0, min: 0, max: 2 },
+    rescheduleHistory: [
+      {
+        fromStart: { type: Date },
+        fromEnd: { type: Date },
+        toStart: { type: Date },
+        toEnd: { type: Date },
+        reason: { type: String, default: null },
+        actorId: { type: mongoose.Schema.Types.ObjectId, default: null },
+        actorRole: { type: String, default: null },
+        isOverride: { type: Boolean, default: false },
+        at: { type: Date, default: Date.now },
+      },
+    ],
     cancel: {
       by: { type: String, enum: ['CUSTOMER', 'STORE', 'SYSTEM'], default: null },
       at: { type: Date, default: null },
@@ -101,6 +114,8 @@ const schema = new mongoose.Schema(
       reason: { type: String, default: null },
       hoursBeforeStart: { type: Number, default: null },
       prepaidOutcome: { type: String, default: null },
+      refundAmount: { type: Number, default: 0 },
+      penaltyAmount: { type: Number, default: 0 },
     },
     holdExpiresAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },

@@ -41,7 +41,7 @@ router.put('/:id/reviewer', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), b
 router.patch('/:id/confirm', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.confirmAppointment);
 router.patch('/:id/reschedule', optionalAuth, bookingController.rescheduleAppointment);
 router.patch('/:id/cancel', optionalAuth, bookingController.cancelAppointment);
-router.patch('/:id/no-show', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.markNoShow);
+router.patch('/:id/no-show', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), idempotency('appointmentsMarkNoShow', { required: false }), bookingController.markNoShow);
 router.patch('/:id/check-in', requireRole(['RECEPTIONIST', 'MANAGER', 'ADMIN']), bookingController.checkInAppointment);
 router.patch('/:id/start', requireRole(['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN']), bookingController.startSegment);
 

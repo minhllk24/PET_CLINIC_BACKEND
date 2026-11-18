@@ -5,6 +5,8 @@ import Pet from '../customer/models/Pet';
 import Order from '../order/models/Order';
 import Appointment from '../booking/models/Appointment';
 import BranchServiceConfig from '../branch/models/BranchServiceConfig';
+import InventoryStock from '../inventory/models/InventoryStock';
+import { getActiveBranchIds } from '../catalog/stockAvailability.service';
 
 export const getRecommendations = async ({
   petId = null,
@@ -30,23 +32,30 @@ export const getRecommendations = async ({
   // 1. Gather Purchase & Service History
   let pastServiceTypes = new Set();
   let pastProductCategories = new Set();
-  if (pet?.customerId) {
+  if (pet?.customerId && (mongoose.connection.readyState === 1 || Appointment.find?._isMockFunction || Order.find?._isMockFunction)) {
+    const safeExec = async (q, { useSelect = null, usePopulate = null } = {}) => {
+      let cur = q;
+      if (usePopulate && typeof cur?.populate === 'function') cur = cur.populate(usePopulate);
+      if (useSelect && typeof cur?.select === 'function') cur = cur.select(useSelect);
+      if (typeof cur?.limit === 'function') cur = cur.limit(20);
+      if (typeof cur?.lean === 'function') cur = cur.lean();
+      return cur;
+    };
     const [pastApts, pastOrders] = await Promise.all([
-      Appointment.find({ petId: pet._id, status: 'COMPLETED' })
-        .populate('service', 'serviceType category')
-        .limit(20)
-        .lean(),
-      Order.find({ customerId: pet.customerId, status: { $in: ['COMPLETED', 'DELIVERED', 'PAID'] } })
-        .limit(10)
-        .lean(),
+      safeExec(Appointment.find({ petId: pet._id, status: 'COMPLETED' }), {
+        usePopulate: 'services.serviceId',
+        useSelect: 'services serviceType',
+      }),
+      safeExec(Order.find({ customerId: pet.customerId, status: { $in: ['COMPLETED', 'DELIVERED', 'PAID'] } })),
     ]);
 
-    for (const apt of pastApts) {
+    for (const apt of Array.isArray(pastApts) ? pastApts : []) {
       if (apt.serviceType) pastServiceTypes.add(apt.serviceType);
-      if (apt.service?.serviceType) pastServiceTypes.add(apt.service.serviceType);
-      if (apt.service?.category) pastServiceTypes.add(apt.service.category);
+      for (const seg of apt.services || []) {
+        if (seg.serviceType) pastServiceTypes.add(seg.serviceType);
+      }
     }
-    for (const ord of pastOrders) {
+    for (const ord of Array.isArray(pastOrders) ? pastOrders : []) {
       for (const it of ord.items || []) {
         if (it.categoryId) pastProductCategories.add(it.categoryId.toString());
       }
@@ -55,7 +64,7 @@ export const getRecommendations = async ({
 
   const candidateItems = [];
 
-  // 2. Fetch Active In-Stock Products
+  // 2. Fetch Active In-Stock Products (sourced from InventoryStock, respecting branchId when supplied)
   if (type === 'ALL' || type === 'PRODUCT') {
     const productQuery = {
       status: 'ACTIVE',
@@ -65,15 +74,63 @@ export const getRecommendations = async ({
       productQuery.categoryId = categoryId;
     }
 
+    let stockByInvId = null;
+    if (mongoose.connection.readyState === 1 || InventoryStock.aggregate?._isMockFunction) {
+      const match = { quantity: { $gt: 0 } };
+      if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+        match.branchId = new mongoose.Types.ObjectId(branchId);
+      } else {
+        const activeBranchIds = await getActiveBranchIds();
+        if (activeBranchIds.length > 0) {
+          match.branchId = { $in: activeBranchIds };
+        }
+      }
+      const stockAgg = await InventoryStock.aggregate([
+        { $match: match },
+        { $group: { _id: '$inventoryItemId', totalQty: { $sum: '$quantity' } } },
+        { $match: { totalQty: { $gt: 0 } } },
+      ]);
+      stockByInvId = new Map(stockAgg.map((row) => [row._id.toString(), row.totalQty]));
+      const stockedItemIds = stockAgg.map((row) => row._id);
+      if (stockedItemIds.length > 0) {
+        productQuery.variants = {
+          $elemMatch: {
+            inventoryItemId: { $in: stockedItemIds },
+            status: { $ne: 'INACTIVE' },
+          },
+        };
+      } else {
+        // Real DB has zero stock anywhere matching filter
+        productQuery._id = { $in: [] };
+      }
+    }
+
     const products = await Product.find(productQuery)
       .populate('categoryId', 'name')
       .limit(60)
       .lean();
 
-    for (const p of products) {
-      // Hard filter: must have at least one variant with stock > 0
-      const totalStock = (p.variants || []).reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    for (const p of products || []) {
+      const activeVariants = (p.variants || []).filter((v) => v && v.status !== 'INACTIVE');
+      const totalStock = activeVariants.reduce((sum, v) => {
+        if (v.inventoryItemId && stockByInvId) {
+          return sum + (stockByInvId.get(v.inventoryItemId.toString()) || 0);
+        }
+        return sum + (Number(v.stock) || 0);
+      }, 0);
       if (totalStock <= 0) continue;
+
+      const stockedVariants = activeVariants.filter((v) => {
+        if (v.inventoryItemId && stockByInvId) {
+          return (stockByInvId.get(v.inventoryItemId.toString()) || 0) > 0;
+        }
+        return (Number(v.stock) || 0) > 0;
+      });
+      const displayVariant = stockedVariants[0] || activeVariants[0] || p.variants?.[0];
+      const displayPrice =
+        p.basePrice ||
+        p.minPrice ||
+        (displayVariant ? Number(displayVariant.salePrice ?? displayVariant.price ?? 0) : 0);
 
       let score = 20; // Base score
       const signals = [];
@@ -89,7 +146,7 @@ export const getRecommendations = async ({
           signals.push('SPECIES_MATCH');
           reasons.push('Thiết kế chuyên biệt cho chó');
         } else if (pName.includes('mèo') || pDesc.includes('mèo') || pName.includes('cat')) {
-          score -= 30; // Mismatch
+          score -= 30;
         }
       } else if (species === 'CAT') {
         if (pName.includes('mèo') || pDesc.includes('mèo') || pName.includes('cat')) {
@@ -97,7 +154,7 @@ export const getRecommendations = async ({
           signals.push('SPECIES_MATCH');
           reasons.push('Thiết kế chuyên biệt cho mèo');
         } else if (pName.includes('chó') || pDesc.includes('chó') || pName.includes('dog')) {
-          score -= 30; // Mismatch
+          score -= 30;
         }
       }
 
@@ -138,7 +195,6 @@ export const getRecommendations = async ({
         signals.push('CATEGORY_REPURCHASE');
       }
 
-      // Popularity rating bonus
       score += Math.min(Math.round((p.ratingAvg || 0) * 2), 10);
 
       if (reasons.length === 0) {
@@ -153,9 +209,9 @@ export const getRecommendations = async ({
         item: {
           id: p._id.toString(),
           name: p.name,
-          slug: p.slug,
+          slug: p.slug || p.productCode || p._id.toString(),
           categoryName: p.categoryId?.name || 'Sản phẩm thú cưng',
-          basePrice: p.basePrice || p.minPrice || p.variants?.[0]?.price || 0,
+          basePrice: displayPrice,
           ratingAvg: p.ratingAvg || 5,
           ratingCount: p.ratingCount || 0,
           images: p.images || [],

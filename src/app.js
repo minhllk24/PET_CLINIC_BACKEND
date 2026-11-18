@@ -10,6 +10,7 @@ import config from './shared/config';
 import { httpLogger } from './shared/logger';
 import { errorHandler, notFoundHandler } from './shared/errorHandler';
 import { authorizeRequest } from './shared/authorizeRequest';
+import { verifyGuestToken } from './modules/customer/guest.service';
 import healthRoutes from './routes/health';
 import authRoutes from './modules/auth/auth.routes.js';
 import branchRoutes from './modules/branch/branch.routes';
@@ -23,6 +24,7 @@ import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import orderRoutes, { adminOrderRouter } from './modules/order/order.routes';
 import checkoutRoutes from './modules/order/checkout.routes';
+import paymentRoutes from './modules/payment/payment.routes';
 import bookingRoutes from './modules/booking/booking.routes';
 import bookingRefundRoutes from './modules/booking/bookingRefund.routes';
 import availabilityRoutes from './modules/booking/availability.routes';
@@ -495,8 +497,14 @@ app.use(async (req, res, next) => {
 
     // Auth Reset Password
     if (req.path.includes('/reset-password')) {
-      req.body.resetToken = req.body.resetToken || req.body.reset_token;
-      req.body.newPassword = req.body.newPassword || req.body.new_password;
+      if (req.body.reset_token && !req.body.resetToken) {
+        req.body.resetToken = req.body.reset_token;
+      }
+      if (req.body.new_password && !req.body.newPassword) {
+        req.body.newPassword = req.body.new_password;
+      }
+      delete req.body.reset_token;
+      delete req.body.new_password;
     }
 
     // Auth Change Password
@@ -676,9 +684,12 @@ app.use(async (req, res, next) => {
       if (req.body.shippingAddress && typeof req.body.shippingAddress === 'object') {
         const sa = req.body.shippingAddress;
         if (sa.full_name && !sa.fullName) sa.fullName = sa.full_name;
+        if ((sa.fullName || sa.full_name) && !sa.recipientName) sa.recipientName = sa.fullName || sa.full_name;
         if (sa.phone_number && !sa.phone) sa.phone = sa.phone_number;
         if (sa.address_line && !sa.addressLine) sa.addressLine = sa.address_line;
         if (sa.address && !sa.addressLine) sa.addressLine = sa.address;
+        if ((sa.addressLine || sa.addressDetail) && !sa.line1) sa.line1 = sa.addressLine || sa.addressDetail;
+        if (sa.province && !sa.city) sa.city = sa.province;
         delete sa.full_name;
         delete sa.phone_number;
         delete sa.address_line;
@@ -694,7 +705,9 @@ app.use(async (req, res, next) => {
         req.body.contact = req.body.contactSnapshot;
       }
       delete req.body.customerId;
-      delete req.body.items;
+      if (!req.path.endsWith('/orders/checkout')) {
+        delete req.body.items;
+      }
       delete req.body.addressId;
       delete req.body.contactSnapshot;
     }
@@ -824,9 +837,15 @@ app.use(
             return false;
           }
         },
-        guestLookupToken: (req, scopes, schema) => {
-          // TODO: Implement actual guest token verification logic
-          return true;
+        guestLookupToken: (req) => {
+          const token = req.headers['x-guest-lookup-token'];
+          if (typeof token !== 'string' || !token.trim()) return false;
+          try {
+            req.guest = verifyGuestToken(token.trim());
+            return true;
+          } catch {
+            return false;
+          }
         },
         guestCartToken: (req) => {
           const token = req.headers['x-guest-cart-token'];
@@ -891,6 +910,7 @@ app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/admin/orders', adminOrderRouter);
 app.use('/api/v1', checkoutRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/appointments', bookingRoutes);
 app.use('/api/v1/booking-refunds', bookingRefundRoutes);
 app.use('/api/v1/availability', availabilityRoutes);

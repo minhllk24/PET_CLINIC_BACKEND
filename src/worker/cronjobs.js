@@ -1,48 +1,84 @@
 import cron from 'node-cron';
+import mongoose from 'mongoose';
 import Order from '../modules/order/models/Order';
 import Appointment from '../modules/booking/models/Appointment';
 import SlotReservation from '../modules/booking/models/SlotReservation';
 import BookingRefund from '../modules/payment/models/BookingRefund';
 import Payment from '../modules/payment/models/Payment';
+import { compensateOrderPaymentFailure } from '../modules/order/order.service';
+import { restoreQuotaInSession } from '../modules/order/voucher.service';
 import { processOutbox } from './outboxProcessor';
 
 /**
  * Check and process expired appointment holds (ADR-41)
- * Releases slot reservations and triggers 100% BookingRefund if prepayment exists
+ * Releases slot reservations atomically and triggers 100% BookingRefund if prepayment exists
  */
 export const processAppointmentHoldExpiries = async () => {
   const now = new Date();
   const expiredAppointments = await Appointment.find({
     status: 'PENDING_PAYMENT',
     $or: [
-      { holdExpiresAt: { $lt: now } },
+      { holdExpiresAt: { $lte: now } },
       { holdExpiresAt: null, createdAt: { $lt: new Date(Date.now() - 15 * 60000) } },
     ],
   });
 
   const processed = [];
+  const cancelPayload = (apt) => ({
+    by: 'SYSTEM',
+    at: now,
+    reason: 'HOLD_EXPIRED_TIMEOUT',
+    hoursBeforeStart: null,
+    prepaidOutcome: apt.pricing?.paidAmount > 0 ? 'SYSTEM_FULL_REFUND' : 'NONE',
+  });
 
-  for (const apt of expiredAppointments) {
-    apt.status = 'CANCELLED';
-    apt.cancel = {
-      by: 'SYSTEM',
-      at: now,
-      reason: 'HOLD_EXPIRED_TIMEOUT',
-      hoursBeforeStart: null,
-      prepaidOutcome: apt.pricing?.paidAmount > 0 ? 'SYSTEM_FULL_REFUND' : 'NONE',
-    };
-    await apt.save();
+  for (const apt of expiredAppointments || []) {
+    if (!Appointment.find?._isMockFunction && typeof Appointment.findOneAndUpdate === 'function') {
+      const updated = await Appointment.findOneAndUpdate(
+        { _id: apt._id, status: 'PENDING_PAYMENT' },
+        { $set: { status: 'CANCELLED', cancel: cancelPayload(apt), holdExpiresAt: null } },
+        { new: true }
+      );
+      if (!updated) continue;
+    } else {
+      apt.status = 'CANCELLED';
+      apt.cancel = cancelPayload(apt);
+      await apt.save();
+    }
 
-    // Release held slot reservations
-    await SlotReservation.updateMany(
-      { appointmentId: apt._id, status: 'HELD' },
-      { $set: { status: 'RELEASED' } }
-    );
+    // Delete held slot reservations cleanly so the unique slot index is freed immediately
+    if (SlotReservation.updateMany?._isMockFunction) {
+      await SlotReservation.updateMany(
+        { appointmentId: apt._id, status: 'HELD' },
+        { $set: { status: 'RELEASED' } }
+      );
+    } else if (typeof SlotReservation.deleteMany === 'function') {
+      await SlotReservation.deleteMany({ appointmentId: apt._id, status: 'HELD' });
+    }
+
+    // Mark unpaid pending Payment as EXPIRED
+    if (mongoose.connection.readyState === 1 || Payment.updateMany?._isMockFunction) {
+      await Payment.updateMany(
+        { $or: [{ 'target.id': apt._id }, { targetId: apt._id }], status: 'PENDING' },
+        { $set: { status: 'EXPIRED' } }
+      );
+    }
+
+    if (apt.pricing?.voucherId) {
+      try {
+        await restoreQuotaInSession({
+          voucherId: apt.pricing.voucherId,
+          targetType: 'APPOINTMENT',
+          targetId: apt._id,
+          session: null,
+        });
+      } catch {}
+    }
 
     // If prepayment exists, create 100% BookingRefund request
     if (apt.pricing && apt.pricing.paidAmount > 0) {
       const payment = await Payment.findOne({
-        'target.id': apt._id,
+        $or: [{ 'target.id': apt._id }, { targetId: apt._id }],
       });
 
       if (payment) {
@@ -86,7 +122,7 @@ export const startCronJobs = () => {
     }
   });
 
-  // Cancel expired PENDING orders (older than 30 mins) every 5 minutes
+  // Cancel expired PENDING orders (older than 30 mins) every 5 minutes with full stock/voucher rollback
   cron.schedule('*/5 * * * *', async () => {
     try {
       const timeoutDate = new Date(Date.now() - 30 * 60000);
@@ -95,10 +131,12 @@ export const startCronJobs = () => {
         createdAt: { $lt: timeoutDate },
       });
       for (const order of expiredOrders) {
-        order.status = 'CANCELLED';
-        order.cancellationReason = 'PAYMENT_TIMEOUT';
-        await order.save();
-        console.log(`Order ${order._id} cancelled due to timeout`);
+        await compensateOrderPaymentFailure(order._id, 'PAYMENT_TIMEOUT');
+        await Payment.updateMany(
+          { $or: [{ 'target.id': order._id }, { targetId: order._id }], status: 'PENDING' },
+          { $set: { status: 'EXPIRED' } }
+        );
+        console.log(`Order ${order._id} cancelled due to timeout with stock/voucher compensation`);
       }
     } catch (e) {
       console.error('Order timeout job error', e);

@@ -1,6 +1,8 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 import app from '../src/app';
+import config from '../src/shared/config';
 import Pet from '../src/modules/customer/models/Pet';
 import Customer from '../src/modules/customer/models/Customer';
 import Product from '../src/modules/catalog/models/Product';
@@ -44,10 +46,15 @@ describe('WEB 2 Business Report & Specification Alignments Suite', () => {
         };
       });
 
+      const ownerToken = jwt.sign(
+        { id: mockCustomerId.toString(), systemRole: 'CUSTOMER' },
+        config.jwt.accessSecret
+      );
+
       // Default query filters out archived pets
       const resActive = await request(app)
         .get(`/api/v1/customers/${mockCustomerId}/pets`)
-        .set('x-mock-bypass', 'true');
+        .set('Authorization', `Bearer ${ownerToken}`);
       expect(resActive.status).toBe(200);
       expect(resActive.body.length).toBe(1);
       expect(resActive.body[0].name).toBe('Milo Active');
@@ -55,14 +62,14 @@ describe('WEB 2 Business Report & Specification Alignments Suite', () => {
       // includeArchived=true returns both
       const resAll = await request(app)
         .get(`/api/v1/customers/${mockCustomerId}/pets?includeArchived=true`)
-        .set('x-mock-bypass', 'true');
+        .set('Authorization', `Bearer ${ownerToken}`);
       expect(resAll.status).toBe(200);
       expect(resAll.body.length).toBe(2);
 
       // isArchived=true returns only archived
       const resArchivedOnly = await request(app)
         .get(`/api/v1/customers/${mockCustomerId}/pets?isArchived=true`)
-        .set('x-mock-bypass', 'true');
+        .set('Authorization', `Bearer ${ownerToken}`);
       expect(resArchivedOnly.status).toBe(200);
       expect(resArchivedOnly.body.length).toBe(1);
       expect(resArchivedOnly.body[0].name).toBe('Lucky Passed Away');
@@ -72,21 +79,31 @@ describe('WEB 2 Business Report & Specification Alignments Suite', () => {
     });
 
     it('should soft-delete a pet by setting isArchived=true instead of hard deleting', async () => {
+      const mockCustomerId = new mongoose.Types.ObjectId();
       const petId = new mongoose.Types.ObjectId();
       const updatedPet = {
         _id: petId,
+        customerId: mockCustomerId,
         name: 'Milo',
         isArchived: true,
       };
+      const ownerToken = jwt.sign(
+        { id: mockCustomerId.toString(), systemRole: 'CUSTOMER' },
+        config.jwt.accessSecret
+      );
 
+      jest.spyOn(Pet, 'findById').mockResolvedValue({ _id: petId, customerId: mockCustomerId, name: 'Milo' });
       jest.spyOn(Pet, 'findByIdAndUpdate').mockResolvedValue(updatedPet);
 
-      const res = await request(app).delete(`/api/v1/pets/${petId}`);
+      const res = await request(app)
+        .delete(`/api/v1/pets/${petId}`)
+        .set('Authorization', `Bearer ${ownerToken}`);
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain('archived');
       expect(res.body.pet.isArchived).toBe(true);
 
+      Pet.findById.mockRestore();
       Pet.findByIdAndUpdate.mockRestore();
     });
   });

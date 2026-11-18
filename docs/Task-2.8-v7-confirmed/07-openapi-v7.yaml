@@ -2585,7 +2585,7 @@ paths:
         schema:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 2000
           default: 20
       - name: cursor
         in: query
@@ -2663,7 +2663,7 @@ paths:
         schema:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 500
           default: 20
       - name: cursor
         in: query
@@ -2900,12 +2900,38 @@ paths:
       security:
       - bearerAuth: []
       parameters:
+      - name: kind
+        in: query
+        schema:
+          type: string
+          enum:
+          - PRODUCT
+          - MATERIAL
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+      - name: usageType
+        in: query
+        schema:
+          type: string
+      - name: forServiceMaterial
+        in: query
+        schema:
+          type: boolean
+      - name: search
+        in: query
+        schema:
+          type: string
       - name: limit
         in: query
         schema:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 1000
           default: 20
       - name: cursor
         in: query
@@ -5016,7 +5042,45 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NoteRequest'
+              type: object
+              properties:
+                note:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      orderItemId:
+                        $ref: '#/components/schemas/ObjectId'
+                      receivedQty:
+                        type: integer
+                        minimum: 0
+                      quantity:
+                        type: integer
+                        minimum: 0
+                      quality:
+                        type: string
+                        enum:
+                        - RESELLABLE
+                        - ELIGIBLE
+                        - DAMAGED
+                        - DISCARDED
+                      condition:
+                        type: string
+                        enum:
+                        - RESELLABLE
+                        - ELIGIBLE
+                        - DAMAGED
+                        - DISCARDED
+                      damageReason:
+                        type: string
+                      note:
+                        type: string
+                    additionalProperties: false
+                    required:
+                    - orderItemId
+              additionalProperties: false
       responses:
         '200':
           description: Return
@@ -5040,6 +5104,8 @@ paths:
         auth: bearer
         roles:
         - RECEPTIONIST
+        - MANAGER
+        - ADMIN
         scope: 'orderId -> Order.fulfillmentBranchId; Receptionist: authorizedBranchIds'
         stateTransition: PROCESSING->RECEIVED
         audit: order_return.receive
@@ -8595,6 +8661,7 @@ components:
       - PENDING
       - HELD
       - APPLIED
+      - REFUND_PENDING
       - REFUNDED
       - FORFEITED
     PaymentStatus:
@@ -8817,6 +8884,8 @@ components:
           minLength: 8
           pattern: ^(?=.*[A-Z])(?=.*[0-9]).{8,}$
           description: Toi thieu 8 ky tu, co chu hoa va so
+        confirmPassword:
+          type: string
         acceptTerms:
           type: boolean
           const: true
@@ -8844,15 +8913,17 @@ components:
         otp:
           type: string
           pattern: ^[0-9]{6}$
+        resetToken:
+          type: string
         newPassword:
           type: string
           minLength: 8
           pattern: ^(?=.*[A-Z])(?=.*[0-9]).{8,}$
           description: Toi thieu 8 ky tu, co chu hoa va so
+        confirmPassword:
+          type: string
       additionalProperties: false
       required:
-      - identifier
-      - otp
       - newPassword
     OtpResendRequest:
       type: object
@@ -9096,8 +9167,10 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
         species:
           type: string
+          minLength: 1
         speciesOther:
           type:
           - string
@@ -9110,10 +9183,12 @@ components:
           type:
           - integer
           - 'null'
+          minimum: 0
         weightKg:
           type:
           - number
           - 'null'
+          exclusiveMinimum: 0
         photoUrl:
           type:
           - string
@@ -9131,8 +9206,10 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
         species:
           type: string
+          minLength: 1
         speciesOther:
           type:
           - string
@@ -9145,10 +9222,12 @@ components:
           type:
           - integer
           - 'null'
+          minimum: 0
         weightKg:
           type:
           - number
           - 'null'
+          exclusiveMinimum: 0
         photoUrl:
           type:
           - string
@@ -10668,7 +10747,10 @@ components:
           type: string
           enum:
           - PAID
+          - SUCCESS
           - FAILED
+        failureReason:
+          type: string
       additionalProperties: false
       required:
       - outcome
@@ -12087,9 +12169,24 @@ components:
           $ref: '#/components/schemas/ObjectId'
         voucherCode:
           type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              productId:
+                $ref: '#/components/schemas/ObjectId'
+              variantId:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+            required:
+            - productId
+            - quantity
+            additionalProperties: true
       additionalProperties: false
-      required:
-      - cartId
     VoucherCheck:
       type: object
       properties:
