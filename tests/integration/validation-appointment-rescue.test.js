@@ -637,6 +637,75 @@ describe('WEB2 BE-01 & BE-02 Validation Suite (Appointment /start & Rescue Pet B
       expect(mgrReviewGlobal.status).toBe(403);
       expect(mgrReviewGlobal.body.code).toBe('BRANCH_SCOPE_ERROR');
     });
+
+    it('Restricts GET /admin/rescue/pets and GET /admin/rescue/pets/:id to Manager assignedBranchIds and blocks branchId: null', async () => {
+      const globalPetId = oid();
+      const q1PetId = oid();
+      const q7PetId = oid();
+
+      const countSpy = jest.spyOn(RescuePet, 'countDocuments').mockResolvedValue(1);
+      const findSpy = jest.spyOn(RescuePet, 'find').mockImplementation(() =>
+        mockChain([], [{ _id: q1PetId, petCode: 'RES-0001', petName: 'Q1 Pet', branchId: { _id: BRANCH_Q1, name: 'Q1' } }])
+      );
+
+      // 1. Manager list must filter strictly by assignedBranchIds, never { branchId: null }
+      const mgrListRes = await request(app)
+        .get('/api/v1/admin/rescue/pets')
+        .set('Authorization', `Bearer ${TOKENS.managerQ1}`);
+
+      expect(mgrListRes.status).toBe(200);
+      expect(mgrListRes.body.data.items).toHaveLength(1);
+      const mgrListQuery = findSpy.mock.calls[0][0];
+      expect(mgrListQuery).toEqual({ branchId: { $in: [BRANCH_Q1] } });
+      expect(mgrListQuery.$or).toBeUndefined();
+      expect(countSpy).toHaveBeenCalledWith({ branchId: { $in: [BRANCH_Q1] } });
+
+      // Admin list remains system-wide when no branchId filter specified
+      const adminListRes = await request(app)
+        .get('/api/v1/admin/rescue/pets')
+        .set('Authorization', `Bearer ${TOKENS.admin}`);
+      expect(adminListRes.status).toBe(200);
+      expect(findSpy.mock.calls[1][0]).toEqual({});
+
+      // 2. Detail GET /admin/rescue/pets/:id: Manager blocked on branchId: null & other branch; allowed on assigned branch
+      jest.spyOn(RescuePet, 'findOne').mockImplementation((q) => {
+        const idMatch = q?.$or?.find((c) => c._id)?._id;
+        if (idMatch === globalPetId) {
+          return mockChain([], { _id: globalPetId, petCode: 'RES-GLB', petName: 'Global Pet', branchId: null });
+        }
+        if (idMatch === q7PetId) {
+          return mockChain([], { _id: q7PetId, petCode: 'RES-Q7', petName: 'Q7 Pet', branchId: { _id: BRANCH_Q7, name: 'Q7' } });
+        }
+        if (idMatch === q1PetId) {
+          return mockChain([], { _id: q1PetId, petCode: 'RES-Q1', petName: 'Q1 Pet', branchId: { _id: BRANCH_Q1, name: 'Q1' } });
+        }
+        return mockChain([], null);
+      });
+
+      const mgrGlobalDetail = await request(app)
+        .get(`/api/v1/admin/rescue/pets/${globalPetId}`)
+        .set('Authorization', `Bearer ${TOKENS.managerQ1}`);
+      expect(mgrGlobalDetail.status).toBe(403);
+      expect(mgrGlobalDetail.body.code).toBe('BRANCH_SCOPE_ERROR');
+
+      const mgrOtherBranchDetail = await request(app)
+        .get(`/api/v1/admin/rescue/pets/${q7PetId}`)
+        .set('Authorization', `Bearer ${TOKENS.managerQ1}`);
+      expect(mgrOtherBranchDetail.status).toBe(403);
+      expect(mgrOtherBranchDetail.body.code).toBe('BRANCH_SCOPE_ERROR');
+
+      const mgrOwnDetail = await request(app)
+        .get(`/api/v1/admin/rescue/pets/${q1PetId}`)
+        .set('Authorization', `Bearer ${TOKENS.managerQ1}`);
+      expect(mgrOwnDetail.status).toBe(200);
+      expect(mgrOwnDetail.body.data.petName).toBe('Q1 Pet');
+
+      const adminGlobalDetail = await request(app)
+        .get(`/api/v1/admin/rescue/pets/${globalPetId}`)
+        .set('Authorization', `Bearer ${TOKENS.admin}`);
+      expect(adminGlobalDetail.status).toBe(200);
+      expect(adminGlobalDetail.body.data.petName).toBe('Global Pet');
+    });
   });
 });
 

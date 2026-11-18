@@ -253,7 +253,8 @@ const getManagerAssignedBranchIds = (actor) =>
   (actor?.assignedBranchIds || actor?.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
 
 const assertRescueBranchScope = (actor, targetBranchId, { requireBranchOnTarget = false } = {}) => {
-  if (!actor || actor.systemRole !== 'MANAGER') return;
+  const actorRole = actor?.systemRole || actor?.role;
+  if (!actor || actorRole !== 'MANAGER') return;
   const rawBranch = targetBranchId?._id || targetBranchId;
   const branchStr = rawBranch !== undefined && rawBranch !== null ? String(rawBranch).trim() : '';
   if (!branchStr) {
@@ -1923,13 +1924,14 @@ export const contentService = {
     const query = {};
     if (status) query.status = status;
     if (species) query.species = species;
-    if (actor && actor.systemRole === 'MANAGER') {
+    const actorRole = actor?.systemRole || actor?.role;
+    if (actor && actorRole === 'MANAGER') {
       const assigned = getManagerAssignedBranchIds(actor);
       if (branchId) {
-        assertRescueBranchScope(actor, branchId);
+        assertRescueBranchScope(actor, branchId, { requireBranchOnTarget: true });
         query.branchId = branchId;
       } else {
-        query.$or = [{ branchId: { $in: assigned } }, { branchId: null }];
+        query.branchId = { $in: assigned };
       }
     } else if (branchId) {
       query.branchId = branchId;
@@ -1970,7 +1972,7 @@ export const contentService = {
     if (!pet) {
       throw new AppError(404, 'Not Found', 'NOT_FOUND', 'Không tìm thấy hồ sơ thú cưng cứu hộ');
     }
-    assertRescueBranchScope(actor, pet.branchId);
+    assertRescueBranchScope(actor, pet.branchId, { requireBranchOnTarget: true });
     return pet;
   },
 
