@@ -57,9 +57,16 @@ export const processAppointmentHoldExpiries = async () => {
     }
 
     // Mark unpaid pending Payment as EXPIRED
+    const paymentTargetFilter = {
+      $or: [
+        ...(apt.prepaymentId ? [{ _id: apt.prepaymentId }] : []),
+        { 'target.id': apt._id },
+        { targetId: apt._id },
+      ],
+    };
     if (mongoose.connection.readyState === 1 || Payment.updateMany?._isMockFunction) {
       await Payment.updateMany(
-        { $or: [{ 'target.id': apt._id }, { targetId: apt._id }], status: 'PENDING' },
+        { ...paymentTargetFilter, status: 'PENDING' },
         { $set: { status: 'EXPIRED' } }
       );
     }
@@ -77,9 +84,7 @@ export const processAppointmentHoldExpiries = async () => {
 
     // If prepayment exists, create 100% BookingRefund request
     if (apt.pricing && apt.pricing.paidAmount > 0) {
-      const payment = await Payment.findOne({
-        $or: [{ 'target.id': apt._id }, { targetId: apt._id }],
-      });
+      const payment = await Payment.findOne(paymentTargetFilter);
 
       if (payment) {
         const existingRefund = await BookingRefund.findOne({

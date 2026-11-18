@@ -43,6 +43,7 @@ import * as reviewService from '../../src/modules/review/review.service';
 import * as bookingService from '../../src/modules/booking/booking.service';
 import * as bookingRefundService from '../../src/modules/booking/bookingRefund.service';
 import * as availabilityService from '../../src/modules/booking/availability.service';
+import * as paymentService from '../../src/modules/payment/payment.service';
 import * as returnService from '../../src/modules/order/return.service';
 import * as executionService from '../../src/modules/execution/execution.service';
 import * as inventoryService from '../../src/modules/inventory/inventory.service';
@@ -1069,6 +1070,188 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(res.status).toBe(201);
       expect(res.body).toHaveProperty('status', 'PENDING');
       expect(userCreateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('9. Payment Sync/Hold Expiry Guard & Guest Appointment Detail (QA-R1-27, QA-R1-29)', () => {
+    it('QA-R1-27: mockCompletePayment resolves target link, syncs Appointment/SlotReservation before expiry, and blocks PAID after expiry or CANCELLED', async () => {
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(makeSession());
+      const aptId = new mongoose.Types.ObjectId();
+      const payId = new mongoose.Types.ObjectId();
+
+      // Case 1: Legacy flat targetType/targetId link before expiry -> PAID + Appointment CONFIRMED + paidAmount synced + SlotReservation CONFIRMED
+      const aptDoc = {
+        _id: aptId,
+        code: 'APT-R127-01',
+        customerId: customerAId,
+        branchId: branch1Id,
+        status: 'PENDING_PAYMENT',
+        paymentMethod: 'PAY_AT_STORE',
+        holdExpiresAt: new Date(Date.now() + 10 * 60000),
+        pricing: { finalAmount: 300000, depositAmount: 90000, paidAmount: 0 },
+        deposit: { status: 'PENDING', paymentId: payId },
+        prepaymentId: payId,
+        services: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const payDoc = {
+        _id: payId,
+        code: 'PAY-R127-01',
+        targetType: 'APPOINTMENT',
+        targetId: aptId,
+        method: 'PAY_AT_STORE',
+        kind: 'DEPOSIT',
+        status: 'PENDING',
+        amount: 90000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Payment, 'findById').mockReturnValue(makeChainQuery(payDoc));
+      jest.spyOn(Appointment, 'findById').mockReturnValue(makeChainQuery(aptDoc));
+      const slotConfirmSpy = jest.spyOn(SlotReservation, 'updateMany').mockResolvedValue({ modifiedCount: 2 });
+
+      const cbRes = await request(app)
+        .post(`/api/v1/payments/${payId}/callback`)
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .send({ outcome: 'PAID' });
+
+      expect(cbRes.status).toBe(200);
+      expect(cbRes.body.status).toBe('PAID');
+      expect(payDoc.status).toBe('PAID');
+      expect(payDoc.target).toEqual({ type: 'APPOINTMENT', id: aptId });
+      expect(aptDoc.status).toBe('CONFIRMED');
+      expect(aptDoc.pricing.paidAmount).toBe(90000);
+      expect(aptDoc.deposit.status).toBe('HELD');
+      expect(aptDoc.holdExpiresAt).toBeNull();
+      expect(slotConfirmSpy).toHaveBeenCalledWith(
+        { appointmentId: aptId },
+        { $set: { status: 'CONFIRMED', holdExpiresAt: null } },
+        expect.anything()
+      );
+
+      // Case 2: Already CANCELLED appointment -> rejects 409 and never marks Payment as PAID
+      const cancelPayDoc = {
+        _id: payId,
+        code: 'PAY-R127-02',
+        target: { type: 'APPOINTMENT', id: aptId },
+        method: 'ONLINE_MOCK',
+        kind: 'FULL',
+        status: 'PENDING',
+        amount: 300000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const cancelledAptDoc = {
+        _id: aptId,
+        code: 'APT-R127-02',
+        customerId: customerAId,
+        branchId: branch1Id,
+        status: 'CANCELLED',
+        paymentMethod: 'ONLINE_MOCK',
+        holdExpiresAt: null,
+        pricing: { finalAmount: 300000, paidAmount: 0 },
+        deposit: { status: 'NOT_REQUIRED' },
+        services: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Payment, 'findById').mockReturnValue(makeChainQuery(cancelPayDoc));
+      jest.spyOn(Appointment, 'findById').mockReturnValue(makeChainQuery(cancelledAptDoc));
+
+      const cancelPayRes = await request(app)
+        .post(`/api/v1/payments/${payId}/mock/complete`)
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .set('Idempotency-Key', `idemp-r127-cancel-${Date.now()}`)
+        .send({ outcome: 'PAID' });
+
+      expect(cancelPayRes.status).toBe(409);
+      expect(cancelPayDoc.status).toBe('CANCELLED');
+      expect(cancelledAptDoc.pricing.paidAmount).toBe(0);
+
+      // Case 3: Pending appointment past holdExpiresAt via direct paymentService call -> 409, EXPIRED (not PAID), apt CANCELLED
+      const expiredPayDoc = {
+        _id: payId,
+        code: 'PAY-R127-03',
+        method: 'ONLINE_MOCK',
+        kind: 'FULL',
+        status: 'PENDING',
+        amount: 300000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const expiredAptDoc = {
+        _id: aptId,
+        code: 'APT-R127-03',
+        customerId: customerAId,
+        branchId: branch1Id,
+        prepaymentId: payId,
+        status: 'PENDING_PAYMENT',
+        paymentMethod: 'ONLINE_MOCK',
+        holdExpiresAt: new Date(Date.now() - 60000),
+        pricing: { finalAmount: 300000, paidAmount: 0 },
+        deposit: { status: 'NOT_REQUIRED' },
+        services: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Payment, 'findById').mockReturnValue(makeChainQuery(expiredPayDoc));
+      jest.spyOn(Appointment, 'findOne').mockReturnValue(makeChainQuery({ _id: aptId }));
+      jest.spyOn(Appointment, 'findById').mockReturnValue(makeChainQuery(expiredAptDoc));
+      jest.spyOn(SlotReservation, 'deleteMany').mockResolvedValue({ deletedCount: 1 });
+
+      await expect(paymentService.mockCompletePayment(payId.toString(), { outcome: 'PAID' }))
+        .rejects.toMatchObject({ status: 409, code: 'PAYMENT_STATE_ERROR' });
+      expect(expiredPayDoc.status).toBe('EXPIRED');
+      expect(expiredAptDoc.status).toBe('CANCELLED');
+      expect(expiredAptDoc.pricing.paidAmount).toBe(0);
+    });
+
+    it('QA-R1-29: Verified Guest OTP opens own appointment detail (200) and denies another guest (403)', async () => {
+      const guestAId = new mongoose.Types.ObjectId();
+      const guestBId = new mongoose.Types.ObjectId();
+      const aptId = new mongoose.Types.ObjectId();
+
+      const guestAToken = jwt.sign(
+        { guestContactId: guestAId.toString(), phone: '0901112233', phoneVerified: true, isGuest: true },
+        config.jwt.accessSecret,
+        { expiresIn: '15m' }
+      );
+      const guestBToken = jwt.sign(
+        { guestContactId: guestBId.toString(), phone: '0909998877', phoneVerified: true, isGuest: true },
+        config.jwt.accessSecret,
+        { expiresIn: '15m' }
+      );
+
+      const aptDoc = {
+        _id: aptId,
+        code: 'APT-GUEST-29',
+        guestContactId: guestAId,
+        contactSnapshot: { name: 'Guest A', phone: '0901112233' },
+        branchId: branch1Id,
+        serviceType: 'GROOMING',
+        paymentMethod: 'PAY_AT_STORE',
+        status: 'PENDING_PAYMENT',
+        scheduledStart: new Date(Date.now() + 48 * 3600000),
+        scheduledEnd: new Date(Date.now() + 49 * 3600000),
+        scheduledDurationMinutes: 60,
+        pricing: { subtotal: 200000, finalAmount: 200000, depositAmount: 60000, balanceAmount: 140000, paidAmount: 0 },
+        deposit: { status: 'PENDING' },
+        services: [],
+      };
+
+      jest.spyOn(Appointment, 'findById').mockReturnValue(makeChainQuery(aptDoc));
+
+      const okRes = await request(app)
+        .get(`/api/v1/appointments/${aptId}`)
+        .set('X-Guest-Lookup-Token', guestAToken);
+
+      expect(okRes.status).toBe(200);
+      expect(okRes.body).toHaveProperty('id', aptId.toString());
+      expect(okRes.body).toHaveProperty('code', 'APT-GUEST-29');
+
+      const forbiddenRes = await request(app)
+        .get(`/api/v1/appointments/${aptId}`)
+        .set('X-Guest-Lookup-Token', guestBToken);
+
+      expect(forbiddenRes.status).toBe(403);
     });
   });
 });

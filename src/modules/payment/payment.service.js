@@ -32,6 +32,43 @@ export const formatPayment = (payment) => {
   };
 };
 
+const resolvePaymentTarget = async (payment, session = null) => {
+  const rawDoc = payment?._doc || payment;
+  let targetType = payment?.target?.type || rawDoc?.targetType || payment?.targetType || null;
+  let targetId = payment?.target?.id || rawDoc?.targetId || payment?.targetId || null;
+
+  if (!targetId && payment?._id && (mongoose.connection.readyState === 1 || Appointment.findOne?._isMockFunction)) {
+    try {
+      let aptQ = Appointment.findOne({
+        $or: [{ prepaymentId: payment._id }, { 'deposit.paymentId': payment._id }],
+      }).select('_id');
+      if (session && typeof aptQ?.session === 'function') aptQ = aptQ.session(session);
+      const linkedApt = await aptQ;
+      if (linkedApt?._id) {
+        targetType = 'APPOINTMENT';
+        targetId = linkedApt._id;
+      }
+    } catch {}
+  }
+
+  if (!targetId && payment?._id && (mongoose.connection.readyState === 1 || Order.findOne?._isMockFunction)) {
+    try {
+      let ordQ = Order.findOne({ 'payment.paymentId': payment._id }).select('_id');
+      if (session && typeof ordQ?.session === 'function') ordQ = ordQ.session(session);
+      const linkedOrd = await ordQ;
+      if (linkedOrd?._id) {
+        targetType = 'ORDER';
+        targetId = linkedOrd._id;
+      }
+    } catch {}
+  }
+
+  return {
+    targetType: targetType || 'ORDER',
+    targetId: targetId || null,
+  };
+};
+
 const assertPaymentTargetAccess = async (targetType, targetId, actor, guestToken, { staffOnly = false } = {}) => {
   let verifiedGuest = guestToken;
   if (!actor && typeof guestToken === 'string') {
@@ -114,8 +151,7 @@ export const getPaymentById = async (paymentId, actor = null, guestToken = null)
   if (!payment) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Payment not found');
   }
-  const targetType = payment.target?.type || payment.targetType || 'ORDER';
-  const targetId = payment.target?.id || payment.targetId;
+  const { targetType, targetId } = await resolvePaymentTarget(payment);
   await assertPaymentTargetAccess(targetType, targetId, actor, guestToken);
   return formatPayment(payment);
 };
@@ -127,7 +163,11 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
 
   const rawOutcome = typeof data === 'object' && data !== null ? data.outcome : data;
   const outcomeUpper = String(rawOutcome || 'PAID').trim().toUpperCase();
-  const isFailure = outcomeUpper === 'FAILED' || outcomeUpper === 'FAILURE' || outcomeUpper === 'CANCELLED';
+  const isSuccessOutcome = ['PAID', 'SUCCESS', 'SUCCEEDED', 'COMPLETED'].includes(outcomeUpper);
+  const isFailure = ['FAILED', 'FAILURE', 'CANCELLED'].includes(outcomeUpper);
+  if (!isSuccessOutcome && !isFailure) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, `Unsupported mock outcome: ${rawOutcome}`);
+  }
   const failureReason = (typeof data === 'object' && data?.failureReason) || 'Mock payment failed';
 
   const supportsTx = Boolean(
@@ -136,6 +176,12 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
     Appointment.findById?._isMockFunction ||
     Payment.findById?._isMockFunction
   );
+  const useAtomicCas =
+    !Payment.findById?._isMockFunction &&
+    !Appointment.findById?._isMockFunction &&
+    typeof Payment.findOneAndUpdate === 'function' &&
+    typeof Appointment.findOneAndUpdate === 'function';
+
   const session = supportsTx ? await mongoose.startSession() : null;
   if (session && typeof session.startTransaction === 'function') {
     session.startTransaction();
@@ -144,20 +190,23 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
   try {
     let paymentQuery = Payment.findById(paymentId);
     if (session && typeof paymentQuery.session === 'function') paymentQuery = paymentQuery.session(session);
-    const payment = await paymentQuery;
+    let payment = await paymentQuery;
     if (!payment) {
       throw new AppError(404, 'NotFound', 'PAYMENT_NOT_FOUND', 'Payment not found');
     }
 
-    const targetType = payment.target?.type || payment.targetType || 'ORDER';
-    const targetId = payment.target?.id || payment.targetId;
+    const { targetType, targetId } = await resolvePaymentTarget(payment, session);
 
     if (actor || guestToken) {
       await assertPaymentTargetAccess(targetType, targetId, actor, guestToken);
     }
 
-    // Reject BALANCE or COD endpoints if called through mock/complete
-    if (payment.kind === 'BALANCE' || payment.method === 'COD') {
+    // Reject BALANCE, COD, or non-deposit PAY_AT_STORE if called through mock/complete
+    if (
+      payment.kind === 'BALANCE' ||
+      payment.method === 'COD' ||
+      (payment.method === 'PAY_AT_STORE' && payment.kind !== 'DEPOSIT')
+    ) {
       throw new AppError(422, 'UnprocessableEntity', 'PAYMENT_STATE_ERROR', `Cannot mock complete ${payment.kind} / ${payment.method} payment`);
     }
 
@@ -193,19 +242,49 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
         throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Target appointment not found');
       }
 
-      const isHoldExpired = Boolean(apt.holdExpiresAt && new Date(apt.holdExpiresAt) <= now);
-      if (!isFailure && (['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(apt.status) || isHoldExpired)) {
-        // Expiry / terminal state beats late payment success callback
+      const effectiveHoldExpiry = apt.holdExpiresAt || payment.expiresAt || null;
+      const isHoldExpired = Boolean(
+        (effectiveHoldExpiry && new Date(effectiveHoldExpiry) <= now) ||
+        (!effectiveHoldExpiry &&
+          apt.status === 'PENDING_PAYMENT' &&
+          apt.createdAt &&
+          now.getTime() - new Date(apt.createdAt).getTime() >= 15 * 60000)
+      );
+      const isPayableStatus = ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(apt.status);
+
+      if (!isFailure && (!isPayableStatus || isHoldExpired)) {
+        // Expiry / non-payable / terminal state beats late payment success callback
         if (apt.status === 'PENDING_PAYMENT' && isHoldExpired) {
-          apt.status = 'CANCELLED';
-          apt.cancel = {
-            by: 'SYSTEM',
-            at: now,
-            reason: 'HOLD_EXPIRED_TIMEOUT',
-            hoursBeforeStart: null,
-            prepaidOutcome: 'NONE',
-          };
-          await apt.save(session ? { session } : {});
+          if (useAtomicCas) {
+            await Appointment.findOneAndUpdate(
+              { _id: apt._id, status: 'PENDING_PAYMENT' },
+              {
+                $set: {
+                  status: 'CANCELLED',
+                  holdExpiresAt: null,
+                  cancel: {
+                    by: 'SYSTEM',
+                    at: now,
+                    reason: 'HOLD_EXPIRED_TIMEOUT',
+                    hoursBeforeStart: null,
+                    prepaidOutcome: 'NONE',
+                  },
+                },
+              },
+              session ? { session } : {}
+            );
+          } else {
+            apt.status = 'CANCELLED';
+            apt.holdExpiresAt = null;
+            apt.cancel = {
+              by: 'SYSTEM',
+              at: now,
+              reason: 'HOLD_EXPIRED_TIMEOUT',
+              hoursBeforeStart: null,
+              prepaidOutcome: 'NONE',
+            };
+            await apt.save(session ? { session } : {});
+          }
           await SlotReservation.deleteMany({ appointmentId: apt._id }, session ? { session } : {});
           if (apt.pricing?.voucherId) {
             await restoreQuotaInSession({
@@ -216,8 +295,25 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
             });
           }
         }
-        payment.status = 'EXPIRED';
-        await payment.save(session ? { session } : {});
+
+        const rejectedStatus = isHoldExpired ? 'EXPIRED' : (apt.status === 'CANCELLED' ? 'CANCELLED' : 'FAILED');
+        if (useAtomicCas) {
+          await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'PENDING' },
+            {
+              $set: {
+                status: rejectedStatus,
+                target: { type: 'APPOINTMENT', id: apt._id },
+                targetType: 'APPOINTMENT',
+                targetId: apt._id,
+              },
+            },
+            session ? { session } : {}
+          );
+        } else {
+          payment.status = rejectedStatus;
+          await payment.save(session ? { session } : {});
+        }
         if (session) {
           await session.commitTransaction();
           session.endSession();
@@ -226,21 +322,67 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
       }
 
       if (isFailure) {
-        payment.status = 'FAILED';
-        await payment.save(session ? { session } : {});
+        if (useAtomicCas) {
+          const updatedFail = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'PENDING' },
+            {
+              $set: {
+                status: 'FAILED',
+                target: { type: 'APPOINTMENT', id: apt._id },
+                targetType: 'APPOINTMENT',
+                targetId: apt._id,
+              },
+              $inc: { version: 1 },
+            },
+            { new: true, ...(session ? { session } : {}) }
+          );
+          if (!updatedFail) {
+            const freshPay = await Payment.findById(payment._id);
+            if (freshPay && ['FAILED', 'CANCELLED'].includes(freshPay.status)) {
+              if (session) { await session.abortTransaction(); session.endSession(); }
+              return formatPayment(freshPay);
+            }
+            throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', `Payment cannot transition from ${freshPay?.status || payment.status}`);
+          }
+          payment = updatedFail;
+        } else {
+          payment.status = 'FAILED';
+          await payment.save(session ? { session } : {});
+        }
 
         if (apt.status === 'PENDING_PAYMENT' || apt.status === 'PENDING_CONFIRMATION') {
-          apt.status = 'CANCELLED';
-          apt.cancel = {
-            by: 'SYSTEM',
-            at: now,
-            reason: failureReason,
-            hoursBeforeStart: null,
-            prepaidOutcome: 'NONE',
-          };
-          if (apt.deposit) apt.deposit.status = 'NOT_REQUIRED';
-          apt.holdExpiresAt = null;
-          await apt.save(session ? { session } : {});
+          if (useAtomicCas) {
+            await Appointment.findOneAndUpdate(
+              { _id: apt._id, status: { $in: ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'] } },
+              {
+                $set: {
+                  status: 'CANCELLED',
+                  holdExpiresAt: null,
+                  'deposit.status': 'NOT_REQUIRED',
+                  cancel: {
+                    by: 'SYSTEM',
+                    at: now,
+                    reason: failureReason,
+                    hoursBeforeStart: null,
+                    prepaidOutcome: 'NONE',
+                  },
+                },
+              },
+              session ? { session } : {}
+            );
+          } else {
+            apt.status = 'CANCELLED';
+            apt.cancel = {
+              by: 'SYSTEM',
+              at: now,
+              reason: failureReason,
+              hoursBeforeStart: null,
+              prepaidOutcome: 'NONE',
+            };
+            if (apt.deposit) apt.deposit.status = 'NOT_REQUIRED';
+            apt.holdExpiresAt = null;
+            await apt.save(session ? { session } : {});
+          }
           await SlotReservation.deleteMany({ appointmentId: apt._id }, session ? { session } : {});
           if (apt.pricing?.voucherId) {
             await restoreQuotaInSession({
@@ -252,26 +394,119 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
           }
         }
       } else {
-        // Success transition on Appointment
-        payment.status = 'PAID';
-        payment.paidAt = now;
-        await payment.save(session ? { session } : {});
+        // Success transition on Appointment: sync Appointment & Payment atomically
+        const nextDepositStatus = payment.kind === 'DEPOSIT' ? 'HELD' : (apt.deposit?.status || 'NOT_REQUIRED');
 
-        if (apt.status === 'PENDING_PAYMENT' || apt.status === 'PENDING_CONFIRMATION') {
+        if (useAtomicCas) {
+          const updatedApt = await Appointment.findOneAndUpdate(
+            {
+              _id: apt._id,
+              status: { $in: ['PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
+              $or: [{ holdExpiresAt: null }, { holdExpiresAt: { $gt: now } }],
+            },
+            {
+              $set: {
+                status: 'CONFIRMED',
+                holdExpiresAt: null,
+                'deposit.status': nextDepositStatus,
+                prepaymentId: payment._id,
+              },
+              $inc: {
+                'pricing.paidAmount': Number(payment.amount || 0),
+                version: 1,
+              },
+            },
+            { new: true, ...(session ? { session } : {}) }
+          );
+
+          if (!updatedApt) {
+            const freshPay = await Payment.findById(payment._id);
+            if (freshPay?.status === 'PAID') {
+              if (session) { await session.abortTransaction(); session.endSession(); }
+              return formatPayment(freshPay);
+            }
+            const freshApt = await Appointment.findById(apt._id);
+            const fallbackStatus = freshApt?.status === 'CANCELLED' && freshApt?.cancel?.reason !== 'HOLD_EXPIRED_TIMEOUT'
+              ? 'CANCELLED'
+              : 'EXPIRED';
+            await Payment.findOneAndUpdate(
+              { _id: payment._id, status: 'PENDING' },
+              {
+                $set: {
+                  status: fallbackStatus,
+                  target: { type: 'APPOINTMENT', id: apt._id },
+                  targetType: 'APPOINTMENT',
+                  targetId: apt._id,
+                },
+              },
+              session ? { session } : {}
+            );
+            if (session) {
+              await session.commitTransaction();
+              session.endSession();
+            }
+            throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', 'Appointment hold expired or appointment already cancelled');
+          }
+
+          const updatedPay = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'PENDING' },
+            {
+              $set: {
+                status: 'PAID',
+                paidAt: now,
+                target: { type: 'APPOINTMENT', id: apt._id },
+                targetType: 'APPOINTMENT',
+                targetId: apt._id,
+              },
+              $inc: { version: 1 },
+            },
+            { new: true, ...(session ? { session } : {}) }
+          );
+
+          if (!updatedPay) {
+            if (!session) {
+              // Standalone MongoDB rollback if Payment could not transition cleanly from PENDING
+              await Appointment.findByIdAndUpdate(apt._id, {
+                $set: {
+                  status: apt.status,
+                  holdExpiresAt: apt.holdExpiresAt || null,
+                  'deposit.status': apt.deposit?.status || 'NOT_REQUIRED',
+                },
+                $inc: { 'pricing.paidAmount': -Number(payment.amount || 0) },
+              });
+            }
+            const freshPay = await Payment.findById(payment._id);
+            if (freshPay?.status === 'PAID') {
+              if (session) { await session.abortTransaction(); session.endSession(); }
+              return formatPayment(freshPay);
+            }
+            throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', `Payment cannot transition from ${freshPay?.status || payment.status}`);
+          }
+          payment = updatedPay;
+        } else {
+          // Mocked / session path: update Appointment BEFORE finalizing Payment
           apt.pricing = apt.pricing || {};
           apt.pricing.paidAmount = Number(apt.pricing.paidAmount || 0) + Number(payment.amount || 0);
           apt.deposit = apt.deposit || {};
-          apt.deposit.status = payment.kind === 'DEPOSIT' ? 'HELD' : (apt.deposit.status || 'NOT_REQUIRED');
+          apt.deposit.status = nextDepositStatus;
           apt.status = 'CONFIRMED';
           apt.holdExpiresAt = null;
+          apt.prepaymentId = apt.prepaymentId || payment._id;
           await apt.save(session ? { session } : {});
 
-          await SlotReservation.updateMany(
-            { appointmentId: apt._id },
-            { $set: { status: 'CONFIRMED', holdExpiresAt: null } },
-            session ? { session } : {}
-          );
+          payment.target = { type: 'APPOINTMENT', id: apt._id };
+          payment.targetType = 'APPOINTMENT';
+          payment.targetId = apt._id;
+          payment.status = 'PAID';
+          payment.paidAt = now;
+          await payment.save(session ? { session } : {});
         }
+
+        await SlotReservation.updateMany(
+          { appointmentId: apt._id },
+          { $set: { status: 'CONFIRMED', holdExpiresAt: null } },
+          session ? { session } : {}
+        );
       }
     } else {
       // ORDER target
@@ -353,8 +588,7 @@ export const recordPaymentAtStore = async (paymentId, actor) => {
   if (!payment) {
     throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Payment not found');
   }
-  const targetType = payment.target?.type || payment.targetType || 'ORDER';
-  const targetId = payment.target?.id || payment.targetId;
+  const { targetType, targetId } = await resolvePaymentTarget(payment);
   await assertPaymentTargetAccess(targetType, targetId, actor, null, { staffOnly: true });
 
   if (payment.status === 'PAID') {

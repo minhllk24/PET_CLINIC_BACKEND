@@ -6,6 +6,8 @@ const schema = new mongoose.Schema({
     type: { type: String, enum: ['APPOINTMENT', 'ORDER'] },
     id: mongoose.Schema.Types.ObjectId
   },
+  targetType: { type: String, enum: ['APPOINTMENT', 'ORDER'], default: null },
+  targetId: { type: mongoose.Schema.Types.ObjectId, default: null },
   kind: { type: String, enum: ['DEPOSIT', 'BALANCE', 'FULL', 'ORDER'] },
   method: { type: String, enum: ['ONLINE_MOCK', 'PAY_AT_STORE', 'COD'] },
   expiresAt: Date,

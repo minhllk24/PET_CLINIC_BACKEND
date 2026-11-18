@@ -8,7 +8,7 @@ const staffOrAbove = requireRole(['STAFF', 'MANAGER', 'ADMIN'], ['RECEPTIONIST']
 
 router.get('/:id', optionalAuth, paymentController.getPaymentById);
 router.post(
-  '/:id/mock/complete',
+  ['/:id/mock/complete', '/:id/mock-complete', '/:id/callback'],
   optionalAuth,
   idempotency('paymentMockComplete', { required: false }),
   paymentController.mockCompletePayment

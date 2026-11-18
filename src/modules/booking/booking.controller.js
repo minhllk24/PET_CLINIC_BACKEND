@@ -65,7 +65,7 @@ export const createAppointment = async (req, res, next) => {
     const appointment = await bookingService.createAppointment(
       req.body,
       req.actor,
-      req.headers['x-guest-lookup-token']
+      req.guest || req.headers['x-guest-lookup-token']
     );
     res.status(201).json(appointment);
   } catch (error) {
@@ -259,9 +259,12 @@ export const reassignSegmentStaff = async (req, res, next) => {
 
 export const mockCompletePayment = async (req, res, next) => {
   try {
+    const payload = req.body && Object.keys(req.body).length > 0 ? req.body : { outcome: 'PAID' };
     const result = await bookingService.mockCompletePayment(
       req.params.prepaymentId,
-      req.actor
+      payload,
+      req.actor,
+      req.guest || req.headers['x-guest-lookup-token']
     );
     res.json(result);
   } catch (error) {
