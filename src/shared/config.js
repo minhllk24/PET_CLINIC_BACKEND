@@ -63,6 +63,17 @@ const config = {
     pass: process.env.SMTP_PASS || process.env.EMAIL_APP_PASSWORD || '',
     from: process.env.SMTP_FROM || (process.env.EMAIL_APP ? `"Dr. Pet Clinic Support" <${process.env.EMAIL_APP}>` : '"Dr. Pet Clinic Support" <support@drpets.vn>'),
   },
+  smsBrandname: {
+    provider: process.env.SMS_BRANDNAME_PROVIDER || (process.env.ESMS_API_KEY ? 'esms' : (process.env.SPEEDSMS_ACCESS_TOKEN ? 'speedsms' : 'simulator')),
+    brandName: process.env.SMS_BRANDNAME_NAME || 'DRPETSHOUSE',
+    esmsApiKey: process.env.ESMS_API_KEY || '',
+    esmsSecretKey: process.env.ESMS_SECRET_KEY || '',
+    esmsSandbox: process.env.ESMS_SANDBOX === 'true',
+    speedsmsAccessToken: process.env.SPEEDSMS_ACCESS_TOKEN || '',
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+    twilioFrom: process.env.TWILIO_FROM || '',
+  },
 };
 
 if (!fs.existsSync(config.openapiSpecPath)) {

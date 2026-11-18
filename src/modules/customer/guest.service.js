@@ -13,6 +13,8 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import config from '../../shared/config';
 import { generateOtpCode, hashOtp, verifyOtp } from '../../utils/otpHelpers';
 import { sendGuestOtpEmail, sendActivationInviteEmail } from '../../utils/emailHelpers';
+import { sendSmsBrandname } from '../../services/smsBrandname.service.js';
+import { dispatchDualChannelOtp } from '../../services/otpDispatcher.service.js';
 import { recordAuditLog } from '../../utils/auditLogger';
 
 // In-memory store fallback for offline test environments
@@ -110,11 +112,24 @@ export const requestGuestOtp = async ({ phone, email }) => {
     expiresAt,
   });
 
+  const targetPhone = phone ? phone.trim() : (!identifier.includes('@') ? identifier.trim() : null);
+
+  // Dispatch SMS BrandName (DRPETSHOUSE) if phone is present
+  if (targetPhone) {
+    sendSmsBrandname({
+      phone: targetPhone,
+      otp,
+      purpose: 'GUEST_LOOKUP',
+    }).catch((err) => {
+      console.warn('Non-blocking: Failed to dispatch guest SMS BrandName', err?.message);
+    });
+  }
+
   // Attempt real email send if email was provided OR if phone is linked to an existing contact email
-  let targetEmail = email ? email.trim().toLowerCase() : (identifier.includes('@') ? identifier : null);
-  if (!targetEmail && phone && mongoose.connection.readyState === 1) {
+  let targetEmail = email ? email.trim().toLowerCase() : (identifier.includes('@') ? identifier.trim().toLowerCase() : null);
+  if (!targetEmail && targetPhone && mongoose.connection.readyState === 1) {
     try {
-      const cleanPhone = phone.trim();
+      const cleanPhone = targetPhone;
       const guest = await GuestContact.findOne({ phone: cleanPhone }).lean();
       if (guest && guest.email) {
         targetEmail = guest.email.trim().toLowerCase();
@@ -148,11 +163,20 @@ export const requestGuestOtp = async ({ phone, email }) => {
 
   return {
     success: true,
-    message: targetEmail
-      ? `OTP sent successfully to email ${targetEmail}`
-      : 'OTP sent successfully',
+    message: targetPhone
+      ? `Mã xác thực OTP đã được gửi qua SMS BrandName [DRPETSHOUSE]${targetEmail ? ' và Email' : ''}`
+      : `Mã xác thực OTP đã được gửi đến email ${targetEmail}`,
     challengeId: challenge._id.toString(),
     expiresIn: 300,
+    channels: [
+      ...(targetPhone ? ['SMS_BRANDNAME'] : []),
+      ...(targetEmail ? ['EMAIL'] : []),
+    ],
+    brandName: 'DRPETSHOUSE',
+    sentTo: {
+      phone: targetPhone || null,
+      email: targetEmail || null,
+    },
     otp: isDevOrTest ? otp : undefined,
     debugOtp: isDevOrTest ? otp : undefined,
   };

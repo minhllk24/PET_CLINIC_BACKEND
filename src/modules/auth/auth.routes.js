@@ -3,6 +3,7 @@ import authController from './auth.controller.js';
 import * as authService from './auth.service.js';
 import { authenticate } from '../../shared/authMiddleware.js';
 import { authLimiter, otpLimiter, forgotPasswordLimiter } from '../../shared/rateLimitMiddleware.js';
+import { getLatestBrandnameSms, listRecentBrandnameSms } from '../../services/smsBrandname.service.js';
 
 const router = express.Router();
 
@@ -17,6 +18,28 @@ router.post('/verify-register-otp', otpLimiter, authController.verifyOtp); // FE
 router.post('/resend-otp', otpLimiter, authController.resendOtp);
 router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post(['/google', '/google-login', '/login/google', '/oauth/google'], authLimiter, authController.googleLogin);
+
+// SMS BrandName Live Inspection & Feed
+router.get(['/sms-brandname/latest', '/brandname-sms/latest'], async (req, res, next) => {
+  try {
+    const latest = await getLatestBrandnameSms(req.query.phone);
+    return res.status(200).json({ success: true, data: latest });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(['/sms-brandname/history', '/brandname-sms/history'], async (req, res, next) => {
+  try {
+    const history = await listRecentBrandnameSms({
+      phone: req.query.phone,
+      limit: parseInt(req.query.limit || '10', 10),
+    });
+    return res.status(200).json({ success: true, data: history });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Google OAuth redirect flow
 router.get(['/google', '/google-login', '/login/google', '/oauth/google'], (req, res) => {

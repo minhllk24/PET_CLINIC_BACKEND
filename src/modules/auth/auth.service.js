@@ -13,6 +13,8 @@ import { hashPassword, comparePassword, validatePasswordPolicy } from '../../uti
 import { generateOpaqueToken, hashToken } from '../../utils/tokenHelpers.js';
 import { recordAuditLog } from '../../utils/auditLogger.js';
 import { sendOtpEmail } from '../../utils/emailHelpers.js';
+import { dispatchDualChannelOtp } from '../../services/otpDispatcher.service.js';
+import { getLatestBrandnameSms, listRecentBrandnameSms } from '../../services/smsBrandname.service.js';
 import {
   ACCESS_TOKEN_EXPIRY,
   REFRESH_TOKEN_SHORT_TTL_MS,
@@ -99,12 +101,18 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
     });
   }
 
-  if (cleanEmail) {
-    try {
-      await sendOtpEmail(cleanEmail, rawOtp);
-    } catch (mailErr) {
-      console.warn('Failed to send registration OTP email:', mailErr.message);
-    }
+  // Dual-channel dispatch: SMS BrandName (DRPETSHOUSE) + Branded Email OTP
+  let dispatchResult = null;
+  try {
+    dispatchResult = await dispatchDualChannelOtp({
+      phone,
+      email: cleanEmail,
+      otp: rawOtp,
+      purpose: 'REGISTER',
+      fullName,
+    });
+  } catch (dispErr) {
+    console.warn('[AUTH REGISTER] OTP dispatch non-blocking warning:', dispErr.message);
   }
 
   // Record audit log
@@ -116,8 +124,11 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
   });
 
   return {
-    message: 'OTP has been sent',
+    message: 'Mã xác thực OTP đã được gửi qua SMS BrandName [DRPETSHOUSE] và Email',
     identifier: phone,
+    channels: dispatchResult?.channels || ['SMS_BRANDNAME', ...(cleanEmail ? ['EMAIL'] : [])],
+    brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
+    sentTo: dispatchResult?.sentTo || { phone, email: cleanEmail },
     ...(config.env !== 'production' ? { debugOtp: rawOtp } : {}),
   };
 };
@@ -575,16 +586,28 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
   );
 
   let targetEmail = cleanIdentifier.includes('@') ? cleanIdentifier : null;
-  if (!targetEmail) {
-    const existingUser = await User.findOne({ phone: cleanIdentifier });
-    if (existingUser && existingUser.email) targetEmail = existingUser.email;
-  }
-  if (targetEmail) {
-    try {
-      await sendOtpEmail(targetEmail, rawOtp);
-    } catch (mailErr) {
-      console.warn('Failed to resend OTP email:', mailErr.message);
+  let targetPhone = !cleanIdentifier.includes('@') ? cleanIdentifier : null;
+
+  if (!targetEmail || !targetPhone) {
+    const existingUser = await User.findOne({
+      $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
+    }).lean();
+    if (existingUser) {
+      if (!targetEmail && existingUser.email) targetEmail = existingUser.email;
+      if (!targetPhone && existingUser.phone) targetPhone = existingUser.phone;
     }
+  }
+
+  let dispatchResult = null;
+  try {
+    dispatchResult = await dispatchDualChannelOtp({
+      phone: targetPhone,
+      email: targetEmail,
+      otp: rawOtp,
+      purpose,
+    });
+  } catch (dispErr) {
+    console.warn('[AUTH RESEND] OTP dispatch warning:', dispErr.message);
   }
 
   await recordAuditLog({
@@ -595,8 +618,11 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
   });
 
   return {
-    message: 'OTP has been resent',
+    message: 'Mã xác thực OTP đã được gửi lại qua SMS BrandName [DRPETSHOUSE] và Email',
     identifier,
+    channels: dispatchResult?.channels || ['SMS_BRANDNAME', ...(targetEmail ? ['EMAIL'] : [])],
+    brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
+    sentTo: dispatchResult?.sentTo,
     ...(config.env !== 'production' ? { debugOtp: rawOtp } : {}),
   };
 };
@@ -648,12 +674,17 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
       );
     }
 
-    if (emailToSend) {
-      try {
-        await sendOtpEmail(emailToSend, rawOtp);
-      } catch (mailErr) {
-        console.warn('Failed to send forgot-password OTP email:', mailErr.message);
-      }
+    let dispatchResult = null;
+    try {
+      dispatchResult = await dispatchDualChannelOtp({
+        phone: user.phone || (!cleanIdentifier.includes('@') ? cleanIdentifier : null),
+        email: user.email || (cleanIdentifier.includes('@') ? cleanIdentifier : null),
+        otp: rawOtp,
+        purpose: 'FORGOT_PASSWORD',
+        fullName: user.fullName,
+      });
+    } catch (dispErr) {
+      console.warn('[AUTH FORGOT PASSWORD] Dual-channel OTP dispatch warning:', dispErr.message);
     }
 
     await recordAuditLog({
@@ -663,10 +694,21 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
       metadata: { purpose: 'FORGOT_PASSWORD' },
       correlationId: meta.correlationId || null,
     });
+
+    return {
+      message: 'Mã xác thực OTP đã được gửi qua SMS BrandName [DRPETSHOUSE] và Email',
+      identifier,
+      channels: dispatchResult?.channels || ['SMS_BRANDNAME', 'EMAIL'],
+      brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
+      sentTo: dispatchResult?.sentTo,
+      ...(config.env !== 'production' && rawOtp ? { debugOtp: rawOtp } : {}),
+    };
   }
 
   return {
     message: 'If an account exists with this identifier, an OTP has been sent',
+    identifier,
+    brandName: 'DRPETSHOUSE',
     ...(config.env !== 'production' && rawOtp ? { debugOtp: rawOtp } : {}),
   };
 };
