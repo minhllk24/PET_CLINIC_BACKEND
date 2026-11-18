@@ -2124,17 +2124,33 @@ export const reassignSegmentStaff = async (id, serviceId, newStaffId, actor) => 
 /**
  * Start Segment Execution
  */
-export const startSegment = async (id, serviceId, actor) => {
-  const apt = await Appointment.findById(id).populate('branchId');
-  if (!apt) {
-    throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+export const startSegment = async (id, serviceIdOrPayload, actor) => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Invalid appointment ID');
   }
 
-  const segment = serviceId
-    ? apt.services.find((s) => s.serviceId.toString() === serviceId.toString())
-    : apt.services?.[0];
-  if (!segment) {
-    throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', 'Segment not found');
+  const isPayloadObject =
+    serviceIdOrPayload &&
+    typeof serviceIdOrPayload === 'object' &&
+    !mongoose.Types.ObjectId.isValid(serviceIdOrPayload);
+  const rawServiceId = isPayloadObject ? serviceIdOrPayload.serviceId : serviceIdOrPayload;
+  const expectedVersion = isPayloadObject ? serviceIdOrPayload.expectedVersion : undefined;
+  const serviceId = typeof rawServiceId === 'string' ? rawServiceId.trim() : rawServiceId;
+
+  if (serviceId && !mongoose.Types.ObjectId.isValid(serviceId)) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Invalid serviceId');
+  }
+  if (
+    expectedVersion !== undefined &&
+    expectedVersion !== null &&
+    (!Number.isInteger(Number(expectedVersion)) || Number(expectedVersion) < 1)
+  ) {
+    throw new AppError(
+      400,
+      'Bad Request',
+      ErrorCodes.VALIDATION_ERROR,
+      'expectedVersion must be a positive integer'
+    );
   }
 
   // BE-HANDOFF 2026-11-16: Bắt buộc assignedStaffId tồn tại và đã hoàn tất thủ tục Check-in
@@ -2161,39 +2177,223 @@ export const startSegment = async (id, serviceId, actor) => {
         'Only assigned clinical staff (Veterinarian, Nurse, Care Staff/Groomer) can start service segments'
       );
     }
+  }
+
+  const apt = await Appointment.findById(id).populate('branchId');
+  if (!apt) {
+    throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
+  }
+
+  if (!serviceId && Array.isArray(apt.services) && apt.services.length > 1) {
+    throw new AppError(
+      400,
+      'Bad Request',
+      ErrorCodes.VALIDATION_ERROR,
+      'serviceId is required when appointment has multiple services'
+    );
+  }
+
+  const segment = serviceId
+    ? (apt.services || []).find((s) => s.serviceId && s.serviceId.toString() === serviceId.toString())
+    : apt.services?.[0];
+  if (!segment) {
+    throw new AppError(404, 'NotFound', 'SERVICE_NOT_FOUND', 'Segment not found');
+  }
+
+  const aptBranchId = (apt.branchId?._id || apt.branchId)?.toString();
+
+  if (actor) {
+    const role = actor.systemRole || actor.role;
     if (role === 'STAFF' || ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role)) {
       const rawBranches = actor.authorizedBranchIds ?? actor.assignedBranchIds;
-      if (Array.isArray(rawBranches) && rawBranches.length > 0) {
+      if (Array.isArray(rawBranches)) {
         const authBranches = rawBranches.map((b) => (b._id || b).toString());
-        const aptBranchId = (apt.branchId?._id || apt.branchId)?.toString();
-        if (aptBranchId && !authBranches.includes(aptBranchId)) {
+        if (authBranches.length === 0 || (aptBranchId && !authBranches.includes(aptBranchId))) {
           throw new AppError(403, 'Forbidden', ErrorCodes.BRANCH_SCOPE_ERROR, 'You do not have access to this branch');
         }
       }
       if (actor.staffSubRole && segment.requiredStaffRole && segment.requiredStaffRole !== actor.staffSubRole) {
         throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'Staff sub-role does not match segment requirement');
       }
+    }
+  }
+
+  // A1: Segment must have a valid assignedStaffId before starting
+  const rawAssignedStaffId = segment.assignedStaffId?._id || segment.assignedStaffId;
+  const assignedId = rawAssignedStaffId ? rawAssignedStaffId.toString().trim() : '';
+  if (!assignedId) {
+    throw new AppError(
+      422,
+      'UnprocessableEntity',
+      ErrorCodes.STAFF_UNAVAILABLE,
+      'Lịch hẹn chưa được phân công nhân viên thực hiện cho dịch vụ này'
+    );
+  }
+  if (!mongoose.Types.ObjectId.isValid(assignedId)) {
+    throw new AppError(
+      422,
+      'UnprocessableEntity',
+      ErrorCodes.STAFF_UNAVAILABLE,
+      'Mã nhân viên được phân công (assignedStaffId) không hợp lệ'
+    );
+  }
+
+  // A2: Verify assigned staff profile still exists, is ACTIVE, matches requiredStaffRole & branchId
+  let assignedProfile = null;
+  if (mongoose.connection.readyState === 1 || StaffProfile.findById?._isMockFunction) {
+    assignedProfile = await StaffProfile.findById(assignedId);
+    if (Array.isArray(assignedProfile)) assignedProfile = assignedProfile[0] || null;
+    if (!assignedProfile && (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction)) {
+      assignedProfile = await StaffProfile.findOne({ userId: assignedId });
+      if (Array.isArray(assignedProfile)) assignedProfile = assignedProfile[0] || null;
+    }
+    if (!assignedProfile || (assignedProfile.status && assignedProfile.status !== 'ACTIVE')) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        ErrorCodes.STAFF_UNAVAILABLE,
+        'Nhân viên được phân công không tồn tại hoặc đang ngưng hoạt động'
+      );
+    }
+    if (
+      segment.requiredStaffRole &&
+      assignedProfile.staffSubRole &&
+      assignedProfile.staffSubRole !== segment.requiredStaffRole
+    ) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        ErrorCodes.STAFF_ROLE_MISMATCH,
+        `Staff role ${assignedProfile.staffSubRole} does not match required role ${segment.requiredStaffRole}`
+      );
+    }
+    if (aptBranchId) {
+      const profileBranches = [
+        ...(Array.isArray(assignedProfile.authorizedBranchIds)
+          ? assignedProfile.authorizedBranchIds.map((b) => (b?._id || b).toString())
+          : []),
+        ...(assignedProfile.homeBranchId
+          ? [(assignedProfile.homeBranchId._id || assignedProfile.homeBranchId).toString()]
+          : []),
+      ];
+      if (profileBranches.length > 0 && !profileBranches.includes(aptBranchId)) {
+        throw new AppError(
+          422,
+          'UnprocessableEntity',
+          ErrorCodes.ASSIGNMENT_SCOPE_ERROR,
+          'Nhân viên được phân công không còn thuộc chi nhánh của lịch hẹn'
+        );
+      }
+    }
+  }
+
+  // A3: Verify the calling clinical staff is the exact assigned staff
+  if (actor) {
+    const role = actor.systemRole || actor.role;
+    if (role === 'STAFF' || ['VETERINARIAN', 'NURSE', 'CARE_STAFF_GROOMER'].includes(role)) {
       const actorId = (actor.id || actor._id)?.toString();
-      if (segment.assignedStaffId && actorId) {
-        const staffIds = [actorId];
-        if (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction) {
-          const profile = await StaffProfile.findOne({ userId: actorId }).select('_id').lean();
-          if (profile?._id) {
-            staffIds.push(profile._id.toString());
+      if (!actorId) {
+        throw new AppError(
+          403,
+          'Forbidden',
+          ErrorCodes.ASSIGNMENT_SCOPE_ERROR,
+          'You are not assigned to start this service segment'
+        );
+      }
+      const staffIds = new Set([actorId]);
+      if (assignedProfile?.userId && assignedProfile.userId.toString() === actorId && assignedProfile._id) {
+        staffIds.add(assignedProfile._id.toString());
+      }
+      if (mongoose.connection.readyState === 1 || StaffProfile.findOne?._isMockFunction) {
+        const profile = await StaffProfile.findOne({ userId: actorId })
+          .select('_id status staffSubRole authorizedBranchIds homeBranchId')
+          .lean();
+        if (profile?._id) {
+          if (profile.status && profile.status !== 'ACTIVE') {
+            throw new AppError(
+              422,
+              'UnprocessableEntity',
+              ErrorCodes.STAFF_UNAVAILABLE,
+              'Tài khoản chuyên môn của nhân viên đang ngưng hoạt động'
+            );
           }
-        }
-        const assignedId = (segment.assignedStaffId._id || segment.assignedStaffId).toString();
-        if (!staffIds.includes(assignedId)) {
-          throw new AppError(403, 'Forbidden', ErrorCodes.AUTHORIZATION_ERROR, 'You are not assigned to start this service segment');
+          staffIds.add(profile._id.toString());
         }
       }
+      if (!staffIds.has(assignedId)) {
+        throw new AppError(
+          403,
+          'Forbidden',
+          ErrorCodes.ASSIGNMENT_SCOPE_ERROR,
+          'You are not assigned to start this service segment'
+        );
+      }
+    }
+  }
+
+  // Optimistic concurrency check (when expectedVersion is provided and appointment has version)
+  if (
+    expectedVersion !== undefined &&
+    expectedVersion !== null &&
+    apt.version !== undefined &&
+    Number(expectedVersion) !== Number(apt.version)
+  ) {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.CONCURRENCY_CONFLICT,
+      `Version conflict: expected ${expectedVersion}, actual ${apt.version}`
+    );
+  }
+
+  // Appointment status & check-in state validation (A5)
+  if (!['CONFIRMED', 'IN_PROGRESS'].includes(apt.status)) {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      `Cannot start service when appointment status is ${apt.status}`
+    );
+  }
+
+  if (apt.checkInStatus !== 'ARRIVED') {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      'Appointment must be checked in (ARRIVED) before starting service'
+    );
+  }
+
+  if (segment.executionStatus && !['NOT_STARTED', 'PENDING'].includes(segment.executionStatus)) {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      `Service segment cannot be started from status ${segment.executionStatus}`
+    );
+  }
+
+  // Multi-service sequence ordering: previous segments must be COMPLETED
+  const currentSeq = Number(segment.sequence || 1);
+  if (currentSeq > 1 && Array.isArray(apt.services)) {
+    const incompletePrior = apt.services.find(
+      (s) => s !== segment && Number(s.sequence || 1) < currentSeq && s.executionStatus !== 'COMPLETED'
+    );
+    if (incompletePrior) {
+      throw new AppError(
+        409,
+        'Conflict',
+        ErrorCodes.INVALID_STATE_TRANSITION,
+        'Previous service segment must be COMPLETED before starting the next segment'
+      );
     }
   }
 
   segment.executionStatus = 'IN_PROGRESS';
   segment.executionStartedAt = new Date();
 
-  if (apt.status === 'CONFIRMED' || apt.status === 'PENDING_CONFIRMATION') {
+  if (apt.status === 'CONFIRMED') {
     apt.status = 'IN_PROGRESS';
   }
 
@@ -2262,6 +2462,10 @@ export const startSegment = async (id, serviceId, actor) => {
 };
 
 export const checkInAppointment = async (id, data = {}, actor) => {
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Bad Request', ErrorCodes.VALIDATION_ERROR, 'Invalid appointment ID');
+  }
+
   const apt = await Appointment.findById(id).populate('branchId');
   if (!apt) {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');
@@ -2286,12 +2490,40 @@ export const checkInAppointment = async (id, data = {}, actor) => {
     }
   }
 
+  if (apt.status && apt.status !== 'CONFIRMED') {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      `Only CONFIRMED appointments can be checked in (current status: ${apt.status})`
+    );
+  }
+
+  if (apt.checkInStatus === 'ARRIVED') {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      'Appointment has already been checked in'
+    );
+  }
+
+  const now = new Date();
   apt.checkInStatus = 'ARRIVED';
-  apt.checkedInAt = new Date();
+  apt.checkedInAt = now;
+  if (Array.isArray(apt.services)) {
+    apt.services.forEach((seg) => {
+      seg.checkInStatus = 'ARRIVED';
+      seg.checkedInAt = now;
+      if (actor?.id && mongoose.Types.ObjectId.isValid(actor.id)) {
+        seg.checkedInBy = new mongoose.Types.ObjectId(actor.id);
+      }
+    });
+  }
   if (!apt.statusHistory) apt.statusHistory = [];
   apt.statusHistory.push({
     status: apt.status,
-    at: new Date(),
+    at: now,
     actorId: actor?.id ? new mongoose.Types.ObjectId(actor.id) : null,
     note: data.note || 'Khách hàng đã check-in tại chi nhánh',
   });
