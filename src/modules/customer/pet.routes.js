@@ -414,11 +414,12 @@ export const createPetHandler = async (req, res, next) => {
     const { doctorName, medicalRecordFileUrl, medicalRecords } = parseMedicalRecords(req.body);
 
     const rawSpeciesDetail = (req.body.speciesDetail || req.body.speciesName || req.body.otherSpecies || req.body.customSpecies || '').trim() || null;
-    const speciesDetail = species === 'OTHER' ? rawSpeciesDetail : (rawSpeciesDetail || null);
+    const petSpecies = validated.species || (req.body.species ? String(req.body.species).toUpperCase() : 'DOG');
+    const speciesDetail = petSpecies === 'OTHER' ? rawSpeciesDetail : (rawSpeciesDetail || null);
 
     const petData = {
       name: validated.name || req.body.name || req.body.pet_name,
-      species: validated.species || species,
+      species: petSpecies,
       speciesDetail,
       speciesName: speciesDetail,
       breed: req.body.breed || req.body.breed_name || '',
@@ -502,9 +503,10 @@ export const updatePetHandler = async (req, res, next) => {
       ? req.body.speciesDetail 
       : (req.body.speciesName !== undefined ? req.body.speciesName : (req.body.otherSpecies !== undefined ? req.body.otherSpecies : (req.body.customSpecies !== undefined ? req.body.customSpecies : undefined)));
 
+    const updateSpecies = validated.species || (req.body.species ? String(req.body.species).toUpperCase() : undefined);
     const updates = {
       ...(validated.name !== undefined ? { name: validated.name } : (req.body.name || req.body.pet_name ? { name: req.body.name || req.body.pet_name } : {})),
-      ...(validated.species ? { species: validated.species } : (species ? { species } : {})),
+      ...(updateSpecies ? { species: updateSpecies } : {}),
       ...(rawSpeciesDetail !== undefined ? { speciesDetail: rawSpeciesDetail ? String(rawSpeciesDetail).trim() : null, speciesName: rawSpeciesDetail ? String(rawSpeciesDetail).trim() : null } : {}),
       ...(req.body.breed !== undefined || req.body.breed_name !== undefined ? { breed: req.body.breed || req.body.breed_name } : {}),
       ...(req.body.gender ? { gender: req.body.gender.toUpperCase() } : {}),
