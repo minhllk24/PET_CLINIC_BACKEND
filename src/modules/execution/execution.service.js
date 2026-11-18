@@ -400,6 +400,42 @@ export const createRecord = async (data, actor) => {
   const appointment = await Appointment.findById(data.appointmentId);
   if (!appointment) throw new AppError(404, 'Not Found', ErrorCodes.NOT_FOUND, 'Appointment not found');
 
+  if (Array.isArray(appointment.services) && appointment.services.length > 0) {
+    const hasAssignedStaff = appointment.services.some((service) => Boolean(service.assignedStaffId));
+    if (!hasAssignedStaff) {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        ErrorCodes.STAFF_UNAVAILABLE,
+        'Lịch hẹn chưa được phân công nhân viên thực hiện cho dịch vụ này'
+      );
+    }
+    if (actor?.id && !(await isAssignedToAppointment(appointment, actor.id))) {
+      throw new AppError(
+        403,
+        'Forbidden',
+        ErrorCodes.ASSIGNMENT_SCOPE_ERROR,
+        'You are not assigned to this appointment'
+      );
+    }
+  }
+  if (appointment.checkInStatus && appointment.checkInStatus !== 'ARRIVED') {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      'Appointment must be checked in (ARRIVED) before creating a service record'
+    );
+  }
+  if (appointment.status && !['CONFIRMED', 'IN_PROGRESS'].includes(appointment.status)) {
+    throw new AppError(
+      409,
+      'Conflict',
+      ErrorCodes.INVALID_STATE_TRANSITION,
+      `Cannot create service record when appointment status is ${appointment.status}`
+    );
+  }
+
   const normalizeMaterial = (m) => ({
     inventoryItemId: m.inventoryItemId || m.materialId,
     quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),

@@ -221,7 +221,10 @@ export const startSegment = async (req, res, next) => {
   try {
     const appointment = await bookingService.startSegment(
       req.params.id,
-      req.body.serviceId,
+      {
+        serviceId: req.body?.serviceId,
+        expectedVersion: req.body?.expectedVersion,
+      },
       req.actor
     );
     res.json(appointment);

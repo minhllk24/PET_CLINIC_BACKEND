@@ -6,6 +6,7 @@ import CommunityReport from './models/CommunityReport.js';
 import RescuePet from './models/RescuePet.js';
 import AdoptionRequest from './models/AdoptionRequest.js';
 import Customer from '../customer/models/Customer.js';
+import Branch from '../branch/models/Branch.js';
 import SystemSetting from '../settings/models/SystemSetting.js';
 import AppError from '../../utils/AppError.js';
 
@@ -28,9 +29,21 @@ const slugify = (text) => {
 const getManagerAssignedBranchIds = (actor) =>
   (actor?.assignedBranchIds || actor?.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
 
-const assertRescueBranchScope = (actor, targetBranchId) => {
-  if (!actor || actor.systemRole !== 'MANAGER' || !targetBranchId) return;
-  const branchStr = (targetBranchId?._id || targetBranchId).toString();
+const assertRescueBranchScope = (actor, targetBranchId, { requireBranchOnTarget = false } = {}) => {
+  if (!actor || actor.systemRole !== 'MANAGER') return;
+  const rawBranch = targetBranchId?._id || targetBranchId;
+  const branchStr = rawBranch !== undefined && rawBranch !== null ? String(rawBranch).trim() : '';
+  if (!branchStr) {
+    if (requireBranchOnTarget) {
+      throw new AppError(
+        403,
+        'Forbidden',
+        'BRANCH_SCOPE_ERROR',
+        'Rescue pet belongs to a branch outside your assigned branches'
+      );
+    }
+    return;
+  }
   const assigned = getManagerAssignedBranchIds(actor);
   if (!assigned.includes(branchStr)) {
     throw new AppError(
@@ -40,6 +53,59 @@ const assertRescueBranchScope = (actor, targetBranchId) => {
       'Rescue pet belongs to a branch outside your assigned branches'
     );
   }
+};
+
+const resolveAndValidateRescueBranch = async (rawBranchId, actor, { requireForManager = true } = {}) => {
+  const rawVal = rawBranchId?._id || rawBranchId;
+  const branchStr = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+
+  if (actor && actor.systemRole === 'MANAGER' && requireForManager && !branchStr) {
+    throw new AppError(
+      400,
+      'Validation Error',
+      'VALIDATION_ERROR',
+      'Thiếu thông tin chi nhánh bắt buộc (branchId is required for Manager)'
+    );
+  }
+
+  if (!branchStr) {
+    return null;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(branchStr)) {
+    throw new AppError(
+      400,
+      'Validation Error',
+      'VALIDATION_ERROR',
+      'Mã chi nhánh (branchId) không hợp lệ'
+    );
+  }
+
+  if (actor && actor.systemRole === 'MANAGER') {
+    assertRescueBranchScope(actor, branchStr, { requireBranchOnTarget: true });
+  }
+
+  if (mongoose.connection.readyState === 1 || Branch.findById?._isMockFunction) {
+    const branchDoc = await Branch.findById(branchStr);
+    if (!branchDoc) {
+      throw new AppError(
+        404,
+        'Not Found',
+        'NOT_FOUND',
+        'Chi nhánh không tồn tại (Branch not found)'
+      );
+    }
+    if (branchDoc.status && branchDoc.status !== 'ACTIVE') {
+      throw new AppError(
+        422,
+        'UnprocessableEntity',
+        'VALIDATION_ERROR',
+        'Chi nhánh đang ngưng hoạt động, không thể gán hồ sơ cứu trợ'
+      );
+    }
+  }
+
+  return branchStr;
 };
 
 /**
@@ -1042,17 +1108,27 @@ export const contentService = {
       ownershipType,
     } = data;
 
+    const validatedBranchId = await resolveAndValidateRescueBranch(branchId, actor, {
+      requireForManager: true,
+    });
+
     if (!petName || !species || !healthStatus || !rescueStory) {
-      throw new AppError(400, 'Thiếu thông tin bắt buộc của thú cưng cứu hộ (petName, species, healthStatus, rescueStory)', 'VALIDATION_ERROR');
+      throw new AppError(
+        400,
+        'Validation Error',
+        'VALIDATION_ERROR',
+        'Thiếu thông tin bắt buộc của thú cưng cứu hộ (petName, species, healthStatus, rescueStory)'
+      );
     }
 
     // BE-FIX-08: Strictly require images - NO fake Unsplash fallback
     if (!images || !Array.isArray(images) || images.length === 0 || !images[0]) {
-      throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
-    }
-
-    if (branchId) {
-      assertRescueBranchScope(actor, branchId);
+      throw new AppError(
+        400,
+        'Validation Error',
+        'VALIDATION_ERROR',
+        'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)'
+      );
     }
 
     // Resolve supportPartner details if provided
@@ -1091,7 +1167,7 @@ export const contentService = {
       ownershipType: ownershipType || 'PARTNER_MAINTAINED',
       images,
       status: 'LOOKING_FOR_HOME',
-      branchId: branchId || null,
+      branchId: validatedBranchId || null,
     });
 
     return rescuePet;
@@ -1146,7 +1222,7 @@ export const contentService = {
     };
     const pet = await RescuePet.findOne(query).populate('branchId', 'name address hotline');
     if (!pet) {
-      throw new AppError(404, 'Không tìm thấy hồ sơ thú cưng cứu hộ', 'NOT_FOUND');
+      throw new AppError(404, 'Not Found', 'NOT_FOUND', 'Không tìm thấy hồ sơ thú cưng cứu hộ');
     }
     assertRescueBranchScope(actor, pet.branchId);
     return pet;
@@ -1154,12 +1230,18 @@ export const contentService = {
 
   async updateRescuePet(id, data, actor = null) {
     const pet = await this.getRescuePetById(id, actor);
-    if (data.branchId !== undefined && data.branchId !== null) {
-      assertRescueBranchScope(actor, data.branchId);
+    assertRescueBranchScope(actor, pet.branchId, { requireBranchOnTarget: true });
+
+    let validatedBranchId = undefined;
+    if (data.branchId !== undefined) {
+      validatedBranchId = await resolveAndValidateRescueBranch(data.branchId, actor, {
+        requireForManager: true,
+      });
     }
+
     const updatable = [
       'petName', 'species', 'breed', 'gender', 'ageDescription', 'healthStatus',
-      'rescueStory', 'branchId', 'supportNeeds', 'supportPartnerId',
+      'rescueStory', 'supportNeeds', 'supportPartnerId',
       'supportPartnerName', 'ownershipType'
     ];
     updatable.forEach((field) => {
@@ -1167,10 +1249,18 @@ export const contentService = {
         pet[field] = data[field];
       }
     });
+    if (validatedBranchId !== undefined) {
+      pet.branchId = validatedBranchId;
+    }
 
     if (data.images !== undefined) {
       if (!Array.isArray(data.images) || data.images.length === 0 || !data.images[0]) {
-        throw new AppError(400, 'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)', 'VALIDATION_ERROR');
+        throw new AppError(
+          400,
+          'Validation Error',
+          'VALIDATION_ERROR',
+          'Ảnh thú cưng cứu hộ là bắt buộc, không được để trống (images is required)'
+        );
       }
       pet.images = data.images;
     }
@@ -1187,7 +1277,12 @@ export const contentService = {
 
     if (data.status) {
       if (!['LOOKING_FOR_HOME', 'ADOPTED'].includes(data.status)) {
-        throw new AppError(400, 'Trạng thái thú cưng phải là LOOKING_FOR_HOME hoặc ADOPTED', 'VALIDATION_ERROR');
+        throw new AppError(
+          400,
+          'Validation Error',
+          'VALIDATION_ERROR',
+          'Trạng thái thú cưng phải là LOOKING_FOR_HOME hoặc ADOPTED'
+        );
       }
       pet.status = data.status;
       if (data.status === 'ADOPTED') {
@@ -1205,6 +1300,7 @@ export const contentService = {
 
   async deleteRescuePet(id, actor = null) {
     const pet = await this.getRescuePetById(id, actor);
+    assertRescueBranchScope(actor, pet.branchId, { requireBranchOnTarget: true });
     await RescuePet.deleteOne({ _id: pet._id });
     return { success: true, message: 'Đã xóa hồ sơ thú cưng cứu hộ' };
   },
@@ -1304,11 +1400,11 @@ export const contentService = {
       const assigned = getManagerAssignedBranchIds(actor);
       if (rescuePetId) {
         const targetPet = await RescuePet.findById(rescuePetId).select('branchId');
-        if (targetPet) assertRescueBranchScope(actor, targetPet.branchId);
+        if (targetPet) assertRescueBranchScope(actor, targetPet.branchId, { requireBranchOnTarget: true });
         query.rescuePetId = rescuePetId;
       } else {
         const allowedPets = await RescuePet.find({
-          $or: [{ branchId: { $in: assigned } }, { branchId: null }],
+          branchId: { $in: assigned },
         }).select('_id');
         query.rescuePetId = { $in: allowedPets.map((p) => p._id) };
       }
@@ -1339,12 +1435,17 @@ export const contentService = {
 
   async reviewAdoptionRequest(id, { status, reviewNote }, reviewerOrActor) {
     if (!['APPROVED', 'REJECTED'].includes(status)) {
-      throw new AppError(400, 'Trạng thái xét duyệt phải là APPROVED hoặc REJECTED', 'VALIDATION_ERROR');
+      throw new AppError(
+        400,
+        'Validation Error',
+        'VALIDATION_ERROR',
+        'Trạng thái xét duyệt phải là APPROVED hoặc REJECTED'
+      );
     }
 
     const request = await AdoptionRequest.findById(id);
     if (!request) {
-      throw new AppError(404, 'Không tìm thấy đơn đăng ký nhận nuôi', 'NOT_FOUND');
+      throw new AppError(404, 'Not Found', 'NOT_FOUND', 'Không tìm thấy đơn đăng ký nhận nuôi');
     }
 
     const actor = typeof reviewerOrActor === 'object' && reviewerOrActor !== null && reviewerOrActor.systemRole
@@ -1354,7 +1455,7 @@ export const contentService = {
 
     if (actor && actor.systemRole === 'MANAGER' && request.rescuePetId) {
       const pet = await RescuePet.findById(request.rescuePetId).select('branchId');
-      if (pet) assertRescueBranchScope(actor, pet.branchId);
+      if (pet) assertRescueBranchScope(actor, pet.branchId, { requireBranchOnTarget: true });
     }
 
     request.status = status;

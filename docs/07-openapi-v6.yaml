@@ -2323,7 +2323,13 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/ObjectId'
-      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          minLength: 8
+          maxLength: 128
       responses:
         '400':
           $ref: '#/components/responses/ValidationError'
@@ -2349,20 +2355,20 @@ paths:
         - CARE_STAFF_GROOMER
         - NURSE
         - VETERINARIAN
-        scope: actor thuoc assignedStaffId cua segment; segment.requiredStaffRole == actor.staffSubRole; branch scope 
+        scope: segment phai co assignedStaffId hop le & ACTIVE (422 STAFF_UNAVAILABLE / STAFF_ROLE_MISMATCH / ASSIGNMENT_SCOPE_ERROR); actor thuoc assignedStaffId cua segment (403 ASSIGNMENT_SCOPE_ERROR); segment.requiredStaffRole == actor.staffSubRole; branch scope 
           theo Appointment.branchId
-        stateTransition: 'segment NOT_STARTED->IN_PROGRESS; first segment: CONFIRMED->IN_PROGRESS; later segment: IN_PROGRESS->IN_PROGRESS'
+        stateTransition: 'Yeu cau checkInStatus == ARRIVED (409 INVALID_STATE_TRANSITION); segment NOT_STARTED->IN_PROGRESS; first segment: CONFIRMED->IN_PROGRESS; later segment: IN_PROGRESS->IN_PROGRESS (previous segment COMPLETED)'
         audit: appointment.start
         sideEffects: Chi start segment khi den thoi gian segment, previous segment da COMPLETED neu co. Appointment 
           status doi sang IN_PROGRESS o segment dau; cap nhat services[].executionStatus/StartedAt; ServiceRecord 
           tao/giu encounter aggregate.
-        idempotency: Idempotency-Key required; same key+same body returns original result; same key+different body -> 
+        idempotency: Idempotency-Key optional/supported; same key+same body returns original result; same key+different body -> 
           409 IDEMPOTENCY_KEY_REUSED
         resolver: Appointment
       x-audience:
       - admin
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -11956,9 +11962,6 @@ components:
           type: integer
           minimum: 0
       additionalProperties: false
-      required:
-      - expectedVersion
-      - serviceId
     ServiceSegmentActionRequest:
       type: object
       properties:
