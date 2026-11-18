@@ -37,6 +37,9 @@ router.post(['/lookup/otp', '/lookup/request-otp', '/otp', '/request-otp', '/sen
         message: result.message || 'OTP sent successfully',
         challengeId: result.challengeId,
         expiresIn: result.expiresIn,
+        brandName: result.brandName || 'DRPETSHOUSE',
+        channels: result.channels || ['SMS_BRANDNAME'],
+        sentTo: result.sentTo,
         ...(result.debugOtp ? { debugOtp: result.debugOtp, otp: result.otp } : {}),
       });
     } else {

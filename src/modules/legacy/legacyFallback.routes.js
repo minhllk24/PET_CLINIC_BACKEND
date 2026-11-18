@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { optionalAuth } from '../../shared/authMiddleware.js';
 import Pet from '../customer/models/Pet.js';
+import { resolvePet } from '../customer/pet.routes.js';
 import Customer from '../customer/models/Customer.js';
 import User from '../../models/User.js';
 import * as authService from '../auth/auth.service.js';
@@ -485,18 +486,7 @@ function formatMedicalRecordResponse(record) {
 router.get('/medical-records/pet/:petId', optionalAuth, async (req, res, next) => {
   try {
     const rawPetId = String(req.params.petId).trim();
-    let pet = null;
-    if (mongoose.Types.ObjectId.isValid(rawPetId)) {
-      pet = await Pet.findById(rawPetId);
-    }
-    if (!pet) {
-      pet = await Pet.findOne({
-        $or: [
-          { name: new RegExp(`^${rawPetId}$`, 'i') },
-          { name: new RegExp(`^${rawPetId.replace(/-/g, ' ')}$`, 'i') }
-        ]
-      });
-    }
+    const pet = await resolvePet(rawPetId);
 
     const petObjectId = pet ? pet._id : (mongoose.Types.ObjectId.isValid(rawPetId) ? new mongoose.Types.ObjectId(rawPetId) : null);
     let records = [];
@@ -504,23 +494,26 @@ router.get('/medical-records/pet/:petId', optionalAuth, async (req, res, next) =
       records = await MedicalRecord.find({ petId: petObjectId }).sort({ visitDate: -1, createdAt: -1 });
     }
 
-    if (records.length === 0 && pet && Array.isArray(pet.medicalRecords) && pet.medicalRecords.length > 0) {
-      const formatted = pet.medicalRecords.map((r, idx) => formatMedicalRecordResponse({
+    const existingIds = new Set(records.map((r) => r._id.toString()));
+    const embeddedRecords = (pet?.medicalRecords || [])
+      .filter((er) => er._id && !existingIds.has(er._id.toString()))
+      .map((r, idx) => formatMedicalRecordResponse({
         _id: r._id || `${pet._id}_med_${idx}`,
         petId: pet._id,
         condition: r.condition || r.recordName || 'Khám tổng quát',
-        doctorName: r.doctorName || pet.doctorName || 'Bác sĩ phụ trách',
+        doctorName: r.doctorName || r.doctor || pet.doctorName || 'Bác sĩ phụ trách',
         visitDate: r.visitDate || r.examinationDate || r.createdAt,
         notes: r.notes || r.treatmentNote || '',
-        fileUrl: r.fileUrl,
-        fileName: r.fileName,
-        attachments: r.attachments,
-        createdAt: r.createdAt,
+        treatmentNote: r.treatmentNote || r.notes || '',
+        symptoms: r.symptoms || '',
+        diagnosis: r.diagnosis || '',
+        fileUrl: r.fileUrl || (r.attachments && r.attachments[0]?.fileUrl) || '',
+        fileName: r.fileName || (r.attachments && r.attachments[0]?.fileName) || '',
+        attachments: r.attachments || [],
+        createdAt: r.createdAt || new Date(),
       }));
-      return res.status(200).json({ success: true, data: formatted, EC: 0, EM: 'Success', DT: formatted });
-    }
 
-    const formatted = records.map(formatMedicalRecordResponse);
+    const formatted = [...records.map(formatMedicalRecordResponse), ...embeddedRecords];
     return res.status(200).json({ success: true, data: formatted, EC: 0, EM: 'Success', DT: formatted });
   } catch (err) {
     next(err);
@@ -535,18 +528,7 @@ router.post('/medical-records', optionalAuth, (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const rawPetId = req.body.petId || req.body.pet_id;
-    let pet = null;
-    if (rawPetId && mongoose.Types.ObjectId.isValid(rawPetId)) {
-      pet = await Pet.findById(rawPetId);
-    }
-    if (!pet && rawPetId) {
-      pet = await Pet.findOne({
-        $or: [
-          { name: new RegExp(`^${String(rawPetId).trim()}$`, 'i') },
-          { name: new RegExp(`^${String(rawPetId).trim().replace(/-/g, ' ')}$`, 'i') }
-        ]
-      });
-    }
+    const pet = await resolvePet(rawPetId);
 
     const petObjectId = pet ? pet._id : (rawPetId && mongoose.Types.ObjectId.isValid(rawPetId) ? new mongoose.Types.ObjectId(rawPetId) : new mongoose.Types.ObjectId());
 
