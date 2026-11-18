@@ -758,7 +758,7 @@ app.use(
       if (path.includes('/recommendations')) return true;
       if (path.includes('/ai/')) return true;
       if (path.includes('/medical-records') || path.includes('/health-diaries') || path.includes('/reminders')) return true;
-      if (path.includes('/forgot-password') || path.includes('/verify-otp') || path.includes('/reset-password') || path.includes('/sms-brandname') || path.includes('/brandname-sms') || path.includes('/resend-otp')) return true;
+      if (path.includes('/register') || path.includes('/forgot-password') || path.includes('/verify-otp') || path.includes('/reset-password') || path.includes('/sms-brandname') || path.includes('/brandname-sms') || path.includes('/resend-otp')) return true;
       return false;
     },
     validateSecurity: {

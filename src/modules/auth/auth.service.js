@@ -14,7 +14,7 @@ import { generateOpaqueToken, hashToken } from '../../utils/tokenHelpers.js';
 import { recordAuditLog } from '../../utils/auditLogger.js';
 import { sendOtpEmail } from '../../utils/emailHelpers.js';
 import { dispatchDualChannelOtp } from '../../services/otpDispatcher.service.js';
-import { getLatestBrandnameSms, listRecentBrandnameSms } from '../../services/smsBrandname.service.js';
+import { getLatestBrandnameSms, listRecentBrandnameSms, normalizePhoneNumber } from '../../services/smsBrandname.service.js';
 import {
   ACCESS_TOKEN_EXPIRY,
   REFRESH_TOKEN_SHORT_TTL_MS,
@@ -30,12 +30,13 @@ import {
  * Register a new customer
  */
 export const register = async ({ phone, fullName, email, password, confirmPassword }, meta = {}) => {
-  if (!password || !confirmPassword) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Password and confirmPassword are required');
+  if (!password) {
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Mật khẩu là bắt buộc');
   }
 
-  if (password !== confirmPassword) {
-    throw new AppError(400, 'Bad Request', 'PASSWORD_MISMATCH', 'Passwords do not match');
+  const effectiveConfirmPassword = confirmPassword || password;
+  if (password !== effectiveConfirmPassword) {
+    throw new AppError(400, 'Bad Request', 'PASSWORD_MISMATCH', 'Mật khẩu xác nhận không trùng khớp');
   }
 
   if (!validatePasswordPolicy(password)) {
@@ -43,26 +44,30 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
       400,
       'Bad Request',
       'PASSWORD_TOO_WEAK',
-      'Password must be at least 8 characters long and contain at least one uppercase letter and one digit'
+      'Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất một chữ hoa và một chữ số'
     );
   }
 
-  // Validate phone format
-  if (!phone || !/^0[0-9]{9}$/.test(phone)) {
-    throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Phone must be a valid 10-digit Vietnamese number');
+  // Normalize phone format (+84968657205, 84968657205 -> 0968657205)
+  const { local: cleanPhone } = normalizePhoneNumber(phone);
+  const targetPhone = cleanPhone || String(phone || '').replace(/\D/g, '');
+
+  if (!targetPhone || !/^0[0-9]{9}$/.test(targetPhone)) {
+    throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Số điện thoại phải là số điện thoại Việt Nam hợp lệ gồm 10 chữ số (VD: 0987654321 hoặc +84987654321)');
   }
 
   // Check phone uniqueness
-  const existingPhone = await User.findOne({ phone });
+  const existingPhone = await User.findOne({ phone: targetPhone });
   if (existingPhone) {
-    throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'This phone number is already registered');
+    throw new AppError(409, 'Conflict', 'PHONE_ALREADY_EXISTS', 'Số điện thoại này đã được đăng ký tài khoản');
   }
 
   // Check email uniqueness if email provided
-  if (email) {
-    const existingEmail = await User.findOne({ email: email.toLowerCase().trim() });
+  const cleanEmail = email ? email.toLowerCase().trim() : null;
+  if (cleanEmail) {
+    const existingEmail = await User.findOne({ email: cleanEmail });
     if (existingEmail) {
-      throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'This email is already registered');
+      throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Địa chỉ email này đã được đăng ký tài khoản');
     }
   }
 
@@ -71,9 +76,9 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
 
   // Create user with strict default privileges
   const user = await User.create({
-    phone,
-    fullName: fullName.trim(),
-    email: email ? email.toLowerCase().trim() : null,
+    phone: targetPhone,
+    fullName: (fullName || 'Khách hàng').trim(),
+    email: cleanEmail,
     passwordHash,
     systemRole: 'CUSTOMER',
     accountStatus: 'PENDING_ACTIVATION',
@@ -85,8 +90,7 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
   const rawOtp = generateOtpCode();
   const hashedOtp = hashOtp(rawOtp);
 
-  const cleanEmail = email ? email.toLowerCase().trim() : null;
-  const identifiersToSet = [phone];
+  const identifiersToSet = [targetPhone];
   if (cleanEmail) identifiersToSet.push(cleanEmail);
 
   await OtpChallenge.deleteMany({ identifier: { $in: identifiersToSet }, purpose: 'REGISTER' });
@@ -105,7 +109,7 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
   let dispatchResult = null;
   try {
     dispatchResult = await dispatchDualChannelOtp({
-      phone,
+      phone: targetPhone,
       email: cleanEmail,
       otp: rawOtp,
       purpose: 'REGISTER',
@@ -125,10 +129,10 @@ export const register = async ({ phone, fullName, email, password, confirmPasswo
 
   return {
     message: 'Mã xác thực OTP đã được gửi qua SMS BrandName [DRPETSHOUSE] và Email',
-    identifier: phone,
+    identifier: targetPhone,
     channels: dispatchResult?.channels || ['SMS_BRANDNAME', ...(cleanEmail ? ['EMAIL'] : [])],
     brandName: dispatchResult?.brandName || 'DRPETSHOUSE',
-    sentTo: dispatchResult?.sentTo || { phone, email: cleanEmail },
+    sentTo: dispatchResult?.sentTo || { phone: targetPhone, email: cleanEmail },
     ...(config.env !== 'production' ? { debugOtp: rawOtp } : {}),
   };
 };
@@ -428,24 +432,33 @@ export const logout = async (rawToken, actor = null, meta = {}) => {
  * Verify OTP for registration or password reset
  */
 export const verifyOtpCode = async (payload = {}, meta = {}) => {
-  const identifier = String(payload.identifier || payload.email || payload.phone || payload.account || '').trim();
+  const rawId = payload.identifier || payload.loginId || payload.login_id || payload.email || payload.phone || payload.account || '';
+  const identifier = String(rawId).trim();
   const otpCode = String(payload.otpCode || payload.otp_code || payload.otp || '').trim();
-  const purpose = payload.purpose || 'FORGOT_PASSWORD';
+  const purpose = payload.purpose || (payload.login_id || payload.loginId ? 'REGISTER' : 'FORGOT_PASSWORD');
 
   if (!identifier || !otpCode) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and otpCode are required');
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Vui lòng cung cấp thông tin tài khoản và mã OTP');
   }
 
-  const cleanIdentifier = identifier.toLowerCase().trim();
-  const challenge = await OtpChallenge.findOne({ identifier: cleanIdentifier, purpose });
+  const { local: cleanPhone } = normalizePhoneNumber(identifier);
+  const cleanIdentifier = identifier.includes('@') ? identifier.toLowerCase().trim() : (cleanPhone || identifier.toLowerCase().trim());
+
+  const challenge = await OtpChallenge.findOne({
+    $or: [
+      { identifier: cleanIdentifier, purpose },
+      { identifier: identifier.toLowerCase().trim(), purpose },
+      { identifier: cleanIdentifier },
+    ],
+  }).sort({ createdAt: -1 });
 
   if (!challenge) {
-    throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'No pending OTP challenge found');
+    throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Mã xác nhận OTP không đúng hoặc không tìm thấy yêu cầu xác thực');
   }
 
   if (challenge.expiresAt <= new Date()) {
     await OtpChallenge.deleteOne({ _id: challenge._id });
-    throw new AppError(400, 'Bad Request', 'OTP_EXPIRED', 'OTP code has expired. Please request a new one.');
+    throw new AppError(400, 'Bad Request', 'OTP_EXPIRED', 'Mã OTP đã hết hạn hiệu lực. Vui lòng gửi lại mã mới.');
   }
 
   if (challenge.attemptCount >= MAX_OTP_ATTEMPTS) {
@@ -453,7 +466,7 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
       429,
       'Too Many Requests',
       'MAX_OTP_ATTEMPTS_EXCEEDED',
-      'Maximum verification attempts exceeded. Please request a new OTP.'
+      'Bạn đã thử sai quá số lần cho phép. Vui lòng bấm gửi lại mã OTP mới.'
     );
   }
 
@@ -462,7 +475,7 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
   if (!isValid) {
     challenge.attemptCount += 1;
     await challenge.save();
-    throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Invalid OTP code');
+    throw new AppError(400, 'Bad Request', 'INVALID_OTP', 'Mã xác nhận OTP không chính xác. Vui lòng kiểm tra lại.');
   }
 
   // OTP is valid - consume challenge
@@ -647,7 +660,7 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
       404,
       'Not Found',
       'USER_NOT_FOUND',
-      `Tài khoản với ${cleanIdentifier.includes('@') ? 'email' : 'số điện thoại'} "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại hoặc dùng tài khoản thử nghiệm: 0905555555.`
+      `Tài khoản với ${cleanIdentifier.includes('@') ? 'email' : 'số điện thoại'} "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại.`
     );
   }
 
