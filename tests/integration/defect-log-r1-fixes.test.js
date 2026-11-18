@@ -642,16 +642,19 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(formatted.items[1].restockedQty).toBe(1);
     });
 
-    it('QA-R1-20 / QA-R1-23: applyServiceRecordDelta emits ISSUE on initial & ADJUSTMENT on reopen; updateMaterials tracks actor', async () => {
+    it('QA-R1-20 / QA-R1-23: applyServiceRecordDelta emits ISSUE on delta > 0 (initial & reopen) and ADJUSTMENT on delta < 0; updateMaterials tracks actor', async () => {
       const itemA = new mongoose.Types.ObjectId();
       const itemB = new mongoose.Types.ObjectId();
+      const itemC = new mongoose.Types.ObjectId();
       jest.spyOn(InventoryTransaction, 'findOne').mockReturnValue(makeChainQuery(null));
       jest.spyOn(InventoryStock, 'findOne')
         .mockReturnValueOnce(makeChainQuery({ _id: new mongoose.Types.ObjectId(), quantity: 11, version: 1 }))
-        .mockReturnValueOnce(makeChainQuery({ _id: new mongoose.Types.ObjectId(), quantity: 10, version: 1 }));
+        .mockReturnValueOnce(makeChainQuery({ _id: new mongoose.Types.ObjectId(), quantity: 10, version: 1 }))
+        .mockReturnValueOnce(makeChainQuery({ _id: new mongoose.Types.ObjectId(), quantity: 17, version: 1 }));
       jest.spyOn(InventoryStock, 'findOneAndUpdate')
         .mockResolvedValueOnce({ quantityOnHand: 9 })
-        .mockResolvedValueOnce({ quantityOnHand: 11 });
+        .mockResolvedValueOnce({ quantityOnHand: 11 })
+        .mockResolvedValueOnce({ quantityOnHand: 15 });
       const txSpy = jest.spyOn(InventoryTransaction, 'create').mockImplementation(async (docs) => docs);
 
       await inventoryService.applyServiceRecordDelta({
@@ -674,11 +677,23 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
         ],
       });
 
+      await inventoryService.applyServiceRecordDelta({
+        serviceRecordId: new mongoose.Types.ObjectId(),
+        serviceRecordCode: 'SR-01',
+        recordVersion: 2,
+        branchId: branch1Id,
+        deltas: [
+          { inventoryItemId: itemC, delta: 2 },
+        ],
+      });
+
       const createdDocs = txSpy.mock.calls.flatMap((c) => (Array.isArray(c[0]) ? c[0] : [c[0]]));
       expect(createdDocs[0].transactionType).toBe('ISSUE');
       expect(createdDocs[0].changeQty).toBe(-2);
       expect(createdDocs[1].transactionType).toBe('ADJUSTMENT');
       expect(createdDocs[1].changeQty).toBe(1);
+      expect(createdDocs[2].transactionType).toBe('ISSUE');
+      expect(createdDocs[2].changeQty).toBe(-2);
 
       const recDoc = {
         _id: new mongoose.Types.ObjectId(),

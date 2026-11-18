@@ -925,7 +925,7 @@ export const applyServiceRecordDelta = async ({
 
   const groups = [];
   if (positiveLines.length > 0) {
-    groups.push({ type: isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT', items: positiveLines });
+    groups.push({ type: 'ISSUE', items: positiveLines });
   }
   if (negativeLines.length > 0) {
     groups.push({ type: isInitialFinalize ? 'ISSUE' : 'ADJUSTMENT', items: negativeLines });
