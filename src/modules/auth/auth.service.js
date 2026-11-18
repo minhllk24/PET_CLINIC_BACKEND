@@ -616,6 +616,15 @@ export const forgotPassword = async (payload = {}, meta = {}) => {
     $or: [{ phone: cleanIdentifier }, { email: cleanIdentifier }],
   });
 
+  if (!user && config.env !== 'production') {
+    throw new AppError(
+      404,
+      'Not Found',
+      'USER_NOT_FOUND',
+      `Tài khoản với ${cleanIdentifier.includes('@') ? 'email' : 'số điện thoại'} "${identifier}" chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại hoặc dùng tài khoản thử nghiệm: 0905555555.`
+    );
+  }
+
   let rawOtp = null;
   if (user && user.accountStatus === 'ACTIVE') {
     rawOtp = generateOtpCode();
