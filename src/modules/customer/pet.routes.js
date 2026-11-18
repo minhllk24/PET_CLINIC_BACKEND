@@ -179,19 +179,38 @@ export const createPetHandler = async (req, res, next) => {
 
 export const resolvePet = async (paramId) => {
   if (!paramId) return null;
-  if (mongoose.Types.ObjectId.isValid(paramId)) {
-    const pet = await Pet.findById(paramId);
+  const clean = String(paramId).trim();
+  if (mongoose.Types.ObjectId.isValid(clean)) {
+    const pet = await Pet.findById(clean);
     if (pet) return pet;
   }
-  const clean = String(paramId).trim();
-  const searchName = clean.replace(/-/g, ' ');
-  return await Pet.findOne({
-    $or: [
-      { name: new RegExp(`^${clean}$`, 'i') },
-      { name: new RegExp(`^${searchName}$`, 'i') },
-      { breed: new RegExp(`^${clean}$`, 'i') },
-    ]
-  });
+
+  // Check if it's a slug with shortId: e.g. "luna-18d", "corgi-vang-792"
+  const slugParts = clean.split('-');
+  const shortId = slugParts.length > 1 ? slugParts[slugParts.length - 1] : null;
+  const nameFromSlug = slugParts.length > 1 ? slugParts.slice(0, -1).join(' ') : clean;
+
+  const conditions = [
+    { name: new RegExp(`^${clean}$`, 'i') },
+    { name: new RegExp(`^${clean.replace(/-/g, ' ')}$`, 'i') },
+    { breed: new RegExp(`^${clean}$`, 'i') },
+  ];
+
+  if (nameFromSlug) {
+    conditions.push({ name: new RegExp(`^${nameFromSlug}$`, 'i') });
+  }
+
+  let pet = await Pet.findOne({ $or: conditions });
+  if (pet) return pet;
+
+  // If shortId exists (e.g. 18d, 792), search pets and match ObjectId suffix
+  if (shortId && /^[0-9a-fA-F]{3,8}$/.test(shortId)) {
+    const allPets = await Pet.find({});
+    const matched = allPets.find((p) => p._id.toString().toLowerCase().endsWith(shortId.toLowerCase()));
+    if (matched) return matched;
+  }
+
+  return null;
 };
 
 export const getPetHandler = async (req, res, next) => {

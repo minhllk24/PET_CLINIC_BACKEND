@@ -758,6 +758,7 @@ app.use(
       if (path.includes('/recommendations')) return true;
       if (path.includes('/ai/')) return true;
       if (path.includes('/medical-records') || path.includes('/health-diaries') || path.includes('/reminders')) return true;
+      if (path.includes('/forgot-password') || path.includes('/verify-otp') || path.includes('/reset-password')) return true;
       return false;
     },
     validateSecurity: {

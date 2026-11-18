@@ -416,9 +416,13 @@ export const logout = async (rawToken, actor = null, meta = {}) => {
 /**
  * Verify OTP for registration or password reset
  */
-export const verifyOtpCode = async ({ identifier, otpCode, purpose }, meta = {}) => {
-  if (!identifier || !otpCode || !purpose) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier, otpCode, and purpose are required');
+export const verifyOtpCode = async (payload = {}, meta = {}) => {
+  const identifier = String(payload.identifier || payload.email || payload.phone || payload.account || '').trim();
+  const otpCode = String(payload.otpCode || payload.otp_code || payload.otp || '').trim();
+  const purpose = payload.purpose || 'FORGOT_PASSWORD';
+
+  if (!identifier || !otpCode) {
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and otpCode are required');
   }
 
   const cleanIdentifier = identifier.toLowerCase().trim();
@@ -600,7 +604,9 @@ export const resendOtp = async ({ identifier, purpose }, meta = {}) => {
 /**
  * Request password reset OTP (Anti-enumeration: always returns 200)
  */
-export const forgotPassword = async ({ identifier }, meta = {}) => {
+export const forgotPassword = async (payload = {}, meta = {}) => {
+  const rawId = payload.identifier || payload.email || payload.phone || payload.account || '';
+  const identifier = String(rawId).trim();
   if (!identifier) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier is required');
   }
@@ -659,9 +665,13 @@ export const forgotPassword = async ({ identifier }, meta = {}) => {
 /**
  * Reset password using valid resetToken
  */
-export const resetPassword = async ({ resetToken, newPassword, confirmPassword }, meta = {}) => {
-  if (!resetToken || !newPassword || !confirmPassword) {
-    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'All fields are required');
+export const resetPassword = async (payload = {}, meta = {}) => {
+  const resetToken = payload.resetToken || payload.reset_token || payload.token;
+  const newPassword = payload.newPassword || payload.new_password;
+  const confirmPassword = payload.confirmPassword || payload.confirm_password || newPassword;
+
+  if (!resetToken || !newPassword) {
+    throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'resetToken and newPassword are required');
   }
 
   if (newPassword !== confirmPassword) {
