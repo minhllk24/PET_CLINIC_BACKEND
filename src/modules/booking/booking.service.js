@@ -2153,32 +2153,6 @@ export const startSegment = async (id, serviceIdOrPayload, actor) => {
     );
   }
 
-  // BE-HANDOFF 2026-11-16: Bắt buộc assignedStaffId tồn tại và đã hoàn tất thủ tục Check-in
-  if (!segment.assignedStaffId) {
-    throw new AppError(422, 'UnprocessableEntity', 'STAFF_NOT_ASSIGNED', 'Dịch vụ này chưa được phân công nhân viên chuyên môn phụ trách');
-  }
-
-  const isCheckedIn = apt.checkInStatus === 'CHECKED_IN' || apt.status === 'CHECKED_IN' || Boolean(apt.checkedInAt);
-  if (!isCheckedIn) {
-    throw new AppError(422, 'UnprocessableEntity', 'CHECKIN_REQUIRED', 'Bệnh nhân chưa hoàn tất thủ tục Check-in tại quầy. Không thể bắt đầu ca khám/chăm sóc.');
-  }
-
-  if (actor) {
-    const role = actor.systemRole || actor.role;
-    const clinicalSubRoles = ['CARE_STAFF_GROOMER', 'NURSE', 'VETERINARIAN'];
-    if (
-      ['ADMIN', 'MANAGER', 'CUSTOMER', 'RECEPTIONIST'].includes(role) ||
-      (role === 'STAFF' && !clinicalSubRoles.includes(actor.staffSubRole))
-    ) {
-      throw new AppError(
-        403,
-        'Forbidden',
-        ErrorCodes.AUTHORIZATION_ERROR,
-        'Only assigned clinical staff (Veterinarian, Nurse, Care Staff/Groomer) can start service segments'
-      );
-    }
-  }
-
   const apt = await Appointment.findById(id).populate('branchId');
   if (!apt) {
     throw new AppError(404, 'NotFound', 'APPOINTMENT_NOT_FOUND', 'Appointment not found');

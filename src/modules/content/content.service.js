@@ -1328,7 +1328,6 @@ export const contentService = {
     } else if (branchId || validatedBranchId) {
       assertRescueBranchScope(actor, branchId || validatedBranchId);
     }
-    }
 
     // Resolve supportPartner details if provided
     let partnerName = supportPartnerName || null;
