@@ -76,8 +76,11 @@ export const getPostsPublic = async (req, res, next) => {
 export const getPostBySlugPublic = async (req, res, next) => {
   try {
     const post = await contentService.getPostBySlugPublic(req.params.slug);
-    res.status(200).json({ success: true, data: post });
+    res.status(200).json({ success: true, data: post, ...post });
   } catch (err) {
+    if (err.statusCode === 404 || err.code === 'NOT_FOUND') {
+      return next();
+    }
     next(err);
   }
 };
@@ -149,7 +152,8 @@ export const getCommunityPostsAdmin = async (req, res, next) => {
 export const moderateCommunityPost = async (req, res, next) => {
   try {
     const post = await contentService.moderateCommunityPost(req.params.id, req.body, req.actor?.id);
-    res.status(200).json({ success: true, data: post });
+    const postObj = post.toObject ? post.toObject() : post;
+    res.status(200).json({ success: true, data: postObj, ...postObj });
   } catch (err) {
     next(err);
   }
@@ -167,7 +171,7 @@ export const deleteCommunityPost = async (req, res, next) => {
 export const getCommunityPostsPublic = async (req, res, next) => {
   try {
     const data = await contentService.getCommunityPostsPublic(req.query);
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data, ...data });
   } catch (err) {
     next(err);
   }
@@ -283,7 +287,8 @@ export const getMyAdoptionRequests = async (req, res, next) => {
 export const addCommunityComment = async (req, res, next) => {
   try {
     const comment = await contentService.addCommunityComment(req.params.id, req.body, req.actor);
-    res.status(201).json({ success: true, data: comment });
+    const commentObj = comment.toObject ? comment.toObject() : comment;
+    res.status(201).json({ success: true, data: commentObj, ...commentObj });
   } catch (err) {
     next(err);
   }
@@ -293,7 +298,8 @@ export const addCommentReply = async (req, res, next) => {
   try {
     const commentId = req.params.id || req.params.commentId;
     const comment = await contentService.addCommentReply(commentId, req.body, req.actor);
-    res.status(201).json({ success: true, data: comment });
+    const commentObj = comment.toObject ? comment.toObject() : comment;
+    res.status(201).json({ success: true, data: commentObj, ...commentObj });
   } catch (err) {
     next(err);
   }
@@ -302,7 +308,7 @@ export const addCommentReply = async (req, res, next) => {
 export const getCommunityComments = async (req, res, next) => {
   try {
     const data = await contentService.getCommunityComments(req.params.id, req.query);
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data, ...data });
   } catch (err) {
     next(err);
   }
@@ -311,7 +317,7 @@ export const getCommunityComments = async (req, res, next) => {
 export const likeCommunityPost = async (req, res, next) => {
   try {
     const result = await contentService.likeCommunityPost(req.params.id, req.actor);
-    res.status(200).json({ success: true, data: result });
+    res.status(200).json({ success: true, data: result, ...result });
   } catch (err) {
     next(err);
   }
@@ -320,7 +326,7 @@ export const likeCommunityPost = async (req, res, next) => {
 export const unlikeCommunityPost = async (req, res, next) => {
   try {
     const result = await contentService.unlikeCommunityPost(req.params.id, req.actor);
-    res.status(200).json({ success: true, data: result });
+    res.status(200).json({ success: true, data: result, ...result });
   } catch (err) {
     next(err);
   }
@@ -329,7 +335,8 @@ export const unlikeCommunityPost = async (req, res, next) => {
 export const reportCommunityPost = async (req, res, next) => {
   try {
     const report = await contentService.reportCommunityPost(req.params.id, req.body, req.actor);
-    res.status(201).json({ success: true, data: report, message: 'Báo cáo vi phạm đã được gửi tới đội ngũ kiểm duyệt.' });
+    const reportObj = report.toObject ? report.toObject() : report;
+    res.status(201).json({ success: true, data: reportObj, ...reportObj, message: 'Báo cáo vi phạm đã được gửi tới đội ngũ kiểm duyệt.' });
   } catch (err) {
     next(err);
   }

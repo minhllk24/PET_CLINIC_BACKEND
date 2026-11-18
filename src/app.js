@@ -17,6 +17,7 @@ import staffRoutes from './modules/staff/staff.routes';
 import catalogRoutes from './modules/catalog/catalog.routes';
 import customerRoutes from './modules/customer/customer.routes';
 import petRoutes from './modules/customer/pet.routes';
+import medicalRecordRoutes, { healthDiaryRouter, reminderRouter } from './modules/customer/medicalRecord.routes';
 import guestRoutes, { activationRouter } from './modules/customer/guest.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import cartRoutes from './modules/cart/cart.routes';
@@ -615,6 +616,9 @@ app.use(async (req, res, next) => {
 
     // Reviews Ingress Normalizer
     if (req.path.endsWith('/reviews') && req.method === 'POST') {
+      if (!req.headers['idempotency-key']) {
+        req.headers['idempotency-key'] = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      }
       if (req.body.target_type && !req.body.targetType) {
         req.body.targetType = String(req.body.target_type).toUpperCase();
       }
@@ -753,6 +757,7 @@ app.use(
       if (path.includes('/care-plans') || path.includes('/care-plan')) return true;
       if (path.includes('/recommendations')) return true;
       if (path.includes('/ai/')) return true;
+      if (path.includes('/medical-records') || path.includes('/health-diaries') || path.includes('/reminders')) return true;
       return false;
     },
     validateSecurity: {
@@ -871,6 +876,12 @@ app.use('/api/v1', catalogRoutes);
 app.use('/api/v1/catalog', catalogRoutes);
 app.use('/api/v1/customers', customerRoutes);
 app.use('/api/v1/pets', petRoutes);
+app.use('/api/v1/medical-records', medicalRecordRoutes);
+app.use('/medical-records', medicalRecordRoutes);
+app.use('/api/v1/health-diaries', healthDiaryRouter);
+app.use('/health-diaries', healthDiaryRouter);
+app.use('/api/v1/reminders', reminderRouter);
+app.use('/reminders', reminderRouter);
 app.use('/api/v1/admin/customers', customerRoutes);
 app.use('/api/v1/guest', guestRoutes);
 app.use('/api/v1/activation', activationRouter);

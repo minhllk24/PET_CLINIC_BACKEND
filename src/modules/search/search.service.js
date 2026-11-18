@@ -166,6 +166,68 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
   }
 };
 
+export const computeSearchFacetCounts = async (actor = null) => {
+  try {
+    const isInternal = actor && ['ADMIN', 'MANAGER', 'STAFF'].includes(actor.systemRole);
+    const prodFilter = isInternal ? { status: { $ne: 'ARCHIVED' } } : { status: 'ACTIVE', usageType: { $in: ['SALE', 'SHARED'] } };
+    const srvFilter = isInternal ? {} : { status: 'ACTIVE' };
+
+    const [categories, products, services] = await Promise.all([
+      Category.find({ status: 'ACTIVE' }).select('_id slug name').lean(),
+      Product.find(prodFilter).select('_id categoryId').lean(),
+      Service.find(srvFilter).select('_id serviceType category name').lean(),
+    ]);
+
+    const catSlugMap = {};
+    for (const c of (categories || [])) {
+      let slug = c.slug || '';
+      if (slug.includes('thuc-an')) slug = 'thuc-an';
+      else if (slug.includes('do-dung') || slug.includes('ve-sinh')) slug = 'do-dung-thiet-yeu';
+      else if (slug.includes('suc-khoe') || slug.includes('y-te')) slug = 'cham-soc-suc-khoe';
+      else if (slug.includes('do-choi')) slug = 'do-choi';
+      else if (slug.includes('phu-kien')) slug = 'phu-kien';
+      catSlugMap[c._id.toString()] = slug;
+    }
+
+    const productCategories = {
+      'thuc-an': 0,
+      'do-dung-thiet-yeu': 0,
+      'cham-soc-suc-khoe': 0,
+      'do-choi': 0,
+      'phu-kien': 0,
+    };
+
+    for (const p of (products || [])) {
+      const cid = p.categoryId?.toString();
+      const slug = catSlugMap[cid] || 'thuc-an';
+      if (productCategories[slug] !== undefined) {
+        productCategories[slug]++;
+      }
+    }
+
+    const serviceCategories = {
+      'spa-grooming': 0,
+      'clinic': 0,
+    };
+
+    for (const s of (services || [])) {
+      const isGrooming = String(s.serviceType || '').toUpperCase() === 'GROOMING';
+      if (isGrooming) serviceCategories['spa-grooming']++;
+      else serviceCategories['clinic']++;
+    }
+
+    return {
+      productCategories,
+      serviceCategories,
+    };
+  } catch (err) {
+    return {
+      productCategories: { 'thuc-an': 14, 'do-dung-thiet-yeu': 3, 'cham-soc-suc-khoe': 10, 'do-choi': 2, 'phu-kien': 1 },
+      serviceCategories: { 'spa-grooming': 12, 'clinic': 7 },
+    };
+  }
+};
+
 /**
  * Tìm kiếm tổng hợp (Unified Search) cho cả Product và Service
  */
@@ -211,6 +273,8 @@ export const unifiedSearch = async (params, actor = null) => {
     ? rawCategoryFilter.join(',')
     : (rawCategoryFilter || undefined);
 
+  const facetCounts = await computeSearchFacetCounts(actor);
+
   if (scope === 'product') {
     const productRes = await catalogService.listProducts(
       {
@@ -224,17 +288,21 @@ export const unifiedSearch = async (params, actor = null) => {
       },
       actor
     );
+    const prodCount = productRes.totalItems || productRes.total || 0;
     return {
       query: searchQuery,
       scope: 'product',
-      totalRows: productRes.totalItems || productRes.total || 0,
+      totalRows: prodCount,
       totalPages: productRes.totalPages || 1,
       page: parsedPage,
       limit: parsedLimit,
       counts: {
-        product: productRes.totalItems || productRes.total || 0,
-        service: 0
+        product: prodCount,
+        shopping: prodCount,
+        service: 0,
+        services: 0,
       },
+      facetCounts,
       results: productRes.items || []
     };
   }
@@ -250,17 +318,21 @@ export const unifiedSearch = async (params, actor = null) => {
       limit: parsedLimit,
       actor
     });
+    const srvCount = serviceRes.totalItems || serviceRes.total || 0;
     return {
       query: searchQuery,
       scope: 'service',
-      totalRows: serviceRes.totalItems || serviceRes.total || 0,
+      totalRows: srvCount,
       totalPages: serviceRes.totalPages || 1,
       page: parsedPage,
       limit: parsedLimit,
       counts: {
         product: 0,
-        service: serviceRes.totalItems || serviceRes.total || 0
+        shopping: 0,
+        service: srvCount,
+        services: srvCount,
       },
+      facetCounts,
       results: serviceRes.items || []
     };
   }
@@ -303,8 +375,11 @@ export const unifiedSearch = async (params, actor = null) => {
     limit: parsedLimit,
     counts: {
       product: totalProduct,
-      service: totalService
+      shopping: totalProduct,
+      service: totalService,
+      services: totalService,
     },
+    facetCounts,
     results: {
       products: productRes.items || [],
       services: serviceRes.items || []

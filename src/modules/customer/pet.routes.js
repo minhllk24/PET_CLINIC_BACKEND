@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Pet from './models/Pet';
 import Customer from './models/Customer';
 import { optionalAuth, requireRole } from '../../shared/authMiddleware';
+import medicalRecordRoutes from './medicalRecord.routes';
 
 const router = express.Router();
 
@@ -24,15 +25,19 @@ export const resolveCustomerIds = async (rawId, actor) => {
   return [...new Set(ids)];
 };
 
-export const normalizePetStatus = (rawStatus, rawArchived) => {
+export const normalizePetStatus = (rawStatus, rawArchived, rawHidden) => {
   if (rawStatus !== undefined && rawStatus !== null) {
     const s = String(rawStatus).trim().toUpperCase();
-    if (s === 'HIDDEN' || s === 'ẨN' || s === 'INACTIVE' || s === 'ARCHIVED') {
+    if (s === 'HIDDEN' || s === 'ẨN' || s === 'AN' || s === 'INACTIVE' || s === 'ARCHIVED' || s === 'HIDE') {
       return { status: 'HIDDEN', isArchived: true };
     }
-    if (s === 'ACTIVE' || s === 'HOẠT ĐỘNG' || s === 'HOAT DONG') {
+    if (s === 'ACTIVE' || s === 'HOẠT ĐỘNG' || s === 'HOAT DONG' || s === 'SHOW') {
       return { status: 'ACTIVE', isArchived: false };
     }
+  }
+  if (rawHidden !== undefined && rawHidden !== null) {
+    const isHidden = Boolean(rawHidden);
+    return { status: isHidden ? 'HIDDEN' : 'ACTIVE', isArchived: isHidden };
   }
   if (rawArchived !== undefined && rawArchived !== null) {
     const isArchived = Boolean(rawArchived);
@@ -86,8 +91,13 @@ export const listPetsHandler = async (req, res, next) => {
 
     // Archiving & Status filter
     const statusQuery = req.query.status ? String(req.query.status).trim().toUpperCase() : null;
-    if (statusQuery === 'ALL' || req.query.includeArchived === 'true') {
-      // return all
+    if (statusQuery === 'ALL' || req.query.includeArchived === 'true' || targetCustomerIds.length > 0) {
+      if (statusQuery === 'HIDDEN' || statusQuery === 'ẨN' || req.query.isArchived === 'true' || req.query.archived === 'true') {
+        filter.$or = [{ status: 'HIDDEN' }, { isArchived: true }];
+      } else if (statusQuery === 'ACTIVE' || statusQuery === 'HOẠT ĐỘNG') {
+        filter.status = 'ACTIVE';
+        filter.isArchived = { $ne: true };
+      }
     } else if (statusQuery === 'HIDDEN' || statusQuery === 'ẨN' || req.query.isArchived === 'true' || req.query.archived === 'true') {
       filter.$or = [{ status: 'HIDDEN' }, { isArchived: true }];
     } else if (statusQuery === 'ACTIVE' || statusQuery === 'HOẠT ĐỘNG') {
@@ -219,10 +229,11 @@ export const updatePetHandler = async (req, res, next) => {
       ...(req.body.photoUrl || req.body.avatar || req.body.profile_image_url ? { photoUrl: req.body.photoUrl || req.body.avatar || req.body.profile_image_url } : {}),
     };
 
-    if (req.body.status !== undefined || req.body.isArchived !== undefined || req.body.archived !== undefined) {
+    if (req.body.status !== undefined || req.body.isArchived !== undefined || req.body.archived !== undefined || req.body.isHidden !== undefined || req.body.is_hidden !== undefined) {
       const statusInfo = normalizePetStatus(
         req.body.status,
-        req.body.isArchived !== undefined ? req.body.isArchived : req.body.archived
+        req.body.isArchived !== undefined ? req.body.isArchived : req.body.archived,
+        req.body.isHidden !== undefined ? req.body.isHidden : req.body.is_hidden
       );
       updates.status = statusInfo.status;
       updates.isArchived = statusInfo.isArchived;
@@ -279,7 +290,11 @@ export const updatePetStatusHandler = async (req, res, next) => {
   try {
     const existingPet = await resolvePet(req.params.id);
     if (!existingPet) return res.status(404).json({ message: 'Pet not found' });
-    const { status, isArchived } = normalizePetStatus(req.body.status, req.body.isArchived);
+    const { status, isArchived } = normalizePetStatus(
+      req.body.status,
+      req.body.isArchived !== undefined ? req.body.isArchived : req.body.archived,
+      req.body.isHidden !== undefined ? req.body.isHidden : req.body.is_hidden
+    );
     const pet = await Pet.findByIdAndUpdate(
       existingPet._id,
       { $set: { status, isArchived } },
@@ -321,6 +336,7 @@ router.patch('/:id', optionalAuth, updatePetHandler);
 router.patch('/:id/status', optionalAuth, updatePetStatusHandler);
 router.put('/:id/status', optionalAuth, updatePetStatusHandler);
 router.delete('/:id', optionalAuth, deletePetHandler);
+router.use('/:petId/medical-records', medicalRecordRoutes);
 
 export default router;
 

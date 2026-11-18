@@ -7,6 +7,8 @@ import User from '../../models/User.js';
 import * as authService from '../auth/auth.service.js';
 import { formatMe } from '../auth/auth.serializer.js';
 import { getProvinces, getDistricts, getWards } from '../location/location.service.js';
+import MedicalRecord from '../customer/models/MedicalRecord.js';
+import upload from '../../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -79,12 +81,17 @@ router.get(['/first-aid/guides', '/first-aid/guides/all'], (req, res) => {
 });
 
 router.get('/first-aid/guides/:slug', (req, res) => {
+  const isUrgent = req.params.slug.includes('khan-cap') || req.params.slug.includes('urgent') || req.params.slug.includes('ngo-doc');
   res.status(200).json({
     success: true,
     data: {
       id: 'fa-g-detail',
       title: 'Cẩm nang sơ cứu thú cưng Dr. Pet',
       slug: req.params.slug,
+      urgent: isUrgent,
+      urgencyLevel: isUrgent ? 'URGENT' : 'NORMAL',
+      video_url: null,
+      videoUrl: null,
       content: 'Hướng dẫn chi tiết chăm sóc và xử lý ban đầu trước khi đưa bé đến chi nhánh Dr. Pet gần nhất.',
       createdAt: new Date().toISOString(),
     },
@@ -217,9 +224,11 @@ router.get('/post-categories', (req, res) => {
   res.status(200).json({
     success: true,
     data: [
-      { id: 'cat-1', name: 'Cẩm nang nuôi dưỡng', slug: 'cam-nang-nuoi-duong' },
-      { id: 'cat-2', name: 'Dinh dưỡng thú cưng', slug: 'dinh-duong-thu-cung' },
-      { id: 'cat-3', name: 'Y tế & Bệnh học', slug: 'y-te-benh-hoc' },
+      { id: 'health', name: 'Sức khỏe', label: 'Sức khỏe', slug: 'suc-khoe' },
+      { id: 'nutrition', name: 'Dinh dưỡng', label: 'Dinh dưỡng', slug: 'dinh-duong' },
+      { id: 'psychology', name: 'Tâm lý', label: 'Tâm lý', slug: 'tam-ly' },
+      { id: 'grooming', name: 'Vệ sinh & Làm đẹp', label: 'Vệ sinh & Làm đẹp', slug: 've-sinh-lam-dep' },
+      { id: 'care', name: 'Chăm sóc', label: 'Chăm sóc', slug: 'cham-soc' },
     ],
   });
 });
@@ -373,50 +382,330 @@ router.delete('/health-diaries/:diaryId', optionalAuth, (req, res) => {
   res.status(200).json({ success: true, message: 'Xóa nhật ký thành công' });
 });
 
-// In-memory store for medical records backed by persistence fallback
-const _inMemoryMedicalRecords = new Map();
+// Helper to normalize MedicalRecord into unified camelCase + snake_case response
+function formatMedicalRecordResponse(record) {
+  if (!record) return null;
+  const id = record._id ? record._id.toString() : (record.id || '');
+  const visitDate = record.visitDate || record.examinationDate || record.createdAt || new Date();
+  const dateStr = visitDate ? new Date(visitDate).toISOString().slice(0, 10) : '';
+  const doctorName = record.doctorName || record.doctor || 'Bác sĩ phụ trách';
+  const condition = record.condition || record.recordName || record.diagnosis || 'Khám tổng quát';
+  const notes = record.notes || record.treatmentNote || record.diagnosis || record.symptoms || '';
+  const fileUrl = record.fileUrl || (Array.isArray(record.attachments) && record.attachments[0] ? (record.attachments[0].fileUrl || record.attachments[0].file_url) : '');
+  const fileName = record.fileName || (Array.isArray(record.attachments) && record.attachments[0] ? (record.attachments[0].fileName || record.attachments[0].file_name) : '');
+  const attachments = Array.isArray(record.attachments) && record.attachments.length > 0
+    ? record.attachments.map(att => ({
+        fileName: att.fileName || att.file_name || fileName || 'Tài liệu đính kèm',
+        file_name: att.fileName || att.file_name || fileName || 'Tài liệu đính kèm',
+        fileUrl: att.fileUrl || att.file_url || fileUrl || '',
+        file_url: att.fileUrl || att.file_url || fileUrl || '',
+        fileType: att.fileType || att.file_type || 'application/pdf',
+        file_type: att.fileType || att.file_type || 'application/pdf',
+        fileSize: att.fileSize || att.file_size_kb || 0,
+        file_size_kb: att.fileSize || att.file_size_kb || 0,
+      }))
+    : (fileUrl ? [{
+        fileName: fileName || fileUrl.split('/').pop() || 'Tài liệu đính kèm',
+        file_name: fileName || fileUrl.split('/').pop() || 'Tài liệu đính kèm',
+        fileUrl,
+        file_url: fileUrl,
+        fileType: fileUrl.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+        file_type: fileUrl.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+        fileSize: 0,
+        file_size_kb: 0,
+      }] : []);
 
-router.get('/medical-records/pet/:petId', optionalAuth, (req, res) => {
-  const petId = String(req.params.petId);
-  const records = Array.from(_inMemoryMedicalRecords.values()).filter(r => String(r.petId) === petId);
-  res.status(200).json({ success: true, data: records });
-});
-
-router.post('/medical-records', optionalAuth, (req, res) => {
-  const id = `med-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const record = {
+  return {
     id,
     _id: id,
-    petId: String(req.body.petId || req.body.pet_id || ''),
-    condition: req.body.condition || req.body.title || 'Khám tổng quát',
-    doctor: req.body.doctor || req.body.veterinarian || 'Bác sĩ phụ trách',
-    visitDate: req.body.visitDate || req.body.date || new Date().toISOString().slice(0, 10),
-    notes: req.body.notes || req.body.diagnosis || '',
-    attachments: Array.isArray(req.body.attachments) ? req.body.attachments : [],
-    createdAt: new Date().toISOString(),
+    record_id: id,
+    recordId: id,
+    petId: record.petId ? record.petId.toString() : '',
+    pet_id: record.petId ? record.petId.toString() : '',
+    recordName: condition,
+    record_name: condition,
+    condition,
+    doctor: doctorName,
+    doctorName,
+    doctor_name: doctorName,
+    visitDate,
+    visit_date: visitDate,
+    date: dateStr,
+    examinationDate: visitDate,
+    notes,
+    treatmentNote: notes,
+    treatment_note: notes,
+    diagnosis: record.diagnosis || condition,
+    symptoms: record.symptoms || '',
+    fileUrl,
+    file_url: fileUrl,
+    fileName,
+    file_name: fileName,
+    attachments,
+    sourceType: record.sourceType || 'user_uploaded',
+    source_type: record.sourceType || 'user_uploaded',
+    createdAt: record.createdAt || new Date(),
   };
-  _inMemoryMedicalRecords.set(id, record);
-  res.status(201).json({ success: true, message: 'Lưu bệnh án thành công', data: record });
+}
+
+// Persistent MongoDB Medical Records
+router.get('/medical-records/pet/:petId', optionalAuth, async (req, res, next) => {
+  try {
+    const rawPetId = String(req.params.petId).trim();
+    let pet = null;
+    if (mongoose.Types.ObjectId.isValid(rawPetId)) {
+      pet = await Pet.findById(rawPetId);
+    }
+    if (!pet) {
+      pet = await Pet.findOne({
+        $or: [
+          { name: new RegExp(`^${rawPetId}$`, 'i') },
+          { name: new RegExp(`^${rawPetId.replace(/-/g, ' ')}$`, 'i') }
+        ]
+      });
+    }
+
+    const petObjectId = pet ? pet._id : (mongoose.Types.ObjectId.isValid(rawPetId) ? new mongoose.Types.ObjectId(rawPetId) : null);
+    let records = [];
+    if (petObjectId) {
+      records = await MedicalRecord.find({ petId: petObjectId }).sort({ visitDate: -1, createdAt: -1 });
+    }
+
+    if (records.length === 0 && pet && Array.isArray(pet.medicalRecords) && pet.medicalRecords.length > 0) {
+      const formatted = pet.medicalRecords.map((r, idx) => formatMedicalRecordResponse({
+        _id: r._id || `${pet._id}_med_${idx}`,
+        petId: pet._id,
+        condition: r.condition || r.recordName || 'Khám tổng quát',
+        doctorName: r.doctorName || pet.doctorName || 'Bác sĩ phụ trách',
+        visitDate: r.visitDate || r.examinationDate || r.createdAt,
+        notes: r.notes || r.treatmentNote || '',
+        fileUrl: r.fileUrl,
+        fileName: r.fileName,
+        attachments: r.attachments,
+        createdAt: r.createdAt,
+      }));
+      return res.status(200).json({ success: true, data: formatted, EC: 0, EM: 'Success', DT: formatted });
+    }
+
+    const formatted = records.map(formatMedicalRecordResponse);
+    return res.status(200).json({ success: true, data: formatted, EC: 0, EM: 'Success', DT: formatted });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.put('/medical-records/:recordId', optionalAuth, (req, res) => {
-  const id = String(req.params.recordId);
-  const existing = _inMemoryMedicalRecords.get(id) || { id, _id: id };
-  const updated = {
-    ...existing,
-    ...req.body,
-    id,
-    _id: id,
-    updatedAt: new Date().toISOString(),
-  };
-  _inMemoryMedicalRecords.set(id, updated);
-  res.status(200).json({ success: true, message: 'Cập nhật bệnh án thành công', data: updated });
+router.post('/medical-records', optionalAuth, (req, res, next) => {
+  upload.array('attachments', 5)(req, res, (err) => {
+    if (err) console.warn('Multer upload warning:', err.message);
+    next();
+  });
+}, async (req, res, next) => {
+  try {
+    const rawPetId = req.body.petId || req.body.pet_id;
+    let pet = null;
+    if (rawPetId && mongoose.Types.ObjectId.isValid(rawPetId)) {
+      pet = await Pet.findById(rawPetId);
+    }
+    if (!pet && rawPetId) {
+      pet = await Pet.findOne({
+        $or: [
+          { name: new RegExp(`^${String(rawPetId).trim()}$`, 'i') },
+          { name: new RegExp(`^${String(rawPetId).trim().replace(/-/g, ' ')}$`, 'i') }
+        ]
+      });
+    }
+
+    const petObjectId = pet ? pet._id : (rawPetId && mongoose.Types.ObjectId.isValid(rawPetId) ? new mongoose.Types.ObjectId(rawPetId) : new mongoose.Types.ObjectId());
+
+    const condition = (req.body.condition || req.body.record_name || req.body.recordName || req.body.name || req.body.title || 'Khám tổng quát').trim();
+    const doctorName = (req.body.doctor || req.body.doctorName || req.body.doctor_name || req.body.attendingDoctor || req.body.bacSi || 'Bác sĩ phụ trách').trim();
+    const visitDate = req.body.visitDate || req.body.visit_date || req.body.examinationDate || req.body.date || new Date();
+    const notes = req.body.notes || req.body.treatment_note || req.body.treatmentNote || req.body.diagnosis || req.body.symptoms || '';
+    const diagnosis = req.body.diagnosis || condition;
+    const symptoms = req.body.symptoms || '';
+
+    let attachments = [];
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      attachments = req.files.map(f => ({
+        fileName: f.originalname,
+        fileUrl: `/uploads/${f.filename}`,
+        fileType: f.mimetype,
+        fileSize: Math.round(f.size / 1024),
+      }));
+    } else if (Array.isArray(req.body.attachments)) {
+      attachments = req.body.attachments.map(att => ({
+        fileName: att.fileName || att.file_name || 'Tệp đính kèm',
+        fileUrl: att.fileUrl || att.file_url || '',
+        fileType: att.fileType || att.file_type || 'application/pdf',
+        fileSize: att.fileSize || att.file_size_kb || 0,
+      }));
+    } else if (req.body.fileUrl || req.body.medicalRecordFileUrl) {
+      const url = req.body.fileUrl || req.body.medicalRecordFileUrl;
+      attachments.push({
+        fileName: req.body.fileName || url.split('/').pop() || 'Tệp đính kèm',
+        fileUrl: url,
+        fileType: url.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+        fileSize: 0,
+      });
+    }
+
+    const primaryFileUrl = attachments[0]?.fileUrl || req.body.fileUrl || req.body.medicalRecordFileUrl || '';
+    const primaryFileName = attachments[0]?.fileName || req.body.fileName || (primaryFileUrl ? primaryFileUrl.split('/').pop() : '');
+
+    const record = new MedicalRecord({
+      petId: petObjectId,
+      recordName: condition,
+      condition,
+      doctorName,
+      doctor: doctorName,
+      visitDate: new Date(visitDate),
+      symptoms,
+      diagnosis,
+      treatmentNote: notes,
+      notes,
+      fileUrl: primaryFileUrl,
+      fileName: primaryFileName,
+      attachments,
+      sourceType: req.actor?.systemRole === 'STAFF' ? 'doctor_created' : 'user_uploaded',
+      createdByUserId: req.actor?.id || null,
+    });
+    await record.save();
+
+    if (pet) {
+      pet.medicalRecords = pet.medicalRecords || [];
+      pet.medicalRecords.push({
+        recordName: condition,
+        condition,
+        doctorName,
+        doctor: doctorName,
+        fileUrl: primaryFileUrl,
+        fileName: primaryFileName,
+        notes,
+        treatmentNote: notes,
+        examinationDate: new Date(visitDate),
+        visitDate: new Date(visitDate),
+        attachments,
+        createdAt: record.createdAt,
+      });
+      if (doctorName && !pet.doctorName) pet.doctorName = doctorName;
+      if (primaryFileUrl && !pet.medicalRecordFileUrl) pet.medicalRecordFileUrl = primaryFileUrl;
+      await pet.save();
+    }
+
+    const formatted = formatMedicalRecordResponse(record);
+    return res.status(201).json({
+      success: true,
+      message: 'Lưu bệnh án thành công',
+      data: formatted,
+      EC: 0,
+      EM: 'Lưu bệnh án thành công',
+      DT: formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.delete('/medical-records/:recordId', optionalAuth, (req, res) => {
-  const id = String(req.params.recordId);
-  _inMemoryMedicalRecords.delete(id);
-  res.status(200).json({ success: true, message: 'Xóa bệnh án thành công' });
+router.put('/medical-records/:recordId', optionalAuth, (req, res, next) => {
+  upload.array('attachments', 5)(req, res, (err) => {
+    if (err) console.warn('Multer update error:', err.message);
+    next();
+  });
+}, async (req, res, next) => {
+  try {
+    const rawId = req.params.recordId;
+    let record = null;
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      record = await MedicalRecord.findById(rawId);
+    }
+    if (!record) {
+      record = await MedicalRecord.findOne({
+        $or: [{ _id: rawId }, { condition: rawId }, { recordName: rawId }]
+      });
+    }
+
+    const condition = (req.body.condition || req.body.record_name || req.body.recordName || req.body.name || req.body.title || (record ? record.condition : 'Khám tổng quát')).trim();
+    const doctorName = (req.body.doctor || req.body.doctorName || req.body.doctor_name || req.body.attendingDoctor || (record ? record.doctorName : 'Bác sĩ phụ trách')).trim();
+    const visitDate = req.body.visitDate || req.body.visit_date || req.body.examinationDate || (record ? record.visitDate : new Date());
+    const notes = req.body.notes !== undefined ? req.body.notes : (req.body.treatment_note || (record ? record.notes : ''));
+
+    let attachments = record ? (record.attachments || []) : [];
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      attachments = req.files.map(f => ({
+        fileName: f.originalname,
+        fileUrl: `/uploads/${f.filename}`,
+        fileType: f.mimetype,
+        fileSize: Math.round(f.size / 1024),
+      }));
+    } else if (Array.isArray(req.body.attachments)) {
+      attachments = req.body.attachments;
+    }
+
+    const primaryFileUrl = attachments[0]?.fileUrl || req.body.fileUrl || (record ? record.fileUrl : '');
+    const primaryFileName = attachments[0]?.fileName || req.body.fileName || (record ? record.fileName : '');
+
+    if (!record) {
+      record = new MedicalRecord({
+        _id: mongoose.Types.ObjectId.isValid(rawId) ? new mongoose.Types.ObjectId(rawId) : new mongoose.Types.ObjectId(),
+        petId: req.body.petId && mongoose.Types.ObjectId.isValid(req.body.petId) ? new mongoose.Types.ObjectId(req.body.petId) : new mongoose.Types.ObjectId(),
+        recordName: condition,
+        condition,
+        doctorName,
+        doctor: doctorName,
+        visitDate: new Date(visitDate),
+        notes,
+        treatmentNote: notes,
+        fileUrl: primaryFileUrl,
+        fileName: primaryFileName,
+        attachments,
+      });
+    } else {
+      record.condition = condition;
+      record.recordName = condition;
+      record.doctorName = doctorName;
+      record.doctor = doctorName;
+      record.visitDate = new Date(visitDate);
+      record.notes = notes;
+      record.treatmentNote = notes;
+      if (primaryFileUrl) record.fileUrl = primaryFileUrl;
+      if (primaryFileName) record.fileName = primaryFileName;
+      if (attachments.length > 0) record.attachments = attachments;
+    }
+
+    await record.save();
+    const formatted = formatMedicalRecordResponse(record);
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật bệnh án thành công',
+      data: formatted,
+      EC: 0,
+      EM: 'Cập nhật bệnh án thành công',
+      DT: formatted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/medical-records/:recordId', optionalAuth, async (req, res, next) => {
+  try {
+    const rawId = req.params.recordId;
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      await MedicalRecord.findByIdAndDelete(rawId);
+    }
+    await Pet.updateMany(
+      { 'medicalRecords._id': rawId },
+      { $pull: { medicalRecords: { _id: rawId } } }
+    );
+    return res.status(200).json({
+      success: true,
+      message: 'Xóa bệnh án thành công',
+      EC: 0,
+      EM: 'Xóa bệnh án thành công',
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Alias for PUT /api/v1/users/:id

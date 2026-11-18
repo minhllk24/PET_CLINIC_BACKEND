@@ -224,12 +224,18 @@ router.post(
   }
 );
 
-import { listPetsHandler, createPetHandler } from './pet.routes';
+import { listPetsHandler, createPetHandler, getPetHandler, updatePetHandler, updatePetStatusHandler, deletePetHandler } from './pet.routes';
 
 // Pets (Admin, Manager, Staff, Customer own)
 router.get('/:customerId/pets', optionalAuth, listPetsHandler);
 router.get('/:id/pets', optionalAuth, listPetsHandler);
 router.post('/:customerId/pets', optionalAuth, createPetHandler);
 router.post('/:id/pets', optionalAuth, createPetHandler);
+router.get('/:customerId/pets/:id', optionalAuth, getPetHandler);
+router.put('/:customerId/pets/:id', optionalAuth, updatePetHandler);
+router.patch('/:customerId/pets/:id', optionalAuth, updatePetHandler);
+router.patch('/:customerId/pets/:id/status', optionalAuth, updatePetStatusHandler);
+router.put('/:customerId/pets/:id/status', optionalAuth, updatePetStatusHandler);
+router.delete('/:customerId/pets/:id', optionalAuth, deletePetHandler);
 
 export default router;

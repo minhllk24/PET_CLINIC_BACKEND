@@ -470,19 +470,33 @@ export const contentService = {
   },
 
   async getPostCategories() {
-    const categories = await Post.distinct('category', { status: 'PUBLISHED' });
-    if (!categories || categories.length === 0) {
-      return [
-        { id: 'cat-1', name: 'Cẩm nang nuôi dưỡng', slug: 'cam-nang-nuoi-duong' },
-        { id: 'cat-2', name: 'Dinh dưỡng thú cưng', slug: 'dinh-duong-thu-cung' },
-        { id: 'cat-3', name: 'Y tế & Bệnh học', slug: 'y-te-benh-hoc' },
-      ];
+    const defaultCategories = [
+      { id: 'health', name: 'Sức khỏe', label: 'Sức khỏe', slug: 'suc-khoe' },
+      { id: 'nutrition', name: 'Dinh dưỡng', label: 'Dinh dưỡng', slug: 'dinh-duong' },
+      { id: 'psychology', name: 'Tâm lý', label: 'Tâm lý', slug: 'tam-ly' },
+      { id: 'grooming', name: 'Vệ sinh & Làm đẹp', label: 'Vệ sinh & Làm đẹp', slug: 've-sinh-lam-dep' },
+      { id: 'care', name: 'Chăm sóc', label: 'Chăm sóc', slug: 'cham-soc' },
+    ];
+
+    const dbCategories = await Post.distinct('category', { status: 'PUBLISHED' }).catch(() => []);
+    if (!dbCategories || dbCategories.length === 0) {
+      return defaultCategories;
     }
-    return categories.map((cat, idx) => ({
-      id: `cat-${idx + 1}`,
-      name: cat,
-      slug: slugify(cat),
-    }));
+
+    const merged = [...defaultCategories];
+    dbCategories.forEach((cat, idx) => {
+      const slug = slugify(cat);
+      if (!merged.some((m) => m.slug === slug || m.name.toLowerCase() === cat.toLowerCase())) {
+        merged.push({
+          id: `cat-${idx + 1}`,
+          name: cat,
+          label: cat,
+          slug,
+        });
+      }
+    });
+
+    return merged;
   },
 
   // =========================================================================
@@ -490,12 +504,14 @@ export const contentService = {
   // =========================================================================
 
   async createCommunityPost(data, actor) {
-    const { title, content, imageUrls, type } = data;
+    const { title, content } = data;
+    const imageUrls = data.imageUrls || data.images || [];
     if (!title || !content) {
       throw new AppError(400, 'Tiêu đề và nội dung bài viết cộng đồng là bắt buộc', 'VALIDATION_ERROR');
     }
 
-    if (Array.isArray(imageUrls) && imageUrls.some((u) => typeof u === 'string' && u.trim().startsWith('blob:'))) {
+    const checkBlobs = (arr) => Array.isArray(arr) && arr.some((u) => typeof u === 'string' && u.trim().startsWith('blob:'));
+    if (checkBlobs(data.imageUrls) || checkBlobs(data.images) || checkBlobs(imageUrls)) {
       throw new AppError(400, 'Không chấp nhận ảnh dạng blob URL tạm thời. Vui lòng upload ảnh qua media endpoint hợp lệ trước khi đăng bài.', 'INVALID_MEDIA_URL');
     }
 
@@ -514,23 +530,33 @@ export const contentService = {
       throw new AppError(403, 'Chỉ có tài khoản khách hàng thành viên mới được đăng bài chia sẻ', 'AUTHORIZATION_ERROR');
     }
 
-    const typeLabels = {
-      KHOANH_KHAC: 'Khoảnh khắc',
-      HOI_DAP: 'Hỏi đáp',
-      MEO_VAT: 'Mẹo vặt',
-      KINH_NGHIEM: 'Kinh nghiệm',
-      GENERAL: 'Chung',
-      DISCUSSION: 'Thảo luận',
-      SHARE: 'Chia sẻ',
+    const normalizeCommunityType = (rawType) => {
+      if (!rawType) return { type: 'KHOANH_KHAC', typeLabel: 'Khoảnh khắc' };
+      const s = String(rawType).trim();
+      const lower = s.toLowerCase();
+      if (lower.includes('mẹo') || lower.includes('meo') || lower === 'tips' || lower === 'meo_vat') return { type: 'MEO_VAT', typeLabel: 'Mẹo vặt' };
+      if (lower.includes('hỏi') || lower.includes('hoi') || lower === 'qa' || lower === 'hoi_dap') return { type: 'HOI_DAP', typeLabel: 'Hỏi đáp' };
+      if (lower.includes('nghiệm') || lower.includes('nghiem') || lower === 'experience' || lower === 'kinh_nghiem') return { type: 'KINH_NGHIEM', typeLabel: 'Kinh nghiệm' };
+      if (lower.includes('chia sẻ') || lower.includes('chia se') || lower === 'share') return { type: 'SHARE', typeLabel: 'Chia sẻ' };
+      if (lower.includes('thảo luận') || lower.includes('thao luan') || lower === 'discussion') return { type: 'DISCUSSION', typeLabel: 'Thảo luận' };
+      if (lower.includes('thông báo') || lower === 'general') return { type: 'GENERAL', typeLabel: 'Thông báo' };
+      return { type: 'KHOANH_KHAC', typeLabel: 'Khoảnh khắc' };
     };
-    const postType = type && typeLabels[type] ? type : 'KHOANH_KHAC';
+
+    const typeInfo = normalizeCommunityType(data.type || data.category || data.postType);
+    const postCode = `CP-${Date.now().toString().slice(-6)}`;
+    const cleanImages = Array.isArray(imageUrls)
+      ? imageUrls.filter((u) => typeof u === 'string' && !u.startsWith('blob:'))
+      : [];
 
     const post = await CommunityPost.create({
+      postCode,
       title: title.trim(),
       content: content.trim(),
-      type: postType,
-      typeLabel: typeLabels[postType],
-      imageUrls: Array.isArray(imageUrls) ? imageUrls.filter((u) => typeof u === 'string' && !u.startsWith('blob:')) : [],
+      type: typeInfo.type,
+      typeLabel: typeInfo.typeLabel,
+      imageUrls: cleanImages,
+      images: cleanImages,
       authorCustomerId: customer._id,
       authorNameSnapshot: customer.fullName || actor.fullName || 'Thành viên yêu thú cưng',
       authorAvatarSnapshot: customer.avatarUrl || null,
@@ -543,6 +569,10 @@ export const contentService = {
     return {
       ...postObj,
       id: postObj._id?.toString(),
+      _id: postObj._id,
+      type: typeInfo.typeLabel,
+      typeLabel: typeInfo.typeLabel,
+      status: 'PENDING',
     };
   },
 
@@ -635,11 +665,18 @@ export const contentService = {
     };
   },
 
-  async moderateCommunityPost(id, { status, rejectionReason }, moderatorId) {
-    if (!['APPROVED', 'REJECTED', 'HIDDEN'].includes(status)) {
+  async moderateCommunityPost(id, body, moderatorId) {
+    const rawAction = body?.action || body?.status;
+    let targetStatus = String(rawAction || '').trim().toUpperCase();
+    if (targetStatus === 'APPROVE') targetStatus = 'APPROVED';
+    if (targetStatus === 'REJECT') targetStatus = 'REJECTED';
+    if (targetStatus === 'HIDE') targetStatus = 'HIDDEN';
+
+    if (!['APPROVED', 'REJECTED', 'HIDDEN'].includes(targetStatus)) {
       throw new AppError(400, 'Hành động kiểm duyệt không hợp lệ (APPROVED, REJECTED, HIDDEN)', 'VALIDATION_ERROR');
     }
-    if (status === 'REJECTED' && !rejectionReason) {
+    const rejectionReason = body?.rejectionReason || body?.reason || null;
+    if (targetStatus === 'REJECTED' && !rejectionReason) {
       throw new AppError(400, 'Cần cung cấp lý do từ chối bài viết', 'VALIDATION_ERROR');
     }
 
@@ -654,24 +691,30 @@ export const contentService = {
       HIDDEN: ['APPROVED'],
       REJECTED: ['APPROVED'],
     };
-    if (validTransitions[post.status] && !validTransitions[post.status].includes(status)) {
-      throw new AppError(409, 'Conflict', 'INVALID_STATE_TRANSITION', `Không thể chuyển trạng thái từ ${post.status} sang ${status}`);
+    if (validTransitions[post.status] && !validTransitions[post.status].includes(targetStatus)) {
+      throw new AppError(409, 'Conflict', 'INVALID_STATE_TRANSITION', `Không thể chuyển trạng thái từ ${post.status} sang ${targetStatus}`);
     }
 
-    post.status = status;
-    post.rejectionReason = status === 'REJECTED' ? rejectionReason : null;
+    post.status = targetStatus;
+    post.rejectionReason = targetStatus === 'REJECTED' ? rejectionReason : null;
     post.moderatedBy = moderatorId;
     post.moderatedAt = new Date();
     post.moderationHistory = post.moderationHistory || [];
     post.moderationHistory.push({
-      status,
+      status: targetStatus,
       reason: rejectionReason || null,
       actorId: moderatorId,
       at: new Date(),
     });
 
     await post.save();
-    return post;
+    const postObj = post.toObject ? post.toObject() : post;
+    return {
+      ...postObj,
+      id: postObj._id.toString(),
+      moderatedBy: moderatorId,
+      moderatedAt: post.moderatedAt,
+    };
   },
 
   async deleteCommunityPost(id) {
@@ -686,23 +729,72 @@ export const contentService = {
     return { success: true, message: 'Đã xóa bài viết cộng đồng thành công' };
   },
 
-  async getCommunityPostsPublic({ page = 1, limit = 10 }) {
+  async getCommunityPostsPublic({ page = 1, limit = 10, type, search } = {}) {
     const query = { status: 'APPROVED' };
-    const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
-    const [total, items] = await Promise.all([
+    if (type && type !== 'all' && type !== 'Tất cả') {
+      const lower = String(type).toLowerCase();
+      if (lower.includes('mẹo') || lower.includes('meo') || lower === 'tips' || lower === 'meo_vat') {
+        query.$or = [{ type: 'MEO_VAT' }, { typeLabel: 'Mẹo vặt' }];
+      } else if (lower.includes('hỏi') || lower.includes('hoi') || lower === 'qa' || lower === 'hoi_dap') {
+        query.$or = [{ type: 'HOI_DAP' }, { typeLabel: 'Hỏi đáp' }];
+      } else if (lower.includes('nghiệm') || lower.includes('nghiem') || lower === 'experience' || lower === 'kinh_nghiem') {
+        query.$or = [{ type: 'KINH_NGHIEM' }, { typeLabel: 'Kinh nghiệm' }];
+      } else if (lower.includes('khoảnh') || lower.includes('khoanh') || lower === 'moment') {
+        query.$or = [{ type: 'KHOANH_KHAC' }, { typeLabel: 'Khoảnh khắc' }];
+      }
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } },
+      ];
+    }
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedLimit = Math.max(1, Math.min(100, Number(limit) || 10));
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const [total, docs] = await Promise.all([
       CommunityPost.countDocuments(query),
       CommunityPost.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(parsedLimit),
     ]);
+
+    const items = docs.map((doc) => {
+      const obj = doc.toObject ? doc.toObject() : doc;
+      const firstImg = (obj.imageUrls && obj.imageUrls[0]) || (obj.images && obj.images[0]) || null;
+      return {
+        ...obj,
+        id: obj._id.toString(),
+        _id: obj._id,
+        type: obj.typeLabel || 'Khoảnh khắc',
+        typeLabel: obj.typeLabel || 'Khoảnh khắc',
+        title: obj.title,
+        content: obj.content,
+        author: obj.authorNameSnapshot || 'Thành viên Dr.Pet',
+        avatar: obj.authorAvatarSnapshot || null,
+        likes: obj.likesCount || 0,
+        likesCount: obj.likesCount || 0,
+        comments: obj.commentsCount || 0,
+        commentsCount: obj.commentsCount || 0,
+        image: firstImg,
+        images: obj.imageUrls || obj.images || [],
+        imageUrls: obj.imageUrls || obj.images || [],
+        createdAt: obj.createdAt,
+        status: obj.status,
+      };
+    });
 
     return {
       items,
+      posts: items,
       total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)) || 1,
+      totalRows: total,
+      totalCount: total,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / parsedLimit) || 1,
     };
   },
 
@@ -711,11 +803,16 @@ export const contentService = {
   // =========================================================================
 
   async addCommunityComment(postId, data, actor) {
-    const post = await CommunityPost.findById(postId);
+    let post = await CommunityPost.findById(postId);
+    let isBlogPost = false;
+    if (!post) {
+      post = await Post.findById(postId);
+      if (post) isBlogPost = true;
+    }
     if (!post) {
       throw new AppError(404, 'Không tìm thấy bài viết cộng đồng', 'NOT_FOUND');
     }
-    if (post.status !== 'APPROVED') {
+    if (!isBlogPost && post.status !== 'APPROVED') {
       throw new AppError(400, 'Chỉ có thể bình luận trên bài viết đã được duyệt', 'BUSINESS_RULE_VIOLATION');
     }
     if (!data.content || !data.content.trim()) {
@@ -746,12 +843,17 @@ export const contentService = {
       replies: [],
     });
 
-    await CommunityPost.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
+    if (isBlogPost) {
+      await Post.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
+    } else {
+      await CommunityPost.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
+    }
     
     const commentObj = comment.toObject ? comment.toObject() : comment;
     return {
       ...commentObj,
       id: commentObj._id?.toString(),
+      _id: commentObj._id,
       author: commentObj.authorNameSnapshot,
       avatar: commentObj.authorAvatarSnapshot,
     };
@@ -798,6 +900,7 @@ export const contentService = {
       return {
         ...obj,
         id: obj._id?.toString(),
+        _id: obj._id,
         author: obj.authorNameSnapshot,
         avatar: obj.authorAvatarSnapshot,
       };
@@ -815,33 +918,42 @@ export const contentService = {
   },
 
   async likeCommunityPost(postId, actor) {
-    const post = await CommunityPost.findById(postId);
+    let post = await CommunityPost.findById(postId);
+    let isBlogPost = false;
     if (!post) {
-      throw new AppError(404, 'Không tìm thấy bài viết cộng đồng', 'NOT_FOUND');
+      post = await Post.findById(postId);
+      if (post) isBlogPost = true;
     }
-    const updated = await CommunityPost.findByIdAndUpdate(
-      postId,
-      { $inc: { likesCount: 1 } },
-      { new: true }
-    );
-    return { likesCount: updated.likesCount };
+    if (!post) {
+      throw new AppError(404, 'Không tìm thấy bài viết', 'NOT_FOUND');
+    }
+    let updated;
+    if (isBlogPost) {
+      updated = await Post.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } }, { new: true });
+    } else {
+      updated = await CommunityPost.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } }, { new: true });
+    }
+    return { likesCount: updated.likesCount, likes: updated.likesCount };
   },
 
   async unlikeCommunityPost(postId, actor) {
-    const post = await CommunityPost.findById(postId);
+    let post = await CommunityPost.findById(postId);
+    let isBlogPost = false;
     if (!post) {
-      throw new AppError(404, 'Không tìm thấy bài viết cộng đồng', 'NOT_FOUND');
+      post = await Post.findById(postId);
+      if (post) isBlogPost = true;
     }
-    const updated = await CommunityPost.findByIdAndUpdate(
-      postId,
-      { $inc: { likesCount: -1 } },
-      { new: true }
-    );
-    if (updated.likesCount < 0) {
-      updated.likesCount = 0;
-      await updated.save();
+    if (!post) {
+      throw new AppError(404, 'Không tìm thấy bài viết', 'NOT_FOUND');
     }
-    return { likesCount: updated.likesCount };
+    let updated;
+    if (isBlogPost) {
+      updated = await Post.findByIdAndUpdate(postId, { $inc: { likesCount: -1 } }, { new: true });
+    } else {
+      updated = await CommunityPost.findByIdAndUpdate(postId, { $inc: { likesCount: -1 } }, { new: true });
+    }
+    const safeLikes = Math.max(0, updated.likesCount || 0);
+    return { likesCount: safeLikes, likes: safeLikes };
   },
 
   // =========================================================================

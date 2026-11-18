@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { authenticate, optionalAuth } from '../../shared/authMiddleware.js';
+import { authenticate, optionalAuth, requireRole } from '../../shared/authMiddleware.js';
 import * as contentController from './content.controller.js';
 import { getRescuePartnersList, getRescueStationsList, getEmergencyHotline } from './content.service.js';
 
@@ -102,6 +102,7 @@ router.get(['/rescue/partners', '/public/rescue/partners'], async (req, res, nex
 });
 
 router.get(['/rescue/pets', '/adoptions/pets', '/public/rescue/pets'], contentController.getRescuePetsPublic);
+router.post(['/rescue/pets', '/adoptions/pets', '/public/rescue/pets'], authenticate, requireRole(['ADMIN', 'MANAGER']), contentController.createRescuePet);
 router.get(['/rescue/pets/:id', '/public/rescue/pets/:id'], contentController.getRescuePetById);
 router.get(['/rescue/stations', '/public/rescue/stations'], async (req, res, next) => {
   try {

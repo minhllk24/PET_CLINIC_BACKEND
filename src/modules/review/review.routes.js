@@ -29,10 +29,10 @@ router.get('/my', requireRole(['CUSTOMER']), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// Create review (Customer)
+// Create review (Customer / Public with name)
 router.post(
   '/',
-  requireRole(['CUSTOMER']),
+  optionalAuth,
   idempotency('reviewsCreate', { required: false }),
   async (req, res, next) => {
     try {

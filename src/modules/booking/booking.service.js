@@ -106,6 +106,7 @@ export const formatAppointment = (apt) => {
 
   const res = {
     id: doc._id ? doc._id.toString() : (doc.id || ''),
+    _id: doc._id ? doc._id.toString() : (doc.id || ''),
     code: doc.code || 'APT-DEFAULT',
     customerId: doc.customerId ? (doc.customerId._id || doc.customerId).toString() : null,
     branchId: doc.branchId ? (doc.branchId._id || doc.branchId).toString() : null,
@@ -116,6 +117,7 @@ export const formatAppointment = (apt) => {
     scheduledDurationMinutes: Number(doc.scheduledDurationMinutes || 0),
     status: doc.status || 'CONFIRMED',
     paymentMethod: doc.paymentMethod || 'PAY_AT_STORE',
+    paymentStatus: doc.paymentStatus || (doc.pricing?.paidAmount >= doc.pricing?.finalAmount && (doc.pricing?.finalAmount || 0) > 0 ? 'PAID' : (doc.paymentMethod === 'PAY_AT_STORE' ? 'UNPAID' : 'PENDING')),
     holdExpiresAt: isHoldActive ? new Date(doc.holdExpiresAt).toISOString() : null,
     createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : (doc.scheduledStart ? new Date(doc.scheduledStart).toISOString() : new Date().toISOString()),
     updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : (doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString()),
