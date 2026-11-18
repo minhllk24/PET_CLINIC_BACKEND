@@ -118,6 +118,7 @@ export const resolveActorMeta = async (actorId, session = null) => {
 export const formatInventoryTransaction = (tx) => {
   if (!tx) return null;
   const obj = typeof tx.toObject === 'function' ? tx.toObject() : { ...tx };
+  const rawIdStr = normalizeId(obj._id || obj.id);
   const sourceIdStr = obj.sourceId ? normalizeId(obj.sourceId) : null;
   const isServiceRecordSource = obj.sourceType === 'SERVICE_RECORD' || obj.sourceType === 'SERVICE_RECORD_REVISION';
   const resolvedServiceRecordId = isServiceRecordSource
@@ -125,10 +126,20 @@ export const formatInventoryTransaction = (tx) => {
     : null;
   const resolvedRefCode = obj.referenceCode || (isServiceRecordSource && resolvedServiceRecordId
     ? `SR-${resolvedServiceRecordId.slice(-6).toUpperCase()}`
-    : null);
+    : (obj.sourceType === 'ORDER' && sourceIdStr
+      ? `ORD-${sourceIdStr.slice(-6).toUpperCase()}`
+      : (obj.sourceType === 'TRANSFER' && (obj.transferId || rawIdStr)
+        ? `TRF-${(normalizeId(obj.transferId) || rawIdStr).slice(-6).toUpperCase()}`
+        : null)));
+
+  const transactionCode = obj.transactionCode || obj.code || (rawIdStr ? `TRX-${rawIdStr.slice(-6).toUpperCase()}` : null);
+  const groupCode = obj.groupCode || transactionCode;
 
   return {
-    id: normalizeId(obj._id || obj.id),
+    id: rawIdStr,
+    code: transactionCode,
+    transactionCode: transactionCode,
+    groupCode: groupCode,
     branchId: normalizeId(obj.branchId),
     branchName: obj.branchName || null,
     branchCode: obj.branchCode || null,
@@ -143,10 +154,10 @@ export const formatInventoryTransaction = (tx) => {
     isSystemActor: Boolean(obj.isSystemActor),
     reason: obj.reason,
     createdAt: new Date(obj.createdAt).toISOString(),
-    sourceType: isServiceRecordSource ? 'SERVICE_RECORD' : obj.sourceType,
-    sourceId: resolvedServiceRecordId || sourceIdStr,
-    referenceCode: resolvedRefCode,
-    sourceCode: resolvedRefCode,
+    sourceType: isServiceRecordSource ? 'SERVICE_RECORD' : (obj.sourceType || 'MANUAL'),
+    sourceId: resolvedServiceRecordId || sourceIdStr || null,
+    referenceCode: resolvedRefCode || null,
+    sourceCode: resolvedRefCode || null,
     serviceRecordId: resolvedServiceRecordId,
     serviceRecordCode: isServiceRecordSource ? resolvedRefCode : null,
     items: Array.isArray(obj.items) ? obj.items.map((line) => ({
@@ -741,6 +752,29 @@ export const listTransactions = async (query, actor) => {
             }
           }
         }
+      }
+
+      // Resolve Order code for any ORDER transactions missing referenceCode
+      const orderIdsToFetch = sliced
+        .filter((tx) => tx.sourceType === 'ORDER' && tx.sourceId && !tx.referenceCode)
+        .map((tx) => tx.sourceId.toString());
+      if (orderIdsToFetch.length > 0) {
+        try {
+          const Order = mongoose.models.Order || require('../order/models/Order').default || require('../order/models/Order');
+          const orders = await Order.find({ _id: { $in: orderIdsToFetch } }).select('_id orderCode code').lean();
+          const orderMap = new Map();
+          for (const o of orders || []) {
+            if (o && o._id) {
+              orderMap.set(o._id.toString(), o.orderCode || o.code || `ORD-${o._id.toString().slice(-6).toUpperCase()}`);
+            }
+          }
+          for (const tx of sliced) {
+            if (tx.sourceType === 'ORDER' && tx.sourceId && !tx.referenceCode) {
+              const oId = tx.sourceId.toString();
+              tx.referenceCode = orderMap.get(oId) || `ORD-${oId.slice(-6).toUpperCase()}`;
+            }
+          }
+        } catch (_oe) {}
       }
     } catch {
       // Fallback gracefully to formatInventoryTransaction default formatting

@@ -5,6 +5,7 @@ const schema = new mongoose.Schema({
   ownerUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   sourceType: { type: String, enum: ['ORDER', 'APPOINTMENT'], default: 'ORDER' },
   sourceId: { type: mongoose.Schema.Types.ObjectId, index: true },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null, index: true },
   targetType: { type: String, enum: ['PRODUCT', 'SERVICE'], required: true },
   targetId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   rating: { type: Number, required: true, min: 1, max: 5 },

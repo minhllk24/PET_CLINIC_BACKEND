@@ -226,6 +226,23 @@ app.use(async (req, res, next) => {
     }
   }
 
+  // Pre-validation Body Normalization for Auth & Registration
+  if (req.body && typeof req.body === 'object') {
+    if (req.body.phone && typeof req.body.phone === 'string') {
+      const p = req.body.phone.trim();
+      if (p.startsWith('+84')) {
+        req.body.phone = '0' + p.substring(3);
+      } else if (p.startsWith('84') && p.length > 9) {
+        req.body.phone = '0' + p.substring(2);
+      }
+    }
+    if (req.url.includes('/forgot-password')) {
+      if (!req.body.identifier && (req.body.email || req.body.phone || req.body.account)) {
+        req.body.identifier = String(req.body.email || req.body.phone || req.body.account).trim();
+      }
+    }
+  }
+
   // Smart Product ID Resolver (Resolves codes, skus, slugs or numeric indexes before OpenAPI validator)
   const prodMatch = req.url.match(/\/api\/v1\/products\/([^\/\?]+)/);
   if (prodMatch && prodMatch[1]) {

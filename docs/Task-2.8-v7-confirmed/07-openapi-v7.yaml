@@ -8875,14 +8875,13 @@ components:
           maxLength: 150
         phone:
           type: string
-          pattern: ^0[0-9]{9}$
+          pattern: ^(\+?84|0)[0-9]{9,10}$
         email:
           type: string
           format: email
         password:
           type: string
           minLength: 8
-          pattern: ^(?=.*[A-Z])(?=.*[0-9]).{8,}$
           description: Toi thieu 8 ky tu, co chu hoa va so
         confirmPassword:
           type: string
@@ -8891,7 +8890,7 @@ components:
           const: true
         otp:
           type: string
-      additionalProperties: false
+      additionalProperties: true
       required:
       - fullName
       - phone
@@ -8902,7 +8901,11 @@ components:
       properties:
         identifier:
           type: string
-      additionalProperties: false
+        email:
+          type: string
+        phone:
+          type: string
+      additionalProperties: true
       required:
       - identifier
     ResetPasswordRequest:
@@ -11594,7 +11597,11 @@ components:
           maxLength: 1000
         anonymous:
           type: boolean
-      additionalProperties: false
+        name:
+          type: string
+        branchId:
+          $ref: '#/components/schemas/ObjectId'
+      additionalProperties: true
       required:
       - targetType
       - targetId

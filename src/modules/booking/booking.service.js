@@ -308,6 +308,8 @@ export const formatAppointment = (apt) => {
         res.petSnapshot = {
           name: doc.petId.name,
           species: doc.petId.species || 'DOG',
+          speciesDetail: doc.petId.speciesDetail || doc.petId.speciesName || null,
+          speciesName: doc.petId.speciesName || doc.petId.speciesDetail || null,
           breed: doc.petId.breed || '',
           gender: doc.petId.gender || 'UNKNOWN',
           ageYears: doc.petId.ageYears || 0,
@@ -1224,12 +1226,46 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       });
     }
 
+    // If pet details were passed without petId for a customer, persist the pet record
+    if (!petId && pet && customerId && mongoose.Types.ObjectId.isValid(customerId)) {
+      try {
+        let species = String(pet.species || 'DOG').toUpperCase();
+        if (species.includes('CHÓ') || species.includes('CHO')) species = 'DOG';
+        else if (species.includes('MÈO') || species.includes('MEO')) species = 'CAT';
+        else if (!['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'].includes(species)) species = 'OTHER';
+
+        const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim() || null;
+        const newPet = new Pet({
+          customerId,
+          name: pet.name || 'Thú cưng',
+          species,
+          speciesDetail,
+          speciesName: speciesDetail,
+          breed: pet.breed || '',
+          gender: (pet.gender || 'UNKNOWN').toUpperCase(),
+          ageYears: Number(pet.ageYears || pet.age || 0),
+          weightKg: Number(pet.weightKg || effectivePetWeightKg || 0),
+          healthStatus: pet.healthStatus || 'NORMAL',
+          medicalNotes: pet.medicalNotes || '',
+          photoUrl: pet.photoUrl || null,
+          status: 'ACTIVE'
+        });
+        await newPet.save({ session });
+        petId = newPet._id;
+        resolvedPetDoc = newPet;
+      } catch (_e) {
+        // Fallback: keep inline snapshot
+      }
+    }
+
     // Resolve pet snapshot if petId was provided (reuse resolvedPetDoc)
     let petSnapshot = pet || null;
-    if (petId && !petSnapshot && resolvedPetDoc) {
+    if (resolvedPetDoc) {
       petSnapshot = {
         name: resolvedPetDoc.name,
         species: resolvedPetDoc.species || 'DOG',
+        speciesDetail: resolvedPetDoc.speciesDetail || resolvedPetDoc.speciesName || null,
+        speciesName: resolvedPetDoc.speciesName || resolvedPetDoc.speciesDetail || null,
         breed: resolvedPetDoc.breed || '',
         gender: resolvedPetDoc.gender || 'UNKNOWN',
         ageYears: resolvedPetDoc.ageYears || 0,
@@ -1237,6 +1273,13 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         healthStatus: resolvedPetDoc.healthStatus || 'NORMAL',
         medicalNotes: resolvedPetDoc.medicalNotes || '',
         photoUrl: resolvedPetDoc.photoUrl || null,
+      };
+    } else if (pet) {
+      const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim() || null;
+      petSnapshot = {
+        ...pet,
+        speciesDetail: pet.speciesDetail || speciesDetail || null,
+        speciesName: pet.speciesName || speciesDetail || null,
       };
     }
 
@@ -1365,8 +1408,8 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
  * Internal Appointment Creation (Receptionist / Manager / Admin)
  */
 export const createInternalAppointment = async (data, actor) => {
-  // Allows optional explicit staffAssignments
-  return createAppointment(data, actor, null);
+  // Allows optional explicit staffAssignments and internal staff booking
+  return createAppointment({ ...data, isInternal: true }, actor, null);
 };
 
 /**

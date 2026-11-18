@@ -62,6 +62,7 @@ export const formatReview = (rev, forAdmin = false) => {
     sourceType: doc.sourceType || 'ORDER',
     sourceId: doc.sourceId ? (doc.sourceId._id || doc.sourceId).toString() : null,
     sourceCode: doc.sourceCode || (doc.sourceId && (doc.sourceId.orderCode || doc.sourceId.code) ? (doc.sourceId.orderCode || doc.sourceId.code) : null),
+    branchId: doc.branchId ? (doc.branchId._id || doc.branchId).toString() : null,
     rating: Number(doc.rating || 5),
     comment: doc.comment || '',
     content: doc.comment || '',
@@ -156,9 +157,11 @@ export const createReview = async (data, actor) => {
 
   let sourceId = null;
   let sourceType = null;
+  let order = null;
+  let appointment = null;
 
   if (targetType === 'PRODUCT') {
-    const order = await Order.findOne({
+    order = await Order.findOne({
       $or: [
         { customerId },
         { userId },
@@ -174,7 +177,7 @@ export const createReview = async (data, actor) => {
       throw new AppError(403, 'Forbidden', ErrorCodes.OWNERSHIP_ERROR, 'You can only review products you have purchased');
     }
   } else if (targetType === 'SERVICE') {
-    const appointment = await Appointment.findOne({
+    appointment = await Appointment.findOne({
       $or: [
         { customerId },
         { userId },
@@ -191,6 +194,14 @@ export const createReview = async (data, actor) => {
     }
   }
 
+  let branchId = data.branchId && mongoose.Types.ObjectId.isValid(data.branchId) ? new mongoose.Types.ObjectId(data.branchId) : null;
+  if (!branchId && appointment?.branchId) {
+    branchId = appointment.branchId;
+  }
+  if (!branchId && order?.branchId) {
+    branchId = order.branchId;
+  }
+
   const isAnonymous = Boolean(data.anonymous || data.isAnonymous);
 
   const review = new Review({
@@ -198,6 +209,7 @@ export const createReview = async (data, actor) => {
     ownerUserId: userId,
     sourceType,
     sourceId,
+    branchId,
     targetType,
     targetId,
     rating: data.rating,
@@ -282,6 +294,16 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
   if (query.targetId) filter.targetId = query.targetId;
   if (query.status) filter.status = query.status;
   if (query.rating) filter.rating = Number(query.rating);
+  if (query.branchId && mongoose.Types.ObjectId.isValid(query.branchId)) {
+    filter.branchId = new mongoose.Types.ObjectId(query.branchId);
+  } else if (actor && actor.systemRole === 'MANAGER' && Array.isArray(actor.assignedBranchIds) && actor.assignedBranchIds.length > 0) {
+    const managerBranchObjs = actor.assignedBranchIds.filter(b => mongoose.Types.ObjectId.isValid(b)).map(b => new mongoose.Types.ObjectId(b));
+    filter.$or = [
+      { branchId: { $in: managerBranchObjs } },
+      { branchId: null },
+      { branchId: { $exists: false } }
+    ];
+  }
   if (query.fromDate || query.toDate) {
     filter.createdAt = {};
     if (query.fromDate) filter.createdAt.$gte = new Date(query.fromDate);
@@ -331,8 +353,10 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
     } catch (_) {}
   }
 
+  const formatted = items.map(r => formatReview(r, true));
   return {
-    items: items.map(r => formatReview(r, true)),
+    items: formatted,
+    data: formatted,
     total,
     totalCount: total,
     totalRows: total,

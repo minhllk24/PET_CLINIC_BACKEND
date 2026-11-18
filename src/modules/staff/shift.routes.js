@@ -35,7 +35,14 @@ router.post(
   '/:id/cancel',
   authenticate,
   requireRole(['MANAGER', 'ADMIN']),
-  idempotency('shiftsCancel'),
+  idempotency('shiftsCancel', { required: false }),
+  shiftController.cancelShift
+);
+router.patch(
+  '/:id/cancel',
+  authenticate,
+  requireRole(['MANAGER', 'ADMIN']),
+  idempotency('shiftsCancel', { required: false }),
   shiftController.cancelShift
 );
 

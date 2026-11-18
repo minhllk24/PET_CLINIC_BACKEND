@@ -252,21 +252,18 @@ const formatPostDTO = (doc) => {
 const getManagerAssignedBranchIds = (actor) =>
   (actor?.assignedBranchIds || actor?.authorizedBranchIds || []).map((b) => (b?._id || b).toString());
 
-const assertRescueBranchScope = (actor, targetBranchId, { requireBranchOnTarget = false } = {}) => {
+const assertRescueBranchScope = (actor, targetBranchId, { requireBranchOnTarget = true } = {}) => {
   const actorRole = actor?.systemRole || actor?.role;
   if (!actor || actorRole !== 'MANAGER') return;
   const rawBranch = targetBranchId?._id || targetBranchId;
   const branchStr = rawBranch !== undefined && rawBranch !== null ? String(rawBranch).trim() : '';
   if (!branchStr) {
-    if (requireBranchOnTarget) {
-      throw new AppError(
-        403,
-        'Forbidden',
-        'BRANCH_SCOPE_ERROR',
-        'Rescue pet belongs to a branch outside your assigned branches'
-      );
-    }
-    return;
+    throw new AppError(
+      403,
+      'Forbidden',
+      'BRANCH_SCOPE_ERROR',
+      'Hồ sơ cứu trợ toàn hệ thống (không thuộc chi nhánh cụ thể) chỉ dành cho quản trị viên ADMIN'
+    );
   }
   const assigned = getManagerAssignedBranchIds(actor);
   if (!assigned.includes(branchStr)) {
@@ -274,7 +271,7 @@ const assertRescueBranchScope = (actor, targetBranchId, { requireBranchOnTarget 
       403,
       'Forbidden',
       'BRANCH_SCOPE_ERROR',
-      'Rescue pet belongs to a branch outside your assigned branches'
+      'Hồ sơ thú cưng cứu trợ thuộc chi nhánh nằm ngoài phạm vi được phân công của Quản lý'
     );
   }
 };

@@ -50,16 +50,32 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   if (err.status === 400 && err.errors) {
+    const formattedErrors = err.errors.map((e) => {
+      let friendlyMsg = e.message;
+      if (e.message && e.message.includes('should NOT have additional properties')) {
+        const prop = e.params?.additionalProperty || e.path || '';
+        friendlyMsg = `Trường không hợp lệ: ${prop}`;
+      } else if (e.path && e.path.includes('phone')) {
+        friendlyMsg = 'Số điện thoại không đúng định dạng (VD: 0912345678)';
+      } else if (e.path && e.path.includes('email')) {
+        friendlyMsg = 'Email không đúng định dạng';
+      }
+      return {
+        field: e.path,
+        message: friendlyMsg || e.message,
+        code: e.errorCode || ErrorCodes.VALIDATION_ERROR,
+      };
+    });
+
+    const firstMsg = formattedErrors.find(e => e.message)?.message;
+    const summaryDetail = firstMsg || 'Dữ liệu yêu cầu không hợp lệ. Vui lòng kiểm tra lại.';
+
     error = new AppError(
       400,
       'Bad Request',
       ErrorCodes.VALIDATION_ERROR,
-      'Request validation failed',
-      err.errors.map((e) => ({
-        field: e.path,
-        message: e.message,
-        code: e.errorCode || ErrorCodes.VALIDATION_ERROR,
-      }))
+      summaryDetail,
+      formattedErrors
     );
   }
 

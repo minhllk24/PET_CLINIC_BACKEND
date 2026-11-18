@@ -237,7 +237,42 @@ export const getCustomerById = async (id, actor = {}) => {
     }
   }
 
-  return formatCustomerDetail(customer);
+  const detail = formatCustomerDetail(customer);
+  try {
+    const Pet = mongoose.models.Pet || require('./models/Pet').default || require('./models/Pet');
+    const custId = customer._id;
+    const userIdRef = customer.userId?._id || customer.userId;
+    const petFilter = {
+      $or: [
+        { customerId: custId },
+        ...(userIdRef ? [{ customerId: userIdRef }] : [])
+      ],
+      isArchived: { $ne: true }
+    };
+    const pets = await Pet.find(petFilter).sort({ createdAt: -1 }).lean();
+    detail.pets = (pets || []).map((p) => ({
+      ...p,
+      id: p._id.toString(),
+      pet_id: p._id.toString(),
+      name: p.name,
+      species: p.species || 'DOG',
+      speciesDetail: p.speciesDetail || p.speciesName || null,
+      speciesName: p.speciesName || p.speciesDetail || null,
+      breed: p.breed || '',
+      gender: p.gender || 'UNKNOWN',
+      ageYears: p.ageYears !== undefined && p.ageYears !== null ? Number(p.ageYears) : 0,
+      weightKg: p.weightKg !== undefined && p.weightKg !== null ? Number(p.weightKg) : 0,
+      healthStatus: p.healthStatus || 'NORMAL',
+      medicalNotes: p.medicalNotes || '',
+      photoUrl: p.photoUrl || null,
+      medicalRecords: p.medicalRecords || [],
+      status: p.status || 'ACTIVE'
+    }));
+  } catch (_e) {
+    detail.pets = [];
+  }
+
+  return detail;
 };
 
 export const blockCustomer = async (id, data = {}, actor = {}) => {
