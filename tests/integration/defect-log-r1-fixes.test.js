@@ -615,6 +615,114 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(nineAm.remaining).toBe(1);
     });
 
+    it('FT-M12-03 (R2-01): Blocked window returns BLOCKED, and removing it on a zero-shift branch still returns 0 AVAILABLE slots', async () => {
+      const svcId = new mongoose.Types.ObjectId();
+      jest.spyOn(Branch, 'findById').mockReturnValue(
+        makeChainQuery({ _id: branch1Id, status: 'ACTIVE', openingHours: [{ dayOfWeek: 3, open: '09:00', close: '11:00' }] })
+      );
+      jest.spyOn(Service, 'find').mockReturnValue(
+        makeChainQuery([{ _id: svcId, name: 'Exam', status: 'ACTIVE', bookingMode: 'BOOKABLE', durationMinutes: 60, requiredStaffRole: 'VETERINARIAN' }])
+      );
+      jest.spyOn(Shift, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(Appointment, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(SlotReservation, 'find').mockResolvedValue([]);
+
+      // 1. With blockedWindow: 09:00-10:00 must be BLOCKED
+      const cfgSpy = jest.spyOn(BranchServiceConfig, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            branchId: branch1Id,
+            serviceId: svcId,
+            enabled: true,
+            capacity: 2,
+            blockedWindows: [
+              { startAt: new Date('2026-11-25T09:00:00.000Z'), endAt: new Date('2026-11-25T10:00:00.000Z'), reason: 'Maintenance' },
+            ],
+          },
+        ])
+      );
+
+      const withBlock = await availabilityService.getAvailability({
+        branchId: branch1Id.toString(),
+        serviceIds: [svcId.toString()],
+        date: '2026-11-25',
+        includeFull: true,
+      });
+      const nineBlocked = withBlock.slots.find((s) => s.start === '2026-11-25T09:00:00.000Z');
+      expect(nineBlocked.status).toBe('BLOCKED');
+      expect(nineBlocked.remaining).toBe(0);
+
+      // 2. Remove blockedWindow with still 0 shifts: must NOT become AVAILABLE
+      cfgSpy.mockReturnValue(
+        makeChainQuery([{ branchId: branch1Id, serviceId: svcId, enabled: true, capacity: 2, blockedWindows: [] }])
+      );
+
+      const afterUnblockPublic = await availabilityService.getAvailability({
+        branchId: branch1Id.toString(),
+        serviceIds: [svcId.toString()],
+        date: '2026-11-25',
+        includeFull: false,
+      });
+      expect(afterUnblockPublic.slots).toHaveLength(0);
+
+      const afterUnblockAdmin = await availabilityService.getAvailability({
+        branchId: branch1Id.toString(),
+        serviceIds: [svcId.toString()],
+        date: '2026-11-25',
+        includeFull: true,
+      });
+      expect(afterUnblockAdmin.slots.every((s) => s.status === 'FULL' && s.remaining === 0 && !s.available)).toBe(true);
+    });
+
+    it('FT-M13-05 (R2-01): Only branch with active shifts returns AVAILABLE; sibling open branch with 0 shifts returns 0 slots', async () => {
+      const svcId = new mongoose.Types.ObjectId();
+      const staffOne = new mongoose.Types.ObjectId();
+
+      jest.spyOn(Branch, 'findById').mockImplementation((id) =>
+        makeChainQuery({
+          _id: new mongoose.Types.ObjectId(id),
+          status: 'ACTIVE',
+          openingHours: [{ dayOfWeek: 3, open: '09:00', close: '11:00' }],
+        })
+      );
+      jest.spyOn(Service, 'find').mockReturnValue(
+        makeChainQuery([{ _id: svcId, name: 'Exam', status: 'ACTIVE', bookingMode: 'BOOKABLE', durationMinutes: 60, requiredStaffRole: 'VETERINARIAN' }])
+      );
+      jest.spyOn(BranchServiceConfig, 'find').mockImplementation((filter) =>
+        makeChainQuery([{ branchId: filter.branchId, serviceId: svcId, enabled: true, capacity: 2 }])
+      );
+      jest.spyOn(Shift, 'find').mockImplementation((filter) => {
+        if (filter.branchId.toString() === branch1Id.toString()) {
+          return makeChainQuery([
+            {
+              branchId: branch1Id,
+              staffId: { _id: staffOne, staffSubRole: 'VETERINARIAN', status: 'ACTIVE' },
+              startAt: new Date('2026-11-25T08:00:00.000Z'),
+              endAt: new Date('2026-11-25T18:00:00.000Z'),
+            },
+          ]);
+        }
+        return makeChainQuery([]);
+      });
+      jest.spyOn(Appointment, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(SlotReservation, 'find').mockResolvedValue([]);
+
+      const branch1Avail = await availabilityService.getAvailability({
+        branchId: branch1Id.toString(),
+        serviceIds: [svcId.toString()],
+        date: '2026-11-25',
+      });
+      const branch2Avail = await availabilityService.getAvailability({
+        branchId: branch2Id.toString(),
+        serviceIds: [svcId.toString()],
+        date: '2026-11-25',
+      });
+
+      expect(branch1Avail.slots.length).toBeGreaterThan(0);
+      expect(branch1Avail.slots.every((s) => s.status === 'AVAILABLE' && s.remaining === 1)).toBe(true);
+      expect(branch2Avail.slots).toHaveLength(0);
+    });
+
     it('QA-R1-10 / R01: markNoShow enforces CONFIRMED + not ARRIVED + 30m grace + branch scope', async () => {
       jest.spyOn(mongoose, 'startSession').mockResolvedValue(makeSession());
       jest.spyOn(Appointment, 'findById').mockReturnValue(

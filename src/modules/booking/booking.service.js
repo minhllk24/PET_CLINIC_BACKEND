@@ -540,44 +540,23 @@ const selectBestStaff = async ({
   ]);
 
   const eligibleStaff = [];
+  const seenStaffIds = new Set();
   for (const shift of shifts) {
     const profile = shift.staffId;
+    if (!profile) continue;
+    const profileIdStr = profile._id.toString();
+    const userIdStr = profile.userId ? profile.userId.toString() : null;
+    const isBusy =
+      unavailableStaffSet.has(profileIdStr) ||
+      (userIdStr && unavailableStaffSet.has(userIdStr));
     if (
-      profile &&
       profile.status === 'ACTIVE' &&
       profile.staffSubRole === requiredStaffRole &&
-      !unavailableStaffSet.has(profile._id.toString())
+      !isBusy &&
+      !seenStaffIds.has(profileIdStr)
     ) {
+      seenStaffIds.add(profileIdStr);
       eligibleStaff.push(profile);
-    }
-  }
-
-  // Dynamic staffing fallback: If explicit Shift roster lacks a free staff member
-  // but branch concurrent capacity is not exhausted, allocate an available active staff of that role.
-  if (eligibleStaff.length === 0) {
-    const unavailObjectIds = Array.from(unavailableStaffSet)
-      .filter((id) => mongoose.Types.ObjectId.isValid(id))
-      .map((id) => new mongoose.Types.ObjectId(id));
-
-    const branchStaff = await StaffProfile.find({
-      status: 'ACTIVE',
-      staffSubRole: requiredStaffRole,
-      _id: { $nin: unavailObjectIds },
-    }).session(session);
-
-    if (branchStaff.length > 0) {
-      eligibleStaff.push(...branchStaff);
-    }
-  }
-
-  if (eligibleStaff.length === 0) {
-    const anyActiveStaff = await StaffProfile.find({
-      status: 'ACTIVE',
-      staffSubRole: requiredStaffRole,
-    }).session(session);
-
-    if (anyActiveStaff.length > 0) {
-      eligibleStaff.push(...anyActiveStaff);
     }
   }
 

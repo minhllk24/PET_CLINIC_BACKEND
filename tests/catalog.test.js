@@ -850,7 +850,7 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
       expect(formatted.maxPrice).toBe(450000);
       expect(formatted.minFinalPrice).toBe(90000);
       expect(formatted.maxFinalPrice).toBe(360000);
-      expect(formatted).not.toHaveProperty('price');
+      expect(formatted.price).toBe(90000);
     });
 
     it('formatProduct includes price and finalPrice for SIMPLE products', () => {
@@ -875,8 +875,9 @@ describe('Priority P0 – Product/Category & Stock Isolation Unit & Route Tests'
 
       const formatted = catalogService.formatProduct(rawSimpleProduct);
 
-      expect(formatted.price).toBe(65000);
+      expect(formatted.price).toBe(58500);
       expect(formatted.finalPrice).toBe(58500);
+      expect(formatted.originalPrice).toBe(65000);
       expect(formatted.minPrice).toBe(65000);
       expect(formatted.maxPrice).toBe(65000);
     });

@@ -337,6 +337,7 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
       );
       staffShifts.push({
         staffId: profile._id.toString(),
+        userId: profile.userId ? profile.userId.toString() : null,
         subRole: profile.staffSubRole,
         startMins: shiftStartMins,
         endMins: shiftEndMins,
@@ -344,67 +345,8 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
     }
   }
 
-  // Resilient fallback: If no explicit individual shift documents were registered for this date,
-  // automatically map active staff associated with this branch to the branch's daily operating hours
-  // so appointments and slots remain bookable (Zero manual shift dependency)
-  if (staffShifts.length === 0) {
-    const branchObjId = mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : null;
-    let activeStaff = [];
-    if (branchObjId) {
-      activeStaff = await StaffProfile.find({
-        status: 'ACTIVE',
-        $or: [
-          { branchId: branchObjId },
-          { branchIds: branchObjId },
-          { allBranches: true },
-          { branchId: { $exists: false } },
-          { branchId: null },
-        ],
-      });
-    }
-
-    if (!activeStaff || activeStaff.length === 0) {
-      activeStaff = await StaffProfile.find({ status: 'ACTIVE' });
-    }
-
-    for (const profile of activeStaff) {
-      staffShifts.push({
-        staffId: profile._id.toString(),
-        subRole: profile.staffSubRole,
-        startMins: branchOpenMinutes,
-        endMins: branchCloseMinutes,
-      });
-    }
-
-    // Safety fallback: If StaffProfile collection is completely empty or unseeded, populate virtual clinical roles
-    if (staffShifts.length === 0) {
-      for (let i = 1; i <= 3; i++) {
-        staffShifts.push(
-          { staffId: `default-vet-${i}`, subRole: 'VETERINARIAN', startMins: branchOpenMinutes, endMins: branchCloseMinutes },
-          { staffId: `default-groomer-${i}`, subRole: 'CARE_STAFF_GROOMER', startMins: branchOpenMinutes, endMins: branchCloseMinutes },
-          { staffId: `default-nurse-${i}`, subRole: 'NURSE', startMins: branchOpenMinutes, endMins: branchCloseMinutes }
-        );
-      }
-    }
-  }
-
-  // Ensure that at any moment during operating hours, the branch has full clinical staffing
-  // matching branch service capacity (3 concurrent examination / grooming care stations)
-  // so unbooked slots correctly reflect full capacity (Còn 3/3) instead of artificial 1/3 caps
-  const clinicalRoles = ['VETERINARIAN', 'CARE_STAFF_GROOMER', 'NURSE'];
-  for (const role of clinicalRoles) {
-    for (let i = 1; i <= 3; i++) {
-      const virtualId = `station-${branchId}-${role.toLowerCase()}-${i}`;
-      if (!staffShifts.some((s) => s.staffId === virtualId)) {
-        staffShifts.push({
-          staffId: virtualId,
-          subRole: role,
-          startMins: branchOpenMinutes,
-          endMins: branchCloseMinutes,
-        });
-      }
-    }
-  }
+  // Strictly respect real ACTIVE Shift records at THIS branch only (FT-M13-05, FT-M12-02, FT-M12-03).
+  // No cross-branch staff fallback and no synthetic/virtual stations.
 
   // 6. Fetch Existing Appointments and Holds on this date
   const now = new Date();
@@ -570,13 +512,16 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
 
       // Check staff availability across ALL bookings & holds occupying staff during [segStart, segEnd]
       const occupiedStaffIds = new Set();
+      let unassignedSameRoleCount = 0;
       for (const apt of overlappingBookingsAllServices) {
         for (const seg of apt.services || []) {
-          if (seg.assignedStaffId) {
-            const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
-            const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
-            if (Math.max(sStartM, segStart) < Math.min(sEndM, segEnd)) {
+          const sStartM = Math.floor((new Date(seg.scheduledStart).getTime() - startOfDay.getTime()) / 60000);
+          const sEndM = Math.floor((new Date(seg.scheduledEnd).getTime() - startOfDay.getTime()) / 60000);
+          if (Math.max(sStartM, segStart) < Math.min(sEndM, segEnd)) {
+            if (seg.assignedStaffId) {
               occupiedStaffIds.add(seg.assignedStaffId.toString());
+            } else if (!service.requiredStaffRole || !seg.requiredStaffRole || seg.requiredStaffRole === service.requiredStaffRole) {
+              unassignedSameRoleCount += 1;
             }
           }
         }
@@ -589,19 +534,23 @@ export const getAvailability = async ({ serviceIds, branchId, date, includeFull 
         (shift) => !service.requiredStaffRole || shift.subRole === service.requiredStaffRole
       );
 
-      const availableStaff = matchingRoleShifts.filter((shift) => {
-        return (
-          shift.startMins <= segStart &&
-          shift.endMins >= segEnd &&
-          !occupiedStaffIds.has(shift.staffId)
-        );
-      });
+      const availableStaffIds = new Set();
+      for (const shift of matchingRoleShifts) {
+        const isOccupied =
+          occupiedStaffIds.has(shift.staffId) ||
+          (shift.userId && occupiedStaffIds.has(shift.userId));
+        if (shift.startMins <= segStart && shift.endMins >= segEnd && !isOccupied) {
+          availableStaffIds.add(shift.staffId);
+        }
+      }
 
-      if (availableStaff.length === 0) {
+      const freeStaffCount = Math.max(0, availableStaffIds.size - unassignedSameRoleCount);
+
+      if (freeStaffCount === 0) {
         staffUnavailable = true;
       }
-      if (availableStaff.length < minAvailableStaff) {
-        minAvailableStaff = availableStaff.length;
+      if (freeStaffCount < minAvailableStaff) {
+        minAvailableStaff = freeStaffCount;
       }
 
       slotSegments.push({

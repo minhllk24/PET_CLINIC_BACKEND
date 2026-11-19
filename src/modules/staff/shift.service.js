@@ -418,6 +418,7 @@ export const deleteShift = async (id, actor = null) => {
  * Runs as a non-blocking background migration on server startup
  */
 export const ensureFutureShifts = async () => {
+  if (process.env.NODE_ENV === 'test') return;
   try {
     const branches = await Branch.find({ status: 'ACTIVE' });
     if (!branches || branches.length === 0) return;
@@ -427,15 +428,6 @@ export const ensureFutureShifts = async () => {
 
     const endDate = new Date(startDate.getTime() + 75 * 24 * 60 * 60 * 1000);
 
-    const count = await Shift.countDocuments({
-      status: 'ACTIVE',
-      startAt: { $gte: startDate, $lte: endDate },
-    });
-
-    if (count >= 100) {
-      return;
-    }
-
     const allStaff = await StaffProfile.find({ status: 'ACTIVE' });
     if (!allStaff || allStaff.length === 0) return;
 
@@ -444,19 +436,26 @@ export const ensureFutureShifts = async () => {
 
     for (const branch of branches) {
       const bId = branch._id;
-      const vets = allStaff.filter(
-        (s) => s.staffSubRole === 'VETERINARIAN' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
-      );
-      const groomers = allStaff.filter(
-        (s) => s.staffSubRole === 'CARE_STAFF_GROOMER' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
-      );
-      const nurses = allStaff.filter(
-        (s) => s.staffSubRole === 'NURSE' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
-      );
+      const branchShiftCount = await Shift.countDocuments({
+        branchId: bId,
+        status: 'ACTIVE',
+        startAt: { $gte: startDate, $lte: endDate },
+      });
 
-      const effectiveVets = vets.length > 0 ? vets : allStaff.filter((s) => s.staffSubRole === 'VETERINARIAN');
-      const effectiveGroomers = groomers.length > 0 ? groomers : allStaff.filter((s) => s.staffSubRole === 'CARE_STAFF_GROOMER');
-      const effectiveNurses = nurses.length > 0 ? nurses : allStaff.filter((s) => s.staffSubRole === 'NURSE');
+      if (branchShiftCount >= 60) {
+        continue;
+      }
+
+      const belongsToBranch = (s) => {
+        if (s.branchId && s.branchId.toString() === bId.toString()) return true;
+        if (Array.isArray(s.branchIds) && s.branchIds.some((id) => id && id.toString() === bId.toString())) return true;
+        if (s.allBranches) return true;
+        return false;
+      };
+
+      const effectiveVets = allStaff.filter((s) => s.staffSubRole === 'VETERINARIAN' && belongsToBranch(s));
+      const effectiveGroomers = allStaff.filter((s) => s.staffSubRole === 'CARE_STAFF_GROOMER' && belongsToBranch(s));
+      const effectiveNurses = allStaff.filter((s) => s.staffSubRole === 'NURSE' && belongsToBranch(s));
 
       for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().slice(0, 10);

@@ -414,6 +414,9 @@ app.use(async (req, res, next) => {
       delete req.query.petIds;
       delete req.query.petId;
       delete req.query.customerId;
+      if (req.query.includeFull !== undefined) {
+        req.includeFull = req.query.includeFull === 'true' || req.query.includeFull === true;
+      }
       delete req.query.includeFull;
 
       // Ensure branchId is a valid ObjectId, otherwise map or fallback to primary branch

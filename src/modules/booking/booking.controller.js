@@ -9,6 +9,7 @@ export const getAvailability = async (req, res, next) => {
     const rawDate = req.query.date || req.query.bookingDate || req.query.appointmentDate || new Date().toISOString().slice(0, 10);
     const { includeFull } = req.query;
     const isIncludeFull =
+      req.includeFull === true ||
       includeFull === 'true' ||
       includeFull === true ||
       ['ADMIN', 'MANAGER', 'STAFF'].includes(req.actor?.systemRole);
