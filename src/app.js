@@ -587,7 +587,7 @@ app.use(async (req, res, next) => {
     }
 
     // Appointments Booking Ingress Normalizer
-    if (req.path.endsWith('/appointments') && req.method === 'POST') {
+    if ((req.path.endsWith('/appointments') || req.path.endsWith('/appointment-requests')) && req.method === 'POST') {
       if (req.body.branch_id && !req.body.branchId) {
         req.body.branchId = req.body.branch_id;
       }
@@ -641,12 +641,29 @@ app.use(async (req, res, next) => {
       }
 
       if (req.body.pet_data && !req.body.pet && !req.body.petId) {
+        const rawPetSpeciesDetail = (
+          req.body.pet_data.speciesDetail ||
+          req.body.pet_data.speciesName ||
+          req.body.pet_data.otherSpecies ||
+          req.body.pet_data.customSpecies ||
+          ''
+        ).trim().slice(0, 100) || null;
         req.body.pet = {
-          name: req.body.pet_data.pet_name || 'Bé cưng',
-          species: (req.body.pet_data.species_id || 'DOG').toUpperCase(),
+          name: req.body.pet_data.pet_name || req.body.pet_data.name || 'Bé cưng',
+          species: (req.body.pet_data.species_id || req.body.pet_data.species || 'DOG').toUpperCase(),
+          ...(rawPetSpeciesDetail ? { speciesDetail: rawPetSpeciesDetail, speciesName: rawPetSpeciesDetail } : {}),
           breed: req.body.pet_data.breed || undefined,
-          weightKg: Number(req.body.pet_data.weight_kg || 3),
+          weightKg: Number(req.body.pet_data.weight_kg || req.body.pet_data.weightKg || 3),
         };
+      }
+      if (req.body.pet && typeof req.body.pet === 'object') {
+        const aliasDetail = req.body.pet.otherSpecies || req.body.pet.customSpecies;
+        if (aliasDetail !== undefined && req.body.pet.speciesDetail === undefined) {
+          const cleanDetail = String(aliasDetail || '').trim().slice(0, 100);
+          req.body.pet.speciesDetail = cleanDetail || null;
+        }
+        delete req.body.pet.otherSpecies;
+        delete req.body.pet.customSpecies;
       }
       delete req.body.pet_data;
 

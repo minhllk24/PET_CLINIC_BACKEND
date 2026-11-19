@@ -359,13 +359,15 @@ export const checkoutAppointment = async (req, res, next) => {
 export const previewPricing = async (req, res, next) => {
   try {
     const payload = req.body || {};
+    const isInternalStaff = req.actor && ['STAFF', 'MANAGER', 'ADMIN', 'RECEPTIONIST'].includes(req.actor.systemRole);
     const result = await bookingService.previewAppointmentPricing({
       serviceIds: payload.serviceIds || (payload.serviceId ? [payload.serviceId] : []),
       petId: payload.petId || payload.pet_id || null,
       petWeightKg: payload.petWeightKg ?? payload.petWeight ?? payload.weightKg ?? null,
       branchId: payload.branchId,
       voucherCode: payload.voucherCode || payload.voucher_code,
-      customerId: req.actor?.id,
+      customerId: isInternalStaff ? (payload.customerId || payload.customer_id || null) : null,
+      actor: req.actor || null,
     });
     res.json({
       success: true,

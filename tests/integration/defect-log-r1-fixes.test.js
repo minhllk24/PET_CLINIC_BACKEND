@@ -47,6 +47,7 @@ import * as paymentService from '../../src/modules/payment/payment.service';
 import * as returnService from '../../src/modules/order/return.service';
 import * as executionService from '../../src/modules/execution/execution.service';
 import * as inventoryService from '../../src/modules/inventory/inventory.service';
+import * as voucherService from '../../src/modules/order/voucher.service';
 
 const makeToken = (payload) =>
   jwt.sign(payload, config.jwt.accessSecret, { expiresIn: '1h' });
@@ -1582,6 +1583,244 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
           { id: nurseUserId.toString(), fullName: 'Y ta Lan', systemRole: 'STAFF', staffSubRole: 'NURSE' }
         )
       ).rejects.toMatchObject({ status: 403, code: 'ASSIGNMENT_SCOPE_ERROR' });
+    });
+  });
+
+  // =========================================================================
+  // 11. FE HANDOFF 19-11: OpenAPI PetInline speciesDetail & Preview Pricing Voucher Customer Context
+  // =========================================================================
+  describe('11. OpenAPI PetInline speciesDetail & Preview Pricing Voucher Customer Context', () => {
+    it('Accepts pet.speciesDetail, speciesName, ageYears, healthStatus, medicalNotes on POST /api/v1/internal/appointments and /appointments through OpenAPI validator', async () => {
+      const adminId = new mongoose.Types.ObjectId();
+      const adminToken = makeToken({ id: adminId.toString(), systemRole: 'ADMIN', name: 'Admin QA' });
+      const targetCustProfileId = new mongoose.Types.ObjectId();
+      const svcId = new mongoose.Types.ObjectId();
+
+      jest.spyOn(Branch, 'findById').mockReturnValue(
+        makeChainQuery({
+          _id: branch1Id,
+          code: 'BR-01',
+          name: 'Q1',
+          status: 'ACTIVE',
+          openingHours: {
+            mon: { open: '08:00', close: '20:00' },
+            tue: { open: '08:00', close: '20:00' },
+            wed: { open: '08:00', close: '20:00' },
+            thu: { open: '08:00', close: '20:00' },
+            fri: { open: '08:00', close: '20:00' },
+            sat: { open: '08:00', close: '20:00' },
+            sun: { open: '08:00', close: '20:00' },
+          },
+          holidays: [],
+        })
+      );
+      jest.spyOn(Customer, 'findOne').mockReturnValue(
+        makeChainQuery({
+          _id: targetCustProfileId,
+          userId: customerAId,
+          fullName: 'Khach Hang A',
+          phone: '0901112223',
+          email: 'a@test.com',
+        })
+      );
+      jest.spyOn(Service, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            _id: svcId,
+            code: 'MED01',
+            name: 'Kham tong quat',
+            serviceType: 'MEDICAL',
+            bookingMode: 'BOOKABLE',
+            status: 'ACTIVE',
+            basePrice: 150000,
+            durationMinutes: 30,
+            requiredStaffRole: 'VETERINARIAN',
+          },
+        ])
+      );
+      jest.spyOn(BranchServiceConfig, 'find').mockReturnValue(
+        makeChainQuery([{ branchId: branch1Id, serviceId: svcId, enabled: true, capacity: 3 }])
+      );
+      jest.spyOn(Appointment, 'countDocuments').mockReturnValue(makeChainQuery(0));
+      jest.spyOn(Appointment, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(Appointment, 'distinct').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(Appointment, 'aggregate').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(SlotReservation, 'distinct').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(Shift, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            branchId: branch1Id,
+            staffId: { _id: staffProfile1Id, staffSubRole: 'VETERINARIAN', status: 'ACTIVE' },
+            status: 'ACTIVE',
+            startAt: new Date('2026-11-23T00:00:00.000Z'),
+            endAt: new Date('2026-11-23T15:00:00.000Z'),
+          },
+        ])
+      );
+      jest.spyOn(StaffProfile, 'find').mockReturnValue(makeChainQuery([{ _id: staffProfile1Id, staffSubRole: 'VETERINARIAN', status: 'ACTIVE' }]));
+      jest.spyOn(StaffProfile, 'findOne').mockReturnValue(makeChainQuery({ _id: staffProfile1Id, staffSubRole: 'VETERINARIAN', status: 'ACTIVE' }));
+      jest.spyOn(SlotReservation, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(SlotReservation, 'insertMany').mockResolvedValue([]);
+      jest.spyOn(SlotReservation, 'updateMany').mockResolvedValue({ modifiedCount: 1 });
+      jest.spyOn(SlotReservation.prototype, 'save').mockResolvedValue(true);
+      jest.spyOn(Payment.prototype, 'save').mockResolvedValue(true);
+      jest.spyOn(Pet.prototype, 'save').mockResolvedValue(true);
+      jest.spyOn(Appointment.prototype, 'save').mockResolvedValue(true);
+
+      const res = await request(app)
+        .post('/api/v1/internal/appointments')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Idempotency-Key', 'idemp-petinline-speciesdetail-1')
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          slotStart: '2026-11-23T02:00:00.000Z',
+          customerId: customerAId.toString(),
+          pet: {
+            name: 'Bé Nhím',
+            species: 'OTHER',
+            speciesDetail: 'Nhím kiểng',
+            speciesName: 'Nhím kiểng',
+            breed: 'Hedgehog',
+            ageYears: 1,
+            weightKg: 0.5,
+            healthStatus: 'NORMAL',
+            medicalNotes: 'Nhút nhát',
+          },
+          paymentMethod: 'PAY_AT_STORE',
+        });
+
+      expect(res.status).not.toBe(400);
+      expect(res.status).toBe(201);
+      expect(res.body.petSnapshot?.species).toBe('OTHER');
+      expect(res.body.petSnapshot?.speciesDetail).toBe('Nhím kiểng');
+
+      // Also verify public/Customer POST /api/v1/appointments allows PetInline speciesDetail
+      const custRes = await request(app)
+        .post('/api/v1/appointments')
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .set('Idempotency-Key', 'idemp-petinline-speciesdetail-2')
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          slotStart: '2026-11-23T03:00:00.000Z',
+          pet: {
+            name: 'Sóc nhỏ',
+            species: 'OTHER',
+            speciesDetail: 'Sóc bay Úc',
+            breed: 'Sugar Glider',
+            weightKg: 0.2,
+          },
+          paymentMethod: 'PAY_AT_STORE',
+        });
+
+      expect(custRes.status).not.toBe(400);
+      expect(custRes.status).toBe(201);
+      expect(custRes.body.petSnapshot?.species).toBe('OTHER');
+      expect(custRes.body.petSnapshot?.speciesDetail).toBe('Sóc bay Úc');
+    });
+
+    it('preview-pricing resolves target customerId / pet owner / guest for Admin booking on behalf (never Admin actor id) and blocks Customer IDOR', async () => {
+      const adminId = new mongoose.Types.ObjectId();
+      const adminToken = makeToken({ id: adminId.toString(), systemRole: 'ADMIN', name: 'Admin QA' });
+      const targetCustProfileId = new mongoose.Types.ObjectId();
+      const petOwnerProfileId = new mongoose.Types.ObjectId();
+      const petId = new mongoose.Types.ObjectId();
+      const svcId = new mongoose.Types.ObjectId();
+
+      jest.spyOn(Service, 'find').mockResolvedValue([
+        {
+          _id: svcId,
+          code: 'MED01',
+          name: 'Kham tong quat',
+          serviceType: 'MEDICAL',
+          bookingMode: 'BOOKABLE',
+          basePrice: 200000,
+        },
+      ]);
+      const voucherSpy = jest.spyOn(voucherService, 'validateVoucherEligibility').mockResolvedValue({
+        valid: true,
+        discount: 20000,
+        voucher: { code: 'SAVE20K' },
+      });
+
+      // 1) Admin passes explicit customerId -> must resolve target Customer._id (never adminId)
+      jest.spyOn(Customer, 'findOne').mockReturnValueOnce(makeChainQuery({ _id: targetCustProfileId }));
+      const adminWithCustRes = await request(app)
+        .post('/api/v1/appointments/preview-pricing')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          customerId: customerAId.toString(),
+          voucherCode: 'SAVE20K',
+        });
+
+      expect(adminWithCustRes.status).toBe(200);
+      expect(voucherSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          code: 'SAVE20K',
+          customerId: targetCustProfileId.toString(),
+        })
+      );
+
+      // 2) Admin selects petId without customerId -> must infer pet owner's customerId (never adminId)
+      jest.spyOn(Pet, 'findById').mockReturnValueOnce(makeChainQuery({ _id: petId, weightKg: 6, customerId: petOwnerProfileId }));
+      const adminWithPetRes = await request(app)
+        .post('/api/v1/appointments/preview-pricing')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          petId: petId.toString(),
+          voucherCode: 'SAVE20K',
+        });
+
+      expect(adminWithPetRes.status).toBe(200);
+      expect(voucherSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          customerId: petOwnerProfileId.toString(),
+        })
+      );
+
+      // 3) Admin books for walk-in guest (no customerId, no petId) -> customerId must be null (never adminId)
+      const adminGuestRes = await request(app)
+        .post('/api/v1/appointments/preview-pricing')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          petWeightKg: 5,
+          voucherCode: 'SAVE20K',
+        });
+
+      expect(adminGuestRes.status).toBe(200);
+      expect(voucherSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          customerId: null,
+        })
+      );
+      expect(voucherSpy.mock.calls.some(([args]) => args.customerId === adminId.toString())).toBe(false);
+
+      // 4) Customer caller attempting to spoof customerId -> forced to own Customer identity
+      const ownProfileId = new mongoose.Types.ObjectId();
+      jest.spyOn(Customer, 'findOne').mockReturnValueOnce(makeChainQuery({ _id: ownProfileId }));
+      const custSpoofRes = await request(app)
+        .post('/api/v1/appointments/preview-pricing')
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .send({
+          branchId: branch1Id.toString(),
+          serviceIds: [svcId.toString()],
+          customerId: customerBId.toString(),
+          voucherCode: 'SAVE20K',
+        });
+
+      expect(custSpoofRes.status).toBe(200);
+      expect(voucherSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          customerId: ownProfileId.toString(),
+        })
+      );
     });
   });
 });

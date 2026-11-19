@@ -1234,7 +1234,7 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         else if (species.includes('MÈO') || species.includes('MEO')) species = 'CAT';
         else if (!['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'].includes(species)) species = 'OTHER';
 
-        const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim() || null;
+        const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim().slice(0, 100) || null;
         const newPet = new Pet({
           customerId,
           name: pet.name || 'Thú cưng',
@@ -1275,11 +1275,11 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
         photoUrl: resolvedPetDoc.photoUrl || null,
       };
     } else if (pet) {
-      const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim() || null;
+      const speciesDetail = (pet.speciesDetail || pet.speciesName || pet.otherSpecies || pet.customSpecies || '').trim().slice(0, 100) || null;
       petSnapshot = {
         ...pet,
-        speciesDetail: pet.speciesDetail || speciesDetail || null,
-        speciesName: pet.speciesName || speciesDetail || null,
+        speciesDetail: speciesDetail,
+        speciesName: (pet.speciesName ? String(pet.speciesName).trim().slice(0, 100) : null) || speciesDetail || null,
       };
     }
 
@@ -2901,7 +2901,8 @@ export const previewAppointmentPricing = async ({
   petWeightKg = null,
   branchId,
   voucherCode,
-  customerId,
+  customerId = null,
+  actor = null,
 } = {}) => {
   const ids = Array.isArray(serviceIds) ? serviceIds : (serviceIds ? [serviceIds] : []);
   const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
@@ -2911,20 +2912,79 @@ export const previewAppointmentPricing = async ({
       ? Number(petWeightKg)
       : null;
 
+  let petDoc = null;
   if (
-    (effectiveWeight === null || effectiveWeight <= 0) &&
     petId &&
     mongoose.Types.ObjectId.isValid(petId) &&
     (mongoose.connection.readyState === 1 || Pet.findById?._isMockFunction)
   ) {
     try {
-      const petDoc = await Pet.findById(petId).select('weightKg').lean();
-      if (petDoc && Number(petDoc.weightKg) > 0) {
+      let pq = Pet.findById(petId);
+      if (typeof pq?.select === 'function') pq = pq.select('weightKg customerId');
+      if (typeof pq?.lean === 'function') pq = pq.lean();
+      petDoc = await pq;
+      if ((effectiveWeight === null || effectiveWeight <= 0) && petDoc && Number(petDoc.weightKg) > 0) {
         effectiveWeight = Number(petDoc.weightKg);
       }
     } catch {
       // ignore lookup fallback
     }
+  }
+
+  const isCustomerActor = actor && (actor.systemRole === 'CUSTOMER' || actor.role === 'CUSTOMER');
+  const isInternalStaffActor = actor && ['STAFF', 'MANAGER', 'ADMIN', 'RECEPTIONIST'].includes(actor.systemRole);
+  const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+  const canQueryCustomer = mongoose.connection.readyState === 1 || CustomerModel?.findOne?._isMockFunction;
+
+  let effectiveCustomerId = null;
+  if (isCustomerActor) {
+    const actorId = (actor.id || actor._id)?.toString() || null;
+    effectiveCustomerId = actorId;
+    if (actorId && mongoose.Types.ObjectId.isValid(actorId) && canQueryCustomer) {
+      try {
+        let cq = CustomerModel.findOne({ $or: [{ userId: actorId }, { _id: actorId }] });
+        if (typeof cq?.select === 'function') cq = cq.select('_id');
+        if (typeof cq?.lean === 'function') cq = cq.lean();
+        const custDoc = await cq;
+        if (custDoc?._id) {
+          effectiveCustomerId = custDoc._id.toString();
+        }
+      } catch {
+        // Keep bearer actorId fallback
+      }
+    }
+  } else if (isInternalStaffActor) {
+    // Staff/Admin booking on behalf must validate voucher against target customer (not Admin/Staff identity)
+    const rawTargetCustId = customerId ? String(customerId).trim() : null;
+    if (rawTargetCustId) {
+      if (!mongoose.Types.ObjectId.isValid(rawTargetCustId)) {
+        throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid customerId format');
+      }
+      effectiveCustomerId = rawTargetCustId;
+      if (canQueryCustomer) {
+        try {
+          let cq = CustomerModel.findOne({ $or: [{ _id: rawTargetCustId }, { userId: rawTargetCustId }] });
+          if (typeof cq?.select === 'function') cq = cq.select('_id');
+          if (typeof cq?.lean === 'function') cq = cq.lean();
+          const custDoc = await cq;
+          if (custDoc?._id) {
+            effectiveCustomerId = custDoc._id.toString();
+          } else if (mongoose.connection.readyState === 1) {
+            const UserModel = mongoose.models.User || mongoose.model('User');
+            const userDoc = await UserModel.findById(rawTargetCustId).select('_id').lean();
+            if (!userDoc) {
+              throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Target customer not found');
+            }
+          }
+        } catch (err) {
+          if (err instanceof AppError) throw err;
+        }
+      }
+    } else if (petDoc?.customerId) {
+      effectiveCustomerId = (petDoc.customerId._id || petDoc.customerId).toString();
+    }
+  } else if (!actor && customerId) {
+    effectiveCustomerId = String(customerId);
   }
 
   let services = [];
@@ -3016,7 +3076,7 @@ export const previewAppointmentPricing = async ({
         subtotal,
         serviceIds: validIds.map((id) => id.toString()),
         branchId,
-        customerId,
+        customerId: effectiveCustomerId,
       });
 
       if (check.valid) {

@@ -9176,10 +9176,46 @@ components:
           type: string
         species:
           type: string
+        speciesDetail:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
+        speciesName:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
         breed:
-          type: string
+          type:
+          - string
+          - 'null'
+        gender:
+          type:
+          - string
+          - 'null'
+        ageYears:
+          type:
+          - number
+          - 'null'
+          minimum: 0
         weightKg:
-          type: number
+          type:
+          - number
+          - 'null'
+          minimum: 0
+        healthStatus:
+          type:
+          - string
+          - 'null'
+        medicalNotes:
+          type:
+          - string
+          - 'null'
+        photoUrl:
+          type:
+          - string
+          - 'null'
       additionalProperties: false
       required:
       - name
