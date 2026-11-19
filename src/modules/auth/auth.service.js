@@ -101,6 +101,9 @@ export const register = async (
   const cleanEmail = email && String(email).trim() ? String(email).toLowerCase().trim() : null;
   let existingEmail = null;
   if (cleanEmail) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new AppError(400, 'Bad Request', 'INVALID_EMAIL', 'Địa chỉ email không đúng định dạng (VD: example@domain.com)');
+    }
     existingEmail = await User.findOne({ email: cleanEmail });
     if (existingEmail && existingEmail.accountStatus && existingEmail.accountStatus !== 'PENDING_ACTIVATION') {
       throw new AppError(409, 'Conflict', 'EMAIL_ALREADY_EXISTS', 'Địa chỉ email này đã được đăng ký tài khoản');

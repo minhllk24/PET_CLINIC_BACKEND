@@ -235,6 +235,8 @@ export const unifiedSearch = async (params, actor = null) => {
   const {
     q,
     keyword,
+    query,
+    search,
     scope = 'all',
     page = 1,
     limit = 10,
@@ -246,7 +248,7 @@ export const unifiedSearch = async (params, actor = null) => {
     isAvailable
   } = params;
 
-  const searchQuery = (q || keyword || '').trim();
+  const searchQuery = (q || keyword || query || search || '').trim();
   const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 

@@ -109,12 +109,21 @@ export const errorHandler = (err, req, res, next) => {
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map((val) => ({
-      field: val.path,
-      message: val.message,
-      code: ErrorCodes.VALIDATION_ERROR
-    }));
-    error = new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, 'Validation failed', errors);
+    const errors = Object.values(err.errors).map((val) => {
+      let friendlyMsg = val.message;
+      if (val.path === 'email' || (val.message && val.message.toLowerCase().includes('email'))) {
+        friendlyMsg = 'Địa chỉ email không đúng định dạng (VD: example@domain.com)';
+      } else if (val.path === 'phone' || (val.message && val.message.toLowerCase().includes('phone'))) {
+        friendlyMsg = 'Số điện thoại không đúng định dạng Việt Nam (VD: 0987654321 hoặc +84987654321)';
+      }
+      return {
+        field: val.path,
+        message: friendlyMsg || val.message,
+        code: ErrorCodes.VALIDATION_ERROR
+      };
+    });
+    const firstMsg = errors.find((e) => e.message)?.message || 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+    error = new AppError(400, 'Validation Error', ErrorCodes.VALIDATION_ERROR, firstMsg, errors);
   }
 
   const isInternal = error.status === 500 || !error.status;
@@ -139,6 +148,7 @@ export const errorHandler = (err, req, res, next) => {
     code: isInternal ? ErrorCodes.INTERNAL_ERROR : error.code,
     correlationId: req.id, // from pino-http
     detail: isInternal ? 'An unexpected error occurred' : error.detail,
+    message: isInternal ? 'An unexpected error occurred' : (error.detail || error.message),
     instance: req.originalUrl,
   };
 
