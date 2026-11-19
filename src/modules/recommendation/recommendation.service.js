@@ -52,7 +52,8 @@ export const getRecommendations = async ({
     for (const apt of Array.isArray(pastApts) ? pastApts : []) {
       if (apt.serviceType) pastServiceTypes.add(apt.serviceType);
       for (const seg of apt.services || []) {
-        if (seg.serviceType) pastServiceTypes.add(seg.serviceType);
+        const segType = seg.serviceType || seg.serviceId?.serviceType;
+        if (segType) pastServiceTypes.add(segType);
       }
     }
     for (const ord of Array.isArray(pastOrders) ? pastOrders : []) {
@@ -193,6 +194,7 @@ export const getRecommendations = async ({
       if (p.categoryId && pastProductCategories.has(p.categoryId._id?.toString() || p.categoryId.toString())) {
         score += 15;
         signals.push('CATEGORY_REPURCHASE');
+        reasons.push('Phù hợp với danh mục sản phẩm bạn từng mua');
       }
 
       score += Math.min(Math.round((p.ratingAvg || 0) * 2), 10);
@@ -278,6 +280,7 @@ export const getRecommendations = async ({
       if (pastServiceTypes.has(s.serviceType)) {
         score += 15;
         signals.push('SERVICE_LOYALTY');
+        reasons.push('Phù hợp với lịch sử dịch vụ của thú cưng');
       }
 
       if (reasons.length === 0) {

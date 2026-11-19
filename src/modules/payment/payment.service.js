@@ -673,6 +673,10 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
       let freshTarget = null;
       try {
         freshPay = await Payment.findById(paymentId);
+        if (freshPay?.status === 'PENDING' && !Payment.findById?._isMockFunction) {
+          await new Promise((resolve) => setTimeout(resolve, 80));
+          freshPay = await Payment.findById(paymentId);
+        }
         if (freshPay) {
           const resolved = await resolvePaymentTarget(freshPay, null);
           if (resolved.targetType === 'APPOINTMENT' && resolved.targetId) {

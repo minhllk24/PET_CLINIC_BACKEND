@@ -788,6 +788,94 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(recs.recommendations.some((p) => p.item.name === 'In Stock Toy')).toBe(true);
     });
 
+    it('QA-R1-25 / FT-M24-01: Recommendation evaluates service suggestions and populated pet appointment/order history context', async () => {
+      const petObjId = new mongoose.Types.ObjectId();
+      const catObjId = new mongoose.Types.ObjectId();
+      const svcGroomId = new mongoose.Types.ObjectId();
+      const svcMedId = new mongoose.Types.ObjectId();
+      const stockedInvId = new mongoose.Types.ObjectId();
+
+      jest.spyOn(Pet, 'findById').mockReturnValue(
+        makeChainQuery({
+          _id: petObjId,
+          customerId: customerAId,
+          name: 'Milo',
+          species: 'DOG',
+          breed: 'Poodle',
+          ageYears: 3,
+          medicalNotes: 'da nhạy cảm',
+        })
+      );
+      jest.spyOn(Appointment, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            _id: new mongoose.Types.ObjectId(),
+            status: 'COMPLETED',
+            services: [{ serviceId: { _id: svcGroomId, serviceType: 'GROOMING' } }],
+          },
+        ])
+      );
+      jest.spyOn(Order, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            _id: new mongoose.Types.ObjectId(),
+            status: 'COMPLETED',
+            items: [{ categoryId: catObjId }],
+          },
+        ])
+      );
+      jest.spyOn(InventoryStock, 'aggregate').mockResolvedValue([{ _id: stockedInvId, totalQty: 4 }]);
+      jest.spyOn(Product, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            _id: new mongoose.Types.ObjectId(),
+            name: 'Sữa tắm skin cho chó Poodle',
+            categoryId: { _id: catObjId, name: 'Chăm sóc da' },
+            status: 'ACTIVE',
+            variants: [{ _id: new mongoose.Types.ObjectId(), price: 120000, status: 'ACTIVE', inventoryItemId: stockedInvId }],
+          },
+        ])
+      );
+      jest.spyOn(Service, 'find').mockReturnValue(
+        makeChainQuery([
+          {
+            _id: svcGroomId,
+            code: 'GRM01',
+            name: 'Tắm cắt tạo kiểu Poodle',
+            serviceType: 'GROOMING',
+            status: 'ACTIVE',
+            basePrice: 250000,
+          },
+          {
+            _id: svcMedId,
+            code: 'MED01',
+            name: 'Khám tổng quát',
+            serviceType: 'MEDICAL',
+            status: 'ACTIVE',
+            basePrice: 150000,
+          },
+        ])
+      );
+      jest.spyOn(BranchServiceConfig, 'find').mockReturnValue(
+        makeChainQuery([{ serviceId: svcGroomId }, { serviceId: svcMedId }])
+      );
+
+      const recs = await recommendationService.getRecommendations({
+        petId: petObjId.toString(),
+        type: 'ALL',
+        branchId: branch1Id.toString(),
+        limit: 10,
+      });
+
+      const groomingRec = recs.recommendations.find((r) => r.type === 'SERVICE' && r.item.code === 'GRM01');
+      expect(groomingRec).toBeTruthy();
+      expect(groomingRec.signals).toEqual(expect.arrayContaining(['PET_PROFILE_MATCH', 'BREED_GROOMING_FIT', 'SERVICE_LOYALTY']));
+
+      const prodRec = recs.recommendations.find((r) => r.type === 'PRODUCT');
+      expect(prodRec).toBeTruthy();
+      expect(prodRec.signals).toEqual(expect.arrayContaining(['SPECIES_MATCH', 'CATEGORY_REPURCHASE']));
+    });
+
     it('QA-R1-21: getReviewById handles public null actor without crashing and enforces Manager branch scope', async () => {
       const revId = new mongoose.Types.ObjectId();
       const orderId = new mongoose.Types.ObjectId();

@@ -146,19 +146,14 @@ export const createReview = async (data, actor) => {
     status: { $ne: 'DELETED' },
   });
   if (existing) {
-    // If updating existing review in dev/test, update content and rating
-    existing.rating = data.rating;
-    existing.comment = data.comment || data.content || '';
-    existing.displayName = data.name || (data.anonymous ? null : (customer?.fullName || actor?.fullName || 'Khách hàng'));
-    await existing.save();
-    await recalculateTargetRating(targetType, targetId);
-    return formatReview(existing, false);
+    throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'You have already submitted a review for this item');
   }
 
   let sourceId = null;
   let sourceType = null;
   let order = null;
   let appointment = null;
+  const allowUnverified = process.env.ALLOW_UNVERIFIED_REVIEWS === 'true';
 
   if (targetType === 'PRODUCT') {
     order = await Order.findOne({
@@ -173,7 +168,14 @@ export const createReview = async (data, actor) => {
     if (order) {
       sourceId = order._id;
       sourceType = 'ORDER';
-    } else if (process.env.NODE_ENV === 'production' && process.env.STRICT_REVIEW_CHECK === 'true') {
+    } else if (!allowUnverified) {
+      const anyOrder = await Order.findOne({
+        $or: [{ customerId }, { userId }],
+        'items.productId': targetId,
+      });
+      if (anyOrder) {
+        throw new AppError(400, 'ValidationError', ErrorCodes.INVALID_STATE_TRANSITION, 'Order must be COMPLETED before reviewing');
+      }
       throw new AppError(403, 'Forbidden', ErrorCodes.OWNERSHIP_ERROR, 'You can only review products you have purchased');
     }
   } else if (targetType === 'SERVICE') {
@@ -189,7 +191,14 @@ export const createReview = async (data, actor) => {
     if (appointment) {
       sourceId = appointment._id;
       sourceType = 'APPOINTMENT';
-    } else if (process.env.NODE_ENV === 'production' && process.env.STRICT_REVIEW_CHECK === 'true') {
+    } else if (!allowUnverified) {
+      const anyApt = await Appointment.findOne({
+        $or: [{ customerId }, { userId }],
+        'services.serviceId': targetId,
+      });
+      if (anyApt) {
+        throw new AppError(400, 'ValidationError', ErrorCodes.INVALID_STATE_TRANSITION, 'Appointment must be COMPLETED before reviewing');
+      }
       throw new AppError(403, 'Forbidden', ErrorCodes.OWNERSHIP_ERROR, 'You can only review services you have used');
     }
   }
