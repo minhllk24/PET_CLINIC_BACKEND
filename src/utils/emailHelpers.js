@@ -44,6 +44,45 @@ const getFromAddress = (displayName = "Dr. Pet's House Clinic") => {
 };
 
 const deliverEmail = async (mailOptions, label = 'email') => {
+  // 1. Google Apps Script Web App Bridge (HTTPS 443, reuses existing Gmail account on Render)
+  const webhookUrl = (process.env.EMAIL_WEBHOOK_URL || '').trim();
+  if (webhookUrl) {
+    try {
+      const toAddress = Array.isArray(mailOptions.to) ? mailOptions.to.filter(Boolean).join(',') : mailOptions.to;
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        redirect: 'follow',
+        body: JSON.stringify({
+          secret: (process.env.EMAIL_WEBHOOK_SECRET || '').trim(),
+          to: toAddress,
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+          senderName: "Dr. Pet's House Clinic",
+        }),
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined,
+      });
+
+      const bodyText = await res.text().catch(() => '');
+      let parsed = null;
+      try {
+        parsed = JSON.parse(bodyText);
+      } catch (_e) {
+        parsed = null;
+      }
+
+      if (!res.ok || (parsed && parsed.ok === false)) {
+        console.error(`[EMAIL WEBHOOK] Failed sending ${label} (${res.status}):`, bodyText.slice(0, 300));
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error(`[EMAIL WEBHOOK] Error sending ${label}:`, error.message || error);
+      return false;
+    }
+  }
+
+  // 2. Resend HTTP API (HTTPS 443)
   const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
   if (resendApiKey) {
     try {
