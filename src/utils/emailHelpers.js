@@ -33,13 +33,59 @@ const createTransporter = () => {
 };
 
 const getFromAddress = (displayName = "Dr. Pet's House Clinic") => {
+  if (process.env.RESEND_API_KEY) {
+    if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
+    if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
+    return `"${displayName}" <onboarding@resend.dev>`;
+  }
   if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
   const sender = process.env.SMTP_USER || process.env.EMAIL_APP || 'support@drpets.vn';
   return `"${displayName}" <${sender}>`;
 };
 
+const deliverEmail = async (mailOptions, label = 'email') => {
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (resendApiKey) {
+    try {
+      const toList = Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to];
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: mailOptions.from,
+          to: toList.filter(Boolean),
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+        }),
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined,
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error(`[RESEND] Failed sending ${label} (${res.status}):`, errBody);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error(`[RESEND] Error sending ${label}:`, error.message || error);
+      return false;
+    }
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error(`Error sending ${label}:`, error.message || error);
+    return false;
+  }
+};
+
 export const sendOtpEmail = async (toEmail, otpCode, purpose = 'FORGOT_PASSWORD', fullName = '') => {
-  const transporter = createTransporter();
 
   let purposeTitle = 'Xác Nhận OTP';
   let purposeDesc = 'Bạn vừa thực hiện yêu cầu xác thực tại Dr. Pet\'s House. Vui lòng sử dụng mã OTP bên dưới:';
@@ -97,18 +143,10 @@ export const sendOtpEmail = async (toEmail, otpCode, purpose = 'FORGOT_PASSWORD'
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending OTP email:', error);
-    return false;
-  }
+  return deliverEmail(mailOptions, 'OTP email');
 };
 
 export const sendGuestAccountEmail = async (toEmail, password, orderCode) => {
-  const transporter = createTransporter();
-
   const mailOptions = {
     from: getFromAddress('Pet Clinic'),
     to: toEmail,
@@ -132,18 +170,10 @@ export const sendGuestAccountEmail = async (toEmail, password, orderCode) => {
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending guest account email:', error);
-    return false;
-  }
+  return deliverEmail(mailOptions, 'guest account email');
 };
 
 export const sendAppointmentReminderEmail = async (toEmail, appointmentCode, date, time) => {
-  const transporter = createTransporter();
-
   const mailOptions = {
     from: getFromAddress('Pet Clinic'),
     to: toEmail,
@@ -167,18 +197,10 @@ export const sendAppointmentReminderEmail = async (toEmail, appointmentCode, dat
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending appointment reminder email:', error);
-    return false;
-  }
+  return deliverEmail(mailOptions, 'appointment reminder email');
 };
 
 export const sendGuestOtpEmail = async (toEmail, otpCode) => {
-  const transporter = createTransporter();
-
   const mailOptions = {
     from: getFromAddress('Pet Clinic'),
     to: toEmail,
@@ -199,17 +221,10 @@ export const sendGuestOtpEmail = async (toEmail, otpCode) => {
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending guest OTP email:', error);
-    return false;
-  }
+  return deliverEmail(mailOptions, 'guest OTP email');
 };
 
 export const sendActivationInviteEmail = async (toEmail, inviteToken, fullName) => {
-  const transporter = createTransporter();
   const customerAppUrl = process.env.CUSTOMER_APP_URL || 'https://drpetshouse.lat';
   const activationUrl = `${customerAppUrl}/activate?token=${inviteToken}`;
 
@@ -233,12 +248,6 @@ export const sendActivationInviteEmail = async (toEmail, inviteToken, fullName) 
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending activation invite email:', error);
-    return false;
-  }
+  return deliverEmail(mailOptions, 'activation invite email');
 };
 
