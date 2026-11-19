@@ -2031,7 +2031,7 @@ export const runProductionUatSeed = async () => {
         user: custUser1,
         startHoursOffset: 2,
         depositStatus: 'NOT_REQUIRED',
-        execStatus: 'IN_PROGRESS',
+        execStatus: 'COMPLETED',
         hasReviewRecord: true
       },
       {
@@ -2110,6 +2110,29 @@ export const runProductionUatSeed = async () => {
       const aptEnd = new Date(aptStart.getTime() + 3600000);
       const unitPrice = apt.service.price || (apt.serviceType === 'MEDICAL' ? 250000 : 200000);
 
+      const buildSeedPlanned = async (serviceDoc) => {
+        const bom = Array.isArray(serviceDoc?.defaultMaterials) ? serviceDoc.defaultMaterials : [];
+        const matIds = bom.map((m) => m.materialId || m.inventoryItemId).filter(Boolean);
+        const items = matIds.length > 0 ? await InventoryItem.find({ _id: { $in: matIds }, kind: 'MATERIAL' }).lean() : [];
+        const itemMap = new Map(items.map((it) => [it._id.toString(), it]));
+        return bom
+          .map((m) => {
+            const mId = (m.materialId || m.inventoryItemId)?.toString();
+            const info = mId ? itemMap.get(mId) : null;
+            if (!mId || !info) return null;
+            return {
+              inventoryItemId: info._id,
+              quantity: Number(m.defaultQuantity || m.quantity || 1),
+              unit: m.unit || info.unit || 'cái',
+              notes: 'Vật tư định mức theo dịch vụ',
+              isDefault: true,
+              isExtra: false,
+            };
+          })
+          .filter(Boolean);
+      };
+
+      const isArrived = ['IN_PROGRESS', 'COMPLETED'].includes(apt.status);
       const savedApt = await Appointment.findOneAndUpdate(
         { code: apt.code },
         {
@@ -2119,13 +2142,15 @@ export const runProductionUatSeed = async () => {
             petId: apt.pet._id,
             branchId: branch1._id,
             serviceType: apt.serviceType,
+            checkInStatus: isArrived ? 'ARRIVED' : 'PENDING',
+            checkedInAt: isArrived ? aptStart : null,
             paymentMethod: 'PAY_AT_STORE',
             status: apt.status,
             completedAt: apt.status === 'COMPLETED' ? aptEnd : null,
             reviewerStaffId: apt.reviewerStaffId || (apt.serviceType === 'MEDICAL' ? doctorAnProfile._id : null),
             scheduledStart: aptStart,
             scheduledEnd: aptEnd,
-            scheduledDurationMinutes: 60,
+            scheduledDurationMinutes: Number(apt.service.durationMinutes || 60),
             contactSnapshot: {
               fullName: apt.user.fullName,
               phone: apt.user.phone,
@@ -2141,30 +2166,33 @@ export const runProductionUatSeed = async () => {
               {
                 serviceId: apt.service._id,
                 serviceName: apt.service.name || 'Dịch vụ chuẩn phòng khám',
-                serviceType: apt.serviceType,
-                unitPrice,
-                durationMinutes: 60,
+                serviceType: apt.service.serviceType || apt.serviceType,
+                unitPrice: apt.service.basePrice || unitPrice,
+                durationMinutes: Number(apt.service.durationMinutes || 60),
                 requiredStaffRole: apt.service.requiredStaffRole || (apt.serviceType === 'MEDICAL' ? 'VETERINARIAN' : 'CARE_STAFF_GROOMER'),
+                bookingMode: apt.service.bookingMode || 'BOOKABLE',
                 sequence: 1,
                 scheduledStart: aptStart,
                 scheduledEnd: aptEnd,
                 assignedStaffId: apt.staff._id,
+                checkInStatus: isArrived ? 'ARRIVED' : 'PENDING',
+                checkedInAt: isArrived ? aptStart : null,
                 executionStatus: apt.execStatus || 'NOT_STARTED',
                 executionCompletedAt: (apt.execStatus === 'COMPLETED' || apt.status === 'COMPLETED') ? aptEnd : null
               }
             ],
             pricing: {
-              subtotal: unitPrice,
+              subtotal: apt.service.basePrice || unitPrice,
               voucherDiscount: 0,
-              finalAmount: unitPrice,
-              depositAmount: apt.depositStatus !== 'NOT_REQUIRED' ? 60000 : 0,
-              paidAmount: apt.status === 'COMPLETED' ? unitPrice : (apt.depositStatus === 'HELD' ? 60000 : 0),
-              balanceAmount: apt.status === 'COMPLETED' ? 0 : unitPrice
+              finalAmount: apt.service.basePrice || unitPrice,
+              depositAmount: apt.depositStatus !== 'NOT_REQUIRED' ? Math.round((apt.service.basePrice || unitPrice) * 0.3) : 0,
+              paidAmount: apt.status === 'COMPLETED' ? (apt.service.basePrice || unitPrice) : (apt.depositStatus === 'HELD' ? Math.round((apt.service.basePrice || unitPrice) * 0.3) : 0),
+              balanceAmount: apt.status === 'COMPLETED' ? 0 : (apt.service.basePrice || unitPrice)
             },
             deposit: {
               status: apt.depositStatus
             },
-            cancel: apt.cancel ? { ...apt.cancel, at: new Date() } : undefined,
+            cancel: apt.cancel ? { ...apt.cancel, at: new Date() } : null,
             note: apt.note || undefined
           }
         },
@@ -2173,7 +2201,14 @@ export const runProductionUatSeed = async () => {
 
       // Nếu là dịch vụ Điều dưỡng chờ duyệt, tạo ServiceRecord WAITING_VET_REVIEW để Bác sĩ vào duyệt
       if (apt.hasReviewRecord) {
-        const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
+        const plannedMats = await buildSeedPlanned(apt.service);
+        const bandageMat = await InventoryItem.findOne({ sku: 'MAT009', kind: 'MATERIAL' }).lean();
+        const actualMats = plannedMats.map((pm) => {
+          if (bandageMat && pm.inventoryItemId.toString() === bandageMat._id.toString()) {
+            return { ...pm, quantity: 2, notes: 'Gạc tiệt trùng và băng cuộn cố định vết thương' };
+          }
+          return pm;
+        });
         const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
         await ServiceRecord.findOneAndUpdate(
           { appointmentId: savedApt._id },
@@ -2190,14 +2225,8 @@ export const runProductionUatSeed = async () => {
               recordType: 'MEDICAL',
               status: 'WAITING_VET_REVIEW',
               actualStartAt: aptStart,
-              actualMaterials: invItem ? [
-                {
-                  inventoryItemId: invItem._id,
-                  quantity: 2,
-                  unit: 'cuộn',
-                  notes: 'Gạc tiệt trùng và cồn đỏ sát trùng'
-                }
-              ] : [],
+              plannedMaterials: plannedMats,
+              actualMaterials: actualMats,
               professional: {
                 professionalNote: 'Điều dưỡng Hoàng Thị Mai đã hoàn tất vệ sinh và thay băng sạch sẽ cho bé. Đang chờ Bác sĩ duyệt và kê đơn thuốc.'
               }
@@ -2209,6 +2238,7 @@ export const runProductionUatSeed = async () => {
 
       // Nếu là dịch vụ đang tiến hành, tạo ServiceRecord IN_PROGRESS tương ứng 1-1
       if (apt.hasInProgressRecord) {
+        const plannedMats = await buildSeedPlanned(apt.service);
         const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
         await ServiceRecord.findOneAndUpdate(
           { appointmentId: savedApt._id },
@@ -2224,7 +2254,8 @@ export const runProductionUatSeed = async () => {
               recordType: apt.serviceType === 'MEDICAL' ? 'MEDICAL' : 'GROOMING',
               status: 'IN_PROGRESS',
               actualStartAt: aptStart,
-              actualMaterials: [],
+              plannedMaterials: plannedMats,
+              actualMaterials: plannedMats,
               professional: {
                 professionalNote: 'Kỹ thuật viên đang tiến hành thực hiện dịch vụ cho thú cưng.'
               }
@@ -2236,7 +2267,19 @@ export const runProductionUatSeed = async () => {
 
       // Nếu là COMPLETED, tạo kèm Bệnh án ServiceRecord đã ký duyệt + 1 giao dịch ISSUE chính
       if (apt.hasServiceRecord) {
-        const invItem = (await InventoryItem.findOne({ branchId: branch1._id })) || (await InventoryItem.findOne());
+        const plannedMats = await buildSeedPlanned(apt.service);
+        const matItem = (await InventoryItem.findOne({ sku: 'MAT001', kind: 'MATERIAL' }).lean())
+          || (await InventoryItem.findOne({ kind: 'MATERIAL', status: 'ACTIVE' }).lean());
+        const actualMats = plannedMats.length > 0
+          ? plannedMats.map((pm, idx) => (idx === 0 ? { ...pm, notes: 'Vật tư tiêu hao thực tế khi khám lâm sàng tổng quát' } : pm))
+          : (matItem ? [{
+              inventoryItemId: matItem._id,
+              quantity: 1,
+              unit: matItem.unit || 'đôi',
+              notes: 'Vật tư tiêu hao thực tế khi khám lâm sàng tổng quát',
+              isDefault: true,
+              isExtra: false,
+            }] : []);
         const srCode = String(apt.code || '').replace(/^APT-/i, 'SR-');
         const savedSr = await ServiceRecord.findOneAndUpdate(
           { appointmentId: savedApt._id },
@@ -2256,42 +2299,55 @@ export const runProductionUatSeed = async () => {
               actualStartAt: aptStart,
               actualEndAt: aptEnd,
               finalizedAt: aptEnd,
-              actualMaterials: invItem ? [
-                {
-                  inventoryItemId: invItem._id,
-                  quantity: 1,
-                  unit: invItem.unit || 'lọ',
-                  notes: 'Vật tư tiêu hao thực tế khi khám và xử lý vết thương'
-                }
-              ] : [],
+              plannedMaterials: plannedMats,
+              actualMaterials: actualMats,
+              lastFinalizedActual: actualMats,
               professional: {
                 diagnosis: 'Viêm da dị ứng nhẹ vùng cổ, đã xử lý sát trùng và kê thuốc bôi.',
-                treatmentPlan: 'Bôi dung dịch sát trùng Betadine 2 lần/ngày, uống vitamin dưỡng lông trong 7 ngày.'
+                treatment: 'Bôi dung dịch sát trùng Betadine 2 lần/ngày, uống vitamin dưỡng lông trong 7 ngày.',
+                result: 'Tình trạng ổn định, thú cưng ăn uống bình thường.',
+                professionalNote: 'Tái khám sau 7 ngày nếu vùng da chưa phục hồi hoàn toàn.'
               }
             }
           },
           { upsert: true, new: true }
         );
 
-        if (savedSr && invItem) {
+        if (savedSr && actualMats.length > 0) {
           const existingTx = await InventoryTransaction.findOne({
             sourceType: 'SERVICE_RECORD',
             sourceId: savedSr._id,
           });
           if (!existingTx) {
+            const firstMat = actualMats[0];
+            const invInfo = await InventoryItem.findById(firstMat.inventoryItemId).lean();
             await InventoryTransaction.create({
               branchId: branch1._id,
-              inventoryItemId: invItem._id,
+              branchName: branch1.name,
+              branchCode: branch1.code,
+              inventoryItemId: firstMat.inventoryItemId,
               transactionType: 'ISSUE',
-              beforeQty: 150,
-              changeQty: -1,
-              afterQty: 149,
+              beforeQty: 500,
+              changeQty: -firstMat.quantity,
+              afterQty: 500 - firstMat.quantity,
               sourceType: 'SERVICE_RECORD',
               sourceId: savedSr._id,
               referenceCode: srCode,
               recordVersion: 1,
               actorId: doctorAnProfile.userId || doctorAnProfile._id,
-              reason: `Hồ sơ thực hiện dịch vụ ${srCode} finalize v1`,
+              actorName: 'Bác sĩ Nguyễn Văn An',
+              actorRole: 'STAFF',
+              items: actualMats.map((m) => ({
+                inventoryItemId: m.inventoryItemId.toString(),
+                sku: invInfo?.sku || null,
+                name: invInfo?.name || null,
+                unit: m.unit,
+                quantity: m.quantity,
+                beforeQty: 500,
+                changeQty: -m.quantity,
+                afterQty: 500 - m.quantity,
+              })),
+              reason: `Xuất vật tư tiêu hao hồ sơ dịch vụ ${srCode}`,
             });
           }
         }

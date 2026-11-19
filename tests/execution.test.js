@@ -10,6 +10,8 @@ import IdempotencyKey from '../src/modules/audit/models/IdempotencyKey';
 import InventoryStock from '../src/modules/inventory/models/InventoryStock';
 import InventoryTransaction from '../src/modules/inventory/models/InventoryTransaction';
 import InventoryItem from '../src/modules/inventory/models/InventoryItem';
+import Service from '../src/modules/catalog/models/Service';
+import * as executionService from '../src/modules/execution/execution.service';
 
 const branchId = '507f1f77bcf86cd799439011';
 const adminId = '507f1f77bcf86cd799439001';
@@ -712,6 +714,135 @@ describe('Task 4.4: Service Record & Material Consumption Suite', () => {
       expect(res.body.reviewerStaffId).toBe(vetId);
       expect(mockAppointment.services[0].executionStatus).toBe('COMPLETED');
       expect(mockAppointment.status).toBe('COMPLETED');
+    });
+  });
+
+  describe('6. Catalog BOM Planned Materials, Material Guardrails & Enriched Display Fields', () => {
+    it('auto-populates plannedMaterials (and default actualMaterials) from Service.defaultMaterials when creating a ServiceRecord', async () => {
+      const mat1 = new mongoose.Types.ObjectId();
+      const mat2 = new mongoose.Types.ObjectId();
+      const svc1 = new mongoose.Types.ObjectId();
+
+      const mockApt = {
+        _id: new mongoose.Types.ObjectId(validAppointmentId),
+        code: 'APT-20261119-8001',
+        branchId: new mongoose.Types.ObjectId(branchId),
+        serviceType: 'MEDICAL',
+        status: 'IN_PROGRESS',
+        checkInStatus: 'ARRIVED',
+        reviewerStaffId: new mongoose.Types.ObjectId(vetId),
+        services: [{ serviceId: svc1, assignedStaffId: new mongoose.Types.ObjectId(nurseId), requiredStaffRole: 'NURSE' }],
+      };
+
+      jest.spyOn(Appointment, 'findById').mockResolvedValue(mockApt);
+      jest.spyOn(ServiceRecord, 'findOne').mockResolvedValue(null);
+      jest.spyOn(Service, 'find').mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          {
+            _id: svc1,
+            name: 'Thay băng / Chăm sóc sau điều trị',
+            defaultMaterials: [
+              { materialId: mat1, defaultQuantity: 5, unit: 'miếng' },
+              { materialId: mat2, defaultQuantity: 1, unit: 'cuộn' },
+            ],
+          },
+        ]),
+      });
+      jest.spyOn(InventoryItem, 'find').mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { _id: mat1, sku: 'MAT003', name: 'Gạc vô trùng', kind: 'MATERIAL', usageType: 'SERVICE_SUPPLY', unit: 'miếng', status: 'ACTIVE' },
+          { _id: mat2, sku: 'MAT009', name: 'Băng cuộn', kind: 'MATERIAL', usageType: 'SERVICE_SUPPLY', unit: 'cuộn', status: 'ACTIVE' },
+        ]),
+      });
+      jest.spyOn(ServiceRecord.prototype, 'save').mockResolvedValue(true);
+
+      const created = await executionService.createRecord(
+        { appointmentId: validAppointmentId },
+        { id: nurseId, systemRole: 'STAFF', staffSubRole: 'NURSE', authorizedBranchIds: [branchId] }
+      );
+
+      expect(created.code).toBe('SR-20261119-8001');
+      expect(created.plannedMaterials).toHaveLength(2);
+      expect(created.plannedMaterials[0]).toMatchObject({ inventoryItemId: mat1.toString(), quantity: 5, unit: 'miếng' });
+      expect(created.actualMaterials).toHaveLength(2);
+      expect(created.actualMaterials[0]).toMatchObject({ inventoryItemId: mat1.toString(), actualQuantity: 5, templateQuantity: 5 });
+    });
+
+    it('rejects retail SALE/PRODUCT items (e.g., Hạt Royal Canin) with 422 in updateMaterials while allowing MATERIAL items', async () => {
+      const retailProductId = new mongoose.Types.ObjectId().toString();
+      const mockRecord = {
+        _id: new mongoose.Types.ObjectId(validRecordId),
+        appointmentId: new mongoose.Types.ObjectId(validAppointmentId),
+        branchId: new mongoose.Types.ObjectId(branchId),
+        recordType: 'GROOMING',
+        status: 'IN_PROGRESS',
+        recordVersion: 0,
+        version: 1,
+        actualMaterials: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const mockAppointment = {
+        _id: new mongoose.Types.ObjectId(validAppointmentId),
+        services: [{ assignedStaffId: new mongoose.Types.ObjectId(groomerId), requiredStaffRole: 'CARE_STAFF_GROOMER' }],
+      };
+
+      jest.spyOn(ServiceRecord, 'findById').mockResolvedValue(mockRecord);
+      jest.spyOn(Appointment, 'findById').mockResolvedValue(mockAppointment);
+      jest.spyOn(InventoryItem, 'find').mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { _id: new mongoose.Types.ObjectId(retailProductId), sku: 'RC-FIT32-2KG', name: 'Hạt Royal Canin Fit 32 - Túi 2kg', kind: 'PRODUCT', unit: 'cái', status: 'ACTIVE' },
+        ]),
+      });
+
+      const res = await request(app)
+        .put(`/api/v1/service-records/${validRecordId}/materials`)
+        .set('Authorization', `Bearer ${groomerToken}`)
+        .send({
+          materials: [{ inventoryItemId: retailProductId, actualQuantity: 2, unit: 'cuộn' }],
+          expectedVersion: 1,
+        });
+
+      expect(res.status).toBe(422);
+      expect(res.body.detail || res.body.message).toContain('không thể dùng làm vật tư tiêu hao dịch vụ');
+      expect(mockRecord.save).not.toHaveBeenCalled();
+    });
+
+    it('formatServiceRecord includes notes, templateQuantity, appointmentCode, stockAfter, and inventoryTransactionCode', () => {
+      const matId = new mongoose.Types.ObjectId().toString();
+      const aptId = new mongoose.Types.ObjectId().toString();
+      const srId = new mongoose.Types.ObjectId().toString();
+
+      const formatted = executionService.formatServiceRecord(
+        {
+          _id: srId,
+          code: 'SR-20261119-0001',
+          appointmentId: aptId,
+          recordType: 'MEDICAL',
+          status: 'FINALIZED',
+          plannedMaterials: [{ inventoryItemId: matId, quantity: 1, unit: 'cuộn', notes: 'Định mức chuẩn' }],
+          actualMaterials: [{ inventoryItemId: matId, quantity: 2, unit: 'cuộn', notes: 'Dùng thêm cố định vết thương', isExtra: false }],
+        },
+        {
+          appointmentMap: new Map([[aptId, { _id: aptId, code: 'APT-20261119-0001' }]]),
+          itemMap: new Map([[matId, { _id: matId, sku: 'MAT009', name: 'Băng cuộn', unit: 'cuộn' }]]),
+          txByRecordItemMap: new Map([[`${srId}:${matId}`, { afterQty: 498, transactionCode: 'TRX-ABC123' }]]),
+        }
+      );
+
+      expect(formatted.appointmentCode).toBe('APT-20261119-0001');
+      expect(formatted.actualMaterials[0]).toMatchObject({
+        inventoryItemId: matId,
+        name: 'Băng cuộn',
+        templateQuantity: 1,
+        actualQuantity: 2,
+        unit: 'cuộn',
+        notes: 'Dùng thêm cố định vết thương',
+        note: 'Dùng thêm cố định vết thương',
+        stockAfter: 498,
+        afterQty: 498,
+        inventoryTransactionCode: 'TRX-ABC123',
+        transactionCode: 'TRX-ABC123',
+      });
     });
   });
 });

@@ -8,6 +8,14 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import { applyServiceRecordDelta } from '../inventory/inventory.service';
 import { resolveVetReviewer } from '../booking/booking.service';
 import { recordAuditLog } from '../../utils/auditLogger';
+import {
+  generateServiceRecordCode,
+  assertServiceEligibleMaterials,
+  buildPlannedMaterialsFromServices,
+  normalizeMaterialEntry,
+} from './execution.helpers';
+
+export { generateServiceRecordCode };
 
 const activeFinalizeLocks = new Map();
 
@@ -33,26 +41,6 @@ const runInExecutionTransaction = async (work) => {
   } finally {
     await session.endSession();
   }
-};
-
-export const generateServiceRecordCode = (appointmentCode = null, fallbackId = null) => {
-  if (appointmentCode && typeof appointmentCode === 'string' && appointmentCode.trim()) {
-    const trimmed = appointmentCode.trim();
-    if (/^APT-/i.test(trimmed)) {
-      return trimmed.replace(/^APT-/i, 'SR-');
-    }
-    if (/^SR-/i.test(trimmed)) {
-      return trimmed;
-    }
-  }
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const suffix = fallbackId
-    ? fallbackId.toString().slice(-4).toUpperCase()
-    : String(Math.floor(1000 + Math.random() * 9000));
-  return `SR-${y}${m}${d}-${suffix}`;
 };
 
 const materialMap = (items = []) => {
@@ -83,10 +71,14 @@ export const formatServiceRecord = (rec, enrichment = null) => {
   const doc = rec.toObject ? rec.toObject() : rec;
   const idStr = (doc._id || doc.id).toString();
 
+  const appointmentIdStr = (doc.appointmentId?._id || doc.appointmentId).toString();
+  const appointmentObj = enrichment?.appointmentMap?.get(appointmentIdStr);
+
   const res = {
     id: idStr,
     code: doc.code || `SR-${idStr.slice(-6).toUpperCase()}`,
-    appointmentId: (doc.appointmentId?._id || doc.appointmentId).toString(),
+    appointmentId: appointmentIdStr,
+    appointmentCode: doc.appointmentCode || appointmentObj?.code || null,
     status: doc.status || 'IN_PROGRESS',
     recordType: doc.recordType || 'GROOMING',
     recordVersion: Number(doc.recordVersion || 0),
@@ -156,15 +148,46 @@ export const formatServiceRecord = (rec, enrichment = null) => {
     }));
   }
 
-  // plannedMaterials
-  if (doc.plannedMaterials) {
-    res.plannedMaterials = doc.plannedMaterials.map(m => {
-      const matId = (m.inventoryItemId?._id || m.inventoryItemId).toString();
+  const services = (res.serviceIds || []).map((sId) => enrichment?.serviceMap?.get(sId)).filter(Boolean);
+
+  // plannedMaterials (auto-derive from Service.defaultMaterials if legacy record has empty plannedMaterials)
+  const rawPlannedSource = Array.isArray(doc.plannedMaterials) && doc.plannedMaterials.length > 0
+    ? doc.plannedMaterials
+    : services.reduce((acc, svc) => {
+      for (const bom of svc.defaultMaterials || []) {
+        const bomId = (bom.inventoryItemId?._id || bom.inventoryItemId || bom.materialId?._id || bom.materialId)?.toString();
+        if (!bomId) continue;
+        const bomQty = Number(bom.defaultQuantity !== undefined ? bom.defaultQuantity : (bom.quantity ?? 1));
+        if (!Number.isFinite(bomQty) || bomQty <= 0) continue;
+        const existing = acc.find((p) => p.inventoryItemId === bomId);
+        if (existing) existing.quantity += bomQty;
+        else {
+          acc.push({
+            inventoryItemId: bomId,
+            quantity: bomQty,
+            unit: bom.unit || null,
+            notes: bom.notes || 'Vật tư định mức theo dịch vụ',
+            isDefault: true,
+          });
+        }
+      }
+      return acc;
+    }, []);
+
+  const plannedQtyByItem = new Map();
+  if (doc.plannedMaterials || rawPlannedSource.length > 0) {
+    res.plannedMaterials = rawPlannedSource.map(m => {
+      const matId = (m.inventoryItemId?._id || m.inventoryItemId || m.materialId).toString();
       const itemInfo = enrichment?.itemMap?.get(matId);
+      const qty = Number(m.quantity !== undefined ? m.quantity : (m.defaultQuantity || 0));
+      plannedQtyByItem.set(matId, qty);
       return {
         inventoryItemId: matId,
-        quantity: Number(m.quantity || 0),
+        quantity: qty,
+        templateQuantity: qty,
         unit: m.unit || itemInfo?.unit || 'cái',
+        notes: m.notes ?? m.note ?? null,
+        note: m.notes ?? m.note ?? null,
         isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : true,
         name: itemInfo?.name || null,
         itemName: itemInfo?.name || null,
@@ -178,11 +201,23 @@ export const formatServiceRecord = (rec, enrichment = null) => {
     res.actualMaterials = doc.actualMaterials.map(m => {
       const matId = (m.inventoryItemId?._id || m.inventoryItemId || m.materialId).toString();
       const itemInfo = enrichment?.itemMap?.get(matId);
+      const plannedQty = plannedQtyByItem.get(matId);
+      const txInfo = enrichment?.txByRecordItemMap?.get(`${idStr}:${matId}`);
+      const noteText = m.notes ?? m.note ?? null;
       return {
         inventoryItemId: matId,
         actualQuantity: Number(m.actualQuantity !== undefined ? m.actualQuantity : (m.quantity || 0)),
+        templateQuantity: m.templateQuantity !== undefined ? Number(m.templateQuantity) : (plannedQty !== undefined ? plannedQty : null),
+        plannedQuantity: m.plannedQuantity !== undefined ? Number(m.plannedQuantity) : (plannedQty !== undefined ? plannedQty : null),
         unit: m.unit || itemInfo?.unit || 'cái',
+        notes: noteText,
+        note: noteText,
+        isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : plannedQty !== undefined,
         isExtra: Boolean(m.isExtra),
+        stockAfter: txInfo?.afterQty !== undefined ? txInfo.afterQty : null,
+        afterQty: txInfo?.afterQty !== undefined ? txInfo.afterQty : null,
+        inventoryTransactionCode: txInfo?.transactionCode || null,
+        transactionCode: txInfo?.transactionCode || null,
         name: itemInfo?.name || null,
         itemName: itemInfo?.name || null,
         sku: itemInfo?.sku || null,
@@ -227,7 +262,6 @@ export const formatServiceRecord = (rec, enrichment = null) => {
     name: branch.name,
   } : null);
 
-  const services = (res.serviceIds || []).map((sId) => enrichment?.serviceMap?.get(sId)).filter(Boolean);
   res.services = doc.services || services.map((s) => ({
     id: s._id.toString(),
     code: s.code || null,
@@ -264,7 +298,10 @@ export const enrichServiceRecords = async (items = []) => {
     const StaffProfile = mongoose.models.StaffProfile || (await import('../staff/models/StaffProfile.js')).default;
     const User = mongoose.models.User || (await import('../../models/User.js')).default;
     const InventoryItem = mongoose.models.InventoryItem || (await import('../inventory/models/InventoryItem.js')).default;
+    const InventoryTransaction = mongoose.models.InventoryTransaction || (await import('../inventory/models/InventoryTransaction.js')).default;
 
+    const recordIds = new Set();
+    const appointmentIds = new Set();
     const petIds = new Set();
     const customerIds = new Set();
     const serviceIds = new Set();
@@ -274,6 +311,8 @@ export const enrichServiceRecords = async (items = []) => {
 
     for (const item of items) {
       const doc = item.toObject ? item.toObject() : item;
+      if (doc._id || doc.id) recordIds.add((doc._id || doc.id).toString());
+      if (doc.appointmentId) appointmentIds.add((doc.appointmentId._id || doc.appointmentId).toString());
       if (doc.petId) petIds.add((doc.petId._id || doc.petId).toString());
       if (doc.customerId) customerIds.add((doc.customerId._id || doc.customerId).toString());
       if (doc.branchId) branchIds.add((doc.branchId._id || doc.branchId).toString());
@@ -290,7 +329,11 @@ export const enrichServiceRecords = async (items = []) => {
       });
     }
 
-    const [pets, customers, services, branches, staffProfiles, users, invItems] = await Promise.all([
+    const recordObjectIds = Array.from(recordIds)
+      .filter((rid) => mongoose.Types.ObjectId.isValid(rid))
+      .map((rid) => new mongoose.Types.ObjectId(rid));
+
+    const [pets, customers, services, branches, staffProfiles, users, invItems, appointments, invTransactions] = await Promise.all([
       petIds.size > 0 ? Pet.find({ _id: { $in: Array.from(petIds) } }).lean() : [],
       customerIds.size > 0 ? Customer.find({ _id: { $in: Array.from(customerIds) } }).lean() : [],
       serviceIds.size > 0 ? Service.find({ _id: { $in: Array.from(serviceIds) } }).lean() : [],
@@ -298,6 +341,13 @@ export const enrichServiceRecords = async (items = []) => {
       staffIds.size > 0 ? StaffProfile.find({ _id: { $in: Array.from(staffIds) } }).populate('userId').lean() : [],
       staffIds.size > 0 ? User.find({ _id: { $in: Array.from(staffIds) } }).lean() : [],
       itemIds.size > 0 ? InventoryItem.find({ _id: { $in: Array.from(itemIds) } }).lean() : [],
+      appointmentIds.size > 0 ? Appointment.find({ _id: { $in: Array.from(appointmentIds) } }).select('_id code').lean().catch(() => []) : [],
+      recordObjectIds.length > 0
+        ? InventoryTransaction.find({
+          sourceType: { $in: ['SERVICE_RECORD', 'SERVICE_RECORD_REVISION'] },
+          sourceId: { $in: [...recordObjectIds, ...Array.from(recordIds)] },
+        }).sort({ createdAt: -1, _id: -1 }).lean().catch(() => [])
+        : [],
     ]);
 
     const petMap = new Map(pets.map((p) => [p._id.toString(), p]));
@@ -305,6 +355,47 @@ export const enrichServiceRecords = async (items = []) => {
     const serviceMap = new Map(services.map((s) => [s._id.toString(), s]));
     const branchMap = new Map(branches.map((b) => [b._id.toString(), b]));
     const itemMap = new Map(invItems.map((i) => [i._id.toString(), i]));
+    const missingBomItemIds = new Set();
+    for (const svc of services) {
+      for (const bom of svc.defaultMaterials || []) {
+        const bomId = (bom.inventoryItemId?._id || bom.inventoryItemId || bom.materialId?._id || bom.materialId)?.toString();
+        if (bomId && !itemMap.has(bomId)) missingBomItemIds.add(bomId);
+      }
+    }
+    if (missingBomItemIds.size > 0) {
+      const extraBomItems = await InventoryItem.find({ _id: { $in: Array.from(missingBomItemIds) } }).lean().catch(() => []);
+      extraBomItems.forEach((it) => itemMap.set(it._id.toString(), it));
+    }
+    const appointmentMap = new Map((appointments || []).map((a) => [a._id.toString(), a]));
+
+    const txByRecordItemMap = new Map();
+    for (const tx of invTransactions || []) {
+      const srKey = (tx.serviceRecordId || tx.sourceId)?.toString();
+      if (!srKey) continue;
+      const rawTxId = tx._id ? tx._id.toString() : null;
+      const txCode = tx.transactionCode || tx.code || tx.groupCode || (rawTxId ? `TRX-${rawTxId.slice(-6).toUpperCase()}` : null);
+      if (Array.isArray(tx.items) && tx.items.length > 0) {
+        for (const line of tx.items) {
+          const lineItemId = line?.inventoryItemId ? line.inventoryItemId.toString() : null;
+          if (!lineItemId) continue;
+          const mapKey = `${srKey}:${lineItemId}`;
+          if (!txByRecordItemMap.has(mapKey)) {
+            txByRecordItemMap.set(mapKey, {
+              afterQty: line.afterQty !== undefined ? Number(line.afterQty) : null,
+              transactionCode: txCode,
+            });
+          }
+        }
+      } else if (tx.inventoryItemId) {
+        const mapKey = `${srKey}:${tx.inventoryItemId.toString()}`;
+        if (!txByRecordItemMap.has(mapKey)) {
+          txByRecordItemMap.set(mapKey, {
+            afterQty: tx.afterQty !== undefined ? Number(tx.afterQty) : null,
+            transactionCode: txCode,
+          });
+        }
+      }
+    }
 
     const staffMap = new Map();
     users.forEach((u) => {
@@ -337,6 +428,8 @@ export const enrichServiceRecords = async (items = []) => {
       branchMap,
       staffMap,
       itemMap,
+      appointmentMap,
+      txByRecordItemMap,
     };
 
     return items.map((it) => formatServiceRecord(it, enrichment));
@@ -466,14 +559,55 @@ export const createRecord = async (data, actor) => {
     );
   }
 
-  const normalizeMaterial = (m) => ({
-    inventoryItemId: m.inventoryItemId || m.materialId,
-    quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),
-    unit: m.unit || 'cái',
-    notes: m.notes || null,
-  });
-
+  const resolvedServiceIds = data.serviceIds || (appointment.services || []).map((service) => service.serviceId).filter(Boolean);
+  const resolvedPetId = data.petId || appointment.petId || null;
   const recordType = appointment.serviceType || data.serviceType || 'GROOMING';
+
+  if (mongoose.connection.readyState === 1 || ServiceRecord.findOne?._isMockFunction) {
+    const existingRecord = await ServiceRecord.findOne({
+      appointmentId: appointment._id,
+      petId: resolvedPetId,
+      recordType,
+      segmentGroupKey: data.segmentGroupKey || null,
+    });
+    if (existingRecord) {
+      throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Hồ sơ dịch vụ cho lịch hẹn này đã tồn tại');
+    }
+  }
+
+  let plannedMaterials = [];
+  if (Array.isArray(data.plannedMaterials) && data.plannedMaterials.length > 0) {
+    const plannedItemMap = await assertServiceEligibleMaterials(data.plannedMaterials);
+    plannedMaterials = data.plannedMaterials.map((m) =>
+      normalizeMaterialEntry(m, plannedItemMap, { isDefault: true, isExtra: false })
+    );
+  } else {
+    plannedMaterials = await buildPlannedMaterialsFromServices(resolvedServiceIds);
+  }
+
+  let actualMaterials = [];
+  if (Array.isArray(data.actualMaterials)) {
+    const actualItemMap = await assertServiceEligibleMaterials(data.actualMaterials);
+    const plannedIdSet = new Set(plannedMaterials.map((p) => p.inventoryItemId.toString()));
+    actualMaterials = data.actualMaterials.map((m) => {
+      const mId = (m.inventoryItemId || m.materialId)?._id?.toString() || (m.inventoryItemId || m.materialId)?.toString();
+      const isPlanned = mId ? plannedIdSet.has(mId) : false;
+      return normalizeMaterialEntry(m, actualItemMap, {
+        isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : isPlanned,
+        isExtra: m.isExtra !== undefined ? Boolean(m.isExtra) : !isPlanned,
+      });
+    });
+  } else {
+    actualMaterials = plannedMaterials.map((p) => ({
+      inventoryItemId: p.inventoryItemId,
+      quantity: p.quantity,
+      unit: p.unit,
+      notes: p.notes || null,
+      isDefault: true,
+      isExtra: false,
+    }));
+  }
+
   let reviewerStaffId = appointment.reviewerStaffId || null;
 
   if (recordType === 'MEDICAL' && !reviewerStaffId) {
@@ -498,15 +632,15 @@ export const createRecord = async (data, actor) => {
     appointmentId: appointment._id,
     branchId: appointment.branchId,
     customerId: appointment.customerId || null,
-    petId: data.petId || appointment.petId || null,
+    petId: resolvedPetId,
     segmentGroupKey: data.segmentGroupKey || null,
-    serviceIds: data.serviceIds || (appointment.services || []).map((service) => service.serviceId),
+    serviceIds: resolvedServiceIds,
     assignedStaffIds: data.assignedStaffIds || (appointment.services || []).map((service) => service.assignedStaffId).filter(Boolean),
     reviewerStaffId,
     recordType,
     status: 'IN_PROGRESS',
-    plannedMaterials: (data.plannedMaterials || []).map(normalizeMaterial),
-    actualMaterials: (data.actualMaterials || []).map(normalizeMaterial),
+    plannedMaterials,
+    actualMaterials,
     professional: {}
   });
   await record.save();
@@ -731,6 +865,21 @@ export const updateMaterials = async (id, data, actor) => {
     }
   }
 
+  const incomingMaterials = Array.isArray(data.materials) ? data.materials : [];
+  const eligibleItemMap = await assertServiceEligibleMaterials(incomingMaterials);
+
+  const existingById = new Map(
+    (record.actualMaterials || []).map((m) => [
+      (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString(),
+      m,
+    ])
+  );
+  const plannedIdSet = new Set(
+    (record.plannedMaterials || []).map((m) =>
+      (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString()
+    ).filter(Boolean)
+  );
+
   const now = new Date();
   const previousMaterials = (record.actualMaterials || []).map((m) => ({
     inventoryItemId: (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString() || null,
@@ -739,13 +888,16 @@ export const updateMaterials = async (id, data, actor) => {
     isExtra: Boolean(m.isExtra),
   }));
 
-  const materials = (data.materials || []).map((m) => ({
-    inventoryItemId: m.inventoryItemId || m.materialId,
-    quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),
-    unit: m.unit || 'cái',
-    notes: m.notes || null,
-    isExtra: Boolean(m.isExtra),
-  }));
+  const materials = incomingMaterials.map((m) => {
+    const matIdStr = (m.inventoryItemId || m.materialId)?._id?.toString() || (m.inventoryItemId || m.materialId)?.toString();
+    const prev = matIdStr ? existingById.get(matIdStr) : null;
+    const isPlanned = matIdStr ? plannedIdSet.has(matIdStr) : false;
+    return normalizeMaterialEntry(m, eligibleItemMap, {
+      notes: prev?.notes ?? null,
+      isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : (prev?.isDefault ?? isPlanned),
+      isExtra: m.isExtra !== undefined ? Boolean(m.isExtra) : (prev?.isExtra ?? !isPlanned),
+    });
+  });
 
   const normalizedNewMaterials = materials.map((m) => ({
     inventoryItemId: m.inventoryItemId ? m.inventoryItemId.toString() : null,
@@ -1003,14 +1155,22 @@ export const submitReview = async (id, data = {}, actor) => {
   if (data.expectedVersion !== undefined && data.expectedVersion !== record.version) {
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'Service record has been changed');
   }
-  if (data.actualMaterials) {
-    record.actualMaterials = data.actualMaterials.map(m => ({
-      inventoryItemId: m.inventoryItemId || m.materialId,
-      quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),
-      unit: m.unit || 'cái',
-      notes: m.notes || null,
-      isExtra: Boolean(m.isExtra),
-    }));
+  const incomingReviewMaterials = data.actualMaterials || data.materials;
+  if (Array.isArray(incomingReviewMaterials)) {
+    const eligibleReviewMap = await assertServiceEligibleMaterials(incomingReviewMaterials);
+    const plannedIdSet = new Set(
+      (record.plannedMaterials || []).map((m) =>
+        (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString()
+      ).filter(Boolean)
+    );
+    record.actualMaterials = incomingReviewMaterials.map((m) => {
+      const mId = (m.inventoryItemId || m.materialId)?._id?.toString() || (m.inventoryItemId || m.materialId)?.toString();
+      const isPlanned = mId ? plannedIdSet.has(mId) : false;
+      return normalizeMaterialEntry(m, eligibleReviewMap, {
+        isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : isPlanned,
+        isExtra: m.isExtra !== undefined ? Boolean(m.isExtra) : !isPlanned,
+      });
+    });
   }
   record.status = 'WAITING_VET_REVIEW';
   record.version += 1;
@@ -1205,13 +1365,22 @@ export const finalizeRecord = async (id, data = {}, actor) => {
 
         const incomingMaterials = data.actualMaterials || data.materials;
         if (incomingMaterials && Array.isArray(incomingMaterials)) {
-          record.actualMaterials = incomingMaterials.map(m => ({
-            inventoryItemId: m.inventoryItemId || m.materialId,
-            quantity: m.quantity !== undefined ? Number(m.quantity) : Number(m.actualQuantity || 0),
-            unit: m.unit || 'cái',
-            notes: m.notes || null,
-            isExtra: Boolean(m.isExtra),
-          }));
+          const eligibleFinMap = await assertServiceEligibleMaterials(incomingMaterials, { session });
+          const plannedIdSet = new Set(
+            (record.plannedMaterials || []).map((m) =>
+              (m.inventoryItemId?._id || m.inventoryItemId || m.materialId)?.toString()
+            ).filter(Boolean)
+          );
+          record.actualMaterials = incomingMaterials.map((m) => {
+            const mId = (m.inventoryItemId || m.materialId)?._id?.toString() || (m.inventoryItemId || m.materialId)?.toString();
+            const isPlanned = mId ? plannedIdSet.has(mId) : false;
+            return normalizeMaterialEntry(m, eligibleFinMap, {
+              isDefault: m.isDefault !== undefined ? Boolean(m.isDefault) : isPlanned,
+              isExtra: m.isExtra !== undefined ? Boolean(m.isExtra) : !isPlanned,
+            });
+          });
+        } else if (Array.isArray(record.actualMaterials) && record.actualMaterials.length > 0) {
+          await assertServiceEligibleMaterials(record.actualMaterials, { session });
         }
         if (data.professional) {
           record.professional = { ...(record.professional || {}), ...data.professional };
@@ -1306,13 +1475,15 @@ export const finalizeRecord = async (id, data = {}, actor) => {
       if (err && err.code === 11000) {
         const reloaded = await ServiceRecord.findById(id);
         if (reloaded && reloaded.status === 'FINALIZED') {
-          return formatServiceRecord(reloaded);
+          const enrichedReloaded = await enrichServiceRecords([reloaded]);
+          return enrichedReloaded[0] || formatServiceRecord(reloaded);
         }
       }
       throw err;
     }
 
-    return formatServiceRecord(result);
+    const enrichedResult = await enrichServiceRecords([result]);
+    return enrichedResult[0] || formatServiceRecord(result);
   } finally {
     activeFinalizeLocks.delete(lockKey);
     if (releaseLock) releaseLock();

@@ -28,6 +28,10 @@ import { recordAuditLog } from '../../utils/auditLogger';
 import { validateScheduleAgainstBranchRules } from './availability.service';
 import { verifyGuestToken } from '../customer/guest.service';
 import { mockCompletePayment as completeMockPaymentService } from '../payment/payment.service';
+import {
+  buildPlannedMaterialsFromServices,
+  generateServiceRecordCode,
+} from '../execution/execution.helpers';
 
 const normalizeBookingPhone = (phone) => {
   if (!phone) return '';
@@ -2721,36 +2725,21 @@ export const startSegment = async (id, serviceIdOrPayload, actor) => {
   // Auto-create ServiceRecord if moving to IN_PROGRESS
   try {
     const ServiceRecord = mongoose.models.ServiceRecord || mongoose.model('ServiceRecord');
-    const ServiceModel = mongoose.models.Service || mongoose.model('Service');
     const existingRec = await ServiceRecord.findOne({ appointmentId: apt._id });
     if (!existingRec) {
-      const serviceDocs = await ServiceModel.find({ _id: { $in: apt.services.map((s) => s.serviceId) } });
-      const plannedMaterials = [];
-      serviceDocs.forEach((sDoc) => {
-        if (Array.isArray(sDoc.defaultMaterials)) {
-          sDoc.defaultMaterials.forEach((m) => {
-            if (m.inventoryItemId) {
-              plannedMaterials.push({
-                inventoryItemId: m.inventoryItemId,
-                quantity: m.quantity || 1,
-                unit: m.unit || 'cái',
-                notes: m.notes || 'Vật tư định mức theo dịch vụ',
-                isDefault: true,
-                isExtra: false,
-              });
-            }
-          });
-        }
-      });
+      const plannedMaterials = await buildPlannedMaterialsFromServices(
+        (apt.services || []).map((s) => s.serviceId)
+      );
 
       const recordType = (apt.serviceType === 'MEDICAL' || apt.services.some((s) => s.serviceType === 'MEDICAL'))
         ? 'MEDICAL'
         : 'GROOMING';
 
-      const count = await ServiceRecord.countDocuments();
-      const code = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(count + 1).padStart(4, '0')}`;
+      const recordId = new mongoose.Types.ObjectId();
+      const code = generateServiceRecordCode(apt.code, recordId);
 
       await ServiceRecord.create({
+        _id: recordId,
         code,
         appointmentId: apt._id,
         branchId: apt.branchId?._id || apt.branchId,
@@ -2758,10 +2747,18 @@ export const startSegment = async (id, serviceIdOrPayload, actor) => {
         petId: apt.petId || apt.services[0]?.petId || null,
         serviceIds: apt.services.map((s) => s.serviceId),
         assignedStaffIds: actor?.id ? [new mongoose.Types.ObjectId(actor.id)] : (apt.services.map((s) => s.assignedStaffId).filter(Boolean)),
+        reviewerStaffId: apt.reviewerStaffId || null,
         recordType,
         status: 'IN_PROGRESS',
         plannedMaterials,
-        actualMaterials: plannedMaterials,
+        actualMaterials: plannedMaterials.map((m) => ({
+          inventoryItemId: m.inventoryItemId,
+          quantity: m.quantity,
+          unit: m.unit,
+          notes: m.notes || null,
+          isDefault: true,
+          isExtra: false,
+        })),
         actualStartAt: new Date(),
       });
     }

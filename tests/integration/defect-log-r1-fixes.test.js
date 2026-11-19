@@ -193,7 +193,7 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(aptFindSpy).toHaveBeenCalled();
     });
 
-    it('R08 / FT-M02-05: completeActivation does not link contactSnapshot.email when emailVerifiedAt is null', async () => {
+    it('R08 / FT-M02-05: completeActivation does not link contactSnapshot.email when emailVerifiedAt is null (while phone is verified)', async () => {
       jest.spyOn(mongoose, 'startSession').mockResolvedValue(makeSession());
       const guestDoc = {
         _id: new mongoose.Types.ObjectId(),
@@ -202,7 +202,7 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
         activationToken: 'valid-invite-token',
         activationExpiresAt: new Date(Date.now() + 60000),
         emailVerifiedAt: null,
-        phoneVerifiedAt: null,
+        phoneVerifiedAt: new Date(),
         save: jest.fn().mockResolvedValue(true),
       };
       jest.spyOn(GuestContact, 'findOne').mockResolvedValue(guestDoc);
@@ -222,9 +222,112 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       });
 
       expect(JSON.stringify(orderFindSpy.mock.calls[0][0])).not.toContain('contactSnapshot.email');
-      expect(JSON.stringify(aptFindSpy.mock.calls[0][0])).not.toContain('contactSnapshot.phone');
+      expect(JSON.stringify(aptFindSpy.mock.calls[0][0])).toContain('contactSnapshot.phone');
       expect(JSON.stringify(orderUpdateSpy.mock.calls[0][0])).not.toContain('contactSnapshot.email');
       expect(JSON.stringify(aptUpdateSpy.mock.calls[0][0])).not.toContain('contactSnapshot.email');
+    });
+
+    it('QA-R1-30 / FT-M02-04: Rejects activation (401) and creates no User/Customer or order links when guest contact is not OTP-verified', async () => {
+      const guestDoc = {
+        _id: new mongoose.Types.ObjectId(),
+        email: 'unverified-guest@test.com',
+        phone: '0909998887',
+        activationStatus: 'PENDING_ACTIVATION',
+        activationToken: 'unverified-valid-invite-token',
+        activationExpiresAt: new Date(Date.now() + 60000),
+        emailVerifiedAt: null,
+        phoneVerifiedAt: null,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      jest.spyOn(GuestContact, 'findOne').mockResolvedValue(guestDoc);
+      jest.spyOn(User, 'findOne').mockResolvedValue(null);
+      jest.spyOn(OtpChallenge, 'findOne').mockReturnValue(makeChainQuery(null));
+      const userSaveSpy = jest.spyOn(User.prototype, 'save').mockResolvedValue(true);
+      const customerSaveSpy = jest.spyOn(Customer.prototype, 'save').mockResolvedValue(true);
+      const orderUpdateSpy = jest.spyOn(Order, 'updateMany').mockResolvedValue({ modifiedCount: 0 });
+      const aptUpdateSpy = jest.spyOn(Appointment, 'updateMany').mockResolvedValue({ modifiedCount: 0 });
+
+      // 1. Missing OTP on unverified guest contact via HTTP /api/v1/activation/complete -> 401
+      const resNoOtp = await request(app)
+        .post('/api/v1/activation/complete')
+        .send({
+          token: 'unverified-valid-invite-token',
+          password: 'Password@123',
+          acceptTerms: true,
+          fullName: 'Unverified Guest',
+        });
+      expect(resNoOtp.status).toBe(401);
+
+      // 2. Legacy alias /api/v1/auth/activate-guest without OTP -> 401
+      const resAliasNoOtp = await request(app)
+        .post('/api/v1/auth/activate-guest')
+        .send({
+          token: 'unverified-valid-invite-token',
+          password: 'Password@123',
+          acceptTerms: true,
+        });
+      expect(resAliasNoOtp.status).toBe(401);
+
+      // 3. Invalid inline OTP against active OtpChallenge -> 401
+      jest.spyOn(OtpChallenge, 'findOne').mockReturnValue(
+        makeChainQuery({
+          _id: new mongoose.Types.ObjectId(),
+          identifier: '0909998887',
+          purpose: 'GUEST_LOOKUP',
+          otpHash: hashOtp('654321'),
+          expiresAt: new Date(Date.now() + 60000),
+          attemptCount: 0,
+          save: jest.fn().mockResolvedValue(true),
+        })
+      );
+      const resBadOtp = await request(app)
+        .post('/api/v1/activation/complete')
+        .send({
+          token: 'unverified-valid-invite-token',
+          otp: '000000',
+          password: 'Password@123',
+          acceptTerms: true,
+        });
+      expect(resBadOtp.status).toBe(401);
+
+      expect(userSaveSpy).not.toHaveBeenCalled();
+      expect(customerSaveSpy).not.toHaveBeenCalled();
+      expect(orderUpdateSpy).not.toHaveBeenCalled();
+      expect(aptUpdateSpy).not.toHaveBeenCalled();
+
+      // 4. Valid inline OTP on unverified phone -> verifies phone ONLY, creates account, excludes unverified email
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(makeSession());
+      jest.spyOn(OtpChallenge, 'findOne').mockReturnValue(
+        makeChainQuery({
+          _id: new mongoose.Types.ObjectId(),
+          identifier: '0909998887',
+          purpose: 'GUEST_LOOKUP',
+          otpHash: hashOtp('654321'),
+          expiresAt: new Date(Date.now() + 60000),
+          attemptCount: 0,
+          save: jest.fn().mockResolvedValue(true),
+        })
+      );
+      jest.spyOn(OtpChallenge, 'deleteOne').mockResolvedValue({ deletedCount: 1 });
+      const orderFindSpy = jest.spyOn(Order, 'find').mockReturnValue(makeChainQuery([]));
+      jest.spyOn(Appointment, 'find').mockReturnValue(makeChainQuery([]));
+
+      const resValidOtp = await request(app)
+        .post('/api/v1/activation/complete')
+        .send({
+          token: 'unverified-valid-invite-token',
+          otp: '654321',
+          password: 'Password@123',
+          acceptTerms: true,
+          fullName: 'Verified Inline Guest',
+        });
+
+      expect(resValidOtp.status).toBe(200);
+      expect(resValidOtp.body.user?.activationStatus).toBe('ACTIVATED');
+      expect(guestDoc.phoneVerifiedAt).toBeTruthy();
+      expect(guestDoc.emailVerifiedAt).toBeNull();
+      expect(JSON.stringify(orderFindSpy.mock.calls[0][0])).toContain('0909998887');
+      expect(JSON.stringify(orderFindSpy.mock.calls[0][0])).not.toContain('unverified-guest@test.com');
     });
   });
 

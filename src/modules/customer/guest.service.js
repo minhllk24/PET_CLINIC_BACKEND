@@ -70,7 +70,7 @@ const saveNewChallenge = async ({ identifier, otpHash, purpose, expiresAt }) => 
 };
 
 const removeChallenge = async (challengeId) => {
-  if (mongoose.connection.readyState === 1) {
+  if (mongoose.connection.readyState === 1 || OtpChallenge.deleteOne?._isMockFunction) {
     return OtpChallenge.deleteOne({ _id: challengeId });
   }
   mockChallengeStore.delete(challengeId ? challengeId.toString() : '');
@@ -463,13 +463,104 @@ export const completeActivation = async ({ token, otp, password, acceptTerms, fu
     throw new AppError(409, 'Conflict', ErrorCodes.CONFLICT, 'An account already exists with this phone or email');
   }
 
-  // Link transactions only after phone/email has been verified
+  // Enforce OTP verification before creating User/Customer or linking guest transactions (QA-R1-30 / FT-M02-04)
+  let isPhoneVerified = Boolean(guest.phoneVerifiedAt);
+  let isEmailVerified = Boolean(guest.emailVerifiedAt);
+
+  if (!isPhoneVerified && !isEmailVerified) {
+    const rawOtp = typeof otp === 'string' ? otp.trim() : '';
+    if (!rawOtp) {
+      throw new AppError(
+        401,
+        'Unauthorized',
+        ErrorCodes.AUTHENTICATION_ERROR,
+        'Contact must be verified via OTP before activating account'
+      );
+    }
+
+    const phoneIdentifier = guest.phone ? guest.phone.trim().toLowerCase() : null;
+    const emailIdentifier = guest.email ? guest.email.trim().toLowerCase() : null;
+    const candidateIdentifiers = [phoneIdentifier, emailIdentifier].filter(Boolean);
+
+    let challenge = null;
+    if (mongoose.connection.readyState === 1 || OtpChallenge.findOne?._isMockFunction) {
+      let cq = OtpChallenge.findOne({
+        identifier: { $in: candidateIdentifiers },
+        purpose: { $in: ['ACTIVATION', 'GUEST_LOOKUP'] },
+      });
+      if (typeof cq?.sort === 'function') cq = cq.sort({ createdAt: -1 });
+      challenge = await cq;
+    } else {
+      for (const ident of candidateIdentifiers) {
+        for (const purpose of ['ACTIVATION', 'GUEST_LOOKUP']) {
+          challenge = await findActiveChallenge({ identifier: ident, purpose });
+          if (challenge) break;
+        }
+        if (challenge) break;
+      }
+    }
+
+    if (!challenge) {
+      throw new AppError(
+        401,
+        'Unauthorized',
+        ErrorCodes.AUTHENTICATION_ERROR,
+        'Contact must be verified via OTP before activating account'
+      );
+    }
+
+    if (new Date() > challenge.expiresAt) {
+      await removeChallenge(challenge._id);
+      throw new AppError(
+        401,
+        'Unauthorized',
+        ErrorCodes.AUTHENTICATION_ERROR,
+        'OTP has expired. Please request a new one.'
+      );
+    }
+
+    challenge.attemptCount = (challenge.attemptCount || 0) + 1;
+    if (challenge.attemptCount > 5) {
+      await removeChallenge(challenge._id);
+      throw new AppError(
+        429,
+        'TooManyRequests',
+        'RATE_LIMIT_EXCEEDED',
+        'Too many failed attempts. Please request a new OTP.'
+      );
+    }
+
+    const isOtpValid = verifyOtp(rawOtp, challenge.otpHash);
+    if (!isOtpValid) {
+      if (typeof challenge.save === 'function') {
+        await challenge.save();
+      }
+      throw new AppError(401, 'Unauthorized', ErrorCodes.AUTHENTICATION_ERROR, 'Invalid OTP code.');
+    }
+
+    await removeChallenge(challenge._id);
+
+    const verifiedAt = new Date();
+    const matchedIdentifier = String(challenge.identifier || '').trim().toLowerCase();
+    if (phoneIdentifier && matchedIdentifier === phoneIdentifier) {
+      isPhoneVerified = true;
+      guest.phoneVerifiedAt = verifiedAt;
+    } else if (emailIdentifier && matchedIdentifier === emailIdentifier) {
+      isEmailVerified = true;
+      guest.emailVerifiedAt = verifiedAt;
+    } else {
+      throw new AppError(
+        401,
+        'Unauthorized',
+        ErrorCodes.AUTHENTICATION_ERROR,
+        'Verified OTP identifier does not match guest contact'
+      );
+    }
+  }
+
+  // Link transactions only after at least one contact channel is OTP-verified
   const orderOrConditions = [{ guestContactId: guest._id }];
   const appointmentOrConditions = [{ guestContactId: guest._id }];
-
-  // Verified contact linking (strictly require verified timestamp for phone/email)
-  const isPhoneVerified = !!guest.phoneVerifiedAt;
-  const isEmailVerified = !!guest.emailVerifiedAt;
 
   if (isPhoneVerified && guest.phone) {
     orderOrConditions.push({ 'contactSnapshot.phone': guest.phone });
