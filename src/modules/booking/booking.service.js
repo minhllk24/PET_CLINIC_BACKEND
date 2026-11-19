@@ -345,8 +345,8 @@ export const formatAppointment = (apt) => {
   const effectiveCustSnapshot = {
     fullName: resolvedCustName || 'Khách hàng',
     name: resolvedCustName || 'Khách hàng',
-    phone: doc.customerSnapshot?.phone || doc.contactSnapshot?.phone || (typeof doc.customerId === 'object' ? (doc.customerId.phone || doc.customerId.contactPhone) : '') || '',
-    email: doc.customerSnapshot?.email || doc.contactSnapshot?.email || (typeof doc.customerId === 'object' ? (doc.customerId.email || doc.customerId.contactEmail) : '') || '',
+    phone: doc.customerSnapshot?.phone || doc.contactSnapshot?.phone || (doc.customerId && typeof doc.customerId === 'object' ? (doc.customerId.phone || doc.customerId.contactPhone) : '') || '',
+    email: doc.customerSnapshot?.email || doc.contactSnapshot?.email || (doc.customerId && typeof doc.customerId === 'object' ? (doc.customerId.email || doc.customerId.contactEmail) : '') || '',
   };
 
   res.customerSnapshot = effectiveCustSnapshot;
@@ -1693,6 +1693,8 @@ export const getAppointments = async (filters = {}, actor) => {
 
   return {
     items: appointments.map(formatAppointment),
+    total: appointments.length,
+    totalCount: appointments.length,
     nextCursor: null,
   };
 };
