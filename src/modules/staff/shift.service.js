@@ -411,3 +411,124 @@ export const deleteShift = async (id, actor = null) => {
     id
   };
 };
+
+/**
+ * Ensures future shifts exist across all active branches and clinical staff
+ * Runs as a non-blocking background migration on server startup
+ */
+export const ensureFutureShifts = async () => {
+  try {
+    const branches = await Branch.find({ status: 'ACTIVE' });
+    if (!branches || branches.length === 0) return;
+
+    const startDate = new Date();
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const endDate = new Date(startDate.getTime() + 75 * 24 * 60 * 60 * 1000);
+
+    const count = await Shift.countDocuments({
+      status: 'ACTIVE',
+      startAt: { $gte: startDate, $lte: endDate },
+    });
+
+    if (count >= 100) {
+      return;
+    }
+
+    const allStaff = await StaffProfile.find({ status: 'ACTIVE' });
+    if (!allStaff || allStaff.length === 0) return;
+
+    const newShifts = [];
+    const now = new Date();
+
+    for (const branch of branches) {
+      const bId = branch._id;
+      const vets = allStaff.filter(
+        (s) => s.staffSubRole === 'VETERINARIAN' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
+      );
+      const groomers = allStaff.filter(
+        (s) => s.staffSubRole === 'CARE_STAFF_GROOMER' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
+      );
+      const nurses = allStaff.filter(
+        (s) => s.staffSubRole === 'NURSE' && (!s.branchId || s.branchId.toString() === bId.toString() || s.allBranches)
+      );
+
+      const effectiveVets = vets.length > 0 ? vets : allStaff.filter((s) => s.staffSubRole === 'VETERINARIAN');
+      const effectiveGroomers = groomers.length > 0 ? groomers : allStaff.filter((s) => s.staffSubRole === 'CARE_STAFF_GROOMER');
+      const effectiveNurses = nurses.length > 0 ? nurses : allStaff.filter((s) => s.staffSubRole === 'NURSE');
+
+      for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+        const dateStr = d.toISOString().slice(0, 10);
+
+        if (effectiveVets[0]) {
+          newShifts.push({
+            staffId: effectiveVets[0]._id,
+            branchId: bId,
+            startAt: new Date(`${dateStr}T08:00:00.000Z`),
+            endAt: new Date(`${dateStr}T14:00:00.000Z`),
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        if (effectiveVets[1] || effectiveVets[0]) {
+          newShifts.push({
+            staffId: (effectiveVets[1] || effectiveVets[0])._id,
+            branchId: bId,
+            startAt: new Date(`${dateStr}T12:00:00.000Z`),
+            endAt: new Date(`${dateStr}T18:00:00.000Z`),
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        if (effectiveGroomers[0]) {
+          newShifts.push({
+            staffId: effectiveGroomers[0]._id,
+            branchId: bId,
+            startAt: new Date(`${dateStr}T08:00:00.000Z`),
+            endAt: new Date(`${dateStr}T14:00:00.000Z`),
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        if (effectiveGroomers[1] || effectiveGroomers[0]) {
+          newShifts.push({
+            staffId: (effectiveGroomers[1] || effectiveGroomers[0])._id,
+            branchId: bId,
+            startAt: new Date(`${dateStr}T12:00:00.000Z`),
+            endAt: new Date(`${dateStr}T18:00:00.000Z`),
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        if (effectiveNurses[0]) {
+          newShifts.push({
+            staffId: effectiveNurses[0]._id,
+            branchId: bId,
+            startAt: new Date(`${dateStr}T08:00:00.000Z`),
+            endAt: new Date(`${dateStr}T18:00:00.000Z`),
+            status: 'ACTIVE',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    if (newShifts.length > 0) {
+      await Shift.insertMany(newShifts, { ordered: false }).catch(() => {});
+    }
+  } catch (err) {
+    // Non-blocking background migration
+  }
+};

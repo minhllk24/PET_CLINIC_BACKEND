@@ -4,6 +4,7 @@ import config from './shared/config';
 import { logger } from './shared/logger';
 import { startCronJobs } from './worker/cronjobs';
 import { migrateMissingProductCodes } from './modules/catalog/catalog.service';
+import { ensureFutureShifts } from './modules/staff/shift.service';
 
 const startServer = async () => {
   try {
@@ -14,6 +15,11 @@ const startServer = async () => {
     // Migrate missing product codes if any
     migrateMissingProductCodes().catch((err) => {
       logger.warn('Product code migration warning:', err.message);
+    });
+
+    // Ensure future clinical shifts are populated across all branches
+    ensureFutureShifts().catch((err) => {
+      logger.warn('Future shift migration warning:', err.message);
     });
 
     // Start Express server
