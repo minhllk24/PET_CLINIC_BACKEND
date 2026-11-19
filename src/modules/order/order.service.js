@@ -840,8 +840,8 @@ export const formatOrder = (order) => {
     ...(obj.contactSnapshot || {}),
     fullName: resolvedCustomerName,
     name: resolvedCustomerName,
-    phone: obj.contactSnapshot?.phone || obj.shippingAddress?.phone || (typeof obj.customerId === 'object' ? (obj.customerId.phone || obj.customerId.contactPhone) : '') || '',
-    email: obj.contactSnapshot?.email || (typeof obj.customerId === 'object' ? (obj.customerId.email || obj.customerId.contactEmail) : '') || '',
+    phone: obj.contactSnapshot?.phone || obj.shippingAddress?.phone || (obj.customerId && typeof obj.customerId === 'object' ? (obj.customerId.phone || obj.customerId.contactPhone) : '') || '',
+    email: obj.contactSnapshot?.email || (obj.customerId && typeof obj.customerId === 'object' ? (obj.customerId.email || obj.customerId.contactEmail) : '') || '',
   };
 
   const result = {
