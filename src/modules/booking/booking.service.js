@@ -814,7 +814,45 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
 
     if (isCustomer) {
       customerId = actor.id || actor._id;
-      // If client supplied contact for customer, gracefully ignore it without crashing
+      // Resolve customer details from User/Customer records with full name fallback
+      const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+      const UserModel = mongoose.models.User || mongoose.model('User');
+      let cust = null;
+      if (customerId && mongoose.Types.ObjectId.isValid(customerId)) {
+        try {
+          cust = await CustomerModel.findOne({
+            $or: [{ _id: customerId }, { userId: customerId }]
+          }).session(session);
+          if (!cust) {
+            cust = await UserModel.findById(customerId).session(session);
+          }
+        } catch (_e) {
+          cust = null;
+        }
+      }
+
+      const resolvedName =
+        actor.fullName ||
+        actor.name ||
+        cust?.fullName ||
+        cust?.name ||
+        contact?.fullName ||
+        contact?.name ||
+        'Khách hàng';
+      const resolvedPhone = actor.phone || cust?.phone || cust?.contactPhone || contact?.phone || '';
+      const resolvedEmail = actor.email || cust?.email || cust?.contactEmail || contact?.email || '';
+
+      if (cust && cust._id) {
+        customerId = cust._id;
+      }
+
+      contactSnapshot = {
+        name: resolvedName,
+        fullName: resolvedName,
+        phone: resolvedPhone,
+        email: resolvedEmail,
+      };
+
       if (contact) {
         delete data.contact;
       }
@@ -1351,7 +1389,12 @@ export const createAppointment = async (data, actor, guestLookupToken) => {
       contactSnapshot: contactSnapshot || null,
       petId: petId || null,
       petSnapshot: petSnapshot || null,
-      customerSnapshot: isCustomer && actor ? { name: actor.name, phone: actor.phone } : null,
+      customerSnapshot: isCustomer && actor ? {
+        name: contactSnapshot?.name || actor.fullName || actor.name || 'Khách hàng',
+        fullName: contactSnapshot?.fullName || actor.fullName || actor.name || 'Khách hàng',
+        phone: contactSnapshot?.phone || actor.phone || '',
+        email: contactSnapshot?.email || actor.email || '',
+      } : (contactSnapshot || null),
       branchId,
       serviceType: primaryServiceType,
       paymentMethod,

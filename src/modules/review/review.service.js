@@ -62,6 +62,7 @@ export const formatReview = (rev, forAdmin = false) => {
     sourceType: doc.sourceType || 'ORDER',
     sourceId: doc.sourceId ? (doc.sourceId._id || doc.sourceId).toString() : null,
     sourceCode: doc.sourceCode || (doc.sourceId && (doc.sourceId.orderCode || doc.sourceId.code) ? (doc.sourceId.orderCode || doc.sourceId.code) : null),
+    referenceCode: doc.referenceCode || doc.sourceCode || (doc.sourceId && (doc.sourceId.orderCode || doc.sourceId.code) ? (doc.sourceId.orderCode || doc.sourceId.code) : null) || null,
     branchId: doc.branchId ? (doc.branchId._id || doc.branchId).toString() : null,
     rating: Number(doc.rating || 5),
     comment: doc.comment || '',
@@ -360,6 +361,45 @@ export const listAdminReviews = async (query = {}, actor = {}) => {
       const counted = await Review.countDocuments(filter);
       if (typeof counted === 'number') total = counted;
     } catch (_) {}
+  }
+
+  // Batch enrich targetName and sourceCode/referenceCode for Admin UI
+  if (Array.isArray(items) && items.length > 0) {
+    try {
+      const productIds = items.filter(r => r.targetType === 'PRODUCT' && r.targetId).map(r => r.targetId);
+      const serviceIds = items.filter(r => r.targetType === 'SERVICE' && r.targetId).map(r => r.targetId);
+      const orderIds = items.filter(r => r.sourceType === 'ORDER' && r.sourceId).map(r => r.sourceId);
+      const aptIds = items.filter(r => r.sourceType === 'APPOINTMENT' && r.sourceId).map(r => r.sourceId);
+
+      const [products, services, orders, apts] = await Promise.all([
+        productIds.length > 0 ? Product.find({ _id: { $in: productIds } }).select('name').lean() : [],
+        serviceIds.length > 0 ? Service.find({ _id: { $in: serviceIds } }).select('name').lean() : [],
+        orderIds.length > 0 ? Order.find({ _id: { $in: orderIds } }).select('orderCode code').lean() : [],
+        aptIds.length > 0 ? Appointment.find({ _id: { $in: aptIds } }).select('code appointmentCode').lean() : [],
+      ]);
+
+      const pMap = new Map((products || []).map(p => [p._id.toString(), p.name]));
+      const sMap = new Map((services || []).map(s => [s._id.toString(), s.name]));
+      const oMap = new Map((orders || []).map(o => [o._id.toString(), o.orderCode || o.code]));
+      const aMap = new Map((apts || []).map(a => [a._id.toString(), a.code || a.appointmentCode]));
+
+      items.forEach(r => {
+        const tId = (r.targetId?._id || r.targetId)?.toString();
+        if (r.targetType === 'PRODUCT') {
+          r.targetName = pMap.get(tId) || r.targetName;
+        } else if (r.targetType === 'SERVICE') {
+          r.targetName = sMap.get(tId) || r.targetName;
+        }
+        const sId = (r.sourceId?._id || r.sourceId)?.toString();
+        if (r.sourceType === 'ORDER') {
+          r.sourceCode = oMap.get(sId) || r.sourceCode;
+          r.referenceCode = r.sourceCode;
+        } else if (r.sourceType === 'APPOINTMENT') {
+          r.sourceCode = aMap.get(sId) || r.sourceCode;
+          r.referenceCode = r.sourceCode;
+        }
+      });
+    } catch (_enrichErr) {}
   }
 
   const formatted = items.map(r => formatReview(r, true));

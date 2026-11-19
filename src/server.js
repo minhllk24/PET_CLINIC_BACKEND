@@ -8,6 +8,7 @@ import { ensureFutureShifts, ensureRealisticAppointments } from './modules/staff
 import { syncCustomerProfiles } from './modules/customer/customer.service';
 import { migrateOrderContactSnapshots } from './modules/order/order.service';
 import { migrateAppointmentCustomerNames } from './modules/booking/booking.service';
+import { seedModerationData } from './seeds/moderationSeed';
 
 const startServer = async () => {
   try {
@@ -57,6 +58,11 @@ const startServer = async () => {
     // Ensure realistic appointment booking distribution across upcoming dates
     ensureRealisticAppointments().catch((err) => {
       logger.warn('Realistic appointment migration warning:', err.message);
+    });
+
+    // Ensure realistic customer feedbacks and reviews for Admin Moderation
+    seedModerationData().catch((err) => {
+      logger.warn('Moderation seed warning:', err.message);
     });
 
     // Start Express server
