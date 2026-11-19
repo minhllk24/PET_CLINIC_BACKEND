@@ -4,7 +4,7 @@ import config from './shared/config';
 import { logger } from './shared/logger';
 import { startCronJobs } from './worker/cronjobs';
 import { migrateMissingProductCodes } from './modules/catalog/catalog.service';
-import { ensureFutureShifts } from './modules/staff/shift.service';
+import { ensureFutureShifts, ensureRealisticAppointments } from './modules/staff/shift.service';
 
 const startServer = async () => {
   try {
@@ -20,6 +20,11 @@ const startServer = async () => {
     // Ensure future clinical shifts are populated across all branches
     ensureFutureShifts().catch((err) => {
       logger.warn('Future shift migration warning:', err.message);
+    });
+
+    // Ensure realistic appointment booking distribution across upcoming dates
+    ensureRealisticAppointments().catch((err) => {
+      logger.warn('Realistic appointment migration warning:', err.message);
     });
 
     // Start Express server

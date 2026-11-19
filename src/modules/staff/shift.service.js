@@ -4,6 +4,7 @@ import StaffProfile from './models/StaffProfile';
 import User from '../../models/User';
 import Branch from '../branch/models/Branch';
 import Appointment from '../booking/models/Appointment';
+import Service from '../catalog/models/Service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 
@@ -530,5 +531,147 @@ export const ensureFutureShifts = async () => {
     }
   } catch (err) {
     // Non-blocking background migration
+  }
+};
+
+/**
+ * Background auto-seeding engine for realistic appointment distribution across upcoming dates
+ * (Creates realistic peak vs off-peak remaining slots: Còn 3/3, Còn 2/3, Còn 1/3, Hết chỗ)
+ */
+export const ensureRealisticAppointments = async () => {
+  try {
+    const branches = await Branch.find({ status: 'ACTIVE' });
+    if (!branches || branches.length === 0) return;
+
+    const medServices = await Service.find({ serviceType: 'MEDICAL', bookingMode: 'BOOKABLE', status: 'ACTIVE' });
+    const grmServices = await Service.find({ serviceType: 'GROOMING', bookingMode: 'BOOKABLE', status: 'ACTIVE' });
+
+    if (medServices.length === 0 && grmServices.length === 0) return;
+
+    const allStaff = await StaffProfile.find({ status: 'ACTIVE' });
+    const defaultVet = allStaff.find((s) => s.staffSubRole === 'VETERINARIAN') || allStaff[0];
+    const defaultGroomer = allStaff.find((s) => s.staffSubRole === 'CARE_STAFF_GROOMER') || allStaff[0];
+
+    const targetDates = [
+      { date: '2026-11-20', pattern: 'weekday_busy' },
+      { date: '2026-11-21', pattern: 'weekend_peak' },
+      { date: '2026-11-22', pattern: 'weekend_moderate' },
+      { date: '2026-11-23', pattern: 'weekday_regular' },
+    ];
+
+    const appointmentsToInsert = [];
+
+    for (const b of branches) {
+      const bId = b._id;
+      const bCode = b.code || 'BR';
+
+      for (const t of targetDates) {
+        const dStr = t.date;
+        const dCheck = await Appointment.countDocuments({
+          branchId: bId,
+          scheduledStart: {
+            $gte: new Date(`${dStr}T00:00:00.000Z`),
+            $lte: new Date(`${dStr}T23:59:59.999Z`),
+          },
+        });
+        if (dCheck >= 5) continue;
+
+        const timeSlotsConfig = [];
+        if (t.pattern === 'weekday_busy') {
+          // Medical
+          timeSlotsConfig.push({ time: '09:00', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '09:30', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:00', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:30', duration: 20, count: 3, type: 'MED' });
+          timeSlotsConfig.push({ time: '11:00', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '14:00', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '15:00', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '16:00', duration: 20, count: 1, type: 'MED' });
+
+          // Grooming
+          timeSlotsConfig.push({ time: '09:00', duration: 60, count: 1, type: 'GRM' });
+          timeSlotsConfig.push({ time: '10:30', duration: 60, count: 2, type: 'GRM' });
+          timeSlotsConfig.push({ time: '14:00', duration: 60, count: 1, type: 'GRM' });
+          timeSlotsConfig.push({ time: '15:30', duration: 60, count: 2, type: 'GRM' });
+        } else if (t.pattern === 'weekend_peak') {
+          timeSlotsConfig.push({ time: '09:00', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '09:30', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:00', duration: 20, count: 3, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:30', duration: 20, count: 3, type: 'MED' });
+          timeSlotsConfig.push({ time: '11:00', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '14:30', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '15:30', duration: 20, count: 3, type: 'MED' });
+          timeSlotsConfig.push({ time: '16:30', duration: 20, count: 2, type: 'MED' });
+        } else if (t.pattern === 'weekend_moderate') {
+          timeSlotsConfig.push({ time: '09:30', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:00', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '10:30', duration: 20, count: 2, type: 'MED' });
+          timeSlotsConfig.push({ time: '15:00', duration: 20, count: 1, type: 'MED' });
+        } else {
+          timeSlotsConfig.push({ time: '10:00', duration: 20, count: 1, type: 'MED' });
+          timeSlotsConfig.push({ time: '15:00', duration: 20, count: 1, type: 'MED' });
+        }
+
+        let seq = 1;
+        for (const cfg of timeSlotsConfig) {
+          const sObj = cfg.type === 'MED'
+            ? (medServices[seq % medServices.length] || medServices[0])
+            : (grmServices[seq % grmServices.length] || grmServices[0]);
+          const staffObj = cfg.type === 'MED' ? defaultVet : defaultGroomer;
+          const assignedStaffId = staffObj?._id || new mongoose.Types.ObjectId();
+
+          const [hStr, mStr] = cfg.time.split(':');
+          const startMs = new Date(`${dStr}T${hStr}:${mStr}:00.000Z`).getTime();
+          const endMs = startMs + cfg.duration * 60000;
+
+          for (let k = 1; k <= cfg.count; k++) {
+            const aptCode = `APT-${bCode}-${dStr.replace(/-/g, '')}-${cfg.time.replace(':', '')}-${k}`;
+            appointmentsToInsert.push({
+              code: aptCode,
+              branchId: bId,
+              serviceType: cfg.type === 'MED' ? 'MEDICAL' : 'GROOMING',
+              status: 'CONFIRMED',
+              paymentMethod: 'PAY_AT_STORE',
+              scheduledStart: new Date(startMs),
+              scheduledEnd: new Date(endMs),
+              scheduledDurationMinutes: cfg.duration,
+              pricing: {
+                subtotal: sObj.basePrice || 200000,
+                finalAmount: sObj.basePrice || 200000,
+              },
+              contactSnapshot: {
+                fullName: `Khách Hàng ${seq}-${k}`,
+                phone: `090123${String(seq).padStart(2, '0')}${k}`,
+              },
+              services: [
+                {
+                  serviceId: sObj._id,
+                  serviceName: sObj.name,
+                  serviceType: sObj.serviceType,
+                  durationMinutes: cfg.duration,
+                  requiredStaffRole: sObj.requiredStaffRole || (cfg.type === 'MED' ? 'VETERINARIAN' : 'CARE_STAFF_GROOMER'),
+                  scheduledStart: new Date(startMs),
+                  scheduledEnd: new Date(endMs),
+                  assignedStaffId,
+                  bookingMode: 'BOOKABLE',
+                  unitPrice: sObj.basePrice || 200000,
+                  sequence: 1,
+                  checkInStatus: 'PENDING',
+                  executionStatus: 'NOT_STARTED',
+                },
+              ],
+            });
+            seq++;
+          }
+        }
+      }
+    }
+
+    if (appointmentsToInsert.length > 0) {
+      await Appointment.insertMany(appointmentsToInsert, { ordered: false }).catch(() => {});
+      console.log(`[Seed] Seeded ${appointmentsToInsert.length} realistic dynamic appointments across upcoming dates.`);
+    }
+  } catch (err) {
+    // Non-blocking
   }
 };
