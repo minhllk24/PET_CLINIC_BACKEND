@@ -331,17 +331,28 @@ export const formatAppointment = (apt) => {
     res.petSnapshot = doc.petSnapshot || res.petSnapshot || null;
   }
   res.pet = res.petSnapshot || null;
-  if (doc.customerSnapshot !== undefined || doc.contactSnapshot !== undefined) {
-    res.customerSnapshot = doc.customerSnapshot || doc.contactSnapshot || null;
+
+  let resolvedCustName =
+    doc.customerSnapshot?.fullName ||
+    doc.customerSnapshot?.name ||
+    doc.contactSnapshot?.fullName ||
+    doc.contactSnapshot?.name;
+
+  if ((!resolvedCustName || resolvedCustName === 'Khách hàng' || resolvedCustName === 'Thành viên') && doc.customerId && typeof doc.customerId === 'object') {
+    resolvedCustName = doc.customerId.fullName || doc.customerId.name || resolvedCustName;
   }
-  if (!res.customerSnapshot && doc.customerId && typeof doc.customerId === 'object') {
-    res.customerSnapshot = {
-      fullName: doc.customerId.fullName || doc.customerId.name || 'Khách hàng',
-      name: doc.customerId.fullName || doc.customerId.name || 'Khách hàng',
-      phone: doc.customerId.phone || doc.customerId.contactPhone || '',
-      email: doc.customerId.email || doc.customerId.contactEmail || '',
-    };
-  }
+
+  const effectiveCustSnapshot = {
+    fullName: resolvedCustName || 'Khách hàng',
+    name: resolvedCustName || 'Khách hàng',
+    phone: doc.customerSnapshot?.phone || doc.contactSnapshot?.phone || (typeof doc.customerId === 'object' ? (doc.customerId.phone || doc.customerId.contactPhone) : '') || '',
+    email: doc.customerSnapshot?.email || doc.contactSnapshot?.email || (typeof doc.customerId === 'object' ? (doc.customerId.email || doc.customerId.contactEmail) : '') || '',
+  };
+
+  res.customerSnapshot = effectiveCustSnapshot;
+  res.contactSnapshot = effectiveCustSnapshot;
+  res.customerName = effectiveCustSnapshot.fullName;
+  res.customer_name_snapshot = effectiveCustSnapshot.fullName;
   if (doc.rescheduleCount !== undefined) {
     res.rescheduleCount = Number(doc.rescheduleCount || 0);
   }
@@ -1590,6 +1601,52 @@ export const getAppointments = async (filters = {}, actor) => {
     .populate('customerId', 'fullName phone email name')
     .sort({ scheduledStart: -1 })
     .limit(limit);
+
+  // Enrich customer info if customerId was not found in Customer (e.g. linked via User)
+  try {
+    if (mongoose.connection?.readyState === 1) {
+      const missingCustomerIds = [];
+      appointments.forEach((a) => {
+        const name = a.customerSnapshot?.fullName || a.customerSnapshot?.name || a.contactSnapshot?.fullName || a.contactSnapshot?.name;
+        if (!name || name === 'Khách hàng' || name === 'Thành viên') {
+          if (a.customerId) missingCustomerIds.push(a.customerId._id || a.customerId);
+        }
+      });
+      if (missingCustomerIds.length > 0) {
+        const User = require('../auth/models/User').default || require('../auth/models/User');
+        const Customer = require('../customer/models/Customer').default || require('../customer/models/Customer');
+        const [users, custs] = await Promise.all([
+          User.find({ _id: { $in: missingCustomerIds } }).lean(),
+          Customer.find({ $or: [{ _id: { $in: missingCustomerIds } }, { userId: { $in: missingCustomerIds } }] }).lean()
+        ]);
+        const nameMap = new Map();
+        custs.forEach((c) => {
+          const n = c.fullName || c.name;
+          if (n) {
+            if (c._id) nameMap.set(c._id.toString(), { name: n, phone: c.contactPhone || c.phone, email: c.contactEmail || c.email });
+            if (c.userId) nameMap.set(c.userId.toString(), { name: n, phone: c.contactPhone || c.phone, email: c.contactEmail || c.email });
+          }
+        });
+        users.forEach((u) => {
+          const n = u.fullName || u.name;
+          if (n && u._id && !nameMap.has(u._id.toString())) {
+            nameMap.set(u._id.toString(), { name: n, phone: u.phone, email: u.email });
+          }
+        });
+        appointments.forEach((a) => {
+          const rawId = (a.customerId?._id || a.customerId)?.toString();
+          if (rawId && nameMap.has(rawId)) {
+            const resolved = nameMap.get(rawId);
+            if (!a.customerSnapshot) a.customerSnapshot = {};
+            a.customerSnapshot.fullName = resolved.name;
+            a.customerSnapshot.name = resolved.name;
+            if (resolved.phone) a.customerSnapshot.phone = resolved.phone;
+            if (resolved.email) a.customerSnapshot.email = resolved.email;
+          }
+        });
+      }
+    }
+  } catch (_e) {}
 
   return {
     items: appointments.map(formatAppointment),
@@ -3225,4 +3282,64 @@ export const getCancelPreview = async (id, actor) => {
       : `Lịch hẹn chỉ còn ${Number(hoursBeforeStart.toFixed(1))} giờ (dưới 24 giờ). Tiền cọc (${new Intl.NumberFormat('vi-VN').format(depositAmount || penaltyAmount)}đ) sẽ không được hoàn lại theo chính sách.`,
   };
 };
+
+/**
+ * Background auto-repair migration to ensure all appointments have valid customer names
+ * (Resolves generic "Khách hàng" into true Customer/User/Guest names)
+ */
+export const migrateAppointmentCustomerNames = async () => {
+  try {
+    if (mongoose.connection?.readyState !== 1) return;
+    const Appointment = mongoose.connection.db.collection('appointments');
+    const Customer = mongoose.connection.db.collection('customers');
+    const User = mongoose.connection.db.collection('users');
+    const Guest = mongoose.connection.db.collection('guestcontacts');
+
+    const apts = await Appointment.find({
+      $or: [
+        { contactSnapshot: null },
+        { customerSnapshot: null },
+        { 'contactSnapshot.fullName': null },
+        { 'contactSnapshot.fullName': { $exists: false } },
+        { 'contactSnapshot.fullName': 'Khách hàng' },
+        { 'contactSnapshot.fullName': 'Thành viên' },
+      ],
+    }).toArray();
+
+    for (const a of apts) {
+      let resolvedName = a.contactSnapshot?.name || a.customerSnapshot?.name || null;
+      let phone = a.contactSnapshot?.phone || a.customerSnapshot?.phone || '';
+      let email = a.contactSnapshot?.email || a.customerSnapshot?.email || '';
+
+      if (!resolvedName || resolvedName === 'Khách hàng' || resolvedName === 'Thành viên') {
+        if (a.customerId) {
+          const c = await Customer.findOne({ $or: [{ _id: a.customerId }, { userId: a.customerId }] });
+          const u = await User.findOne({ _id: a.customerId });
+          resolvedName = c?.fullName || c?.name || u?.fullName || u?.name;
+          if (!phone) phone = c?.contactPhone || c?.phone || u?.phone || '';
+          if (!email) email = c?.contactEmail || c?.email || u?.email || '';
+        }
+        if (!resolvedName && a.guestContactId) {
+          const g = await Guest.findOne({ _id: a.guestContactId });
+          resolvedName = g?.fullName || g?.name;
+          if (!phone) phone = g?.phone || '';
+          if (!email) email = g?.email || '';
+        }
+      }
+
+      if (resolvedName) {
+        await Appointment.updateOne(
+          { _id: a._id },
+          {
+            $set: {
+              contactSnapshot: { fullName: resolvedName, name: resolvedName, phone, email },
+              customerSnapshot: { fullName: resolvedName, name: resolvedName, phone, email },
+            },
+          }
+        );
+      }
+    }
+  } catch (_e) {}
+};
+
 

@@ -6,6 +6,8 @@ import { startCronJobs } from './worker/cronjobs';
 import { migrateMissingProductCodes } from './modules/catalog/catalog.service';
 import { ensureFutureShifts, ensureRealisticAppointments } from './modules/staff/shift.service';
 import { syncCustomerProfiles } from './modules/customer/customer.service';
+import { migrateOrderContactSnapshots } from './modules/order/order.service';
+import { migrateAppointmentCustomerNames } from './modules/booking/booking.service';
 
 const startServer = async () => {
   try {
@@ -30,6 +32,16 @@ const startServer = async () => {
     // Sync Customer profiles with User documents (ORD-03 / Admin Customer consistency)
     syncCustomerProfiles().catch((err) => {
       logger.warn('Customer profile sync warning:', err.message);
+    });
+
+    // Auto-repair order contact snapshots to guarantee real customer names
+    migrateOrderContactSnapshots().catch((err) => {
+      logger.warn('Order contact snapshot migration warning:', err.message);
+    });
+
+    // Auto-repair appointment customer names to guarantee real customer names
+    migrateAppointmentCustomerNames().catch((err) => {
+      logger.warn('Appointment customer name migration warning:', err.message);
     });
 
     // Migrate missing product codes if any

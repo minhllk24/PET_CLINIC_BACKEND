@@ -622,25 +622,55 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           };
         });
 
-        const effectiveContact =
-          contact && (contact.phone || contact.email)
-            ? contact
-            : shippingAddress && (shippingAddress.phone || shippingAddress.email)
-            ? {
-                name: shippingAddress.recipientName || shippingAddress.fullName || 'Guest Customer',
-                phone: shippingAddress.phone,
-                email: shippingAddress.email,
-              }
-            : null;
+        let customerFullName = null;
+        let customerPhone = null;
+        let customerEmail = null;
+
+        if (actor && actor.id) {
+          try {
+            const UserModel = mongoose.models.User || mongoose.model('User');
+            const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+            const [liveUser, liveCust] = await Promise.all([
+              UserModel.findById(actor.id).session(session).lean(),
+              CustomerModel.findOne({ $or: [{ userId: actor.id }, { _id: actor.id }] }).session(session).lean(),
+            ]);
+            customerFullName = liveCust?.fullName || liveUser?.fullName || actor.fullName || actor.name || null;
+            customerPhone = liveCust?.contactPhone || liveCust?.phone || liveUser?.phone || actor.phone || null;
+            customerEmail = liveCust?.contactEmail || liveCust?.email || liveUser?.email || actor.email || null;
+          } catch (_e) {}
+        }
+
+        const rawContactName =
+          (contact && (contact.fullName || contact.name)) ||
+          customerFullName ||
+          (shippingAddress && (shippingAddress.recipientName || shippingAddress.fullName)) ||
+          'Khách hàng';
+
+        const finalContactName = rawContactName !== 'Khách hàng' && rawContactName !== 'Guest Customer' && rawContactName !== 'Thành viên'
+          ? rawContactName
+          : (customerFullName || rawContactName);
+
+        const effectiveContact = {
+          fullName: finalContactName,
+          name: finalContactName,
+          phone: (contact && contact.phone) || (shippingAddress && shippingAddress.phone) || customerPhone || '',
+          email: (contact && contact.email) || (shippingAddress && shippingAddress.email) || customerEmail || '',
+        };
+
+        if (shippingAddress) {
+          if (!shippingAddress.recipientName || shippingAddress.recipientName === 'Khách hàng' || shippingAddress.recipientName === 'Guest Customer') {
+            shippingAddress.recipientName = finalContactName;
+          }
+          if (!shippingAddress.fullName || shippingAddress.fullName === 'Khách hàng' || shippingAddress.fullName === 'Guest Customer') {
+            shippingAddress.fullName = finalContactName;
+          }
+        }
 
         let guestContactId = undefined;
         if (!actor && effectiveContact && (effectiveContact.phone || effectiveContact.email)) {
           const cPhone = effectiveContact.phone ? effectiveContact.phone.trim() : null;
           const cEmail = effectiveContact.email ? effectiveContact.email.trim().toLowerCase() : null;
-          const cName =
-            (shippingAddress && (shippingAddress.fullName || shippingAddress.recipientName)) ||
-            effectiveContact.name ||
-            'Guest Customer';
+          const cName = finalContactName;
 
           let guest = null;
           if (cPhone) {
@@ -678,9 +708,7 @@ export const checkoutCreateOrder = async (data, actor, guestToken) => {
           pricing: { merchandiseSubtotal, voucherDiscount, shippingFee, totalAmount },
           voucher: appliedVoucher ? { voucherId: appliedVoucher._id, code: appliedVoucher.code } : undefined,
           shippingAddress,
-          contactSnapshot: effectiveContact
-            ? { name: effectiveContact.name, email: effectiveContact.email, phone: effectiveContact.phone }
-            : {},
+          contactSnapshot: effectiveContact,
           statusHistory: [{ status: 'PENDING', at: new Date(), actorId: actor ? actor.id : undefined }]
         });
         await createdOrder.save({ session });
@@ -789,6 +817,33 @@ export const formatOrder = (order) => {
     returnedQty: item.returnedQty || 0
   }));
 
+  // Resolve effective full name from all available sources
+  let resolvedCustomerName =
+    obj.contactSnapshot?.fullName ||
+    obj.contactSnapshot?.name;
+
+  if (!resolvedCustomerName || resolvedCustomerName === 'Khách hàng' || resolvedCustomerName === 'Guest Customer' || resolvedCustomerName === 'Thành viên') {
+    if (obj.shippingAddress?.recipientName && obj.shippingAddress.recipientName !== 'Khách hàng' && obj.shippingAddress.recipientName !== 'Guest Customer') {
+      resolvedCustomerName = obj.shippingAddress.recipientName;
+    } else if (obj.shippingAddress?.fullName && obj.shippingAddress.fullName !== 'Khách hàng' && obj.shippingAddress.fullName !== 'Guest Customer') {
+      resolvedCustomerName = obj.shippingAddress.fullName;
+    } else if (obj.customerId && typeof obj.customerId === 'object' && (obj.customerId.fullName || obj.customerId.name)) {
+      resolvedCustomerName = obj.customerId.fullName || obj.customerId.name;
+    }
+  }
+
+  if (!resolvedCustomerName || resolvedCustomerName === 'Guest Customer') {
+    resolvedCustomerName = 'Khách hàng';
+  }
+
+  const effectiveContactSnapshot = {
+    ...(obj.contactSnapshot || {}),
+    fullName: resolvedCustomerName,
+    name: resolvedCustomerName,
+    phone: obj.contactSnapshot?.phone || obj.shippingAddress?.phone || (typeof obj.customerId === 'object' ? (obj.customerId.phone || obj.customerId.contactPhone) : '') || '',
+    email: obj.contactSnapshot?.email || (typeof obj.customerId === 'object' ? (obj.customerId.email || obj.customerId.contactEmail) : '') || '',
+  };
+
   const result = {
     id: obj._id ? obj._id.toString() : (obj.id ? obj.id.toString() : obj.code),
     order_id: obj.code || (obj._id ? obj._id.toString() : undefined),
@@ -836,19 +891,20 @@ export const formatOrder = (order) => {
       actorId: h.actorId ? h.actorId.toString() : undefined
     })),
     shippingAddress: obj.shippingAddress ? {
-      recipientName: obj.shippingAddress.recipientName || obj.shippingAddress.fullName || obj.contactSnapshot?.fullName || null,
-      phone: obj.shippingAddress.phone || obj.contactSnapshot?.phone || null,
-      line1: obj.shippingAddress.line1 || obj.shippingAddress.addressDetail || obj.shippingAddress.detail || null,
+      recipientName: obj.shippingAddress.recipientName || obj.shippingAddress.fullName || resolvedCustomerName,
+      fullName: obj.shippingAddress.fullName || obj.shippingAddress.recipientName || resolvedCustomerName,
+      phone: obj.shippingAddress.phone || effectiveContactSnapshot.phone || null,
+      line1: obj.shippingAddress.line1 || obj.shippingAddress.addressLine || obj.shippingAddress.addressDetail || obj.shippingAddress.detail || null,
       ward: obj.shippingAddress.ward || null,
       district: obj.shippingAddress.district || null,
       city: obj.shippingAddress.city || obj.shippingAddress.province || null
     } : undefined,
-    contactSnapshot: obj.contactSnapshot || {},
+    contactSnapshot: effectiveContactSnapshot,
     customer: obj.customerId ? {
-      id: obj.customerId.toString(),
-      fullName: obj.contactSnapshot?.fullName || null,
-      phone: obj.contactSnapshot?.phone || null,
-      email: obj.contactSnapshot?.email || null
+      id: (obj.customerId._id || obj.customerId).toString(),
+      fullName: resolvedCustomerName,
+      phone: effectiveContactSnapshot.phone || null,
+      email: effectiveContactSnapshot.email || null
     } : null,
     paymentMethod: obj.paymentMethod,
     payment: obj.payment && obj.payment.paymentId ? {
@@ -1934,4 +1990,71 @@ export const createAdminOrder = async (data, actor) => {
     throw error;
   }
 };
+
+/**
+ * Background auto-repair migration to ensure all orders have valid customer names
+ * (Resolves generic "Khách hàng" into true Customer/User/Guest names)
+ */
+export const migrateOrderContactSnapshots = async () => {
+  try {
+    if (mongoose.connection?.readyState !== 1) return;
+    const Order = mongoose.connection.db.collection('orders');
+    const Customer = mongoose.connection.db.collection('customers');
+    const User = mongoose.connection.db.collection('users');
+    const Guest = mongoose.connection.db.collection('guestcontacts');
+
+    const orders = await Order.find({
+      $or: [
+        { contactSnapshot: null },
+        { contactSnapshot: { $exists: false } },
+        { 'contactSnapshot.fullName': null },
+        { 'contactSnapshot.fullName': { $exists: false } },
+        { 'contactSnapshot.fullName': 'Khách hàng' },
+        { 'contactSnapshot.fullName': 'Guest Customer' },
+        { 'contactSnapshot.fullName': 'Thành viên' },
+        { 'contactSnapshot.name': 'Khách hàng' },
+      ],
+    }).toArray();
+
+    for (const o of orders) {
+      let resolvedName = null;
+      let phone = o.contactSnapshot?.phone || o.shippingAddress?.phone || '';
+      let email = o.contactSnapshot?.email || o.shippingAddress?.email || '';
+
+      if (o.customerId) {
+        const c = await Customer.findOne({ $or: [{ _id: o.customerId }, { userId: o.customerId }] });
+        const u = await User.findOne({ _id: o.customerId });
+        resolvedName = c?.fullName || c?.name || u?.fullName || u?.name || null;
+        if (!phone) phone = c?.contactPhone || c?.phone || u?.phone || '';
+        if (!email) email = c?.contactEmail || c?.email || u?.email || '';
+      }
+      if (!resolvedName && o.guestContactId) {
+        const g = await Guest.findOne({ _id: o.guestContactId });
+        resolvedName = g?.fullName || g?.name || null;
+        if (!phone) phone = g?.phone || '';
+        if (!email) email = g?.email || '';
+      }
+      if (!resolvedName && o.shippingAddress?.fullName && o.shippingAddress.fullName !== 'Khách hàng') {
+        resolvedName = o.shippingAddress.fullName;
+      }
+      if (!resolvedName && o.shippingAddress?.recipientName && o.shippingAddress.recipientName !== 'Khách hàng') {
+        resolvedName = o.shippingAddress.recipientName;
+      }
+
+      if (resolvedName) {
+        const updateDoc = {
+          contactSnapshot: { fullName: resolvedName, name: resolvedName, phone, email },
+        };
+        if (o.shippingAddress && (!o.shippingAddress.recipientName || o.shippingAddress.recipientName === 'Khách hàng')) {
+          updateDoc['shippingAddress.recipientName'] = resolvedName;
+        }
+        if (o.shippingAddress && (!o.shippingAddress.fullName || o.shippingAddress.fullName === 'Khách hàng')) {
+          updateDoc['shippingAddress.fullName'] = resolvedName;
+        }
+        await Order.updateOne({ _id: o._id }, { $set: updateDoc });
+      }
+    }
+  } catch (_e) {}
+};
+
 
