@@ -372,12 +372,14 @@ export const listCategories = async (params = {}, actor = null) => {
   }
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
+  const hasCursor = typeof cursor === 'string' && cursor.trim().length > 0;
+  const effectiveCatPage = hasCursor ? null : parsedPage;
   let catQuery = Category.find(query).sort({ _id: 1 });
 
-  if (parsedPage && typeof catQuery.skip === 'function') {
-    catQuery = catQuery.skip((parsedPage - 1) * parsedLimit);
-  } else if (!parsedPage && cursor) {
-    const decodedId = decodeCursor(cursor);
+  if (effectiveCatPage && typeof catQuery.skip === 'function') {
+    catQuery = catQuery.skip((effectiveCatPage - 1) * parsedLimit);
+  } else if (hasCursor) {
+    const decodedId = decodeCursor(cursor.trim());
     if (decodedId && mongoose.isValidObjectId(decodedId)) {
       query._id = { $gt: new mongoose.Types.ObjectId(decodedId) };
       catQuery = Category.find(query).sort({ _id: 1 });
@@ -551,6 +553,9 @@ export const listProducts = async (params = {}, actor = null) => {
   const maxLimit = isInternal ? 500 : 200;
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), maxLimit);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
+  const hasCursor = typeof cursor === 'string' && cursor.trim().length > 0;
+  // OpenAPI v7 injects default page=1 when omitted; cursor pagination must always take precedence when cursor is passed
+  const effectivePage = hasCursor ? null : parsedPage;
   const query = {};
 
   // Phân quyền: public/CUSTOMER chỉ thấy ACTIVE và usageType in ['SALE', 'SHARED']
@@ -669,7 +674,7 @@ export const listProducts = async (params = {}, actor = null) => {
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
   const isPriceSort = normalizedSort === 'PRICE_ASC' || normalizedSort === 'PRICE_DESC';
-  const decodedCursor = !parsedPage && cursor ? decodeCursor(cursor) : null;
+  const decodedCursor = hasCursor ? decodeCursor(cursor.trim()) : null;
   const cursorId = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.id : decodedCursor;
   const cursorKey = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.k : undefined;
 
@@ -689,7 +694,7 @@ export const listProducts = async (params = {}, actor = null) => {
     });
 
     let startIndex = 0;
-    if (!parsedPage && cursor && cursorId) {
+    if (hasCursor && cursorId) {
       const idx = keyed.findIndex((item) => item.idStr === String(cursorId));
       if (idx >= 0) {
         startIndex = idx + 1;
@@ -701,8 +706,8 @@ export const listProducts = async (params = {}, actor = null) => {
         });
         startIndex = foundIdx >= 0 ? foundIdx : keyed.length;
       }
-    } else if (parsedPage) {
-      startIndex = (parsedPage - 1) * parsedLimit;
+    } else if (effectivePage) {
+      startIndex = (effectivePage - 1) * parsedLimit;
     }
 
     const pageEntries = keyed.slice(startIndex, startIndex + parsedLimit + 1);
@@ -718,7 +723,7 @@ export const listProducts = async (params = {}, actor = null) => {
     }
   } else {
     let findQuery = { ...query };
-    if (!parsedPage && cursor && cursorId && mongoose.isValidObjectId(cursorId)) {
+    if (hasCursor && cursorId && mongoose.isValidObjectId(cursorId)) {
       const objId = new mongoose.Types.ObjectId(cursorId);
       if (normalizedSort === 'NAME_ASC' && cursorKey !== undefined) {
         findQuery = { $and: [query, { $or: [{ name: { $gt: cursorKey } }, { name: cursorKey, _id: { $gt: objId } }] }] };
@@ -733,8 +738,8 @@ export const listProducts = async (params = {}, actor = null) => {
     }
 
     let productsQuery = Product.find(findQuery).sort(sortCriteria);
-    if (parsedPage && typeof productsQuery.skip === 'function') {
-      productsQuery = productsQuery.skip((parsedPage - 1) * parsedLimit);
+    if (effectivePage && typeof productsQuery.skip === 'function') {
+      productsQuery = productsQuery.skip((effectivePage - 1) * parsedLimit);
     }
     if (typeof productsQuery.populate === 'function') {
       productsQuery = productsQuery.populate('categoryId', 'name slug status');

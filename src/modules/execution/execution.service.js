@@ -146,6 +146,15 @@ export const formatServiceRecord = (rec, enrichment = null) => {
   if (doc.materialsUpdatedAt) {
     res.materialsUpdatedAt = new Date(doc.materialsUpdatedAt).toISOString();
   }
+  if (Array.isArray(doc.materialAudit)) {
+    res.materialAudit = doc.materialAudit.map((entry) => ({
+      actorId: entry?.actorId ? (entry.actorId._id || entry.actorId).toString() : null,
+      actorName: entry?.actorName || null,
+      actorRole: entry?.actorRole || null,
+      at: entry?.at ? new Date(entry.at).toISOString() : null,
+      materialsCount: Number(entry?.materialsCount || 0),
+    }));
+  }
 
   // plannedMaterials
   if (doc.plannedMaterials) {
@@ -682,30 +691,36 @@ export const updateMaterials = async (id, data, actor) => {
           staffProfile = null;
         }
 
-        const actorAssignedSegments = (appointment.services || []).filter(
-          s => s.assignedStaffId && (
-            s.assignedStaffId.toString() === actor.id.toString() ||
-            (staffProfile && s.assignedStaffId.toString() === staffProfile._id.toString())
+        const matchesStaff = (refId) => Boolean(
+          refId && (
+            refId.toString() === actor.id.toString() ||
+            (staffProfile && refId.toString() === staffProfile._id.toString())
           )
         );
+        const allSegments = Array.isArray(appointment.services) ? appointment.services : [];
+        const recordServiceIds = Array.isArray(record.serviceIds) ? record.serviceIds.map((idVal) => idVal.toString()) : [];
+        const matchedByRecordServices = recordServiceIds.length > 0
+          ? allSegments.filter((s) => s.serviceId && recordServiceIds.includes(s.serviceId.toString()))
+          : [];
+        const recordSegments = matchedByRecordServices.length > 0 ? matchedByRecordServices : allSegments;
+
+        const actorAssignedSegments = recordSegments.filter((s) => matchesStaff(s.assignedStaffId));
+        const isAssignedToRecord = (record.assignedStaffIds || []).some((sid) => matchesStaff(sid));
         const isReviewer = (
-          (record.reviewerStaffId && (
-            record.reviewerStaffId.toString() === actor.id.toString() ||
-            (staffProfile && record.reviewerStaffId.toString() === staffProfile._id.toString())
-          )) ||
-          (appointment.reviewerStaffId && (
-            appointment.reviewerStaffId.toString() === actor.id.toString() ||
-            (staffProfile && appointment.reviewerStaffId.toString() === staffProfile._id.toString())
-          ))
+          matchesStaff(record.reviewerStaffId) ||
+          matchesStaff(appointment.reviewerStaffId)
         );
 
         if (actor.staffSubRole === 'NURSE') {
-          const hasNurseSegment = actorAssignedSegments.some(s => s.requiredStaffRole === 'NURSE');
+          const hasNurseSegment = actorAssignedSegments.some((s) => s.requiredStaffRole === 'NURSE') ||
+            (recordSegments.length === 0 && isAssignedToRecord);
           if (!hasNurseSegment) {
             throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Nurse is not assigned to this medical segment');
           }
         } else if (actor.staffSubRole === 'VETERINARIAN') {
-          const hasVetSegment = actorAssignedSegments.some(s => s.requiredStaffRole === 'VETERINARIAN') || isReviewer;
+          const hasVetSegment = actorAssignedSegments.some((s) => s.requiredStaffRole === 'VETERINARIAN') ||
+            isReviewer ||
+            (recordSegments.length === 0 && isAssignedToRecord);
           if (!hasVetSegment) {
             throw new AppError(403, 'Forbidden', ErrorCodes.ASSIGNMENT_SCOPE_ERROR, 'Veterinarian is not assigned to this medical segment');
           }
@@ -732,6 +747,13 @@ export const updateMaterials = async (id, data, actor) => {
     isExtra: Boolean(m.isExtra),
   }));
 
+  const normalizedNewMaterials = materials.map((m) => ({
+    inventoryItemId: m.inventoryItemId ? m.inventoryItemId.toString() : null,
+    quantity: m.quantity,
+    unit: m.unit,
+    isExtra: m.isExtra,
+  }));
+
   record.actualMaterials = materials;
   record.version += 1;
   record.updatedBy = {
@@ -743,16 +765,13 @@ export const updateMaterials = async (id, data, actor) => {
   record.materialsUpdatedAt = now;
   record.materialAudit = Array.isArray(record.materialAudit) ? record.materialAudit : [];
   record.materialAudit.push({
-    updatedBy: actor?.id || actor?._id || null,
-    updatedByRole: actor?.staffSubRole || actor?.systemRole || null,
-    updatedAt: now,
+    actorId: actor?.id || actor?._id || null,
+    actorName: actor?.fullName || actor?.name || null,
+    actorRole: actor?.staffSubRole || actor?.systemRole || null,
+    at: now,
+    materialsCount: normalizedNewMaterials.length,
     previousMaterials,
-    newMaterials: materials.map((m) => ({
-      inventoryItemId: m.inventoryItemId ? m.inventoryItemId.toString() : null,
-      quantity: m.quantity,
-      unit: m.unit,
-      isExtra: m.isExtra,
-    })),
+    newMaterials: normalizedNewMaterials,
   });
   await record.save();
 

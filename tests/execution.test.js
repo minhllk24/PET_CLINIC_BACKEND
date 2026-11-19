@@ -531,7 +531,7 @@ describe('Task 4.4: Service Record & Material Consumption Suite', () => {
       expect(createdTxs[0].items[1]).toMatchObject({ inventoryItemId: validMaterialB, quantity: 3, changeQty: -3 });
     });
 
-    it('reopen and re-finalize calculates material delta and creates supplementary ADJUSTMENT transaction without modifying original ISSUE transaction', async () => {
+    it('reopen and re-finalize calculates positive material delta and creates supplementary ISSUE transaction without modifying original ISSUE transaction (QA-R1-20)', async () => {
       const mockRecord = {
         _id: new mongoose.Types.ObjectId(validRecordId),
         code: 'SR-20261031-0001',
@@ -595,7 +595,7 @@ describe('Task 4.4: Service Record & Material Consumption Suite', () => {
       expect(res.body.status).toBe('FINALIZED');
       expect(res.body.recordVersion).toBe(2);
       expect(createdTxs).toHaveLength(1);
-      expect(createdTxs[0].transactionType).toBe('ADJUSTMENT');
+      expect(createdTxs[0].transactionType).toBe('ISSUE');
       expect(createdTxs[0].sourceType).toBe('SERVICE_RECORD');
       expect(createdTxs[0].sourceId.toString()).toBe(validRecordId);
       expect(createdTxs[0].recordVersion).toBe(2);

@@ -55,6 +55,8 @@ const schema = new mongoose.Schema({
       actorRole: { type: String, default: null },
       at: { type: Date, default: Date.now },
       materialsCount: { type: Number, default: 0 },
+      previousMaterials: { type: Array, default: [] },
+      newMaterials: { type: Array, default: [] },
     },
   ],
   version: { type: Number, default: 1, min: 1 }

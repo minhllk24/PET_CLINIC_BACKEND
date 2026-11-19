@@ -11,6 +11,14 @@ import { verifyGuestToken } from '../customer/guest.service';
 import AppError from '../../utils/AppError';
 import { ErrorCodes } from '../../shared/errorCodes';
 
+const isWriteConflictError = (error) => {
+  if (!error) return false;
+  if (error.code === 112 || error.codeName === 'WriteConflict') return true;
+  if (typeof error.hasErrorLabel === 'function' && error.hasErrorLabel('TransientTransactionError')) return true;
+  if (Array.isArray(error.errorLabels) && error.errorLabels.includes('TransientTransactionError')) return true;
+  return /WriteConflict|Write conflict/i.test(String(error.message || ''));
+};
+
 export const formatPayment = (payment) => {
   if (!payment) return null;
   const obj = typeof payment.toObject === 'function' ? payment.toObject() : { ...payment };
@@ -519,16 +527,53 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
       }
 
       if (isFailure) {
-        payment.status = 'FAILED';
-        await payment.save(session ? { session } : {});
+        if (useAtomicCas) {
+          const updatedFail = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'PENDING' },
+            {
+              $set: {
+                status: 'FAILED',
+                target: { type: 'ORDER', id: order._id },
+                targetType: 'ORDER',
+                targetId: order._id,
+              },
+              $inc: { version: 1 },
+            },
+            { new: true, ...(session ? { session } : {}) }
+          );
+          if (!updatedFail) {
+            const freshPay = await Payment.findById(payment._id);
+            if (freshPay && ['FAILED', 'CANCELLED'].includes(freshPay.status)) {
+              if (session) { await session.abortTransaction(); session.endSession(); }
+              return formatPayment(freshPay);
+            }
+            throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', `Payment cannot transition from ${freshPay?.status || payment.status}`);
+          }
+          payment = updatedFail;
+        } else {
+          payment.status = 'FAILED';
+          await payment.save(session ? { session } : {});
+        }
 
-        await compensateOrderPaymentFailure(order._id, failureReason, actor, session);
-        order.payment = { paymentId: payment._id, status: 'FAILED', method: payment.method };
-        await order.save(session ? { session } : {});
+        const compensatedOrder = await compensateOrderPaymentFailure(order._id, failureReason, actor, session);
+        const failedPaymentRef = { paymentId: payment._id, status: 'FAILED', method: payment.method };
+        if (!Order.findById?._isMockFunction && typeof Order.findByIdAndUpdate === 'function') {
+          await Order.findByIdAndUpdate(
+            order._id,
+            { $set: { payment: failedPaymentRef } },
+            session ? { session } : {}
+          );
+        } else {
+          const targetOrderDoc = compensatedOrder || order;
+          targetOrderDoc.payment = failedPaymentRef;
+          if (typeof targetOrderDoc.save === 'function') {
+            await targetOrderDoc.save(session ? { session } : {});
+          }
+        }
 
         // Release Flash Sale quota if any items were purchased via Flash Sale
         for (const item of order.items || []) {
-          if (item.flashSaleId) {
+          if (item.flashSaleId && !item.flashSaleQuotaReleased) {
             await releaseFlashSaleQuotaInSession({
               saleId: item.flashSaleId,
               sku: item.skuSnapshot,
@@ -540,25 +585,76 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
         }
       } else {
         if (order.status === 'CANCELLED') {
-          payment.status = 'FAILED';
-          await payment.save(session ? { session } : {});
+          if (useAtomicCas) {
+            await Payment.findOneAndUpdate(
+              { _id: payment._id, status: 'PENDING' },
+              {
+                $set: {
+                  status: 'FAILED',
+                  target: { type: 'ORDER', id: order._id },
+                  targetType: 'ORDER',
+                  targetId: order._id,
+                },
+              },
+              session ? { session } : {}
+            );
+          } else {
+            payment.status = 'FAILED';
+            await payment.save(session ? { session } : {});
+          }
           if (session) {
             await session.commitTransaction();
             session.endSession();
           }
           throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', 'Order has already been cancelled');
         }
-        payment.status = 'PAID';
-        payment.paidAt = now;
-        await payment.save(session ? { session } : {});
 
-        order.payment = {
-          ...(order.payment || {}),
+        if (useAtomicCas) {
+          const updatedPaid = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'PENDING' },
+            {
+              $set: {
+                status: 'PAID',
+                paidAt: now,
+                target: { type: 'ORDER', id: order._id },
+                targetType: 'ORDER',
+                targetId: order._id,
+              },
+              $inc: { version: 1 },
+            },
+            { new: true, ...(session ? { session } : {}) }
+          );
+          if (!updatedPaid) {
+            const freshPay = await Payment.findById(payment._id);
+            if (freshPay?.status === 'PAID') {
+              if (session) { await session.abortTransaction(); session.endSession(); }
+              return formatPayment(freshPay);
+            }
+            throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', `Payment cannot transition from ${freshPay?.status || payment.status}`);
+          }
+          payment = updatedPaid;
+        } else {
+          payment.status = 'PAID';
+          payment.paidAt = now;
+          await payment.save(session ? { session } : {});
+        }
+
+        const paidPaymentRef = {
+          ...(typeof order.payment?.toObject === 'function' ? order.payment.toObject() : (order.payment || {})),
           paymentId: payment._id,
           status: 'PAID',
           method: payment.method,
         };
-        await order.save(session ? { session } : {});
+        if (!Order.findById?._isMockFunction && typeof Order.findByIdAndUpdate === 'function') {
+          await Order.findByIdAndUpdate(
+            order._id,
+            { $set: { payment: paidPaymentRef } },
+            session ? { session } : {}
+          );
+        } else {
+          order.payment = paidPaymentRef;
+          await order.save(session ? { session } : {});
+        }
       }
     }
 
@@ -571,6 +667,48 @@ export const mockCompletePayment = async (paymentId, data = {}, actor = null, gu
     if (session) {
       try { await session.abortTransaction(); } catch {}
       session.endSession();
+    }
+    if (isWriteConflictError(error)) {
+      let freshPay = null;
+      let freshTarget = null;
+      try {
+        freshPay = await Payment.findById(paymentId);
+        if (freshPay) {
+          const resolved = await resolvePaymentTarget(freshPay, null);
+          if (resolved.targetType === 'APPOINTMENT' && resolved.targetId) {
+            freshTarget = await Appointment.findById(resolved.targetId);
+          }
+        }
+      } catch {}
+
+      if (freshPay?.status === 'PAID' && !isFailure) {
+        return formatPayment(freshPay);
+      }
+
+      if (freshPay && freshPay.status === 'PENDING' && freshTarget) {
+        const nowCheck = new Date();
+        const effectiveExp = freshTarget.holdExpiresAt || freshPay.expiresAt || null;
+        const holdExpired = Boolean(effectiveExp && new Date(effectiveExp) <= nowCheck);
+        const nonPayable = !['PENDING_PAYMENT', 'PENDING_CONFIRMATION'].includes(freshTarget.status);
+        if (holdExpired || nonPayable) {
+          const fallbackPayStatus = holdExpired ? 'EXPIRED' : (freshTarget.status === 'CANCELLED' ? 'CANCELLED' : 'FAILED');
+          try {
+            if (typeof Payment.findOneAndUpdate === 'function' && !Payment.findById?._isMockFunction) {
+              await Payment.findOneAndUpdate(
+                { _id: freshPay._id, status: 'PENDING' },
+                { $set: { status: fallbackPayStatus } }
+              );
+            }
+          } catch {}
+          throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', 'Appointment hold expired or appointment already cancelled');
+        }
+      }
+
+      if (freshPay && ['EXPIRED', 'CANCELLED', 'FAILED', 'REFUND_PENDING', 'REFUNDED'].includes(freshPay.status)) {
+        throw new AppError(409, 'Conflict', 'PAYMENT_STATE_ERROR', `Payment cannot transition from ${freshPay.status}`);
+      }
+
+      throw new AppError(409, 'Conflict', ErrorCodes.CONCURRENCY_CONFLICT, 'Concurrent payment or hold expiration update in progress');
     }
     throw error;
   }

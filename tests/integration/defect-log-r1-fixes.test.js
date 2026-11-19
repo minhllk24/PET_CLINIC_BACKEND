@@ -161,7 +161,7 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
           newPassword: 'NewPassword@123',
         });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(204);
       expect(userDoc.save).toHaveBeenCalled();
       expect(OtpChallenge.deleteMany).toHaveBeenCalled();
     });
@@ -231,12 +231,18 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
   // 2. PET & CUSTOMER VALIDATION & RBAC (QA-R1-06, R07)
   // =========================================================================
   describe('2. Pet Validation & Ownership RBAC', () => {
-    it('QA-R1-06: Rejects invalid pet fields (weightKg <= 0, missing species, empty name)', async () => {
-      const schemaBadPet = new Pet({ customerId: customerAId, name: 'Zero', weightKg: 0 });
+    it('QA-R1-06: Rejects invalid pet fields (weightKg <= 0, missing/invalid species, empty name)', async () => {
+      const schemaBadPet = new Pet({ customerId: customerAId, name: 'Zero', species: 'INVALID', weightKg: 0 });
       const err = schemaBadPet.validateSync();
       expect(err).toBeTruthy();
       expect(err.errors.species).toBeTruthy();
       expect(err.errors.weightKg).toBeTruthy();
+
+      const resMissingSpecies = await request(app)
+        .post('/api/v1/pets')
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .send({ name: 'Milo', weightKg: 2 });
+      expect(resMissingSpecies.status).toBe(400);
 
       const res = await request(app)
         .post('/api/v1/pets')
@@ -719,6 +725,8 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(updated.materialsUpdatedBy).toBe(staff1Id.toString());
       expect(updated.updatedBy.name).toBe('BS Hung');
       expect(recDoc.materialAudit).toHaveLength(1);
+      expect(recDoc.materialAudit[0].actorId.toString()).toBe(staff1Id.toString());
+      expect(updated.materialAudit[0].actorId).toBe(staff1Id.toString());
     });
   });
 
@@ -1252,6 +1260,233 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
         .set('X-Guest-Lookup-Token', guestBToken);
 
       expect(forbiddenRes.status).toBe(403);
+    });
+  });
+
+  describe('10. Defect Log 19-11 Regression Fixes (QA-R1-08 Order FAILED, QA-R1-27 WriteConflict, QA-R1-17 Cursor, QA-R1-23 Nurse/Audit)', () => {
+    it('QA-R1-08: Order callback FAILED handles compensation cleanly without VersionError (returns 200 FAILED & idempotent replay)', async () => {
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(makeSession());
+      const orderId = new mongoose.Types.ObjectId();
+      const payId = new mongoose.Types.ObjectId();
+      const branchObjId = new mongoose.Types.ObjectId(branch1Id);
+
+      // Simulate stale initial order instance whose save() would throw VersionError if called after compensation
+      let compensateSaved = false;
+      const staleOrderDoc = {
+        _id: orderId,
+        code: 'ORD-FAIL-08',
+        customerId: customerAId,
+        fulfillmentBranchId: branchObjId,
+        status: 'PENDING',
+        items: [],
+        save: jest.fn().mockImplementation(async () => {
+          if (compensateSaved) {
+            throw new Error('VersionError: stale order save should not be called');
+          }
+          compensateSaved = true;
+          return staleOrderDoc;
+        }),
+      };
+      const compensatedOrderDoc = {
+        _id: orderId,
+        code: 'ORD-FAIL-08',
+        customerId: customerAId,
+        fulfillmentBranchId: branchObjId,
+        status: 'PENDING',
+        items: [],
+        save: jest.fn().mockImplementation(async () => {
+          compensateSaved = true;
+          return compensatedOrderDoc;
+        }),
+      };
+      const payDoc = {
+        _id: payId,
+        code: 'PAY-ORD-08',
+        target: { type: 'ORDER', id: orderId },
+        method: 'ONLINE_MOCK',
+        kind: 'ORDER',
+        status: 'PENDING',
+        amount: 250000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(Payment, 'findById').mockReturnValue(makeChainQuery(payDoc));
+      jest.spyOn(Order, 'findById')
+        .mockReturnValueOnce(makeChainQuery(staleOrderDoc)) // assertPaymentTargetAccess (.lean)
+        .mockReturnValueOnce(makeChainQuery(staleOrderDoc)) // paymentService initial Order load
+        .mockReturnValueOnce(makeChainQuery(compensatedOrderDoc)); // compensateOrderPaymentFailure load
+      jest.spyOn(InventoryTransaction, 'find').mockReturnValue(makeChainQuery([]));
+
+      const failRes = await request(app)
+        .post(`/api/v1/payments/${payId}/mock/complete`)
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .set('Idempotency-Key', `idemp-ord-fail-1-${Date.now()}`)
+        .send({ outcome: 'FAILED', failureReason: 'User cancelled mock gateway' });
+
+      expect(failRes.status).toBe(200);
+      expect(failRes.body.status).toBe('FAILED');
+      expect(compensatedOrderDoc.status).toBe('CANCELLED');
+      expect(compensatedOrderDoc.payment.status).toBe('FAILED');
+
+      // Replay FAILED callback -> 200 idempotent FAILED
+      jest.spyOn(Order, 'findById').mockReturnValue(makeChainQuery(compensatedOrderDoc));
+      const replayRes = await request(app)
+        .post(`/api/v1/payments/${payId}/mock/complete`)
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .set('Idempotency-Key', `idemp-ord-fail-2-${Date.now()}`)
+        .send({ outcome: 'FAILED' });
+
+      expect(replayRes.status).toBe(200);
+      expect(replayRes.body.status).toBe('FAILED');
+    });
+
+    it('QA-R1-27: Concurrent WriteConflict (112) with hold-expiry worker maps to 409 PAYMENT_STATE_ERROR instead of 500', async () => {
+      const sessionMock = makeSession();
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(sessionMock);
+      const aptId = new mongoose.Types.ObjectId();
+      const payId = new mongoose.Types.ObjectId();
+
+      const writeConflictErr = Object.assign(new Error('WriteConflict error: this operation conflicted with another operation'), {
+        code: 112,
+        codeName: 'WriteConflict',
+        errorLabels: ['TransientTransactionError'],
+      });
+
+      const activeAptDoc = {
+        _id: aptId,
+        code: 'APT-WC-27',
+        customerId: customerAId,
+        branchId: branch1Id,
+        status: 'PENDING_PAYMENT',
+        paymentMethod: 'ONLINE_MOCK',
+        holdExpiresAt: new Date(Date.now() + 5 * 60000),
+        pricing: { finalAmount: 200000, paidAmount: 0 },
+        deposit: { status: 'NOT_REQUIRED' },
+        services: [],
+        save: jest.fn().mockRejectedValue(writeConflictErr),
+      };
+      const cancelledAptDoc = {
+        ...activeAptDoc,
+        status: 'CANCELLED',
+        holdExpiresAt: null,
+      };
+      const payDoc = {
+        _id: payId,
+        code: 'PAY-WC-27',
+        target: { type: 'APPOINTMENT', id: aptId },
+        method: 'ONLINE_MOCK',
+        kind: 'FULL',
+        status: 'PENDING',
+        amount: 200000,
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const expiredPayDoc = {
+        ...payDoc,
+        status: 'EXPIRED',
+      };
+
+      jest.spyOn(Payment, 'findById')
+        .mockReturnValueOnce(makeChainQuery(payDoc))
+        .mockReturnValueOnce(makeChainQuery(expiredPayDoc));
+      jest.spyOn(Appointment, 'findById')
+        .mockReturnValueOnce(makeChainQuery(activeAptDoc)) // assertPaymentTargetAccess
+        .mockReturnValueOnce(makeChainQuery(activeAptDoc)) // inside tx before save throws 112
+        .mockReturnValueOnce(makeChainQuery(cancelledAptDoc)); // fresh state after abort
+
+      const res = await request(app)
+        .post(`/api/v1/payments/${payId}/mock/complete`)
+        .set('Authorization', `Bearer ${customerAToken}`)
+        .set('Idempotency-Key', `idemp-wc-27-${Date.now()}`)
+        .send({ outcome: 'PAID' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('PAYMENT_STATE_ERROR');
+      expect(sessionMock.abortTransaction).toHaveBeenCalled();
+    });
+
+    it('QA-R1-17: GET /api/v1/products cursor pagination ignores OpenAPI default page=1 for PRICE_ASC and PRICE_DESC', async () => {
+      const ids = [
+        new mongoose.Types.ObjectId('660000000000000000000011'),
+        new mongoose.Types.ObjectId('660000000000000000000012'),
+        new mongoose.Types.ObjectId('660000000000000000000013'),
+      ];
+      const docs = ids.map((id, idx) => ({
+        _id: id,
+        name: `Prod ${idx + 1}`,
+        status: 'ACTIVE',
+        minPrice: (idx + 1) * 10000,
+        variants: [{ _id: new mongoose.Types.ObjectId(), price: (idx + 1) * 10000, finalPrice: (idx + 1) * 10000, status: 'ACTIVE' }],
+      }));
+
+      const chain = makeChainQuery([docs[0], docs[1], docs[2]]);
+      const findSpy = jest.spyOn(Product, 'find').mockReturnValue(chain);
+      jest.spyOn(Product, 'countDocuments').mockResolvedValue(3);
+
+      const page1Res = await request(app)
+        .get('/api/v1/products?sort=PRICE_ASC&limit=2');
+
+      expect(page1Res.status).toBe(200);
+      expect(page1Res.body.items.map((i) => i.id)).toEqual([ids[0].toString(), ids[1].toString()]);
+      expect(page1Res.body.nextCursor).toBeTruthy();
+
+      const chain2 = makeChainQuery([docs[2]]);
+      findSpy.mockReturnValue(chain2);
+
+      // Even though OpenAPI defaults query.page to 1 when omitted, cursor MUST prevent skip(0) and apply cursor query
+      const page2Res = await request(app)
+        .get(`/api/v1/products?sort=PRICE_ASC&limit=2&cursor=${encodeURIComponent(page1Res.body.nextCursor)}`);
+
+      expect(page2Res.status).toBe(200);
+      expect(chain2.skip).not.toHaveBeenCalled();
+      expect(findSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          _id: { $gt: ids[1] },
+        })
+      );
+      expect(page2Res.body.items.map((i) => i.id)).toEqual([ids[2].toString()]);
+    });
+
+    it('QA-R1-23: Blocks Nurse from updating materials on a Veterinarian segment ServiceRecord (403 ASSIGNMENT_SCOPE_ERROR)', async () => {
+      const nurseUserId = new mongoose.Types.ObjectId();
+      const nurseProfileId = new mongoose.Types.ObjectId();
+      const vetProfileId = new mongoose.Types.ObjectId();
+      const nurseSvcId = new mongoose.Types.ObjectId();
+      const vetSvcId = new mongoose.Types.ObjectId();
+      const vetRecordId = new mongoose.Types.ObjectId();
+      const itemA = new mongoose.Types.ObjectId();
+
+      const vetRecDoc = {
+        _id: vetRecordId,
+        code: 'SR-VET-23',
+        appointmentId: new mongoose.Types.ObjectId(),
+        branchId: branch1Id,
+        recordType: 'MEDICAL',
+        status: 'IN_PROGRESS',
+        serviceIds: [vetSvcId],
+        assignedStaffIds: [vetProfileId],
+        version: 1,
+        actualMaterials: [],
+        materialAudit: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(ServiceRecord, 'findById').mockResolvedValue(vetRecDoc);
+      jest.spyOn(StaffProfile, 'findOne').mockReturnValue(makeChainQuery({ _id: nurseProfileId, userId: nurseUserId }));
+      jest.spyOn(Appointment, 'findById').mockResolvedValue({
+        _id: vetRecDoc.appointmentId,
+        services: [
+          { serviceId: nurseSvcId, requiredStaffRole: 'NURSE', assignedStaffId: nurseProfileId },
+          { serviceId: vetSvcId, requiredStaffRole: 'VETERINARIAN', assignedStaffId: vetProfileId },
+        ],
+      });
+
+      await expect(
+        executionService.updateMaterials(
+          vetRecordId.toString(),
+          { materials: [{ inventoryItemId: itemA.toString(), quantity: 1 }] },
+          { id: nurseUserId.toString(), fullName: 'Y ta Lan', systemRole: 'STAFF', staffSubRole: 'NURSE' }
+        )
+      ).rejects.toMatchObject({ status: 403, code: 'ASSIGNMENT_SCOPE_ERROR' });
     });
   });
 });

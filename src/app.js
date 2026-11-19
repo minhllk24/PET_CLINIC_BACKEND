@@ -213,6 +213,7 @@ app.use(async (req, res, next) => {
   } else if (req.url.startsWith('/api/v1/forgot-password')) {
     rewriteUrl('/api/v1/forgot-password', '/api/v1/auth/forgot-password');
   } else if (req.url.startsWith('/api/v1/reset-password')) {
+    req.isLegacyResetPasswordAlias = true;
     rewriteUrl('/api/v1/reset-password', '/api/v1/auth/reset-password');
   } else if (req.url.startsWith('/api/v1/change-password')) {
     rewriteUrl('/api/v1/change-password', '/api/v1/auth/change-password');

@@ -135,6 +135,11 @@ export const resetPassword = async (req, res, next) => {
   try {
     const meta = getMeta(req);
     const result = await authService.resetPassword(req.body, meta);
+    // OpenAPI v7 canonical /api/v1/auth/reset-password expects 204 No Content;
+    // keep 200 JSON on legacy /api/v1/reset-password alias used by FE assertSuccess(response).
+    if (!req.isLegacyResetPasswordAlias && (req.originalUrl || '').includes('/auth/reset-password')) {
+      return res.status(204).send();
+    }
     return sendSuccess(res, result);
   } catch (err) {
     next(err);
