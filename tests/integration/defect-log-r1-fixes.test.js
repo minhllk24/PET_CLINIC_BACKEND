@@ -1528,7 +1528,14 @@ describe('Defect Log R1 & Test Execution Regression Suite', () => {
       expect(chain2.skip).not.toHaveBeenCalled();
       expect(findSpy).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          _id: { $gt: ids[1] },
+          $and: expect.arrayContaining([
+            expect.objectContaining({
+              $or: [
+                { 'variants.price': { $gt: 20000 } },
+                { 'variants.price': 20000, _id: { $gt: ids[1] } },
+              ],
+            }),
+          ]),
         })
       );
       expect(page2Res.body.items.map((i) => i.id)).toEqual([ids[2].toString()]);

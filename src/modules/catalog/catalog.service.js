@@ -31,7 +31,12 @@ const encodeCursor = (val) => {
 };
 const decodeCursor = (cursor) => {
   try {
-    const raw = Buffer.from(cursor, 'base64').toString('utf8');
+    const normalized = String(cursor || '')
+      .trim()
+      .replace(/ /g, '+')
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const raw = Buffer.from(normalized, 'base64').toString('utf8');
     if (raw.startsWith('{')) {
       return JSON.parse(raw);
     }
@@ -44,13 +49,19 @@ const decodeCursor = (cursor) => {
 const getEffectiveSortPrice = (product, direction = 1) => {
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   const activePrices = variants
-    .filter((v) => v && v.status !== 'INACTIVE' && typeof v.price === 'number')
-    .map((v) => Number(v.salePrice ?? v.price));
+    .filter((v) => v && v.status !== 'INACTIVE' && v.price !== undefined && v.price !== null && !Number.isNaN(Number(v.price)))
+    .map((v) => Number(v.price));
   const prices = activePrices.length > 0
     ? activePrices
-    : variants.filter((v) => typeof v?.price === 'number').map((v) => Number(v.salePrice ?? v.price));
-  if (prices.length === 0) return direction >= 0 ? Number.MAX_SAFE_INTEGER : 0;
-  return direction >= 0 ? Math.min(...prices) : Math.max(...prices);
+    : variants
+        .filter((v) => v && v.price !== undefined && v.price !== null && !Number.isNaN(Number(v.price)))
+        .map((v) => Number(v.price));
+  if (prices.length === 0) {
+    const fallback = Number(product?.minPrice ?? product?.price ?? product?.basePrice);
+    if (Number.isFinite(fallback) && fallback > 0) return fallback;
+    return direction >= 0 ? Number.MAX_SAFE_INTEGER : 0;
+  }
+  return Math.min(...prices);
 };
 
 // Helper: định dạng đối tượng theo chuẩn OpenAPI v7 (loại bỏ timestamps và fields thừa)
@@ -553,7 +564,9 @@ export const listProducts = async (params = {}, actor = null) => {
   const maxLimit = isInternal ? 500 : 200;
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), maxLimit);
   const parsedPage = page !== undefined && page !== null && page !== '' ? Math.max(parseInt(page, 10) || 1, 1) : null;
-  const hasCursor = typeof cursor === 'string' && cursor.trim().length > 0;
+  const rawCursor = cursor || params.nextCursor || params.next_cursor || params.after;
+  const normalizedCursor = typeof rawCursor === 'string' ? rawCursor.trim().replace(/ /g, '+') : '';
+  const hasCursor = normalizedCursor.length > 0;
   // OpenAPI v7 injects default page=1 when omitted; cursor pagination must always take precedence when cursor is passed
   const effectivePage = hasCursor ? null : parsedPage;
   const query = {};
@@ -674,15 +687,17 @@ export const listProducts = async (params = {}, actor = null) => {
   const totalPages = Math.ceil(totalItems / parsedLimit) || 1;
 
   const isPriceSort = normalizedSort === 'PRICE_ASC' || normalizedSort === 'PRICE_DESC';
-  const decodedCursor = hasCursor ? decodeCursor(cursor.trim()) : null;
+  const decodedCursor = hasCursor ? decodeCursor(normalizedCursor) : null;
   const cursorId = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.id : decodedCursor;
   const cursorKey = decodedCursor && typeof decodedCursor === 'object' ? decodedCursor.k : undefined;
 
   let products = [];
   if (isPriceSort && !Product.find?._isMockFunction && typeof Product.find === 'function') {
-    // Sort deterministically by computed min/max active variant price + _id tiebreaker across pages
+    // Sort deterministically by computed min active variant price + _id tiebreaker across pages
     const priceDir = normalizedSort === 'PRICE_ASC' ? 1 : -1;
-    const candidates = await Product.find(query).select('_id variants.price variants.salePrice variants.status').lean();
+    const candidates = await Product.find(query)
+      .select('_id minPrice price basePrice variants.price variants.finalPrice variants.salePrice variants.status')
+      .lean();
     const keyed = (candidates || []).map((doc) => ({
       idStr: doc._id.toString(),
       _id: doc._id,
@@ -732,6 +747,22 @@ export const listProducts = async (params = {}, actor = null) => {
       } else if (normalizedSort === 'NEWEST' && cursorKey !== undefined) {
         const dt = new Date(cursorKey);
         findQuery = { $and: [query, { $or: [{ createdAt: { $lt: dt } }, { createdAt: dt, _id: { $lt: objId } }] }] };
+      } else if (normalizedSort === 'PRICE_ASC' && cursorKey !== undefined) {
+        const keyNum = Number(cursorKey);
+        findQuery = {
+          $and: [
+            query,
+            { $or: [{ 'variants.price': { $gt: keyNum } }, { 'variants.price': keyNum, _id: { $gt: objId } }] },
+          ],
+        };
+      } else if (normalizedSort === 'PRICE_DESC' && cursorKey !== undefined) {
+        const keyNum = Number(cursorKey);
+        findQuery = {
+          $and: [
+            query,
+            { $or: [{ 'variants.price': { $lt: keyNum } }, { 'variants.price': keyNum, _id: { $lt: objId } }] },
+          ],
+        };
       } else {
         findQuery._id = sortCriteria._id === 1 ? { $gt: objId } : { $lt: objId };
       }

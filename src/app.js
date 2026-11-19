@@ -314,6 +314,15 @@ app.use(async (req, res, next) => {
       }
       delete req.query.filter;
 
+      // Cursor normalization (preserve '+' if unencoded in query string and support aliases)
+      const rawCursor = req.query.cursor || req.query.nextCursor || req.query.next_cursor || req.query.after;
+      if (rawCursor !== undefined && rawCursor !== null && String(rawCursor).trim() !== '') {
+        req.query.cursor = String(rawCursor).trim().replace(/ /g, '+');
+      }
+      delete req.query.nextCursor;
+      delete req.query.next_cursor;
+      delete req.query.after;
+
       // Category parameter normalization
       const catParam = req.query.categoryId || req.query.category_id || req.query.category_ids || req.query.category;
       if (catParam) {
