@@ -13,9 +13,17 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import config from '../../shared/config';
 import { generateOtpCode, hashOtp, verifyOtp } from '../../utils/otpHelpers';
 import { sendGuestOtpEmail, sendActivationInviteEmail } from '../../utils/emailHelpers';
-import { sendSmsBrandname } from '../../services/smsBrandname.service.js';
+import { sendSmsBrandname, normalizePhoneNumber } from '../../services/smsBrandname.service.js';
 import { dispatchDualChannelOtp } from '../../services/otpDispatcher.service.js';
 import { recordAuditLog } from '../../utils/auditLogger';
+
+const normalizeGuestIdentifier = (raw = '') => {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('@')) return trimmed.toLowerCase();
+  const { local } = normalizePhoneNumber(trimmed);
+  return /^0\d{9}$/.test(local) ? local : trimmed.toLowerCase();
+};
 
 // In-memory store fallback for offline test environments
 const mockChallengeStore = new Map();
@@ -85,7 +93,7 @@ export const requestGuestOtp = async ({ phone, email }) => {
     throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Either phone or email must be provided');
   }
 
-  const identifier = (phone || email).trim().toLowerCase();
+  const identifier = normalizeGuestIdentifier(phone || email);
 
   // Rate limit: 60s cooldown check
   const existing = await findActiveChallenge({
@@ -112,7 +120,7 @@ export const requestGuestOtp = async ({ phone, email }) => {
     expiresAt,
   });
 
-  const targetPhone = phone ? phone.trim() : (!identifier.includes('@') ? identifier.trim() : null);
+  const targetPhone = phone ? normalizeGuestIdentifier(phone) : (!identifier.includes('@') ? identifier : null);
 
   // Dispatch SMS BrandName (DRPETSHOUSE) if phone is present
   if (targetPhone) {
@@ -198,7 +206,7 @@ export const verifyGuestOtp = async (body) => {
   }
 
   if (!challenge && (phone || email)) {
-    const identifier = (phone || email).trim().toLowerCase();
+    const identifier = normalizeGuestIdentifier(phone || email);
     challenge = await findActiveChallenge({ identifier, purpose: 'GUEST_LOOKUP' });
   }
 
@@ -236,7 +244,7 @@ export const verifyGuestOtp = async (body) => {
   // Find or create GuestContact
   const rawContact = phone || email || challenge.identifier;
   const isEmail = rawContact.includes('@');
-  const contactPhone = phone ? phone.trim() : (!isEmail ? rawContact.trim() : undefined);
+  const contactPhone = phone ? normalizeGuestIdentifier(phone) : (!isEmail ? normalizeGuestIdentifier(rawContact) : undefined);
   const contactEmail = email ? email.trim().toLowerCase() : (isEmail ? rawContact.trim().toLowerCase() : undefined);
 
   const query = contactPhone ? { phone: contactPhone } : { email: contactEmail };
@@ -478,7 +486,7 @@ export const completeActivation = async ({ token, otp, password, acceptTerms, fu
       );
     }
 
-    const phoneIdentifier = guest.phone ? guest.phone.trim().toLowerCase() : null;
+    const phoneIdentifier = guest.phone ? normalizeGuestIdentifier(guest.phone) : null;
     const emailIdentifier = guest.email ? guest.email.trim().toLowerCase() : null;
     const candidateIdentifiers = [phoneIdentifier, emailIdentifier].filter(Boolean);
 
@@ -541,7 +549,7 @@ export const completeActivation = async ({ token, otp, password, acceptTerms, fu
     await removeChallenge(challenge._id);
 
     const verifiedAt = new Date();
-    const matchedIdentifier = String(challenge.identifier || '').trim().toLowerCase();
+    const matchedIdentifier = normalizeGuestIdentifier(challenge.identifier || '');
     if (phoneIdentifier && matchedIdentifier === phoneIdentifier) {
       isPhoneVerified = true;
       guest.phoneVerifiedAt = verifiedAt;

@@ -115,6 +115,10 @@ export const resendOtp = async (req, res, next) => {
   try {
     const meta = getMeta(req);
     const result = await authService.resendOtp(req.body, meta);
+    // OpenAPI v7 canonical /api/v1/auth/otp/resend expects 202 Accepted
+    if ((req.originalUrl || '').includes('/auth/otp/resend')) {
+      return res.status(202).json(result);
+    }
     return sendSuccess(res, result);
   } catch (err) {
     next(err);

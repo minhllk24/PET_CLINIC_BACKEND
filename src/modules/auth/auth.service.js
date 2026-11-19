@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import User from '../../models/User.js';
 import Customer from '../customer/models/Customer.js';
 import Order from '../order/models/Order.js';
-import OtpChallenge from '../../models/OtpChallenge.js';
+import OtpChallenge, { OTP_PURPOSES } from '../../models/OtpChallenge.js';
 import RefreshSession from '../../models/RefreshSession.js';
 import AppError from '../../utils/AppError.js';
 import config from '../../shared/config.js';
@@ -52,6 +52,24 @@ const findLatestOtpChallenge = async (filter) => {
     return query.sort({ createdAt: -1 });
   }
   return query;
+};
+
+const OTP_PURPOSE_ALIASES = {
+  RESET: 'FORGOT_PASSWORD',
+  RESET_PASSWORD: 'FORGOT_PASSWORD',
+  FORGOT_PASSWORD: 'FORGOT_PASSWORD',
+  LOGIN: 'LOGIN_VERIFICATION',
+  LOGIN_VERIFICATION: 'LOGIN_VERIFICATION',
+  REGISTER: 'REGISTER',
+  SIGNUP: 'REGISTER',
+  GUEST_LOOKUP: 'GUEST_LOOKUP',
+  ACTIVATION: 'ACTIVATION',
+};
+
+const normalizeOtpPurpose = (rawPurpose) => {
+  if (!rawPurpose) return null;
+  const key = String(rawPurpose).trim().toUpperCase();
+  return OTP_PURPOSE_ALIASES[key] || key;
 };
 
 /**
@@ -606,7 +624,7 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
   const rawId = payload.identifier || payload.loginId || payload.login_id || payload.email || payload.phone || payload.account || '';
   const identifier = String(rawId).trim();
   const otpCode = String(payload.otpCode || payload.otp_code || payload.otp || '').trim();
-  const explicitPurpose = payload.purpose ? String(payload.purpose).trim().toUpperCase() : null;
+  const explicitPurpose = normalizeOtpPurpose(payload.purpose);
   let purpose = explicitPurpose || (payload.login_id || payload.loginId ? 'REGISTER' : 'FORGOT_PASSWORD');
 
   if (!identifier || !otpCode) {
@@ -623,8 +641,8 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
     ],
   });
 
-  // Fallback when purpose was not explicitly provided and a challenge exists under the alternate purpose
-  if (!challenge && !explicitPurpose) {
+  // Fallback when purpose was not explicitly provided and an unverified challenge exists under the alternate purpose
+  if ((!challenge || challenge.verifiedAt) && !explicitPurpose) {
     const alternatePurpose = purpose === 'FORGOT_PASSWORD' ? 'REGISTER' : 'FORGOT_PASSWORD';
     const altChallenge = await findLatestOtpChallenge({
       $or: [
@@ -632,7 +650,7 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
         { identifier: rawLower, purpose: alternatePurpose },
       ],
     });
-    if (altChallenge) {
+    if (altChallenge && !altChallenge.verifiedAt) {
       challenge = altChallenge;
       purpose = alternatePurpose;
     }
@@ -772,7 +790,7 @@ export const verifyOtpCode = async (payload = {}, meta = {}) => {
 export const resendOtp = async (payload = {}, meta = {}) => {
   const rawId = payload.identifier || payload.loginId || payload.login_id || payload.email || payload.phone || payload.account || '';
   const identifier = String(rawId).trim();
-  let purpose = payload.purpose ? String(payload.purpose).trim().toUpperCase() : null;
+  let purpose = normalizeOtpPurpose(payload.purpose);
 
   const { cleanIdentifier, isEmail } = normalizeAuthIdentifier(identifier);
 
@@ -790,6 +808,10 @@ export const resendOtp = async (payload = {}, meta = {}) => {
 
   if (!identifier || !purpose) {
     throw new AppError(400, 'Bad Request', 'MISSING_FIELDS', 'Identifier and purpose are required');
+  }
+
+  if (!OTP_PURPOSES.includes(purpose)) {
+    throw new AppError(400, 'Bad Request', 'VALIDATION_ERROR', `Invalid OTP purpose: ${payload.purpose}`);
   }
 
   const challenge = await findLatestOtpChallenge({ identifier: cleanIdentifier, purpose });

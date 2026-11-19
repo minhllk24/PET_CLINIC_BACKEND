@@ -601,5 +601,90 @@ describe('Auth & RBAC Comprehensive Tests (OpenAPI v7 & FE Compatibility)', () =
       expect(lockedRes.status).toBe(423);
       expect(lockedRes.body.code).toBe('ACCOUNT_LOCKED');
     });
+
+    it('5.7 POST /api/v1/auth/verify-otp without purpose falls back to REGISTER challenge and activates account', async () => {
+      const regUser = {
+        _id: new mongoose.Types.ObjectId(),
+        phone: '0912345678',
+        email: 'regotp@petclinic.vn',
+        fullName: 'Reg OTP User',
+        systemRole: 'CUSTOMER',
+        accountStatus: 'PENDING_ACTIVATION',
+        save: jest.fn().mockResolvedValue(true),
+      };
+      const registerChallenge = {
+        _id: new mongoose.Types.ObjectId(),
+        identifier: '0912345678',
+        purpose: 'REGISTER',
+        otpHash: hashOtp('654321'),
+        attemptCount: 0,
+        verifiedAt: null,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(OtpChallenge, 'findOne').mockImplementation((filter) => {
+        const isRegisterLookup = JSON.stringify(filter).includes('REGISTER');
+        return {
+          sort: jest.fn().mockResolvedValue(isRegisterLookup ? registerChallenge : null),
+        };
+      });
+      jest.spyOn(OtpChallenge, 'deleteMany').mockResolvedValue({ deletedCount: 1 });
+      jest.spyOn(User, 'findOne').mockResolvedValue(regUser);
+
+      const res = await request(app)
+        .post('/api/v1/auth/verify-otp')
+        .send({
+          identifier: '0912345678',
+          otp: '654321',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.verified).toBe(true);
+      expect(regUser.accountStatus).toBe('ACTIVE');
+      expect(regUser.save).toHaveBeenCalled();
+    });
+
+    it('5.8 POST /api/v1/auth/otp/resend accepts OpenAPI v7 purpose=RESET, maps to FORGOT_PASSWORD, and returns 202', async () => {
+      jest.spyOn(User, 'findOne').mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id: testUserId,
+          phone: '0911223344',
+          email: 'resetotp@petclinic.vn',
+          accountStatus: 'ACTIVE',
+        }),
+      });
+      jest.spyOn(OtpChallenge, 'findOne').mockReturnValue({
+        sort: jest.fn().mockResolvedValue(null),
+      });
+      const upsertSpy = jest.spyOn(OtpChallenge, 'findOneAndUpdate').mockResolvedValue({ _id: new mongoose.Types.ObjectId() });
+
+      const res = await request(app)
+        .post('/api/v1/auth/otp/resend')
+        .send({
+          identifier: '0911223344',
+          purpose: 'RESET',
+        });
+
+      expect(res.status).toBe(202);
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: 'FORGOT_PASSWORD' }),
+        expect.objectContaining({ verifiedAt: null, attemptCount: 0 }),
+        expect.any(Object)
+      );
+    });
+
+    it('5.9 Guest OTP normalizes +84 and 0... phone formats consistently across request and verify', async () => {
+      const guestService = require('../src/modules/customer/guest.service');
+      const reqRes = await guestService.requestGuestOtp({ phone: '+84988776655' });
+      expect(reqRes.success).toBe(true);
+      expect(reqRes.sentTo.phone).toBe('0988776655');
+
+      const verRes = await guestService.verifyGuestOtp({
+        phone: '0988776655',
+        otp: reqRes.otp,
+      });
+      expect(verRes.lookupToken || verRes.token).toBeTruthy();
+    });
   });
 });

@@ -16,6 +16,7 @@ router.post('/forgot-password', forgotPasswordLimiter, authController.forgotPass
 router.post('/verify-otp', otpLimiter, authController.verifyOtp);
 router.post('/verify-register-otp', otpLimiter, authController.verifyOtp); // FE alias
 router.post('/resend-otp', otpLimiter, authController.resendOtp);
+router.post('/otp/resend', otpLimiter, authController.resendOtp); // OpenAPI v7 canonical endpoint
 router.post('/reset-password', authLimiter, authController.resetPassword);
 router.post(['/google', '/google-login', '/login/google', '/oauth/google'], authLimiter, authController.googleLogin);
 

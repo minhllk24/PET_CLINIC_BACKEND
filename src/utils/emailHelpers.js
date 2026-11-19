@@ -2,13 +2,40 @@ import nodemailer from 'nodemailer';
 require('dotenv').config();
 
 const createTransporter = () => {
+  const user = process.env.SMTP_USER || process.env.EMAIL_APP || '';
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_APP_PASSWORD || '';
+  const host = process.env.SMTP_HOST || '';
+
+  if (host) {
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: user && pass ? { user, pass } : undefined,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+  }
+
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL_APP,
-      pass: process.env.EMAIL_APP_PASSWORD,
+      user,
+      pass,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
+};
+
+const getFromAddress = (displayName = "Dr. Pet's House Clinic") => {
+  if (process.env.SMTP_FROM) return process.env.SMTP_FROM;
+  const sender = process.env.SMTP_USER || process.env.EMAIL_APP || 'support@drpets.vn';
+  return `"${displayName}" <${sender}>`;
 };
 
 export const sendOtpEmail = async (toEmail, otpCode, purpose = 'FORGOT_PASSWORD', fullName = '') => {
@@ -34,7 +61,7 @@ export const sendOtpEmail = async (toEmail, otpCode, purpose = 'FORGOT_PASSWORD'
   const greeting = fullName ? `Chào ${fullName},` : 'Chào Quý khách,';
 
   const mailOptions = {
-    from: `"Dr. Pet's House Clinic" <${process.env.EMAIL_APP || 'support@drpets.vn'}>`,
+    from: getFromAddress("Dr. Pet's House Clinic"),
     to: toEmail,
     subject: `[DRPETSHOUSE] Mã xác nhận OTP: ${otpCode} - Dr. Pet's House`,
     html: `
@@ -83,7 +110,7 @@ export const sendGuestAccountEmail = async (toEmail, password, orderCode) => {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    from: getFromAddress('Pet Clinic'),
     to: toEmail,
     subject: 'Thông tin tài khoản và đơn hàng của bạn - Pet Clinic',
     html: `
@@ -118,7 +145,7 @@ export const sendAppointmentReminderEmail = async (toEmail, appointmentCode, dat
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    from: getFromAddress('Pet Clinic'),
     to: toEmail,
     subject: `Nhắc nhở lịch hẹn sắp tới (Mã: ${appointmentCode}) - Pet Clinic`,
     html: `
@@ -153,7 +180,7 @@ export const sendGuestOtpEmail = async (toEmail, otpCode) => {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    from: getFromAddress('Pet Clinic'),
     to: toEmail,
     subject: 'Mã xác thực tra cứu giao dịch - Pet Clinic',
     html: `
@@ -187,7 +214,7 @@ export const sendActivationInviteEmail = async (toEmail, inviteToken, fullName) 
   const activationUrl = `${customerAppUrl}/activate?token=${inviteToken}`;
 
   const mailOptions = {
-    from: `"Pet Clinic" <${process.env.EMAIL_APP}>`,
+    from: getFromAddress('Pet Clinic'),
     to: toEmail,
     subject: 'Kích hoạt tài khoản thành viên - Pet Clinic',
     html: `

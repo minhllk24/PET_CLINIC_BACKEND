@@ -529,12 +529,8 @@ app.use(async (req, res, next) => {
       const hadLoginId = req.body.login_id !== undefined || req.body.loginId !== undefined;
       req.body.identifier = req.body.identifier || req.body.login_id || req.body.loginId || req.body.phone || req.body.email;
       req.body.otpCode = req.body.otpCode || req.body.otp_code || req.body.otp;
-      if (!req.body.purpose) {
-        if (req.isRegisterOtp || req.path.includes('register') || hadLoginId) {
-          req.body.purpose = 'REGISTER';
-        } else {
-          req.body.purpose = 'FORGOT_PASSWORD';
-        }
+      if (!req.body.purpose && (req.isRegisterOtp || req.path.includes('register') || hadLoginId)) {
+        req.body.purpose = 'REGISTER';
       }
     }
 
