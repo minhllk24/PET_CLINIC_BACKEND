@@ -13,6 +13,7 @@ import CommunityPost from '../modules/content/models/CommunityPost';
 import StaffProfile from '../modules/staff/models/StaffProfile';
 import Shift from '../modules/staff/models/Shift';
 import { recalculateTargetRating } from '../modules/review/review.service';
+import { seedCatalogReviews } from './catalogReviewSeed';
 import { logger } from '../shared/logger';
 
 export const purgeTesterData = async () => {
@@ -1066,6 +1067,9 @@ export const seedModerationData = async () => {
 
       logger.info(`[ModerationSeed] Successfully seeded 12 realistic community violation reports.`);
     }
+
+    // 4. ENRICH REVIEWS FOR ALL CATALOG PRODUCTS & SERVICES (Idempotent)
+    await seedCatalogReviews();
   } catch (err) {
     logger.error('[ModerationSeed] Error seeding moderation data:', err);
   }

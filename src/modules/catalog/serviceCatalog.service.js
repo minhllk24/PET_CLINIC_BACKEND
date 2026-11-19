@@ -142,6 +142,9 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
     ? obj.category
     : (obj.serviceType === 'GROOMING' ? 'Grooming & Spa' : 'Khám & Điều trị');
 
+  const hasReviews = Number(obj.ratingCount) > 0;
+  const computedRating = hasReviews ? Number(obj.ratingAvg || 0) : 0;
+
   const res = {
     id: sId,
     service_id: sId,
@@ -157,6 +160,13 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
     booking_mode: obj.bookingMode,
     is_weight_surcharge_applied: hasWeightPricing,
     status,
+    rating: computedRating,
+    averageRating: computedRating,
+    ratingAvg: computedRating,
+    reviewCount: Number(obj.ratingCount || 0),
+    ratingCount: Number(obj.ratingCount || 0),
+    ratingDisplay: hasReviews ? computedRating : 0,
+    hasReviews,
   };
 
   if (obj.code) res.code = obj.code;

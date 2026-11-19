@@ -1,0 +1,55 @@
+import { formatServiceResponse } from '../src/modules/catalog/serviceCatalog.service';
+import { syncAllCatalogRatings } from '../src/seeds/catalogReviewSeed';
+
+describe('Catalog Review Seed & Service Rating Exposure', () => {
+  test('formatServiceResponse exposes zeroed rating fields when ratingCount is 0', () => {
+    const formatted = formatServiceResponse({
+      _id: '6ad08e4517bf41f5954234c7',
+      name: 'Massage chuyên sâu',
+      serviceType: 'GROOMING',
+      basePrice: 150000,
+      durationMinutes: 45,
+      requiredStaffRole: 'CARE_STAFF',
+      bookingMode: 'BOOKABLE',
+      status: 'ACTIVE',
+      ratingAvg: 4.5, // Should not display rating if ratingCount is 0
+      ratingCount: 0,
+    });
+
+    expect(formatted.rating).toBe(0);
+    expect(formatted.averageRating).toBe(0);
+    expect(formatted.ratingAvg).toBe(0);
+    expect(formatted.reviewCount).toBe(0);
+    expect(formatted.ratingCount).toBe(0);
+    expect(formatted.ratingDisplay).toBe(0);
+    expect(formatted.hasReviews).toBe(false);
+  });
+
+  test('formatServiceResponse exposes computed rating fields when ratingCount > 0', () => {
+    const formatted = formatServiceResponse({
+      _id: '6ad08e4417bf41f5954234c6',
+      name: 'Tắm & Sấy khô',
+      serviceType: 'GROOMING',
+      basePrice: 200000,
+      durationMinutes: 60,
+      requiredStaffRole: 'CARE_STAFF',
+      bookingMode: 'BOOKABLE',
+      status: 'ACTIVE',
+      ratingAvg: 4.7,
+      ratingCount: 5,
+    });
+
+    expect(formatted.rating).toBe(4.7);
+    expect(formatted.averageRating).toBe(4.7);
+    expect(formatted.ratingAvg).toBe(4.7);
+    expect(formatted.reviewCount).toBe(5);
+    expect(formatted.ratingCount).toBe(5);
+    expect(formatted.ratingDisplay).toBe(4.7);
+    expect(formatted.hasReviews).toBe(true);
+  });
+
+  test('syncAllCatalogRatings safely no-ops when mongoose is disconnected', async () => {
+    const res = await syncAllCatalogRatings();
+    expect(res).toEqual({ updatedProducts: 0, updatedServices: 0 });
+  });
+});
