@@ -53,3 +53,12 @@ export const resetStaffPassword = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteStaff = async (req, res, next) => {
+  try {
+    const result = await staffService.deleteStaff(req.params.id, req.actor);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};

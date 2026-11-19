@@ -54,6 +54,13 @@ router.post(
   staffController.resetStaffPassword
 );
 
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole(['ADMIN']),
+  staffController.deleteStaff
+);
+
 // ================= SHIFTS FOR STAFF (NESTED) =================
 router.get(
   '/:staffId/shifts',

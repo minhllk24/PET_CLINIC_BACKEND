@@ -8,12 +8,95 @@ import Service from '../modules/catalog/models/Service';
 import Order from '../modules/order/models/Order';
 import Appointment from '../modules/booking/models/Appointment';
 import Branch from '../modules/branch/models/Branch';
+import CommunityReport from '../modules/content/models/CommunityReport';
+import CommunityPost from '../modules/content/models/CommunityPost';
+import StaffProfile from '../modules/staff/models/StaffProfile';
+import Shift from '../modules/staff/models/Shift';
 import { recalculateTargetRating } from '../modules/review/review.service';
 import { logger } from '../shared/logger';
+
+export const purgeTesterData = async () => {
+  try {
+    if (mongoose.connection?.readyState !== 1) return;
+    const db = mongoose.connection.db;
+
+    // 1. Purge staff Nguyễn Văn Mười (created by Hưng without proper staffCode or with raw ObjectId)
+    const muoiQuery = {
+      $or: [
+        { fullName: /Nguyễn Văn Mười/i },
+        { name: /Nguyễn Văn Mười/i },
+        { username: /muoi/i },
+        { staffCode: /6aff04861e617f1acfe4a25f/i },
+      ]
+    };
+    if (mongoose.Types.ObjectId.isValid('6aff04861e617f1acfe4a25f')) {
+      muoiQuery.$or.push({ _id: new mongoose.Types.ObjectId('6aff04861e617f1acfe4a25f') });
+    }
+
+    const muoiUsers = await db.collection('users').find(muoiQuery).toArray();
+    for (const u of muoiUsers) {
+      await db.collection('users').deleteOne({ _id: u._id });
+      await db.collection('staffprofiles').deleteMany({ userId: u._id });
+      await db.collection('shifts').deleteMany({ staffId: u._id });
+      logger.info(`[Purge] Purged staff user: ${u.fullName} (${u._id})`);
+    }
+
+    const muoiProfiles = await db.collection('staffprofiles').find({
+      $or: [
+        { staffCode: /6aff04861e617f1acfe4a25f/i },
+        ...(mongoose.Types.ObjectId.isValid('6aff04861e617f1acfe4a25f') ? [{ _id: new mongoose.Types.ObjectId('6aff04861e617f1acfe4a25f') }] : [])
+      ]
+    }).toArray();
+
+    for (const p of muoiProfiles) {
+      await db.collection('staffprofiles').deleteOne({ _id: p._id });
+      if (p.userId) await db.collection('users').deleteOne({ _id: p.userId });
+      await db.collection('shifts').deleteMany({ staffId: p._id });
+      logger.info(`[Purge] Purged staff profile: ${p._id}`);
+    }
+
+    // 2. Purge orders created today by tester (e.g. ORD-20261119-*, or test orders with contact name 'Khách hàng')
+    const todayOrders = await db.collection('orders').find({
+      $or: [
+        { code: /^ORD-20261119/i },
+        { 'contactSnapshot.fullName': /^Khách hàng$/i, createdAt: { $gte: new Date('2026-11-19T00:00:00.000Z') } },
+      ]
+    }).toArray();
+
+    if (todayOrders.length > 0) {
+      const orderIds = todayOrders.map(o => o._id);
+      await db.collection('orders').deleteMany({ _id: { $in: orderIds } });
+      await db.collection('payments').deleteMany({ orderId: { $in: orderIds } });
+      logger.info(`[Purge] Purged ${todayOrders.length} test orders created today by tester.`);
+    }
+
+    // 3. Purge appointments created today by tester (e.g. APT-20261119-*, Khách Hàng 1-1 .. Khách Hàng 18-2)
+    const todayApts = await db.collection('appointments').find({
+      $or: [
+        { code: /^APT-20261119/i },
+        { 'customerSnapshot.fullName': /^Khách Hàng \d+-\d+$/i },
+        { 'contactSnapshot.fullName': /^Khách Hàng \d+-\d+$/i }
+      ]
+    }).toArray();
+
+    if (todayApts.length > 0) {
+      const aptIds = todayApts.map(a => a._id);
+      await db.collection('appointments').deleteMany({ _id: { $in: aptIds } });
+      await db.collection('servicerecords').deleteMany({ appointmentId: { $in: aptIds } });
+      await db.collection('payments').deleteMany({ appointmentId: { $in: aptIds } });
+      logger.info(`[Purge] Purged ${todayApts.length} test appointments created today by tester.`);
+    }
+  } catch (err) {
+    logger.warn('[Purge] Warning during tester data purge:', err.message);
+  }
+};
 
 export const seedModerationData = async () => {
   try {
     if (mongoose.connection?.readyState !== 1) return;
+
+    // 0. RUN PURGE OF TESTER DATA & NGUYEN VAN MUOI FIRST
+    await purgeTesterData();
 
     // 1. SEED FEEDBACKS (Customer inquiries, complaints, suggestions, compliments)
     const feedbackCount = await Feedback.countDocuments();
@@ -643,6 +726,345 @@ export const seedModerationData = async () => {
       }
 
       logger.info(`[ModerationSeed] Successfully seeded realistic reviews and recalculated ratings.`);
+    }
+
+    // 3. SEED COMMUNITY REPORTS (Enterprise Moderation Violation Reports)
+    const reportCount = await CommunityReport.countDocuments();
+    if (reportCount < 10) {
+      logger.info(`[ModerationSeed] Seeding realistic community violation reports (current count: ${reportCount})...`);
+
+      const adminUser = await User.findOne({ systemRole: 'ADMIN' });
+      const adminId = adminUser ? adminUser._id : null;
+
+      const customerCuong = await Customer.findOne({ contactEmail: 'customer.levanc@gmail.com' });
+      const cuongId = customerCuong ? customerCuong._id : null;
+
+      const customerTien = await Customer.findOne({ contactEmail: 'kieutien.petcare@gmail.com' });
+      const tienId = customerTien ? customerTien._id : null;
+
+      const customerNam = await Customer.findOne({ contactEmail: 'thainamnguyen444@gmail.com' });
+      const namId = customerNam ? customerNam._id : (customerCuong ? customerCuong._id : null);
+
+      // Fetch or ensure community posts to link
+      let posts = await CommunityPost.find({}).sort({ createdAt: -1 }).limit(10);
+      if (posts.length < 5) {
+        // Create realistic posts if needed
+        const samplePosts = [
+          {
+            title: 'Hành trình hồi phục diệu kỳ của bé Miu sau ca phẫu thuật gãy xương tại Dr. Pet Q1',
+            content: 'Bé Miu nhà mình bị ngã lầu gãy chân, may mắn được bác sĩ An tại Dr. Pet phẫu thuật cố định xương kịp thời...',
+            authorNameSnapshot: 'Nguyễn Thị Lan (Khách hàng thân thiết)',
+            status: 'APPROVED',
+            category: 'STORY',
+          },
+          {
+            title: 'Chia sẻ kinh nghiệm trị nấm da cho cún Poodle tại nhà thành công',
+            content: 'Nấm da ở chó Poodle rất dai dẳng, mình chia sẻ các bước tắm thảo mộc sát khuẩn kết hợp xịt dưỡng ẩm...',
+            authorNameSnapshot: 'Trần Văn Hoàng',
+            status: 'APPROVED',
+            category: 'EXPERIENCE',
+          },
+          {
+            title: 'Xin kinh nghiệm huấn luyện cún con đi vệ sinh đúng khay cát cho người mới',
+            content: 'Cún nhà mình 2 tháng tuổi rất hay đi lung tung trong nhà, các anh chị có mẹo nào huấn luyện nhanh chỉ em với...',
+            authorNameSnapshot: 'Lê Minh Khang',
+            status: 'APPROVED',
+            category: 'QNA',
+          },
+          {
+            title: 'Cần bán gấp đàn chó con giá rẻ không rõ nguồn gốc tại TP.HCM',
+            content: 'Cần thanh lý gấp đàn cún con 1 tháng tuổi không tiêm chủng, liên hệ Zalo 0988xxxx để ship COD toàn quốc...',
+            authorNameSnapshot: 'Tài khoản Vi Phạm (Spam)',
+            status: 'REJECTED',
+            category: 'QNA',
+          },
+          {
+            title: 'Cảnh báo: Cách dùng thuốc hạ sốt Paracetamol cho mèo khi bị ốm',
+            content: 'Khi mèo sốt cao các bạn cứ ra tiệm thuốc tây mua Panadol hạ sốt nghiền nửa viên cho uống là đỡ ngay...',
+            authorNameSnapshot: 'Người nuôi thiếu kiến thức y khoa',
+            status: 'REJECTED',
+            category: 'EXPERIENCE',
+          },
+        ];
+        for (const sp of samplePosts) {
+          const np = new CommunityPost(sp);
+          await np.save();
+        }
+        posts = await CommunityPost.find({}).sort({ createdAt: -1 }).limit(10);
+      }
+
+      const post0 = posts[0];
+      const post1 = posts[1] || post0;
+      const post2 = posts[2] || post0;
+      const post3 = posts[3] || post0;
+      const post4 = posts[4] || post0;
+      const post5 = posts[5] || post1;
+      const post6 = posts[6] || post2;
+      const post7 = posts[7] || post3;
+      const post8 = posts[8] || post4;
+
+      const cust0 = cuongId;
+      const cust1 = (await Customer.findOne({ contactEmail: 'senior_tester@gmail.com' }))?._id || cuongId;
+      const cust2 = tienId;
+      const cust3 = (await Customer.findOne({ contactEmail: 'user_1794992855@gmail.com' }))?._id || cuongId;
+      const cust4 = namId;
+      const cust5 = (await Customer.findOne({ contactEmail: 'blocked.user@gmail.com' }))?._id || cuongId;
+
+      const now = Date.now();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+
+      const realisticReports = [
+        {
+          reportCode: 'RPT-202611-0001',
+          postId: post3._id,
+          reporterCustomerId: cust0,
+          reason: 'SPAM',
+          description: 'Tài khoản này liên tục đăng bài spam bán đàn chó con nhập lậu không tiêm phòng, để lại số điện thoại Zalo mờ ám trên diễn đàn.',
+          postSnapshot: {
+            title: post3.title || 'Cần bán gấp đàn chó con giá rẻ không rõ nguồn gốc tại TP.HCM',
+            content: post3.content || 'Cần thanh lý gấp đàn cún con 1 tháng tuổi không tiêm chủng...',
+            imageUrls: [],
+            authorName: post3.authorNameSnapshot || 'Tài khoản Vi Phạm (Spam)',
+            createdAt: new Date(now - 4 * DAY_MS),
+          },
+          status: 'RESOLVED',
+          decision: 'HIDE_POST',
+          moderationNote: 'Đã xác minh bài đăng vi phạm chính sách cấm buôn bán thú cưng trái phép và spam thương mại. Đã ẩn bài viết và cảnh cáo tài khoản.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 2 * DAY_MS),
+          createdAt: new Date(now - 4 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0002',
+          postId: post8._id,
+          reporterCustomerId: cust2,
+          reason: 'MISINFORMATION',
+          description: 'Bài viết hướng dẫn người nuôi cho mèo uống Panadol/Paracetamol khi bị sốt. Paracetamol cực kỳ độc với mèo, gây suy gan cấp và tử vong chỉ sau vài giờ! Cần gỡ ngay để tránh làm chết thú cưng của người nuôi.',
+          postSnapshot: {
+            title: post8.title || 'Cảnh báo: Cách dùng thuốc hạ sốt Paracetamol cho mèo khi bị ốm',
+            content: post8.content || 'Khi mèo sốt cao các bạn cứ ra tiệm thuốc tây mua Panadol hạ sốt...',
+            imageUrls: [],
+            authorName: post8.authorNameSnapshot || 'Người nuôi thiếu kiến thức y khoa',
+            createdAt: new Date(now - 3 * DAY_MS),
+          },
+          status: 'RESOLVED',
+          decision: 'HIDE_POST',
+          moderationNote: 'Chính xác. Paracetamol là chất kịch độc gây tán huyết và hoại tử gan ở loài mèo. Đã ẩn bài viết lập tức để bảo vệ an toàn cho thú cưng.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 1 * DAY_MS),
+          createdAt: new Date(now - 3 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0003',
+          postId: post1._id,
+          reporterCustomerId: cust4,
+          reason: 'HARASSMENT',
+          description: 'Thành viên bình luận dùng lời lẽ thô tục, xúc phạm danh dự của người đăng bài và công kích cá nhân trong phần thảo luận.',
+          postSnapshot: {
+            title: post1.title,
+            content: post1.content,
+            imageUrls: [],
+            authorName: post1.authorNameSnapshot,
+            createdAt: new Date(now - 5 * DAY_MS),
+          },
+          status: 'UNDER_REVIEW',
+          decision: null,
+          moderationNote: 'Kiểm duyệt viên đang tiến hành rà soát lịch sử bình luận và xác thực hành vi công kích.',
+          moderatorId: adminId,
+          reviewedAt: null,
+          createdAt: new Date(now - 2 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0004',
+          postId: post2._id,
+          reporterCustomerId: cust0,
+          reason: 'INAPPROPRIATE',
+          description: 'Bài đăng đính kèm hình ảnh vết thương hở máu me không che mờ, gây sợ hãi và ám ảnh cho các thành viên khác khi xem bài.',
+          postSnapshot: {
+            title: post2.title,
+            content: post2.content,
+            imageUrls: [],
+            authorName: post2.authorNameSnapshot,
+            createdAt: new Date(now - 3 * DAY_MS),
+          },
+          status: 'RESOLVED',
+          decision: 'HIDE_POST',
+          moderationNote: 'Đã tạm ẩn hình ảnh chưa gắn nhãn cảnh báo nội dung nhạy cảm, yêu cầu chủ bài đăng làm mờ trước khi hiển thị lại.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 1 * DAY_MS),
+          createdAt: new Date(now - 2 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0005',
+          postId: post7._id,
+          reporterCustomerId: cust2,
+          reason: 'SPAM',
+          description: 'Tài khoản quảng cáo buôn bán thuốc thú y trôi nổi chưa được Bộ Nông nghiệp cấp phép, xúi giục tự tiêm kháng sinh tại nhà gây kháng thuốc.',
+          postSnapshot: {
+            title: post7.title,
+            content: post7.content,
+            imageUrls: [],
+            authorName: post7.authorNameSnapshot,
+            createdAt: new Date(now - 4 * DAY_MS),
+          },
+          status: 'RESOLVED',
+          decision: 'HIDE_POST',
+          moderationNote: 'Vi phạm quy định nghiêm cấm quảng cáo dược phẩm thú y kê đơn trên diễn đàn cộng đồng.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 1 * DAY_MS),
+          createdAt: new Date(now - 3 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0006',
+          postId: post5._id,
+          reporterCustomerId: cust0,
+          reason: 'MISINFORMATION',
+          description: 'Người báo cáo nghi ngờ bài viết hướng dẫn bôi lá trầu không pha loãng lên da cún có thể gây kích ứng da.',
+          postSnapshot: {
+            title: post5.title,
+            content: post5.content,
+            imageUrls: [],
+            authorName: post5.authorNameSnapshot,
+            createdAt: new Date(now - 6 * DAY_MS),
+          },
+          status: 'NO_VIOLATION',
+          decision: 'NO_VIOLATION',
+          moderationNote: 'Bác sĩ thú y chuyên khoa da liễu đã thẩm định: Bài viết khuyến cáo dùng nước lá trầu không pha loãng sát trùng nhẹ, có ghi rõ cần đi khám thú y nếu có mủ. Không có dấu hiệu vi phạm.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 1 * DAY_MS),
+          createdAt: new Date(now - 4 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0007',
+          postId: post6._id,
+          reporterCustomerId: cust4,
+          reason: 'OTHER',
+          description: 'Có tài khoản bình luận chèn link web cá độ cờ bạc trá hình dưới bài hỏi đáp chăm sóc cún.',
+          postSnapshot: {
+            title: post6.title,
+            content: post6.content,
+            imageUrls: [],
+            authorName: post6.authorNameSnapshot,
+            createdAt: new Date(now - 5 * DAY_MS),
+          },
+          status: 'PENDING',
+          decision: null,
+          moderationNote: null,
+          moderatorId: null,
+          reviewedAt: null,
+          createdAt: new Date(now - 1 * DAY_MS),
+        },
+        {
+          reportCode: 'RPT-202611-0008',
+          postId: post0._id,
+          reporterCustomerId: cust1,
+          reason: 'SPAM',
+          description: 'Tài khoản spam dịch vụ cắt tỉa lông chui tại nhà giá rẻ lặp đi lặp lại nhiều lần trong cùng bài viết.',
+          postSnapshot: {
+            title: post0.title,
+            content: post0.content,
+            imageUrls: [],
+            authorName: post0.authorNameSnapshot,
+            createdAt: new Date(now - 8 * DAY_MS),
+          },
+          status: 'PENDING',
+          decision: null,
+          moderationNote: null,
+          moderatorId: null,
+          reviewedAt: null,
+          createdAt: new Date(now - 18 * 60 * 60 * 1000),
+        },
+        {
+          reportCode: 'RPT-202611-0009',
+          postId: post4._id,
+          reporterCustomerId: cust2,
+          reason: 'MISINFORMATION',
+          description: 'Sử dụng hình ảnh ca phẫu thuật gãy xương của bé Miu tại Dr. Pet để kêu gọi chuyển tiền quyên góp vào tài khoản cá nhân mờ ám.',
+          postSnapshot: {
+            title: post4.title,
+            content: post4.content,
+            imageUrls: [],
+            authorName: post4.authorNameSnapshot,
+            createdAt: new Date(now - 8 * DAY_MS),
+          },
+          status: 'RESOLVED',
+          decision: 'HIDE_POST',
+          moderationNote: 'Xác nhận hành vi mạo danh hồ sơ lâm sàng của bệnh viện để trục lợi từ thiện. Đã ẩn bài viết và khóa tài khoản vi phạm.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 12 * 60 * 60 * 1000),
+          createdAt: new Date(now - 20 * 60 * 60 * 1000),
+        },
+        {
+          reportCode: 'RPT-202611-0010',
+          postId: post6._id,
+          reporterCustomerId: cust3,
+          reason: 'HARASSMENT',
+          description: 'Thành viên tranh cãi gay gắt và tung số điện thoại cá nhân cùng địa chỉ nhà của người khác lên diễn đàn đe dọa.',
+          postSnapshot: {
+            title: post6.title,
+            content: post6.content,
+            imageUrls: [],
+            authorName: post6.authorNameSnapshot,
+            createdAt: new Date(now - 6 * DAY_MS),
+          },
+          status: 'UNDER_REVIEW',
+          decision: null,
+          moderationNote: 'Nội dung làm lộ thông tin cá nhân riêng tư (doxxing). Đã liên hệ cảnh báo và yêu cầu gỡ số điện thoại.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 6 * 60 * 60 * 1000),
+          createdAt: new Date(now - 15 * 60 * 60 * 1000),
+        },
+        {
+          reportCode: 'RPT-202611-0011',
+          postId: post0._id,
+          reporterCustomerId: cust3,
+          reason: 'OTHER',
+          description: 'Báo cáo nhầm: Khách hàng ấn nhầm nút báo cáo khi đang đọc câu chuyện hồi phục của bé Miu.',
+          postSnapshot: {
+            title: post0.title,
+            content: post0.content,
+            imageUrls: [],
+            authorName: post0.authorNameSnapshot,
+            createdAt: new Date(now - 8 * DAY_MS),
+          },
+          status: 'NO_VIOLATION',
+          decision: 'NO_VIOLATION',
+          moderationNote: 'Chủ tài khoản gửi tin nhắn đính chính đã bấm nhầm nút báo cáo. Bài viết tích cực, tiếp tục hiển thị.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 4 * 60 * 60 * 1000),
+          createdAt: new Date(now - 8 * 60 * 60 * 1000),
+        },
+        {
+          reportCode: 'RPT-202611-0012',
+          postId: post1._id,
+          reporterCustomerId: cust1,
+          reason: 'MISINFORMATION',
+          description: 'Chia sẻ công thức tự chế thuốc bôi nấm từ lưu huỳnh thô không định lượng, có nguy cơ gây ngộ độc cho thú cưng khi liếm phải.',
+          postSnapshot: {
+            title: post1.title,
+            content: post1.content,
+            imageUrls: [],
+            authorName: post1.authorNameSnapshot,
+            createdAt: new Date(now - 7 * DAY_MS),
+          },
+          status: 'UNDER_REVIEW',
+          decision: null,
+          moderationNote: 'Đã gửi công thức cho Bác sĩ dược lý thú y kiểm định tính an toàn trước khi đưa ra quyết định cuối cùng.',
+          moderatorId: adminId,
+          reviewedAt: new Date(now - 2 * 60 * 60 * 1000),
+          createdAt: new Date(now - 5 * 60 * 60 * 1000),
+        },
+      ];
+
+      for (const rpt of realisticReports) {
+        const exists = await CommunityReport.findOne({ reportCode: rpt.reportCode });
+        if (!exists) {
+          const doc = new CommunityReport(rpt);
+          await doc.save();
+        }
+      }
+
+      logger.info(`[ModerationSeed] Successfully seeded 12 realistic community violation reports.`);
     }
   } catch (err) {
     logger.error('[ModerationSeed] Error seeding moderation data:', err);

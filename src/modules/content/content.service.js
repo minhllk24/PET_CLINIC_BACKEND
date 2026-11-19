@@ -1637,16 +1637,39 @@ export const contentService = {
     }
 
     const skip = (Math.max(1, Number(page)) - 1) * Math.max(1, Number(limit));
-    const [total, items] = await Promise.all([
+    const [total, rawItems] = await Promise.all([
       CommunityReport.countDocuments(query),
       CommunityReport.find(query)
-        .populate('postId', 'title status authorNameSnapshot')
-        .populate('reporterCustomerId', 'fullName phone email')
+        .populate('postId', 'title status authorNameSnapshot content')
+        .populate({
+          path: 'reporterCustomerId',
+          select: 'contactPhone contactEmail userId',
+          populate: { path: 'userId', select: 'fullName email phone' },
+        })
         .populate('moderatorId', 'fullName email')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit)),
     ]);
+
+    const items = rawItems.map((r) => {
+      const obj = r.toObject ? r.toObject() : { ...r };
+      obj.reporterName =
+        obj.reporterCustomerId?.userId?.fullName ||
+        obj.reporterCustomerId?.fullName ||
+        obj.reporterCustomerId?.contactPhone ||
+        obj.reporterCustomerId?.contactEmail ||
+        'Khách hàng';
+      obj.postTitle =
+        obj.postId?.title ||
+        obj.postSnapshot?.title ||
+        'Bài đăng cộng đồng';
+      obj.postAuthorName =
+        obj.postId?.authorNameSnapshot ||
+        obj.postSnapshot?.authorName ||
+        'Thành viên cộng đồng';
+      return obj;
+    });
 
     return {
       items,
@@ -1664,12 +1687,31 @@ export const contentService = {
     }
     const report = await CommunityReport.findById(id)
       .populate('postId')
-      .populate('reporterCustomerId', 'fullName phone email')
+      .populate({
+        path: 'reporterCustomerId',
+        select: 'contactPhone contactEmail userId',
+        populate: { path: 'userId', select: 'fullName email phone' },
+      })
       .populate('moderatorId', 'fullName email');
     if (!report) {
       throw new AppError(404, 'Không tìm thấy báo cáo vi phạm', 'NOT_FOUND');
     }
-    return report;
+    const obj = report.toObject ? report.toObject() : { ...report };
+    obj.reporterName =
+      obj.reporterCustomerId?.userId?.fullName ||
+      obj.reporterCustomerId?.fullName ||
+      obj.reporterCustomerId?.contactPhone ||
+      obj.reporterCustomerId?.contactEmail ||
+      'Khách hàng';
+    obj.postTitle =
+      obj.postId?.title ||
+      obj.postSnapshot?.title ||
+      'Bài đăng cộng đồng';
+    obj.postAuthorName =
+      obj.postId?.authorNameSnapshot ||
+      obj.postSnapshot?.authorName ||
+      'Thành viên cộng đồng';
+    return obj;
   },
 
   async resolveCommunityReport(id, { decision, moderationNote, simulateFailureInTransaction }, moderator) {

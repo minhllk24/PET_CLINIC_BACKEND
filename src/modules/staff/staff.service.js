@@ -7,6 +7,75 @@ import { ErrorCodes } from '../../shared/errorCodes';
 import { hashPassword } from '../../utils/passwordHelpers';
 import * as managerService from './manager.service';
 
+export const ROLE_STAFF_CODE_PREFIX = {
+  VETERINARIAN: 'BS',
+  NURSE: 'YT',
+  RECEPTIONIST: 'LT',
+  CARE_STAFF_GROOMER: 'CS',
+  CARE_STAFF: 'CS',
+  MANAGER: 'QL',
+  ADMIN: 'ADMIN',
+};
+
+/**
+ * Validate or auto-generate sequential staff code conforming to enterprise rules:
+ * - VETERINARIAN -> BS-xxx
+ * - NURSE -> YT-xxx
+ * - RECEPTIONIST -> LT-xxx
+ * - CARE_STAFF_GROOMER -> CS-xxx
+ * - MANAGER -> QL-xxx
+ */
+export const resolveAndValidateStaffCode = async (role, requestedCode = null) => {
+  const prefix = ROLE_STAFF_CODE_PREFIX[role] || 'NV';
+
+  if (requestedCode && typeof requestedCode === 'string' && requestedCode.trim()) {
+    const cleanCode = requestedCode.trim().toUpperCase();
+    const pattern = new RegExp(`^${prefix}-\\d{3,}$`, 'i');
+    if (!pattern.test(cleanCode)) {
+      throw new AppError(
+        400,
+        'ValidationError',
+        ErrorCodes.VALIDATION_ERROR,
+        `Mã nhân viên '${requestedCode}' không đúng quy tắc hệ thống. Vai trò ${role} bắt buộc có định dạng ${prefix}-XXX (ví dụ: ${prefix}-001)`
+      );
+    }
+    const existsUser = await User.findOne({ staffCode: cleanCode });
+    const existsProfile = await StaffProfile.findOne({ staffCode: cleanCode });
+    if (existsUser || existsProfile) {
+      throw new AppError(
+        409,
+        'Conflict',
+        ErrorCodes.CONFLICT,
+        `Mã nhân viên '${cleanCode}' đã tồn tại trong hệ thống. Vui lòng chọn mã khác.`
+      );
+    }
+    return cleanCode;
+  }
+
+  // Auto-generate next sequential staff code based on max number for prefix
+  const regex = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+  const [userCodes, profileCodes] = await Promise.all([
+    User.find({ staffCode: { $regex: `^${prefix}-`, $options: 'i' } }).select('staffCode').lean(),
+    StaffProfile.find({ staffCode: { $regex: `^${prefix}-`, $options: 'i' } }).select('staffCode').lean(),
+  ]);
+
+  let maxNum = 0;
+  for (const doc of [...(userCodes || []), ...(profileCodes || [])]) {
+    if (doc?.staffCode) {
+      const match = doc.staffCode.match(regex);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  const nextNum = maxNum + 1;
+  return `${prefix}-${String(nextNum).padStart(3, '0')}`;
+};
+
 /**
  * Format pure DTO for Staff Response (strictly adhering to OpenAPI StaffProfile schema, enriched for UI)
  */
@@ -27,9 +96,15 @@ export const formatStaff = (profile, user = null, branchMap = null) => {
     ? { id: homeBranchIdStr, code: branchMap.get(homeBranchIdStr).code || null, name: branchMap.get(homeBranchIdStr).name || null }
     : (homeBranchIdStr ? { id: homeBranchIdStr, code: null, name: null } : null);
 
+  let resolvedStaffCode = profile.staffCode || u?.staffCode || null;
+  if (!resolvedStaffCode && profile.staffSubRole) {
+    const prefix = ROLE_STAFF_CODE_PREFIX[profile.staffSubRole] || 'NV';
+    resolvedStaffCode = `${prefix}-${profile._id.toString().slice(-3).toUpperCase()}`;
+  }
+
   const dto = {
     id: profile._id.toString(),
-    staffCode: profile.staffCode || null,
+    staffCode: resolvedStaffCode,
     joinedAt: profile.createdAt ? profile.createdAt.toISOString() : null,
     systemRole: u?.systemRole || 'STAFF',
     staffSubRole: profile.staffSubRole,
@@ -420,6 +495,7 @@ export const createStaff = async (data, actor = null) => {
     generatedPassword += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   const passwordHash = await hashPassword(generatedPassword);
+  const staffCode = await resolveAndValidateStaffCode(staffSubRole, data.staffCode || data.code);
 
   const user = new User({
     username,
@@ -429,6 +505,7 @@ export const createStaff = async (data, actor = null) => {
     passwordHash,
     systemRole: 'STAFF',
     staffSubRole,
+    staffCode,
     assignedBranchIds: normalizedAuthorized.map((id) => new mongoose.Types.ObjectId(id)),
     accountStatus: 'ACTIVE',
   });
@@ -437,6 +514,7 @@ export const createStaff = async (data, actor = null) => {
 
   const profile = new StaffProfile({
     userId: user._id,
+    staffCode,
     staffSubRole,
     homeBranchId: homeBranchId ? new mongoose.Types.ObjectId(homeBranchId) : undefined,
     authorizedBranchIds: normalizedAuthorized.map((id) => new mongoose.Types.ObjectId(id)),
@@ -451,6 +529,50 @@ export const createStaff = async (data, actor = null) => {
     password: generatedPassword,
   };
   return formatted;
+};
+
+/**
+ * Delete Staff Profile + User Account Atomically
+ */
+export const deleteStaff = async (id, actor = null) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'ValidationError', ErrorCodes.VALIDATION_ERROR, 'Invalid staff ID');
+  }
+
+  let profile = await StaffProfile.findById(id);
+  let user = null;
+  if (!profile) {
+    profile = await StaffProfile.findOne({ userId: id });
+    user = await User.findById(id);
+  } else {
+    user = await User.findById(profile.userId);
+  }
+
+  if (!profile && !user) {
+    throw new AppError(404, 'NotFound', ErrorCodes.NOT_FOUND, 'Staff profile not found');
+  }
+
+  const profileId = profile?._id;
+  const userId = profile?.userId || user?._id;
+
+  if (profileId) {
+    await StaffProfile.findByIdAndDelete(profileId);
+  }
+  if (userId) {
+    await User.findByIdAndDelete(userId);
+  }
+
+  const Shift = mongoose.models.Shift;
+  if (Shift) {
+    const idFilters = [];
+    if (profileId) idFilters.push({ staffId: profileId });
+    if (userId) idFilters.push({ staffId: userId });
+    if (idFilters.length > 0) {
+      await Shift.deleteMany({ $or: idFilters });
+    }
+  }
+
+  return { success: true, message: 'Nhân viên đã được xóa thành công' };
 };
 
 /**

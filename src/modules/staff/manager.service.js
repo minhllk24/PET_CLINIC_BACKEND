@@ -5,6 +5,7 @@ import Branch from '../branch/models/Branch.js';
 import AppError from '../../utils/AppError.js';
 import { ErrorCodes } from '../../shared/errorCodes.js';
 import { hashPassword } from '../../utils/passwordHelpers.js';
+import { resolveAndValidateStaffCode } from './staff.service.js';
 
 /**
  * Generate cryptographically secure random password (CSPRNG)
@@ -241,7 +242,7 @@ export const createManager = async (data, actor = null) => {
   }
 
   const passwordHash = await hashPassword(plainPassword);
-  const staffCode = data.staffCode || `MGR-${crypto.randomInt(1000, 10000)}`;
+  const staffCode = await resolveAndValidateStaffCode('MANAGER', data.staffCode || data.code);
 
   const user = new User({
     fullName: fullName.trim(),
