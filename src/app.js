@@ -227,6 +227,20 @@ app.use(async (req, res, next) => {
     }
   }
 
+  // Pre-validation Guest Lookup Header Normalization (support both X-Guest-Lookup-Token and Authorization: Bearer)
+  if (!req.headers['x-guest-lookup-token'] && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    const bearer = req.headers.authorization.split(' ')[1];
+    if (bearer) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.decode(bearer);
+        if (decoded && (decoded.isGuest || decoded.guestContactId)) {
+          req.headers['x-guest-lookup-token'] = bearer;
+        }
+      } catch (_e) {}
+    }
+  }
+
   // Pre-validation Body Normalization for Auth & Registration
   if (req.body && typeof req.body === 'object') {
     if (req.body.phone && typeof req.body.phone === 'string') {
@@ -917,7 +931,11 @@ app.use(
           }
         },
         guestLookupToken: (req) => {
-          const token = req.headers['x-guest-lookup-token'];
+          let token = req.headers['x-guest-lookup-token'];
+          if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+            req.headers['x-guest-lookup-token'] = token;
+          }
           if (typeof token !== 'string' || !token.trim()) return false;
           try {
             req.guest = verifyGuestToken(token.trim());

@@ -800,29 +800,34 @@ export const formatOrder = (order) => {
     discount_amount: obj.pricing ? obj.pricing.voucherDiscount : undefined,
     created_at: obj.createdAt,
     order_items: formattedItems,
-    customerId: obj.customerId ? obj.customerId.toString() : null,
-    fulfillmentBranchId: obj.fulfillmentBranchId.toString(),
+    customerId: obj.customerId ? (obj.customerId._id || obj.customerId).toString() : null,
+    fulfillmentBranchId: obj.fulfillmentBranchId ? (obj.fulfillmentBranchId._id || obj.fulfillmentBranchId).toString() : null,
     status: obj.status,
     items: (obj.items || []).map((item) => ({
-      orderItemId: item.orderItemId.toString(),
-      productId: item.productId.toString(),
-      ...(item.variantId ? { variantId: item.variantId.toString() } : {}),
-      ...(item.skuSnapshot ? { skuSnapshot: item.skuSnapshot } : {}),
-      name: item.nameSnapshot,
+      orderItemId: (item.orderItemId || item._id || item.productId || 'item').toString(),
+      productId: (item.productId?._id || item.productId || item._id)?.toString() || null,
+      ...(item.variantId ? { variantId: (item.variantId._id || item.variantId).toString() } : {}),
+      ...(item.skuSnapshot || item.sku ? { skuSnapshot: item.skuSnapshot || item.sku } : {}),
+      name: item.nameSnapshot || item.name || null,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
       image: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
       photoUrl: item.image || item.photoUrl || '/assets/customer/images/product/detail-image.png',
-      lineSubtotal: item.lineSubtotal,
-      allocatedDiscount: item.allocatedDiscount,
-      lineNet: item.lineNet,
+      lineSubtotal: item.lineSubtotal !== undefined ? item.lineSubtotal : (item.unitPrice * item.quantity),
+      allocatedDiscount: item.allocatedDiscount || 0,
+      lineNet: item.lineNet !== undefined ? item.lineNet : (item.finalPrice || (item.unitPrice * item.quantity)),
       returnedQty: item.returnedQty || 0
     })),
-    pricing: {
-      merchandiseSubtotal: obj.pricing.merchandiseSubtotal,
-      voucherDiscount: obj.pricing.voucherDiscount,
-      shippingFee: obj.pricing.shippingFee,
-      totalAmount: obj.pricing.totalAmount
+    pricing: obj.pricing ? {
+      merchandiseSubtotal: obj.pricing.merchandiseSubtotal !== undefined ? obj.pricing.merchandiseSubtotal : (obj.pricing.subtotal || 0),
+      voucherDiscount: obj.pricing.voucherDiscount !== undefined ? obj.pricing.voucherDiscount : (obj.pricing.discount || 0),
+      shippingFee: obj.pricing.shippingFee !== undefined ? obj.pricing.shippingFee : 0,
+      totalAmount: obj.pricing.totalAmount !== undefined ? obj.pricing.totalAmount : (obj.pricing.finalTotal || obj.totalAmount || 0)
+    } : {
+      merchandiseSubtotal: obj.totalAmount || 0,
+      voucherDiscount: 0,
+      shippingFee: 0,
+      totalAmount: obj.totalAmount || 0
     },
     voucherCode: obj.voucher && obj.voucher.code ? obj.voucher.code : null,
     statusHistory: (obj.statusHistory || []).map((h) => ({
