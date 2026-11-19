@@ -13,15 +13,19 @@ export const formatCustomerDetail = (cust) => {
   if (!cust) return null;
   const doc = cust.toObject ? cust.toObject() : cust;
   const u = (doc.userId && typeof doc.userId === 'object') ? doc.userId : null;
+  const rawUserId = u?._id || doc.userId;
 
   const res = {
     id: (doc._id || doc.id).toString(),
+    userId: rawUserId ? rawUserId.toString() : null,
+    customerId: (doc._id || doc.id).toString(),
     activationStatus: doc.activationStatus || 'NO_ACCOUNT',
   };
 
   const fullName = doc.fullName || u?.fullName || null;
   if (fullName !== null && fullName !== undefined) {
     res.fullName = fullName;
+    res.name = fullName;
   }
 
   res.email = doc.contactEmail || doc.email || u?.email || null;
@@ -387,7 +391,6 @@ export const unblockCustomer = async (id, data = {}, actor = {}) => {
   return formatCustomerDetail(customer);
 };
 
-
 export const lookupCustomerByPhone = async (phone, actor = null) => {
   if (!phone || typeof phone !== 'string' || phone.trim().length === 0) {
     throw new AppError(400, 'Bad Request', 'INVALID_PHONE', 'Phone parameter is required');
@@ -414,4 +417,57 @@ export const lookupCustomerByPhone = async (phone, actor = null) => {
   }
 
   return formatCustomerDetail(customer);
+};
+
+/**
+ * Background auto-sync of customer records with User documents (ORD-03 / Admin Customer consistency)
+ */
+export const syncCustomerProfiles = async () => {
+  try {
+    const customerUsers = await User.find({ systemRole: 'CUSTOMER' });
+    for (const u of customerUsers) {
+      let cust = await Customer.findOne({ userId: u._id });
+      if (!cust && u.phone) {
+        cust = await Customer.findOne({ contactPhone: u.phone });
+      }
+      if (!cust) {
+        cust = new Customer({
+          userId: u._id,
+          activationStatus: 'ACTIVATED',
+          accountStatus: u.accountStatus || 'ACTIVE',
+          contactPhone: u.phone || undefined,
+          contactEmail: u.email || undefined,
+          fullName: u.fullName || 'Khách hàng',
+        });
+        await cust.save();
+      } else {
+        let changed = false;
+        if (!cust.userId) {
+          cust.userId = u._id;
+          changed = true;
+        }
+        if (cust.activationStatus !== 'ACTIVATED') {
+          cust.activationStatus = 'ACTIVATED';
+          changed = true;
+        }
+        if (cust.fullName !== u.fullName && u.fullName) {
+          cust.fullName = u.fullName;
+          changed = true;
+        }
+        if (cust.contactPhone !== u.phone && u.phone) {
+          cust.contactPhone = u.phone;
+          changed = true;
+        }
+        if (cust.contactEmail !== u.email && u.email) {
+          cust.contactEmail = u.email;
+          changed = true;
+        }
+        if (changed) {
+          await cust.save();
+        }
+      }
+    }
+  } catch (err) {
+    // Non-blocking sync
+  }
 };

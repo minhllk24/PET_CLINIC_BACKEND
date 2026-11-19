@@ -983,7 +983,19 @@ export const listOrders = async (query = {}, actor) => {
 
   const filter = {};
   if (query.status) filter.status = query.status;
-  if (query.customerId) filter.customerId = query.customerId;
+  if (query.customerId) {
+    const rawCId = query.customerId.toString();
+    const candidateIds = [rawCId];
+    try {
+      const CustomerModel = require('../customer/models/Customer').default || require('../customer/models/Customer');
+      const cust = await CustomerModel.findOne({ $or: [{ _id: rawCId }, { userId: rawCId }] }).lean();
+      if (cust) {
+        if (cust._id) candidateIds.push(cust._id.toString());
+        if (cust.userId) candidateIds.push(cust.userId.toString());
+      }
+    } catch (_e) {}
+    filter.customerId = candidateIds.length === 1 ? candidateIds[0] : { $in: candidateIds };
+  }
   const requestedBranchId = query.branchId || query.fulfillmentBranchId;
   if (requestedBranchId) {
     filter.fulfillmentBranchId = requestedBranchId;

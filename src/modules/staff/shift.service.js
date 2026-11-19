@@ -461,67 +461,55 @@ export const ensureFutureShifts = async () => {
       for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
         const dateStr = d.toISOString().slice(0, 10);
 
-        if (effectiveVets[0]) {
-          newShifts.push({
-            staffId: effectiveVets[0]._id,
-            branchId: bId,
-            startAt: new Date(`${dateStr}T08:00:00.000Z`),
-            endAt: new Date(`${dateStr}T14:00:00.000Z`),
-            status: 'ACTIVE',
-            version: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
-        }
-        if (effectiveVets[1] || effectiveVets[0]) {
-          newShifts.push({
-            staffId: (effectiveVets[1] || effectiveVets[0])._id,
-            branchId: bId,
-            startAt: new Date(`${dateStr}T12:00:00.000Z`),
-            endAt: new Date(`${dateStr}T18:00:00.000Z`),
-            status: 'ACTIVE',
-            version: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
+        // Ensure 3 concurrent stations for VETERINARIAN across entire operating hours (08:00 - 21:00)
+        for (let idx = 0; idx < Math.min(3, effectiveVets.length); idx++) {
+          const vStaff = effectiveVets[idx];
+          if (vStaff) {
+            newShifts.push({
+              staffId: vStaff._id,
+              branchId: bId,
+              startAt: new Date(`${dateStr}T08:00:00.000Z`),
+              endAt: new Date(`${dateStr}T21:00:00.000Z`),
+              status: 'ACTIVE',
+              version: 0,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         }
 
-        if (effectiveGroomers[0]) {
-          newShifts.push({
-            staffId: effectiveGroomers[0]._id,
-            branchId: bId,
-            startAt: new Date(`${dateStr}T08:00:00.000Z`),
-            endAt: new Date(`${dateStr}T14:00:00.000Z`),
-            status: 'ACTIVE',
-            version: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
-        }
-        if (effectiveGroomers[1] || effectiveGroomers[0]) {
-          newShifts.push({
-            staffId: (effectiveGroomers[1] || effectiveGroomers[0])._id,
-            branchId: bId,
-            startAt: new Date(`${dateStr}T12:00:00.000Z`),
-            endAt: new Date(`${dateStr}T18:00:00.000Z`),
-            status: 'ACTIVE',
-            version: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
+        // Ensure 3 concurrent stations for CARE_STAFF_GROOMER across entire operating hours
+        for (let idx = 0; idx < Math.min(3, effectiveGroomers.length); idx++) {
+          const gStaff = effectiveGroomers[idx];
+          if (gStaff) {
+            newShifts.push({
+              staffId: gStaff._id,
+              branchId: bId,
+              startAt: new Date(`${dateStr}T08:00:00.000Z`),
+              endAt: new Date(`${dateStr}T21:00:00.000Z`),
+              status: 'ACTIVE',
+              version: 0,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         }
 
-        if (effectiveNurses[0]) {
-          newShifts.push({
-            staffId: effectiveNurses[0]._id,
-            branchId: bId,
-            startAt: new Date(`${dateStr}T08:00:00.000Z`),
-            endAt: new Date(`${dateStr}T18:00:00.000Z`),
-            status: 'ACTIVE',
-            version: 0,
-            createdAt: now,
-            updatedAt: now,
-          });
+        // Ensure 2 concurrent stations for NURSE across operating hours
+        for (let idx = 0; idx < Math.min(2, effectiveNurses.length); idx++) {
+          const nStaff = effectiveNurses[idx];
+          if (nStaff) {
+            newShifts.push({
+              staffId: nStaff._id,
+              branchId: bId,
+              startAt: new Date(`${dateStr}T08:00:00.000Z`),
+              endAt: new Date(`${dateStr}T21:00:00.000Z`),
+              status: 'ACTIVE',
+              version: 0,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         }
       }
     }
@@ -613,18 +601,23 @@ export const ensureRealisticAppointments = async () => {
         }
 
         let seq = 1;
+        const allVets = allStaff.filter((s) => s.staffSubRole === 'VETERINARIAN');
+        const allGroomers = allStaff.filter((s) => s.staffSubRole === 'CARE_STAFF_GROOMER');
+
         for (const cfg of timeSlotsConfig) {
           const sObj = cfg.type === 'MED'
             ? (medServices[seq % medServices.length] || medServices[0])
             : (grmServices[seq % grmServices.length] || grmServices[0]);
-          const staffObj = cfg.type === 'MED' ? defaultVet : defaultGroomer;
-          const assignedStaffId = staffObj?._id || new mongoose.Types.ObjectId();
 
           const [hStr, mStr] = cfg.time.split(':');
           const startMs = new Date(`${dStr}T${hStr}:${mStr}:00.000Z`).getTime();
           const endMs = startMs + cfg.duration * 60000;
 
           for (let k = 1; k <= cfg.count; k++) {
+            const staffList = cfg.type === 'MED' ? (allVets.length > 0 ? allVets : [defaultVet]) : (allGroomers.length > 0 ? allGroomers : [defaultGroomer]);
+            const staffObj = staffList[(seq + k) % staffList.length] || defaultVet;
+            const assignedStaffId = staffObj?._id || new mongoose.Types.ObjectId();
+
             const aptCode = `APT-${bCode}-${dStr.replace(/-/g, '')}-${cfg.time.replace(':', '')}-${k}`;
             appointmentsToInsert.push({
               code: aptCode,

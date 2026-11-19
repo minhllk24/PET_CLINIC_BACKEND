@@ -5,12 +5,32 @@ import { logger } from './shared/logger';
 import { startCronJobs } from './worker/cronjobs';
 import { migrateMissingProductCodes } from './modules/catalog/catalog.service';
 import { ensureFutureShifts, ensureRealisticAppointments } from './modules/staff/shift.service';
+import { syncCustomerProfiles } from './modules/customer/customer.service';
 
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(config.mongoUri);
     logger.info('MongoDB Connected successfully');
+
+    // Align SlotReservation indexes (ensures partialFilterExpression on staff unique index)
+    try {
+      const coll = mongoose.connection.db.collection('slotreservations');
+      const indexes = await coll.indexes();
+      const staffIdx = indexes.find((i) => i.name === 'branchId_1_staffId_1_slotStartUnit_1_unitIndex_1');
+      if (staffIdx && !staffIdx.partialFilterExpression) {
+        await coll.dropIndex('branchId_1_staffId_1_slotStartUnit_1_unitIndex_1');
+        await coll.createIndex(
+          { branchId: 1, staffId: 1, slotStartUnit: 1, unitIndex: 1 },
+          { unique: true, partialFilterExpression: { kind: 'STAFF' }, background: true }
+        );
+      }
+    } catch (_idxErr) {}
+
+    // Sync Customer profiles with User documents (ORD-03 / Admin Customer consistency)
+    syncCustomerProfiles().catch((err) => {
+      logger.warn('Customer profile sync warning:', err.message);
+    });
 
     // Migrate missing product codes if any
     migrateMissingProductCodes().catch((err) => {

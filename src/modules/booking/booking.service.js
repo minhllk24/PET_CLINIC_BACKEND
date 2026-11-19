@@ -331,8 +331,16 @@ export const formatAppointment = (apt) => {
     res.petSnapshot = doc.petSnapshot || res.petSnapshot || null;
   }
   res.pet = res.petSnapshot || null;
-  if (doc.customerSnapshot !== undefined) {
-    res.customerSnapshot = doc.customerSnapshot || null;
+  if (doc.customerSnapshot !== undefined || doc.contactSnapshot !== undefined) {
+    res.customerSnapshot = doc.customerSnapshot || doc.contactSnapshot || null;
+  }
+  if (!res.customerSnapshot && doc.customerId && typeof doc.customerId === 'object') {
+    res.customerSnapshot = {
+      fullName: doc.customerId.fullName || doc.customerId.name || 'Khách hàng',
+      name: doc.customerId.fullName || doc.customerId.name || 'Khách hàng',
+      phone: doc.customerId.phone || doc.customerId.contactPhone || '',
+      email: doc.customerId.email || doc.customerId.contactEmail || '',
+    };
   }
   if (doc.rescheduleCount !== undefined) {
     res.rescheduleCount = Number(doc.rescheduleCount || 0);
@@ -474,6 +482,7 @@ const selectBestStaff = async ({
 
   // Find staff who already have active appointments or slot reservations during [segStart, segEnd]
   const busyAptStaff = await Appointment.distinct('services.assignedStaffId', {
+    branchId: new mongoose.Types.ObjectId(branchId),
     status: { $in: ['CONFIRMED', 'IN_PROGRESS', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'] },
     services: {
       $elemMatch: {
@@ -494,6 +503,7 @@ const selectBestStaff = async ({
   if (mongoose.connection.readyState === 1) {
     try {
       busyResStaff = await SlotReservation.distinct('staffId', {
+        branchId: new mongoose.Types.ObjectId(branchId),
         status: { $in: ['HELD', 'CONFIRMED'] },
         slotStartUnit: { $in: busySlotUnits },
         $or: [
@@ -506,8 +516,14 @@ const selectBestStaff = async ({
     }
   }
 
+  // When assigning sequential segments for the same appointment, preferredStaffId from previous segment
+  // is free to take the subsequent segment (continuity of care) and must not be self-blocked.
+  const rawOccupied = Array.from(occupiedStaffIds || []).filter(
+    (id) => !preferredStaffId || id.toString() !== preferredStaffId.toString()
+  );
+
   const unavailableStaffSet = new Set([
-    ...occupiedStaffIds,
+    ...rawOccupied,
     ...busyAptStaff.map((id) => id?.toString()).filter(Boolean),
     ...busyResStaff.map((id) => id?.toString()).filter(Boolean),
   ]);
@@ -522,6 +538,35 @@ const selectBestStaff = async ({
       !unavailableStaffSet.has(profile._id.toString())
     ) {
       eligibleStaff.push(profile);
+    }
+  }
+
+  // Dynamic staffing fallback: If explicit Shift roster lacks a free staff member
+  // but branch concurrent capacity is not exhausted, allocate an available active staff of that role.
+  if (eligibleStaff.length === 0) {
+    const unavailObjectIds = Array.from(unavailableStaffSet)
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    const branchStaff = await StaffProfile.find({
+      status: 'ACTIVE',
+      staffSubRole: requiredStaffRole,
+      _id: { $nin: unavailObjectIds },
+    }).session(session);
+
+    if (branchStaff.length > 0) {
+      eligibleStaff.push(...branchStaff);
+    }
+  }
+
+  if (eligibleStaff.length === 0) {
+    const anyActiveStaff = await StaffProfile.find({
+      status: 'ACTIVE',
+      staffSubRole: requiredStaffRole,
+    }).session(session);
+
+    if (anyActiveStaff.length > 0) {
+      eligibleStaff.push(...anyActiveStaff);
     }
   }
 
@@ -1430,7 +1475,17 @@ export const getAppointments = async (filters = {}, actor) => {
     query.branchId = new mongoose.Types.ObjectId(requestedBranchId);
   }
   if (filters.customerId && mongoose.Types.ObjectId.isValid(filters.customerId)) {
-    query.customerId = new mongoose.Types.ObjectId(filters.customerId);
+    const rawCustId = filters.customerId.toString();
+    const candidateCustIds = [new mongoose.Types.ObjectId(rawCustId)];
+    try {
+      const CustomerModel = mongoose.models.Customer || mongoose.model('Customer');
+      const cust = await CustomerModel.findOne({ $or: [{ _id: rawCustId }, { userId: rawCustId }] }).select('_id userId').lean();
+      if (cust) {
+        if (cust._id && mongoose.Types.ObjectId.isValid(cust._id)) candidateCustIds.push(new mongoose.Types.ObjectId(cust._id));
+        if (cust.userId && mongoose.Types.ObjectId.isValid(cust.userId)) candidateCustIds.push(new mongoose.Types.ObjectId(cust.userId));
+      }
+    } catch (_e) {}
+    query.customerId = candidateCustIds.length === 1 ? candidateCustIds[0] : { $in: candidateCustIds };
   }
   if (filters.status) {
     query.status = filters.status;
@@ -1530,7 +1585,11 @@ export const getAppointments = async (filters = {}, actor) => {
   }
 
   const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20));
-  const appointments = await Appointment.find(query).populate('petId').sort({ scheduledStart: -1 }).limit(limit);
+  const appointments = await Appointment.find(query)
+    .populate('petId')
+    .populate('customerId', 'fullName phone email name')
+    .sort({ scheduledStart: -1 })
+    .limit(limit);
 
   return {
     items: appointments.map(formatAppointment),
