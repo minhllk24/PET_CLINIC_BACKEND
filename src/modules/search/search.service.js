@@ -77,7 +77,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
         .lean()
         .exec(),
       Service.find(serviceQuery)
-        .select('name code category serviceType basePrice status')
+        .select('name code category serviceType basePrice status imageUrl images')
         .limit(parsedLimit)
         .lean()
         .exec(),
@@ -98,6 +98,7 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
       const key = `service:${kw.toLowerCase()}`;
       if (!seen.has(key)) {
         seen.add(key);
+        const { primaryImage } = serviceCatalogService.resolveServiceImages(s);
         suggestions.push({
           keyword: kw,
           type: 'service',
@@ -105,7 +106,10 @@ export const getSearchSuggestions = async ({ q, limit = 10, actor = null }) => {
           code: s.code,
           category: s.category || s.serviceType,
           serviceType: s.serviceType,
-          basePrice: s.basePrice
+          basePrice: s.basePrice,
+          image: primaryImage,
+          imageUrl: primaryImage,
+          image_url: primaryImage,
         });
       }
     }

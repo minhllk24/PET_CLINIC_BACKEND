@@ -7,6 +7,29 @@ import { getNextSequence } from '../../models/Counter';
 import AppError from '../../utils/AppError';
 import { buildVietnameseSearchRegex } from '../../shared/searchUtils';
 
+export const CURATED_SERVICE_IMAGES = {
+  MED01: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/81f921ad-a145-45fc-9660-852dbd1d643a.jpg',
+  MED02: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/279783ce-c7cc-4427-bb14-052bcd32bdcc.jpg',
+  MED03: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/4514f1c3-b438-4b81-9b65-027a737e6ca7.jpg',
+  MED04: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/cf038db8-74e3-4c4d-94ff-5261816be775.jpg',
+  MED05: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/d8878f7d-972e-4cf0-ad64-e77959c56a4f.jpg',
+  MED06: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/a25971e5-74f8-4d02-adb1-e456599e124b.jpg',
+  MED07: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326583/2544ec0c-f622-4613-8e16-359a7a4585d1.jpg',
+};
+
+export const resolveServiceImages = (service = {}) => {
+  const rawImages = Array.isArray(service.images) ? service.images.filter(Boolean) : [];
+  const primaryImage =
+    service.imageUrl ||
+    service.image_url ||
+    service.image ||
+    rawImages[0] ||
+    CURATED_SERVICE_IMAGES[service.code] ||
+    null;
+  const images = rawImages.length > 0 ? rawImages : (primaryImage ? [primaryImage] : []);
+  return { primaryImage, images };
+};
+
 export const GROOMING_WEIGHT_TIERS = [
   { tier: 'XS', label: 'XS (< 5 kg)', shortLabel: '< 5 kg', maxExclusive: 5 },
   { tier: 'S', label: 'S (5 – <10 kg)', shortLabel: '5 – <10 kg', minInclusive: 5, maxExclusive: 10 },
@@ -144,6 +167,7 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
 
   const hasReviews = Number(obj.ratingCount) > 0;
   const computedRating = hasReviews ? Number(obj.ratingAvg || 0) : 0;
+  const { primaryImage, images } = resolveServiceImages(obj);
 
   const res = {
     id: sId,
@@ -160,6 +184,13 @@ export const formatServiceResponse = (service, branchOpts = {}) => {
     booking_mode: obj.bookingMode,
     is_weight_surcharge_applied: hasWeightPricing,
     status,
+    image: primaryImage,
+    imageUrl: primaryImage,
+    image_url: primaryImage,
+    thumbnail: primaryImage,
+    thumbnailUrl: primaryImage,
+    thumbnail_url: primaryImage,
+    images,
     rating: computedRating,
     averageRating: computedRating,
     ratingAvg: computedRating,
@@ -646,10 +677,16 @@ export const createService = async (data, actor = null) => {
   }
 
   const { autoEnableActiveBranches = true, branchConfigs = [], ...servicePayload } = data;
+  const incomingImage = data.imageUrl ?? data.image_url ?? data.image;
+  const normalizedImages = Array.isArray(data.images)
+    ? data.images.filter(Boolean)
+    : (incomingImage ? [incomingImage] : (CURATED_SERVICE_IMAGES[code] ? [CURATED_SERVICE_IMAGES[code]] : []));
 
   const service = new Service({
     ...servicePayload,
     code,
+    imageUrl: incomingImage !== undefined ? incomingImage : (normalizedImages[0] || null),
+    images: normalizedImages,
     status: data.status || 'ACTIVE',
   });
 
@@ -826,6 +863,9 @@ export const updateService = async (id, data, actor = null) => {
     } catch (_e) {}
   }
   if (data.contactInfo !== undefined) service.contactInfo = data.contactInfo;
+  const updatedImage = data.imageUrl ?? data.image_url ?? data.image;
+  if (updatedImage !== undefined) service.imageUrl = updatedImage || null;
+  if (Array.isArray(data.images)) service.images = data.images.filter(Boolean);
   if (data.status !== undefined) service.status = data.status;
 
   await service.save();

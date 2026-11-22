@@ -5,6 +5,7 @@ import BranchServiceConfig from '../modules/branch/models/BranchServiceConfig';
 import ShiftTemplate from '../modules/branch/models/ShiftTemplate';
 import InventoryItem from '../modules/inventory/models/InventoryItem';
 import InventoryStock from '../modules/inventory/models/InventoryStock';
+import { CURATED_SERVICE_IMAGES } from '../modules/catalog/serviceCatalog.service';
 import config from '../shared/config';
 
 export const seedServiceCatalog = async () => {
@@ -504,9 +505,13 @@ export const seedServiceCatalog = async () => {
 
   const seededServices = [];
   for (const sData of servicesData) {
+    const curatedImg = CURATED_SERVICE_IMAGES[sData.code];
+    const payload = curatedImg
+      ? { ...sData, imageUrl: curatedImg, images: [curatedImg] }
+      : sData;
     const service = await Service.findOneAndUpdate(
       { code: sData.code },
-      { $set: sData },
+      { $set: payload },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     seededServices.push(service);

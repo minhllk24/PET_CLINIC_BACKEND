@@ -7,6 +7,7 @@ import Appointment from '../booking/models/Appointment';
 import BranchServiceConfig from '../branch/models/BranchServiceConfig';
 import InventoryStock from '../inventory/models/InventoryStock';
 import { getActiveBranchIds } from '../catalog/stockAvailability.service';
+import { resolveServiceImages } from '../catalog/serviceCatalog.service';
 
 export const getRecommendations = async ({
   petId = null,
@@ -287,6 +288,7 @@ export const getRecommendations = async ({
         reasons.push('Dịch vụ được đặt nhiều nhất bởi khách hàng');
       }
 
+      const { primaryImage, images } = resolveServiceImages(s);
       candidateItems.push({
         type: 'SERVICE',
         score,
@@ -302,6 +304,10 @@ export const getRecommendations = async ({
           durationMinutes: s.durationMinutes,
           bookingMode: s.bookingMode,
           ratingAvg: s.ratingAvg || 5,
+          image: primaryImage,
+          imageUrl: primaryImage,
+          image_url: primaryImage,
+          images,
         },
       });
     }

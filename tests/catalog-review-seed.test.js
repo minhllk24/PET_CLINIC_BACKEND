@@ -1,7 +1,27 @@
-import { formatServiceResponse } from '../src/modules/catalog/serviceCatalog.service';
+import { formatServiceResponse, CURATED_SERVICE_IMAGES } from '../src/modules/catalog/serviceCatalog.service';
 import { syncAllCatalogRatings } from '../src/seeds/catalogReviewSeed';
 
 describe('Catalog Review Seed & Service Rating Exposure', () => {
+  test('formatServiceResponse resolves curated medical service images across standard aliases', () => {
+    const formatted = formatServiceResponse({
+      _id: '6ad08e4517bf41f5954234d1',
+      code: 'MED05',
+      name: 'Thay băng / Chăm sóc sau điều trị',
+      serviceType: 'MEDICAL',
+      basePrice: 120000,
+      durationMinutes: 30,
+      requiredStaffRole: 'NURSE',
+      bookingMode: 'BOOKABLE',
+      status: 'ACTIVE',
+    });
+
+    expect(formatted.imageUrl).toBe(CURATED_SERVICE_IMAGES.MED05);
+    expect(formatted.image_url).toBe(CURATED_SERVICE_IMAGES.MED05);
+    expect(formatted.image).toBe(CURATED_SERVICE_IMAGES.MED05);
+    expect(formatted.thumbnail).toBe(CURATED_SERVICE_IMAGES.MED05);
+    expect(formatted.images).toEqual([CURATED_SERVICE_IMAGES.MED05]);
+  });
+
   test('formatServiceResponse exposes zeroed rating fields when ratingCount is 0', () => {
     const formatted = formatServiceResponse({
       _id: '6ad08e4517bf41f5954234c7',
