@@ -931,7 +931,7 @@ export const runProductionUatSeed = async () => {
         "images": [
             {
                 "id": "img-1",
-                "url": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp",
+                "url": "https://res.cloudinary.com/q0vsnikv/image/upload/v1795329982/main.jpg",
                 "isPrimary": true,
                 "sortOrder": 0
             },
@@ -954,7 +954,7 @@ export const runProductionUatSeed = async () => {
                 "label": "Hộp 1 viên Cho chó 4.5 - 10kg (Vàng - 250mg)",
                 "price": 450000,
                 "discountPercent": 0,
-                "image": "https://www.lojavetline.com.br/3969-large_default/bravecto-250mg-45-10kg.webp"
+                "image": "https://res.cloudinary.com/q0vsnikv/image/upload/v1795329982/main.jpg"
             },
             {
                 "label": "Hộp 1 viên Cho chó 10 - 20kg (Xanh lá - 500mg)",
