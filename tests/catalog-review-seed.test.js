@@ -33,6 +33,19 @@ describe('Catalog Review Seed & Service Rating Exposure', () => {
       status: 'ACTIVE',
     });
     expect(groomingFormatted.image_url).toBe(CURATED_SERVICE_IMAGES.GRM01);
+
+    const comboFormatted = formatServiceResponse({
+      _id: '6aefe9ddb25c942961da0872',
+      code: 'CMB01',
+      name: 'Combo Tắm 11 bước',
+      serviceType: 'GROOMING',
+      basePrice: 180000,
+      durationMinutes: 120,
+      requiredStaffRole: 'CARE_STAFF_GROOMER',
+      bookingMode: 'BOOKABLE',
+      status: 'ACTIVE',
+    });
+    expect(comboFormatted.image_url).toBe(CURATED_SERVICE_IMAGES.CMB01);
   });
 
   test('formatServiceResponse exposes zeroed rating fields when ratingCount is 0', () => {

@@ -24,9 +24,9 @@ export const CURATED_SERVICE_IMAGES = {
   GRM07: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/fa965c33-3a5c-4e1e-9525-7b6478e2bd8d.jpg',
   GRM08: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/6bec50d1-7093-40b5-8d15-df2627366eae.jpg',
   GRM09: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326857/73c031df-deda-4ef8-a8a5-65386cb23a4f.jpg',
-  CMB01: 'https://www.drpetshouse.lat/assets/customer/images/grooming/combo-bath-6a132a.png',
-  CMB02: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/f1e41380-b112-4e63-80a9-221e5123c2d3.jpg',
-  CMB03: 'https://www.drpetshouse.lat/assets/customer/images/grooming/combo-nail.png',
+  CMB01: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795329121/d2ef3978-4435-4ce5-ab74-5129d370395b.jpg',
+  CMB02: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795329120/3d7a7a12-8ebd-4d93-98c1-7a431e7f309e.jpg',
+  CMB03: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795329120/91ad94e4-da37-435e-a599-9dbb9b52856d.jpg',
 };
 
 export const resolveServiceImages = (service = {}) => {
