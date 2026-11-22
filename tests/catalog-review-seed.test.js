@@ -20,6 +20,19 @@ describe('Catalog Review Seed & Service Rating Exposure', () => {
     expect(formatted.image).toBe(CURATED_SERVICE_IMAGES.MED05);
     expect(formatted.thumbnail).toBe(CURATED_SERVICE_IMAGES.MED05);
     expect(formatted.images).toEqual([CURATED_SERVICE_IMAGES.MED05]);
+
+    const groomingFormatted = formatServiceResponse({
+      _id: '6ad08e4417bf41f5954234c6',
+      code: 'GRM01',
+      name: 'Tắm & Sấy khô',
+      serviceType: 'GROOMING',
+      basePrice: 70000,
+      durationMinutes: 60,
+      requiredStaffRole: 'CARE_STAFF_GROOMER',
+      bookingMode: 'BOOKABLE',
+      status: 'ACTIVE',
+    });
+    expect(groomingFormatted.image_url).toBe(CURATED_SERVICE_IMAGES.GRM01);
   });
 
   test('formatServiceResponse exposes zeroed rating fields when ratingCount is 0', () => {

@@ -15,6 +15,18 @@ export const CURATED_SERVICE_IMAGES = {
   MED05: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/d8878f7d-972e-4cf0-ad64-e77959c56a4f.jpg',
   MED06: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326584/a25971e5-74f8-4d02-adb1-e456599e124b.jpg',
   MED07: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326583/2544ec0c-f622-4613-8e16-359a7a4585d1.jpg',
+  GRM01: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326857/3fb9d777-cf98-473c-9817-4c5dd016cdbe.jpg',
+  GRM02: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/57dddf56-bf3d-48aa-afb2-529c5ff3bccb.jpg',
+  GRM03: 'https://www.drpetshouse.lat/assets/customer/images/grooming/service-teeth.png',
+  GRM04: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/bd589a9e-c509-45e5-89a7-4ee9e33b59b1.jpg',
+  GRM05: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326857/f880b7dd-27b0-4a8e-8c9f-c7ab7a6b75d5.jpg',
+  GRM06: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/cc9d3cd6-4737-43c6-9277-22e883e0c9d1.jpg',
+  GRM07: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/fa965c33-3a5c-4e1e-9525-7b6478e2bd8d.jpg',
+  GRM08: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/6bec50d1-7093-40b5-8d15-df2627366eae.jpg',
+  GRM09: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326857/73c031df-deda-4ef8-a8a5-65386cb23a4f.jpg',
+  CMB01: 'https://www.drpetshouse.lat/assets/customer/images/grooming/combo-bath-6a132a.png',
+  CMB02: 'https://res.cloudinary.com/q0vsnikv/image/upload/v1795326858/f1e41380-b112-4e63-80a9-221e5123c2d3.jpg',
+  CMB03: 'https://www.drpetshouse.lat/assets/customer/images/grooming/combo-nail.png',
 };
 
 export const resolveServiceImages = (service = {}) => {
